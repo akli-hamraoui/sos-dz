@@ -8,10 +8,13 @@ Full specification: see [`rassemble-spec.md`](./rassemble-spec.md) if present in
 
 ## Status
 
-This repository is being built wave by wave:
+Built wave by wave (see `docs/audits/` for the honest per-wave verification write-up):
 
-- **Wave 1 (this version): core.** Needs, Pickups, Campaigns, Wilayas, admin dashboard (Django Admin), token-based citizen "authentication", PII anonymization, live-location map with access control, Algeria IP write restriction, rate limiting. Frontend is plain HTML/Alpine.js — no build step yet.
-- Wave 2+: media capture, automatic moderation, duplicate detection, collection points, comments, PWA/offline, i18n (French/Arabic/English). See `CHANGELOG`-style notes in later commits.
+- **Wave 1: core.** Needs, Pickups, Campaigns, Wilayas, admin dashboard (Django Admin), token-based citizen "authentication", PII anonymization, live-location map with access control, Algeria IP write restriction, rate limiting.
+- **Wave 2: media.** Photo/voice/video capture (camera/mic only, no gallery import), client-side compression, Cloudflare R2 storage.
+- **Wave 3: security.** Real self-hosted NSFWJS moderation (`moderation-sidecar/`), duplicate-need detection, GPS bounding-box + IP geofencing.
+- **Wave 4: community.** Collection points, comments (one level of replies).
+- **Wave 5: PWA + i18n.** The frontend is now a React + Vite PWA (`frontend/`) — installable, offline-first (IndexedDB queue for Need/Pickup/ProgressUpdate creation while offline, auto-synced on reconnect), French/Arabic/English with full RTL support for Arabic. The plain HTML/Alpine.js frontend from Waves 1-4 has been fully replaced.
 
 ## Local development setup (under 5 minutes)
 
@@ -78,12 +81,36 @@ cd backend
 python manage.py test core
 ```
 
+## Frontend (React + Vite PWA)
+
+Requires Node.js 20+. The dev server proxies `/api` and `/media` to the Django backend, so run both at once.
+
+```bash
+# Terminal 1: backend (see above)
+cd backend && python manage.py runserver
+
+# Terminal 2: frontend
+cd frontend
+npm install
+npm run dev
+```
+
+Open http://127.0.0.1:5173/. To try the installable/offline PWA build specifically (the dev server doesn't run a real service worker):
+
+```bash
+cd frontend
+npm run build
+npm run preview -- --port 4173   # also proxies /api and /media
+```
+
+Language switches between French (default), Arabic (RTL), and English from the nav bar; the choice persists in `localStorage`.
+
 ## Architecture
 
 Single monolithic Django project (Django + Django REST Framework), not microservices — simpler to build, deploy, and debug for a small/solo project. The one deliberate exception (Wave 3) is NSFWJS, which runs as a small local sidecar process because it's a Node/TensorFlow.js model that can't run inside the Python process — that's an implementation detail, not a services split.
 
 - **Backend**: `backend/` — Django + DRF, SQLite locally / MySQL or PostgreSQL in production (database-agnostic code, no SQLite-specific features relied upon).
-- **Frontend**: served by Django in Wave 1-4 (plain HTML/Alpine.js, `backend/templates/index.html` + `backend/static/`); migrates to a separate React/Vite PWA in Wave 5 (`frontend/`).
+- **Frontend**: `frontend/` — React + Vite PWA, a separate deployable static build (talks to the backend only over the REST API). `backend/templates/` and `backend/static/js/app.js` still hold the original Wave 1-4 plain HTML/Alpine.js frontend for reference/history; it's no longer the maintained frontend as of Wave 5.
 - **Media storage**: Cloudflare R2 (S3-compatible) in production; falls back to local filesystem storage automatically when R2 credentials are not set in `.env` (convenient for local dev).
 
 ## Deployment

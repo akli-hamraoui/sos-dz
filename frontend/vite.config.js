@@ -1,0 +1,60 @@
+import react from '@vitejs/plugin-react'
+import { defineConfig } from 'vite'
+import { VitePWA } from 'vite-plugin-pwa'
+
+// https://vite.dev/config/
+export default defineConfig({
+  plugins: [
+    react(),
+    VitePWA({
+      registerType: 'autoUpdate',
+      includeAssets: ['favicon.svg'],
+      manifest: {
+        name: 'Rassemble',
+        short_name: 'Rassemble',
+        description: 'Disaster relief coordination for Algeria',
+        theme_color: '#111111',
+        background_color: '#fafafa',
+        display: 'standalone',
+        start_url: '/',
+        icons: [
+          { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },
+          { src: 'icon-512.png', sizes: '512x512', type: 'image/png' },
+        ],
+      },
+      workbox: {
+        // Cache already-loaded data/app-shell for offline browsing; API
+        // writes (POST/PATCH/DELETE) are handled separately by our own
+        // IndexedDB queue (src/offlineQueue.js), not by the service worker.
+        runtimeCaching: [
+          {
+            urlPattern: ({ url, request }) => url.pathname.startsWith('/api/') && request.method === 'GET',
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'api-get-cache',
+              networkTimeoutSeconds: 4,
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
+            urlPattern: ({ url }) => url.pathname.startsWith('/media/'),
+            handler: 'CacheFirst',
+            options: { cacheName: 'media-cache', expiration: { maxEntries: 200 } },
+          },
+        ],
+      },
+    }),
+  ],
+  server: {
+    proxy: {
+      '/api': 'http://127.0.0.1:8000',
+      '/media': 'http://127.0.0.1:8000',
+    },
+  },
+  preview: {
+    proxy: {
+      '/api': 'http://127.0.0.1:8000',
+      '/media': 'http://127.0.0.1:8000',
+    },
+  },
+})

@@ -179,6 +179,13 @@ If IONOS server setup is blocking progress, either Railway or Render can host th
 
 This is meant to be temporary, to keep momentum — Option A (IONOS VPS) remains the intended target.
 
-## Frontend (Wave 5 onward)
+## Frontend (Wave 5+): React/Vite PWA via IONOS Deploy Now
 
-Once the frontend becomes a separate React/Vite build, it deploys via **IONOS Deploy Now** directly from the GitHub repo (connect the repo, it auto-detects the SPA, redeploys on every push to the configured branch). Until then (Waves 1-4), the plain HTML/Alpine.js frontend is served by Django/Nginx alongside the backend, no separate deploy step needed.
+The frontend is now `frontend/`, a React + Vite PWA, deployed separately from the Django backend:
+
+1. In the IONOS control panel, connect **Deploy Now** to this GitHub repo, with the app root set to `frontend/` and build command `npm run build` (output directory `frontend/dist/`). It auto-detects the Vite/SPA setup and redeploys on every push to the configured branch.
+2. Set an environment/build variable so the built app's `/api` and `/media` requests reach the Django backend's real domain instead of the dev-only Vite proxy -- either configure IONOS Deploy Now's URL rewrite/reverse-proxy rules for `/api/*` and `/media/*` to point at the IONOS VPS backend, or point the frontend at an absolute backend URL (e.g. via a `VITE_API_BASE` build-time env var) if Deploy Now doesn't support path-based proxying to an external origin -- confirm whichever path is used against the actual backend domain once both are live.
+3. **PWA/service worker note**: the manifest's `start_url` and the service worker are same-origin by design (`vite-plugin-pwa`'s default `generateSW` mode) -- serve the frontend and its `/api` calls from the same public origin (via the reverse-proxy rules above) so the installed PWA and its offline cache work correctly; a cross-origin API without the rewrite will still function for online use but the offline-queue's "already cached" GET responses would be scoped to the frontend's own origin only.
+4. Update `CORS_ALLOWED_ORIGINS` in the backend's `.env` to include the real frontend domain once it's live (see `.env.example`).
+
+The old Wave 1-4 plain HTML/Alpine.js frontend (`backend/templates/`, `backend/static/js/app.js`) no longer needs a deploy step of its own -- it's kept for reference/history but is not what ships from Wave 5 onward.
