@@ -1,0 +1,268 @@
+{% load static %}
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rassemble</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+</head>
+<body x-data="app()" x-init="init()">
+
+  <div class="readonly-banner" x-show="config.mode === 'read_only'">
+    ⚠️ The app is currently in read-only mode. Existing data remains viewable.
+  </div>
+
+  <header class="topbar">
+    <a href="#/" class="brand">Rassemble</a>
+    <nav>
+      <a href="#/needs">Needs</a>
+      <a href="#/create">I need help</a>
+      <a href="#/support">Forgot my details?</a>
+    </nav>
+  </header>
+
+  <main>
+    <!-- HOME -->
+    <section x-show="route === 'home'" class="home">
+      <h1>Rassemble</h1>
+      <p>Disaster relief coordination for Algeria.</p>
+      <div class="home-actions">
+        <a href="#/create" class="btn btn-primary btn-huge">I need help</a>
+        <a href="#/needs" class="btn btn-huge">I want to help</a>
+      </div>
+    </section>
+
+    <!-- CREATE NEED -->
+    <section x-show="route === 'create'" class="form-page">
+      <h2>Create a need</h2>
+      <form @submit.prevent="submitNeed()">
+        <label>Campaign
+          <select x-model="createForm.campaign" required>
+            <option value="">-- select --</option>
+            <template x-for="c in campaigns.filter(c => c.status === 'active')" :key="c.id">
+              <option :value="c.id" x-text="c.campaign_name"></option>
+            </template>
+          </select>
+        </label>
+        <label>Wilaya *
+          <select x-model="createForm.wilaya" required>
+            <option value="">-- select --</option>
+            <template x-for="w in wilayasForCampaign(createForm.campaign)" :key="w.id">
+              <option :value="w.id" x-text="w.name"></option>
+            </template>
+          </select>
+        </label>
+        <label>Commune
+          <input type="text" x-model="createForm.commune">
+        </label>
+        <label>Type of need (title) *
+          <input type="text" x-model="createForm.title" placeholder="e.g. blankets, water, food, medicine" required>
+        </label>
+        <label>Urgency *
+          <select x-model="createForm.urgency" required>
+            <option value="low">Low</option>
+            <option value="medium" selected>Medium</option>
+            <option value="critical">Critical</option>
+          </select>
+        </label>
+        <label>Estimated quantity
+          <input type="text" x-model="createForm.estimated_quantity" placeholder="e.g. about 50 families">
+        </label>
+        <label>Description (text) *
+          <textarea x-model="createForm.location_description" required placeholder="Describe the need and precise location"></textarea>
+        </label>
+        <button type="button" class="btn" @click="useMyLocation('createForm')">📍 Use my current GPS position</button>
+        <p x-show="createForm.latitude" x-text="'GPS captured: ' + createForm.latitude + ', ' + createForm.longitude"></p>
+
+        <fieldset>
+          <legend>Your contact details (needed to edit/cancel later)</legend>
+          <label>Last name * <input type="text" x-model="createForm.contact_last_name" required></label>
+          <label>First name * <input type="text" x-model="createForm.contact_first_name" required></label>
+          <label>Phone * <input type="tel" x-model="createForm.contact_phone" required></label>
+          <label>Date of birth * <input type="date" x-model="createForm.contact_date_of_birth" required></label>
+          <label>Email (optional) <input type="email" x-model="createForm.contact_email"></label>
+          <label>Organization or person name (optional) <input type="text" x-model="createForm.organization_or_person_name"></label>
+        </fieldset>
+
+        <p class="error" x-show="createError" x-text="createError"></p>
+        <button type="submit" class="btn btn-primary">Publish this need</button>
+      </form>
+    </section>
+
+    <!-- NEEDS LIST / MAP -->
+    <section x-show="route === 'needs'" class="needs-page">
+      <div class="toolbar">
+        <label>Filter by wilaya
+          <select x-model="filterWilaya" @change="loadNeeds()">
+            <option value="">All</option>
+            <template x-for="w in wilayas" :key="w.id">
+              <option :value="w.id" x-text="w.name"></option>
+            </template>
+          </select>
+        </label>
+        <div class="view-toggle">
+          <button :class="{active: viewMode === 'list'}" @click="setViewMode('list')">List</button>
+          <button :class="{active: viewMode === 'map'}" @click="setViewMode('map')">Map</button>
+        </div>
+      </div>
+
+      <div x-show="viewMode === 'list'" class="needs-list">
+        <p x-show="needs.length === 0">No active needs right now.</p>
+        <template x-for="n in needs" :key="n.id">
+          <a class="need-card" :href="'#/needs/' + n.id">
+            <span class="badge" :class="'urgency-' + n.urgency" x-text="n.urgency"></span>
+            <h3 x-text="n.title"></h3>
+            <p x-text="n.wilaya_name + (n.commune ? ' — ' + n.commune : '')"></p>
+            <p class="status" x-text="statusLabel(n.overall_status) + ' — ' + n.pickups.length + ' pickup(s)'"></p>
+          </a>
+        </template>
+      </div>
+
+      <div x-show="viewMode === 'map'" class="map-wrap">
+        <div id="main-map" style="height: 500px;"></div>
+        <p class="legend">🔴 critical &nbsp; 🟠 medium &nbsp; 🟡 low &nbsp; — pins without exact GPS sit at the wilaya's approximate centroid ("no exact GPS position")</p>
+      </div>
+    </section>
+
+    <!-- NEED DETAIL -->
+    <section x-show="route === 'detail' && currentNeed" class="detail-page">
+      <template x-if="currentNeed">
+        <div>
+          <h2 x-text="currentNeed.title"></h2>
+          <span class="badge" :class="'urgency-' + currentNeed.urgency" x-text="currentNeed.urgency"></span>
+          <span class="status" x-text="statusLabel(currentNeed.overall_status)"></span>
+          <p x-text="currentNeed.wilaya_name + (currentNeed.commune ? ' — ' + currentNeed.commune : '')"></p>
+          <p x-text="currentNeed.location_description"></p>
+          <p x-show="currentNeed.position_accuracy !== 'exact'" class="hint">no exact GPS position</p>
+          <p>Contact: <span x-text="currentNeed.contact_last_name + ' ' + currentNeed.contact_first_name"></span> —
+            <span x-text="maskPhone(currentNeed.contact_phone, showPhone)"></span>
+            <button class="link" @click="showPhone = !showPhone" x-text="showPhone ? 'hide number' : 'show full number'"></button>
+          </p>
+          <p x-show="currentNeed.edit_history && currentNeed.edit_history.length">
+            edited on <span x-text="formatDate(currentNeed.edit_history[currentNeed.edit_history.length-1])"></span>
+          </p>
+
+          <div class="owner-actions" x-show="isNeedOwner(currentNeed.id)">
+            <h4>Manage my need</h4>
+            <button class="btn" @click="startEditNeed()">Edit</button>
+            <button class="btn" @click="cancelNeed()">Cancel this need</button>
+            <button class="btn" @click="promptUpdateGPS()">Add/update precise GPS</button>
+            <button class="btn" @click="shareTracking()">Share live tracking</button>
+            <p x-show="shareLink" class="share-link">Share link: <code x-text="shareLink"></code>
+              <button class="link" @click="regenerateShareToken()">regenerate (revoke old link)</button>
+            </p>
+            <button class="btn btn-danger" @click="anonymizeNeed()">Anonymize my information</button>
+          </div>
+
+          <div x-show="!isNeedOwner(currentNeed.id)">
+            <a class="link" href="#/recover" @click="recoverContext = {type: 'need', id: currentNeed.id}">Is this your need? Recover access</a>
+          </div>
+
+          <h3>Live tracking map</h3>
+          <div x-show="canSeeLiveMap" >
+            <div id="need-detail-map" style="height:350px;"></div>
+          </div>
+          <p x-show="!canSeeLiveMap" class="hint">Live position map is only visible to this need's creator, admin, or someone with a share link.</p>
+
+          <h3>Pickups <span x-text="'(' + currentNeed.pickups.length + ')'"></span></h3>
+          <button class="btn btn-primary" @click="route = 'take-charge'">Also take charge</button>
+
+          <template x-for="p in currentNeed.pickups" :key="p.id">
+            <div class="pickup-card">
+              <p><strong x-text="p.responder_last_name + ' ' + p.responder_first_name"></strong>
+                 <span class="status" x-text="p.status"></span>
+                 <span x-show="p.needs_verification" class="badge badge-warn">to verify</span></p>
+              <p x-text="'Bringing: ' + p.content_brought"></p>
+              <div class="timeline">
+                <template x-for="u in p.progress_updates" :key="u.id">
+                  <div class="timeline-item">
+                    <span class="dot"></span>
+                    <span x-text="formatDate(u.timestamp) + ' — ' + u.free_text"></span>
+                  </div>
+                </template>
+              </div>
+              <div x-show="isPickupOwner(p.id)" class="pickup-owner-actions">
+                <input type="text" x-model="progressText[p.id]" placeholder="Add a progress update (e.g. just passed Boumerdès)">
+                <button class="btn" @click="addProgressUpdate(p.id)">Post update</button>
+                <label><input type="checkbox" :checked="p.location_sharing_active" @change="toggleLocationSharing(p, $event.target.checked)"> Share my live location</label>
+                <button class="btn" x-show="p.location_sharing_active" @click="pingLocation(p.id)">📍 Update my position now</button>
+                <button class="btn btn-primary" x-show="p.status === 'en_route'" @click="markDelivered(p.id)">Mark as delivered</button>
+                <button class="btn btn-danger" @click="anonymizePickup(p.id)">Anonymize my information</button>
+              </div>
+              <div x-show="!isPickupOwner(p.id)">
+                <a class="link" href="#/recover" @click="recoverContext = {type: 'pickup', id: p.id}">Is this your pickup? Recover access</a>
+              </div>
+            </div>
+          </template>
+        </div>
+      </template>
+    </section>
+
+    <!-- TAKE CHARGE (create pickup) -->
+    <section x-show="route === 'take-charge'" class="form-page">
+      <h2>Take charge of: <span x-text="currentNeed && currentNeed.title"></span></h2>
+      <form @submit.prevent="submitPickup()">
+        <label>Type *
+          <select x-model="pickupForm.responder_type" required>
+            <option value="individual_volunteer">Individual volunteer</option>
+            <option value="organization">Organization</option>
+            <option value="collective_truck">Collective truck</option>
+          </select>
+        </label>
+        <label>What are you bringing? *
+          <input type="text" x-model="pickupForm.content_brought" required placeholder="e.g. 30 blankets and 50L of water">
+        </label>
+        <fieldset>
+          <legend>Your contact details</legend>
+          <label>Last name * <input type="text" x-model="pickupForm.responder_last_name" required></label>
+          <label>First name * <input type="text" x-model="pickupForm.responder_first_name" required></label>
+          <label>Phone * <input type="tel" x-model="pickupForm.responder_phone" required></label>
+          <label>Date of birth * <input type="date" x-model="pickupForm.responder_date_of_birth" required></label>
+          <label>Email (optional) <input type="email" x-model="pickupForm.responder_email"></label>
+          <label>Organization/person name <input type="text" x-model="pickupForm.organization_or_person_name"></label>
+        </fieldset>
+        <p class="error" x-show="pickupError" x-text="pickupError"></p>
+        <button type="submit" class="btn btn-primary">Confirm — I'm taking charge</button>
+      </form>
+    </section>
+
+    <!-- RECOVER ACCESS -->
+    <section x-show="route === 'recover'" class="form-page">
+      <h2>Recover access to my listing</h2>
+      <p>Re-enter the exact identity used when you created it.</p>
+      <form @submit.prevent="submitRecovery()">
+        <label>Last name * <input type="text" x-model="recoverForm.last_name" required></label>
+        <label>First name * <input type="text" x-model="recoverForm.first_name" required></label>
+        <label>Phone * <input type="tel" x-model="recoverForm.phone" required></label>
+        <label>Date of birth * <input type="date" x-model="recoverForm.date_of_birth" required></label>
+        <p class="error" x-show="recoverError" x-text="recoverError"></p>
+        <button type="submit" class="btn btn-primary">Recover access</button>
+      </form>
+      <a class="link" href="#/support">Still not working? Contact admin support</a>
+    </section>
+
+    <!-- SUPPORT -->
+    <section x-show="route === 'support'" class="form-page">
+      <h2>Forgot my details / contact admin</h2>
+      <p>Two ways to reach us: fill this form, or contact the admin directly by phone/WhatsApp (see footer).</p>
+      <form @submit.prevent="submitSupport()">
+        <label>Your phone * <input type="tel" x-model="supportForm.requester_phone" required></label>
+        <label>Related listing (optional) <input type="text" x-model="supportForm.related_listing_description"></label>
+        <label>Message * <textarea x-model="supportForm.message" required></textarea></label>
+        <button type="submit" class="btn btn-primary">Send</button>
+      </form>
+      <p x-show="supportSent">Thanks — the admin will follow up by phone.</p>
+    </section>
+  </main>
+
+  <footer>
+    <p>Admin contact: <a href="tel:+213000000000">+213 0 00 00 00 00</a> (phone/WhatsApp)</p>
+  </footer>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script defer src="https://unpkg.com/alpinejs@3.14.1/dist/cdn.min.js"></script>
+  <script src="{% static 'js/app.js' %}"></script>
+</body>
+</html>
