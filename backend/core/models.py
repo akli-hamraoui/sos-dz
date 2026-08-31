@@ -478,6 +478,77 @@ class SupportRequest(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
 
+# ---------------------------------------------------------------------------
+# Community: collection points and comments (Wave 4)
+# ---------------------------------------------------------------------------
+
+class CollectionPoint(models.Model):
+    STATUS_ACTIVE, STATUS_CLOSED = "active", "closed"
+    STATUS_CHOICES = [(STATUS_ACTIVE, "Active"), (STATUS_CLOSED, "Closed")]
+
+    wilaya = models.ForeignKey(Wilaya, on_delete=models.PROTECT, related_name="collection_points")
+    point_name = models.CharField(max_length=200)
+    contact_name = models.CharField(max_length=200)
+    contact_phone = models.CharField(max_length=30)
+    organization = models.CharField(max_length=200, blank=True)
+    location_description = models.TextField()
+    latitude = models.FloatField(null=True, blank=True)
+    longitude = models.FloatField(null=True, blank=True)
+    hours = models.CharField(max_length=200, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_ACTIVE)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return self.point_name
+
+    def matches_creator(self, name, phone):
+        """Loose name+phone match for self-service closing -- lighter than
+        Need/Pickup's token+DOB scheme, per spec: collection points carry
+        less edit/cancel sensitivity."""
+        return (
+            self.contact_name.strip().lower() == (name or "").strip().lower()
+            and self.contact_phone.strip() == (phone or "").strip()
+        )
+
+
+class Comment(models.Model):
+    """Usable on either a Need or a CollectionPoint (exactly one of the two
+    FKs is set). One level of replies only -- parent_comment_id must itself
+    have no parent."""
+
+    CATEGORY_FIELD_INFO = "field_info"
+    CATEGORY_CONTACT_INFO = "contact_info"
+    CATEGORY_CONFIRMATION = "confirmation"
+    CATEGORY_CHOICES = [
+        (CATEGORY_FIELD_INFO, "Field info"),
+        (CATEGORY_CONTACT_INFO, "Contact info"),
+        (CATEGORY_CONFIRMATION, "Confirmation"),
+    ]
+
+    need = models.ForeignKey(Need, null=True, blank=True, on_delete=models.CASCADE, related_name="comments")
+    collection_point = models.ForeignKey(CollectionPoint, null=True, blank=True, on_delete=models.CASCADE, related_name="comments")
+    parent_comment = models.ForeignKey("self", null=True, blank=True, on_delete=models.CASCADE, related_name="replies")
+
+    author_name = models.CharField(max_length=200)
+    author_phone = models.CharField(max_length=30)  # never serialized publicly -- see CommentSerializer
+    text = models.TextField()
+    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, blank=True)
+    confirmation_count = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at"]
+
+    def matches_author(self, name, phone):
+        return (
+            self.author_name.strip().lower() == (name or "").strip().lower()
+            and self.author_phone.strip() == (phone or "").strip()
+        )
+
+
 class AuditLog(models.Model):
     """Every admin moderation/override action, and anonymization events."""
 

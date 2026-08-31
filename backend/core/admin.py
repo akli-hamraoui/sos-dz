@@ -5,6 +5,8 @@ from core.models import (
     AppConfiguration,
     AuditLog,
     Campaign,
+    CollectionPoint,
+    Comment,
     ContentReport,
     DamagePhoto,
     DeliveryPhoto,
@@ -279,3 +281,29 @@ class ContentReportAdmin(admin.ModelAdmin):
     list_display = ["id", "media_type", "media_id", "reason", "status", "reported_at"]
     list_filter = ["status", "media_type"]
     actions = [restore_content, confirm_content_rejection]
+
+
+# ---------------------------------------------------------------------------
+# Community: collection points and comments (Wave 4)
+# ---------------------------------------------------------------------------
+
+@admin.register(CollectionPoint)
+class CollectionPointAdmin(admin.ModelAdmin):
+    list_display = ["point_name", "wilaya", "contact_name", "status", "created_at"]
+    list_filter = ["status", "wilaya"]
+    search_fields = ["point_name", "contact_name", "contact_phone"]
+
+
+@admin.register(Comment)
+class CommentAdmin(admin.ModelAdmin):
+    list_display = ["id", "author_name", "need", "collection_point", "parent_comment", "confirmation_count", "created_at"]
+    list_filter = ["category"]
+    search_fields = ["author_name", "text"]
+
+    def delete_model(self, request, obj):
+        AuditLog.objects.create(admin_user=request.user, action="deleted comment", target_description=str(obj))
+        super().delete_model(request, obj)
+
+    def delete_queryset(self, request, queryset):
+        AuditLog.objects.create(admin_user=request.user, action="deleted comment (bulk)", target_description=f"{queryset.count()} comment(s)")
+        super().delete_queryset(request, queryset)

@@ -3,6 +3,8 @@ from rest_framework import serializers
 from core.models import (
     AppConfiguration,
     Campaign,
+    CollectionPoint,
+    Comment,
     ContentReport,
     DamagePhoto,
     DeliveryPhoto,
@@ -178,6 +180,11 @@ class NeedPublicSerializer(serializers.ModelSerializer):
     damage_photos = DamagePhotoSerializer(many=True, read_only=True)
     wilaya_name = serializers.CharField(source="wilaya.name", read_only=True)
     is_anonymized = serializers.BooleanField(read_only=True)
+    comments = serializers.SerializerMethodField()
+
+    def get_comments(self, obj):
+        roots = obj.comments.filter(parent_comment__isnull=True)
+        return CommentSerializer(roots, many=True, context=self.context).data
     media_file = serializers.SerializerMethodField()
 
     def get_media_file(self, obj):
@@ -222,6 +229,7 @@ class NeedPublicSerializer(serializers.ModelSerializer):
             "last_modified_at",
             "edit_history",
             "pickups",
+            "comments",
             "is_anonymized",
         ]
 
@@ -352,3 +360,106 @@ class SupportRequestSerializer(serializers.ModelSerializer):
         model = SupportRequest
         fields = ["id", "requester_phone", "related_listing_description", "message", "created_at"]
         read_only_fields = ["id", "created_at"]
+
+
+# ---------------------------------------------------------------------------
+# Community: collection points and comments (Wave 4)
+# ---------------------------------------------------------------------------
+
+class CommentSerializer(serializers.ModelSerializer):
+    """author_phone is deliberately excluded -- never shown publicly, only
+    used server-side for the loose self-delete match, per spec."""
+
+    replies = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Comment
+        fields = ["id", "need", "collection_point", "parent_comment", "author_name", "text", "category", "confirmation_count", "created_at", "replies"]
+
+    def get_replies(self, obj):
+        # Only ever one level deep -- replies never nest replies.
+        if obj.parent_comment_id is not None:
+            return []
+        return CommentSerializer(obj.replies.all(), many=True, context=self.context).data
+
+
+class CommentCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Comment
+        fields = ["need", "collection_point", "parent_comment", "author_name", "author_phone", "text", "category"]
+
+    def validate(self, attrs):
+        need, collection_point = attrs.get("need"), attrs.get("collection_point")
+        if bool(need) == bool(collection_point):
+            raise serializers.ValidationError("Exactly one of 'need' or 'collection_point' must be set.")
+        parent = attrs.get("parent_comment")
+        if parent is not None:
+            if parent.parent_comment_id is not None:
+                raise serializers.ValidationError("Replies cannot themselves be replied to (one level of nesting only).")
+            attrs["category"] = ""  # category is only meaningful for root Need comments
+        return attrs
+
+
+class CommentDeleteSerializer(serializers.Serializer):
+    author_name = serializers.CharField(required=False, allow_blank=True)
+    author_phone = serializers.CharField(required=False, allow_blank=True)
+
+
+class CollectionPointSerializer(serializers.ModelSerializer):
+    wilaya_name = serializers.CharField(source="wilaya.name", read_only=True)
+    comments = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CollectionPoint
+        fields = [
+            "id", "wilaya", "wilaya_name", "point_name", "contact_name", "contact_phone",
+            "organization", "location_description", "latitude", "longitude", "hours",
+            "status", "created_at", "comments",
+        ]
+
+    def get_comments(self, obj):
+        roots = obj.comments.filter(parent_comment__isnull=True)
+        return CommentSerializer(roots, many=True, context=self.context).data
+
+
+class CollectionPointCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CollectionPoint
+        fields = [
+            "wilaya", "point_name", "contact_name", "contact_phone",
+            "organization", "location_description", "latitude", "longitude", "hours",
+        ]
+
+    def validate(self, attrs):
+        lat, lon = attrs.get("latitude"), attrs.get("longitude")
+        if lat is not None or lon is not None:
+            validate_algeria_bounds(lat, lon)
+        return attrs
+
+
+class CollectionPointMapPinSerializer(serializers.ModelSerializer):
+    wilaya_name = serializers.CharField(source="wilaya.name", read_only=True)
+    display_latitude = serializers.SerializerMethodField()
+    display_longitude = serializers.SerializerMethodField()
+    has_exact_position = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CollectionPoint
+        fields = [
+            "id", "point_name", "contact_name", "contact_phone", "organization", "hours",
+            "status", "wilaya_name", "display_latitude", "display_longitude", "has_exact_position",
+        ]
+
+    def get_has_exact_position(self, obj):
+        return obj.latitude is not None
+
+    def get_display_latitude(self, obj):
+        return obj.latitude if obj.latitude is not None else obj.wilaya.centroid_latitude
+
+    def get_display_longitude(self, obj):
+        return obj.longitude if obj.longitude is not None else obj.wilaya.centroid_longitude
+
+
+class CollectionPointCloseSerializer(serializers.Serializer):
+    contact_name = serializers.CharField()
+    contact_phone = serializers.CharField()

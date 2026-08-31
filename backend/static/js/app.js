@@ -99,6 +99,13 @@ function app() {
     recoverContext: null,
     supportForm: { requester_phone: "", related_listing_description: "", message: "" },
     supportSent: false,
+    collectionPoints: [],
+    currentCollectionPoint: null,
+    cpFilterWilaya: "",
+    cpForm: this_defaultCPForm(),
+    cpError: "",
+    commentText: {},
+    commentAuthor: loadJSON("rassemble_comment_author", { name: "", phone: "" }),
     _mainMap: null,
     _detailMap: null,
 
@@ -139,6 +146,14 @@ function app() {
         this.route = "needs";
         await this.loadNeeds();
         this.$nextTick(() => this.renderCurrentView());
+      } else if (parts[0] === "collection-points" && parts[1] === "create") {
+        this.route = "create-collection-point";
+      } else if (parts[0] === "collection-points" && parts[1]) {
+        this.route = "collection-point-detail";
+        await this.loadCollectionPointDetail(parts[1].split("?")[0]);
+      } else if (parts[0] === "collection-points") {
+        this.route = "collection-points";
+        await this.loadCollectionPoints();
       } else {
         this.route = parts[0];
       }
@@ -183,10 +198,10 @@ function app() {
         this[formKey].longitude = pos.coords.longitude;
         // Reverse-geocode convenience prefill -- the wilaya field stays
         // user-confirmable/overridable, this is only a suggestion.
-        if (formKey === "createForm" && !this.createForm.wilaya) {
+        if (!this[formKey].wilaya) {
           try {
             const suggestion = await api(`/wilayas/nearest/?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}`);
-            this.createForm.wilaya = suggestion.id;
+            this[formKey].wilaya = suggestion.id;
           } catch (e) { /* best-effort only */ }
         }
       });
@@ -519,14 +534,91 @@ function app() {
       alert("Thanks -- an admin will review this.");
     },
 
+    // ---- Collection points (Wave 4) ----
+    async loadCollectionPoints() {
+      const qs = this.cpFilterWilaya ? `?wilaya=${this.cpFilterWilaya}` : "";
+      const data = await api(`/collection-points/${qs}`);
+      this.collectionPoints = data.results || data;
+    },
+    async loadCollectionPointDetail(id) {
+      this.currentCollectionPoint = await api(`/collection-points/${id}/`);
+    },
+    async submitCollectionPoint() {
+      this.cpError = "";
+      try {
+        const point = await api("/collection-points/", { method: "POST", body: JSON.stringify(this.cpForm) });
+        saveJSON("rassemble_comment_author", { name: this.cpForm.contact_name, phone: this.cpForm.contact_phone });
+        window.location.hash = `#/collection-points/${point.id}`;
+      } catch (e) {
+        this.cpError = (e.data && JSON.stringify(e.data)) || e.message;
+      }
+    },
+    async closeCollectionPoint() {
+      const contact_name = prompt("Your name (as entered when creating this point):");
+      if (!contact_name) return;
+      const contact_phone = prompt("Your phone:");
+      try {
+        this.currentCollectionPoint = await api(`/collection-points/${this.currentCollectionPoint.id}/close/`, {
+          method: "POST",
+          body: JSON.stringify({ contact_name, contact_phone }),
+        });
+      } catch (e) {
+        alert(e.message);
+      }
+    },
+
+    // ---- Comments (Wave 4) ----
+    async submitComment(target, targetId, parentId) {
+      const key = parentId ? `reply-${parentId}` : `root-${target}-${targetId}`;
+      const text = this.commentText[key];
+      if (!text) return;
+      if (!this.commentAuthor.name || !this.commentAuthor.phone) {
+        this.commentAuthor.name = prompt("Your name:") || "";
+        this.commentAuthor.phone = prompt("Your phone (kept private, only used if you delete your own comment):") || "";
+        saveJSON("rassemble_comment_author", this.commentAuthor);
+      }
+      const payload = {
+        author_name: this.commentAuthor.name,
+        author_phone: this.commentAuthor.phone,
+        text,
+      };
+      payload[target] = targetId;
+      if (parentId) payload.parent_comment = parentId;
+      await api("/comments/", { method: "POST", body: JSON.stringify(payload) });
+      this.commentText[key] = "";
+      if (target === "need") await this.loadNeedDetail(targetId);
+      else await this.loadCollectionPointDetail(targetId);
+    },
+    async confirmComment(commentId, target, targetId) {
+      await api(`/comments/${commentId}/confirm/`, { method: "POST" });
+      if (target === "need") await this.loadNeedDetail(targetId);
+      else await this.loadCollectionPointDetail(targetId);
+    },
+    async deleteComment(commentId, target, targetId) {
+      if (!confirm("Delete this comment?")) return;
+      try {
+        await fetch(`${API}/comments/${commentId}/`, {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ author_name: this.commentAuthor.name, author_phone: this.commentAuthor.phone }),
+        });
+      } finally {
+        if (target === "need") await this.loadNeedDetail(targetId);
+        else await this.loadCollectionPointDetail(targetId);
+      }
+    },
+
     // ---- Maps ----
     urgencyColor(u) {
       return { critical: "#d92626", medium: "#e08a1e", low: "#cbb400" }[u] || "#555";
     },
 
     async renderMainMap() {
-      const pins = await api("/needs/locations/");
-      this.mapHasNoNeedsAtAll = pins.length === 0;
+      const [needPins, cpPins] = await Promise.all([
+        api("/needs/locations/"),
+        api("/collection-points/locations/").catch(() => []),
+      ]);
+      this.mapHasNoNeedsAtAll = needPins.length === 0 && cpPins.length === 0;
       if (this.mapHasNoNeedsAtAll) return; // truly zero listings anywhere -- show the message instead of a map
       await this.$nextTick();
       const el = document.getElementById("main-map");
@@ -540,8 +632,8 @@ function app() {
       const markers = [];
       this._mainMapMarkers = markers;
 
-      const withPos = pins.filter((p) => p.display_latitude != null && p.display_longitude != null);
-      withPos.forEach((p) => {
+      const needsWithPos = needPins.filter((p) => p.display_latitude != null && p.display_longitude != null);
+      needsWithPos.forEach((p) => {
         const marker = L.circleMarker([p.display_latitude, p.display_longitude], {
           radius: 9, color: this.urgencyColor(p.urgency), fillColor: this.urgencyColor(p.urgency), fillOpacity: 0.85,
         }).addTo(map);
@@ -553,7 +645,23 @@ function app() {
         markers.push(marker);
       });
 
-      this.smartZoom(map, withPos.map((p) => [p.display_latitude, p.display_longitude]));
+      const cpsWithPos = cpPins.filter((p) => p.display_latitude != null && p.display_longitude != null);
+      cpsWithPos.forEach((p) => {
+        // Visually distinct from Need pins: a black square marker vs. colored circles.
+        const icon = L.divIcon({ className: "cp-marker-icon", html: "■", iconSize: [16, 16] });
+        const marker = L.marker([p.display_latitude, p.display_longitude], { icon }).addTo(map);
+        const gpsNote = p.has_exact_position ? "" : "<br><em>no exact GPS position</em>";
+        marker.bindPopup(
+          `<strong>📦 ${p.point_name}</strong><br>${p.contact_name} — ${this.maskPhone(p.contact_phone, false)}` +
+          `${p.organization ? "<br>" + p.organization : ""}${p.hours ? "<br>Hours: " + p.hours : ""}` +
+          `<br>${p.wilaya_name}${gpsNote}<br><a href="#/collection-points/${p.id}">Open</a>`
+        );
+        markers.push(marker);
+      });
+
+      const allPoints = needsWithPos.map((p) => [p.display_latitude, p.display_longitude])
+        .concat(cpsWithPos.map((p) => [p.display_latitude, p.display_longitude]));
+      this.smartZoom(map, allPoints);
     },
 
     smartZoom(map, points) {
@@ -631,4 +739,7 @@ function this_defaultPickupForm() {
     responder_last_name: "", responder_first_name: "", responder_phone: "", responder_date_of_birth: "",
     responder_email: "", organization_or_person_name: "",
   };
+}
+function this_defaultCPForm() {
+  return { wilaya: "", point_name: "", contact_name: "", contact_phone: "", organization: "", location_description: "", hours: "" };
 }

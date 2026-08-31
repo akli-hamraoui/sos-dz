@@ -18,6 +18,7 @@
     <a href="#/" class="brand">Rassemble</a>
     <nav>
       <a href="#/needs">Needs</a>
+      <a href="#/collection-points">Collection points</a>
       <a href="#/create">I need help</a>
       <a href="#/support">Forgot my details?</a>
     </nav>
@@ -161,7 +162,7 @@
       <div x-show="viewMode === 'map'" class="map-wrap">
         <p x-show="mapHasNoNeedsAtAll" class="hint">No active needs right now.</p>
         <div id="main-map" style="height: 500px;" x-show="!mapHasNoNeedsAtAll"></div>
-        <p class="legend" x-show="!mapHasNoNeedsAtAll">🔴 critical &nbsp; 🟠 medium &nbsp; 🟡 low &nbsp; — pins without exact GPS sit at the wilaya's approximate centroid ("no exact GPS position")</p>
+        <p class="legend" x-show="!mapHasNoNeedsAtAll">🔴 critical &nbsp; 🟠 medium &nbsp; 🟡 low (needs) &nbsp;&nbsp; ■ collection point &nbsp;&nbsp;— pins without exact GPS sit at the wilaya's approximate centroid ("no exact GPS position")</p>
       </div>
     </section>
 
@@ -282,6 +283,41 @@
               </div>
             </div>
           </template>
+
+          <h3>Comments</h3>
+          <div class="comment-thread">
+            <template x-for="c in currentNeed.comments" :key="c.id">
+              <div>
+                <div class="comment">
+                  <p x-text="c.text"></p>
+                  <p class="comment-meta">
+                    <span x-text="c.author_name"></span> — <span x-text="formatDate(c.created_at)"></span>
+                    <span x-show="c.category" x-text="' · ' + c.category"></span>
+                    · <button class="link" @click="confirmComment(c.id, 'need', currentNeed.id)" x-text="'confirm (' + c.confirmation_count + ')'"></button>
+                    · <button class="link" @click="deleteComment(c.id, 'need', currentNeed.id)">delete</button>
+                  </p>
+                  <div class="comment-form">
+                    <input type="text" x-model="commentText['reply-' + c.id]" placeholder="Reply...">
+                    <button class="btn" @click="submitComment('need', currentNeed.id, c.id)">Reply</button>
+                  </div>
+                </div>
+                <template x-for="r in c.replies" :key="r.id">
+                  <div class="comment reply">
+                    <p x-text="r.text"></p>
+                    <p class="comment-meta">
+                      <span x-text="r.author_name"></span> — <span x-text="formatDate(r.created_at)"></span>
+                      · <button class="link" @click="confirmComment(r.id, 'need', currentNeed.id)" x-text="'confirm (' + r.confirmation_count + ')'"></button>
+                      · <button class="link" @click="deleteComment(r.id, 'need', currentNeed.id)">delete</button>
+                    </p>
+                  </div>
+                </template>
+              </div>
+            </template>
+            <div class="comment-form">
+              <input type="text" x-model="commentText['root-need-' + currentNeed.id]" placeholder="Add a comment (field info, contact info, confirmation...)">
+              <button class="btn btn-primary" @click="submitComment('need', currentNeed.id, null)">Post</button>
+            </div>
+          </div>
         </div>
       </template>
     </section>
@@ -313,6 +349,109 @@
         <p class="error" x-show="pickupError" x-text="pickupError"></p>
         <button type="submit" class="btn btn-primary">Confirm — I'm taking charge</button>
       </form>
+    </section>
+
+    <!-- COLLECTION POINTS LIST -->
+    <section x-show="route === 'collection-points'" class="needs-page">
+      <div class="toolbar">
+        <label>Filter by wilaya
+          <select x-model="cpFilterWilaya" @change="loadCollectionPoints()">
+            <option value="">All</option>
+            <template x-for="w in wilayas" :key="w.id">
+              <option :value="w.id" x-text="w.name"></option>
+            </template>
+          </select>
+        </label>
+        <a class="btn btn-primary" href="#/collection-points/create">+ Add a collection point</a>
+      </div>
+      <p x-show="collectionPoints.length === 0">No collection points listed for this wilaya yet.</p>
+      <div class="needs-list">
+        <template x-for="cp in collectionPoints" :key="cp.id">
+          <a class="need-card" :href="'#/collection-points/' + cp.id">
+            <h3 x-text="cp.point_name"></h3>
+            <p x-text="cp.wilaya_name + (cp.organization ? ' — ' + cp.organization : '')"></p>
+            <p class="status" x-text="cp.status === 'closed' ? 'closed' : (cp.hours || 'hours not specified')"></p>
+          </a>
+        </template>
+      </div>
+    </section>
+
+    <!-- CREATE COLLECTION POINT -->
+    <section x-show="route === 'create-collection-point'" class="form-page">
+      <h2>Add a collection point</h2>
+      <form @submit.prevent="submitCollectionPoint()">
+        <label>Wilaya *
+          <select x-model="cpForm.wilaya" required>
+            <option value="">-- select --</option>
+            <template x-for="w in wilayas" :key="w.id">
+              <option :value="w.id" x-text="w.name"></option>
+            </template>
+          </select>
+        </label>
+        <label>Point name * <input type="text" x-model="cpForm.point_name" required></label>
+        <label>Contact name * <input type="text" x-model="cpForm.contact_name" required></label>
+        <label>Contact phone * <input type="tel" x-model="cpForm.contact_phone" required></label>
+        <label>Organization (optional) <input type="text" x-model="cpForm.organization"></label>
+        <label>Location description * <textarea x-model="cpForm.location_description" required></textarea></label>
+        <label>Hours <input type="text" x-model="cpForm.hours" placeholder="e.g. 8am-6pm daily"></label>
+        <button type="button" class="btn" @click="useMyLocation('cpForm')">📍 Use my current GPS position</button>
+        <p class="error" x-show="cpError" x-text="cpError"></p>
+        <button type="submit" class="btn btn-primary">Publish this collection point</button>
+      </form>
+    </section>
+
+    <!-- COLLECTION POINT DETAIL -->
+    <section x-show="route === 'collection-point-detail' && currentCollectionPoint" class="detail-page">
+      <template x-if="currentCollectionPoint">
+        <div>
+          <h2 x-text="currentCollectionPoint.point_name"></h2>
+          <span class="status" x-text="currentCollectionPoint.status"></span>
+          <p x-text="currentCollectionPoint.wilaya_name"></p>
+          <p x-text="currentCollectionPoint.location_description"></p>
+          <p x-show="currentCollectionPoint.latitude == null" class="hint">no exact GPS position</p>
+          <p x-show="currentCollectionPoint.organization" x-text="currentCollectionPoint.organization"></p>
+          <p x-show="currentCollectionPoint.hours" x-text="'Hours: ' + currentCollectionPoint.hours"></p>
+          <p>Contact: <span x-text="currentCollectionPoint.contact_name"></span> —
+            <span x-text="maskPhone(currentCollectionPoint.contact_phone, showPhone)"></span>
+            <button class="link" @click="showPhone = !showPhone" x-text="showPhone ? 'hide number' : 'show full number'"></button>
+          </p>
+          <button class="btn" x-show="currentCollectionPoint.status === 'active'" @click="closeCollectionPoint()">Mark as closed</button>
+
+          <h3>Comments</h3>
+          <div class="comment-thread">
+            <template x-for="c in currentCollectionPoint.comments" :key="c.id">
+              <div>
+                <div class="comment">
+                  <p x-text="c.text"></p>
+                  <p class="comment-meta">
+                    <span x-text="c.author_name"></span> — <span x-text="formatDate(c.created_at)"></span>
+                    · <button class="link" @click="confirmComment(c.id, 'collection_point', currentCollectionPoint.id)" x-text="'confirm (' + c.confirmation_count + ')'"></button>
+                    · <button class="link" @click="deleteComment(c.id, 'collection_point', currentCollectionPoint.id)">delete</button>
+                  </p>
+                  <div class="comment-form">
+                    <input type="text" x-model="commentText['reply-' + c.id]" placeholder="Reply...">
+                    <button class="btn" @click="submitComment('collection_point', currentCollectionPoint.id, c.id)">Reply</button>
+                  </div>
+                </div>
+                <template x-for="r in c.replies" :key="r.id">
+                  <div class="comment reply">
+                    <p x-text="r.text"></p>
+                    <p class="comment-meta">
+                      <span x-text="r.author_name"></span> — <span x-text="formatDate(r.created_at)"></span>
+                      · <button class="link" @click="confirmComment(r.id, 'collection_point', currentCollectionPoint.id)" x-text="'confirm (' + r.confirmation_count + ')'"></button>
+                      · <button class="link" @click="deleteComment(r.id, 'collection_point', currentCollectionPoint.id)">delete</button>
+                    </p>
+                  </div>
+                </template>
+              </div>
+            </template>
+            <div class="comment-form">
+              <input type="text" x-model="commentText['root-collection_point-' + currentCollectionPoint.id]" placeholder="Add a comment">
+              <button class="btn btn-primary" @click="submitComment('collection_point', currentCollectionPoint.id, null)">Post</button>
+            </div>
+          </div>
+        </div>
+      </template>
     </section>
 
     <!-- RECOVER ACCESS -->

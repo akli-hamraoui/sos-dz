@@ -1089,3 +1089,188 @@ class GPSBoundingBoxTests(BaseAPITestCase):
         payload = dict(NEED_PAYLOAD, campaign=self.campaign.pk, wilaya=self.wilaya.pk)
         resp = self.client.post("/api/needs/", payload, format="json")
         self.assertEqual(resp.status_code, 201)
+
+
+COLLECTION_POINT_PAYLOAD = {
+    "point_name": "Mosque el Nour collection point",
+    "contact_name": "Yacine",
+    "contact_phone": "0555222222",
+    "organization": "Local mosque committee",
+    "location_description": "Next to the main mosque",
+    "hours": "8am-6pm daily",
+}
+
+
+class CollectionPointTests(BaseAPITestCase):
+    def setUp(self):
+        super().setUp()
+        self.wilaya = Wilaya.objects.first()
+
+    def _payload(self, **overrides):
+        data = dict(COLLECTION_POINT_PAYLOAD, wilaya=self.wilaya.pk)
+        data.update(overrides)
+        return data
+
+    def test_anyone_can_create_no_admin_restriction(self):
+        resp = self.client.post("/api/collection-points/", self._payload(), format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+        self.assertEqual(resp.data["status"], "active")
+
+    def test_filterable_by_wilaya_like_needs(self):
+        other_wilaya = Wilaya.objects.exclude(pk=self.wilaya.pk).first()
+        self.client.post("/api/collection-points/", self._payload(), format="json")
+        self.client.post("/api/collection-points/", self._payload(wilaya=other_wilaya.pk), format="json")
+        resp = self.client.get(f"/api/collection-points/?wilaya={self.wilaya.pk}")
+        self.assertEqual(len(resp.data["results"]), 1)
+
+    def test_appears_on_locations_endpoint_with_centroid_fallback(self):
+        self.client.post("/api/collection-points/", self._payload(), format="json")
+        resp = self.client.get("/api/collection-points/locations/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(len(resp.data), 1)
+        self.assertFalse(resp.data[0]["has_exact_position"])
+        self.assertIsNotNone(resp.data[0]["display_latitude"])
+
+    def test_closed_points_excluded_from_locations(self):
+        create_resp = self.client.post("/api/collection-points/", self._payload(), format="json")
+        self.client.post(
+            f"/api/collection-points/{create_resp.data['id']}/close/",
+            {"contact_name": COLLECTION_POINT_PAYLOAD["contact_name"], "contact_phone": COLLECTION_POINT_PAYLOAD["contact_phone"]},
+            format="json",
+        )
+        resp = self.client.get("/api/collection-points/locations/")
+        self.assertEqual(resp.data, [])
+
+    def test_creator_can_close_with_matching_name_phone(self):
+        create_resp = self.client.post("/api/collection-points/", self._payload(), format="json")
+        resp = self.client.post(
+            f"/api/collection-points/{create_resp.data['id']}/close/",
+            {"contact_name": COLLECTION_POINT_PAYLOAD["contact_name"], "contact_phone": COLLECTION_POINT_PAYLOAD["contact_phone"]},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data["status"], "closed")
+
+    def test_close_rejected_with_wrong_name_phone(self):
+        create_resp = self.client.post("/api/collection-points/", self._payload(), format="json")
+        resp = self.client.post(
+            f"/api/collection-points/{create_resp.data['id']}/close/",
+            {"contact_name": "Someone Else", "contact_phone": "0000000000"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 403)
+
+
+class CommentTests(BaseAPITestCase):
+    def setUp(self):
+        super().setUp()
+        self.campaign = make_campaign()
+        self.wilaya = self.campaign.authorized_wilayas.first()
+        need_resp = self.client.post(
+            "/api/needs/", dict(NEED_PAYLOAD, campaign=self.campaign.pk, wilaya=self.wilaya.pk), format="json"
+        )
+        self.need_id = need_resp.data["id"]
+
+    def _comment_payload(self, **overrides):
+        data = {"need": self.need_id, "author_name": "Villager", "author_phone": "0611111111", "text": "Any update?"}
+        data.update(overrides)
+        return data
+
+    def test_create_root_comment_on_need(self):
+        resp = self.client.post("/api/comments/", self._comment_payload(), format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+        self.assertNotIn("author_phone", resp.data)  # never shown publicly
+
+    def test_reply_one_level_only(self):
+        root = self.client.post("/api/comments/", self._comment_payload(), format="json")
+        reply = self.client.post(
+            "/api/comments/",
+            self._comment_payload(parent_comment=root.data["id"], text="Yes, on the way"),
+            format="json",
+        )
+        self.assertEqual(reply.status_code, 201)
+
+        double_reply = self.client.post(
+            "/api/comments/",
+            self._comment_payload(parent_comment=reply.data["id"], text="nested too deep"),
+            format="json",
+        )
+        self.assertEqual(double_reply.status_code, 400)
+
+    def test_reply_appears_nested_under_root_in_need_detail(self):
+        root = self.client.post("/api/comments/", self._comment_payload(), format="json")
+        self.client.post(
+            "/api/comments/",
+            self._comment_payload(parent_comment=root.data["id"], text="Yes, on the way"),
+            format="json",
+        )
+        need = self.client.get(f"/api/needs/{self.need_id}/")
+        self.assertEqual(len(need.data["comments"]), 1)  # one root comment
+        self.assertEqual(len(need.data["comments"][0]["replies"]), 1)
+        self.assertEqual(need.data["comments"][0]["replies"][0]["text"], "Yes, on the way")
+
+    def test_confirm_increments_and_persists(self):
+        root = self.client.post("/api/comments/", self._comment_payload(), format="json")
+        r1 = self.client.post(f"/api/comments/{root.data['id']}/confirm/")
+        r2 = self.client.post(f"/api/comments/{root.data['id']}/confirm/")
+        self.assertEqual(r2.data["confirmation_count"], 2)
+        from core.models import Comment
+
+        self.assertEqual(Comment.objects.get(pk=root.data["id"]).confirmation_count, 2)
+
+    def test_author_can_delete_own_comment(self):
+        root = self.client.post("/api/comments/", self._comment_payload(), format="json")
+        resp = self.client.delete(
+            f"/api/comments/{root.data['id']}/",
+            {"author_name": "Villager", "author_phone": "0611111111"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 204)
+
+    def test_delete_rejected_with_wrong_author(self):
+        root = self.client.post("/api/comments/", self._comment_payload(), format="json")
+        resp = self.client.delete(
+            f"/api/comments/{root.data['id']}/",
+            {"author_name": "Impostor", "author_phone": "0000000000"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 403)
+
+    def test_admin_can_delete_any_comment_logged(self):
+        from core.models import AuditLog
+
+        root = self.client.post("/api/comments/", self._comment_payload(), format="json")
+        admin = get_user_model().objects.create_superuser("commentadmin", "c@example.com", "pw123456!")
+        self.client.force_authenticate(admin)
+        resp = self.client.delete(f"/api/comments/{root.data['id']}/", {}, format="json")
+        self.assertEqual(resp.status_code, 204)
+        self.assertTrue(AuditLog.objects.filter(action="deleted comment").exists())
+
+    def test_comment_on_collection_point(self):
+        cp_resp = self.client.post(
+            "/api/collection-points/", dict(COLLECTION_POINT_PAYLOAD, wilaya=self.wilaya.pk), format="json"
+        )
+        resp = self.client.post(
+            "/api/comments/",
+            {"collection_point": cp_resp.data["id"], "author_name": "X", "author_phone": "0600", "text": "Great spot"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 201, resp.content)
+
+        detail = self.client.get(f"/api/collection-points/{cp_resp.data['id']}/")
+        self.assertEqual(len(detail.data["comments"]), 1)
+
+    def test_must_target_exactly_one_of_need_or_collection_point(self):
+        resp = self.client.post(
+            "/api/comments/",
+            {"author_name": "X", "author_phone": "0600", "text": "orphan comment"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 400)
+
+    def test_read_only_mode_blocks_comment_creation(self):
+        config = AppConfiguration.get_solo()
+        config.mode = AppConfiguration.MODE_READ_ONLY
+        config.save()
+        resp = self.client.post("/api/comments/", self._comment_payload(), format="json")
+        self.assertEqual(resp.status_code, 403)

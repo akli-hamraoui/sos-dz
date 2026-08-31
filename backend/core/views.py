@@ -15,6 +15,8 @@ from core.models import (
     AppConfiguration,
     AuditLog,
     Campaign,
+    CollectionPoint,
+    Comment,
     ContentReport,
     DamagePhoto,
     DeliveryPhoto,
@@ -32,6 +34,13 @@ from core.serializers import (
     AnonymizeSerializer,
     AppConfigurationPublicSerializer,
     CampaignSerializer,
+    CollectionPointCloseSerializer,
+    CollectionPointCreateSerializer,
+    CollectionPointMapPinSerializer,
+    CollectionPointSerializer,
+    CommentCreateSerializer,
+    CommentDeleteSerializer,
+    CommentSerializer,
     ContentReportSerializer,
     DisasterTypeSerializer,
     DuplicateReportCreateSerializer,
@@ -119,7 +128,7 @@ class AppConfigurationView(APIView):
 
 class NeedViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.RetrieveModelMixin):
     queryset = Need.objects.select_related("wilaya", "campaign", "disaster_type").prefetch_related(
-        "pickups__progress_updates", "pickups__delivery_photos", "damage_photos"
+        "pickups__progress_updates", "pickups__delivery_photos", "damage_photos", "comments__replies"
     )
     permission_classes = [AllowAny]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
@@ -528,3 +537,97 @@ class ContentReportViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
             setattr(media_obj, field, Need.MODERATION_PENDING)
             media_obj.save(update_fields=[field])
         return Response(self.get_serializer(report).data, status=status.HTTP_201_CREATED)
+
+
+class CollectionPointViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.RetrieveModelMixin):
+    queryset = CollectionPoint.objects.select_related("wilaya").prefetch_related("comments__replies")
+    permission_classes = [AllowAny]
+
+    def get_serializer_class(self):
+        if self.action == "create":
+            return CollectionPointCreateSerializer
+        return CollectionPointSerializer
+
+    def get_throttles(self):
+        return [CreationRateThrottle()] if self.action == "create" else []
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        wilaya = self.request.query_params.get("wilaya")
+        if wilaya:
+            qs = qs.filter(wilaya_id=wilaya)
+        return qs
+
+    def create(self, request, *args, **kwargs):
+        block_reason = write_guard(request)
+        if block_reason:
+            return Response({"detail": block_reason}, status=status.HTTP_403_FORBIDDEN)
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        point = serializer.save()
+        return Response(CollectionPointSerializer(point, context={"request": request}).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=["get"], url_path="locations")
+    def locations(self, request):
+        """Public: pins for the SAME main map as Need pins (Wave 1) -- a
+        visually distinct icon, same public/no-auth visibility as Needs."""
+        qs = self.get_queryset().exclude(status=CollectionPoint.STATUS_CLOSED)
+        return Response(CollectionPointMapPinSerializer(qs, many=True).data)
+
+    @action(detail=True, methods=["post"], url_path="close")
+    def close(self, request, pk=None):
+        point = self.get_object()
+        block_reason = write_guard(request)
+        if block_reason:
+            return Response({"detail": block_reason}, status=status.HTTP_403_FORBIDDEN)
+        if is_admin_request(request):
+            pass  # admin override, no identity match needed
+        else:
+            serializer = CollectionPointCloseSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            if not point.matches_creator(serializer.validated_data["contact_name"], serializer.validated_data["contact_phone"]):
+                return Response({"detail": "Name/phone don't match this collection point's contact."}, status=status.HTTP_403_FORBIDDEN)
+        point.status = CollectionPoint.STATUS_CLOSED
+        point.save(update_fields=["status"])
+        log_admin_action(request, "closed collection point", point)
+        return Response(CollectionPointSerializer(point, context={"request": request}).data)
+
+
+class CommentViewSet(mixins.CreateModelMixin, mixins.DestroyModelMixin, viewsets.GenericViewSet):
+    queryset = Comment.objects.all()
+    permission_classes = [AllowAny]
+
+    def get_serializer_class(self):
+        return CommentCreateSerializer if self.action == "create" else CommentSerializer
+
+    def get_throttles(self):
+        return [CreationRateThrottle()] if self.action == "create" else []
+
+    def create(self, request, *args, **kwargs):
+        block_reason = write_guard(request)
+        if block_reason:
+            return Response({"detail": block_reason}, status=status.HTTP_403_FORBIDDEN)
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        comment = serializer.save()
+        return Response(CommentSerializer(comment, context={"request": request}).data, status=status.HTTP_201_CREATED)
+
+    def destroy(self, request, *args, **kwargs):
+        comment = self.get_object()
+        if is_admin_request(request):
+            log_admin_action(request, "deleted comment", comment)
+            comment.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        serializer = CommentDeleteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        if not comment.matches_author(serializer.validated_data.get("author_name"), serializer.validated_data.get("author_phone")):
+            return Response({"detail": "Name/phone don't match this comment's author."}, status=status.HTTP_403_FORBIDDEN)
+        comment.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=["post"], url_path="confirm")
+    def confirm(self, request, pk=None):
+        comment = self.get_object()
+        comment.confirmation_count = comment.confirmation_count + 1
+        comment.save(update_fields=["confirmation_count"])
+        return Response(CommentSerializer(comment, context={"request": request}).data)
