@@ -305,6 +305,155 @@ class ReadOnlyModeTests(BaseAPITestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(len(resp.data["results"]), 1)
 
+    def test_read_only_blocks_pickup_creation(self):
+        need_resp = self.client.post(
+            "/api/needs/",
+            dict(NEED_PAYLOAD, campaign=self.campaign.pk, wilaya=self.wilaya.pk),
+            format="json",
+        )
+        config = AppConfiguration.get_solo()
+        config.mode = AppConfiguration.MODE_READ_ONLY
+        config.save()
+        resp = self.client.post(
+            "/api/pickups/",
+            {
+                "need": need_resp.data["id"],
+                "responder_type": "individual_volunteer",
+                "responder_last_name": "A",
+                "responder_first_name": "B",
+                "responder_phone": "0600",
+                "responder_date_of_birth": "1990-01-01",
+                "content_brought": "x",
+            },
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 403)
+
+    def test_read_only_blocks_progress_update_creation(self):
+        config = AppConfiguration.get_solo()
+        config.mode = AppConfiguration.MODE_NORMAL
+        config.save()
+        need_resp = self.client.post(
+            "/api/needs/",
+            dict(NEED_PAYLOAD, campaign=self.campaign.pk, wilaya=self.wilaya.pk),
+            format="json",
+        )
+        pickup_resp = self.client.post(
+            "/api/pickups/",
+            {
+                "need": need_resp.data["id"],
+                "responder_type": "individual_volunteer",
+                "responder_last_name": "A",
+                "responder_first_name": "B",
+                "responder_phone": "0600",
+                "responder_date_of_birth": "1990-01-01",
+                "content_brought": "x",
+            },
+            format="json",
+        )
+        config.mode = AppConfiguration.MODE_READ_ONLY
+        config.save()
+        resp = self.client.post(
+            f"/api/pickups/{pickup_resp.data['id']}/progress-updates/",
+            {"free_text": "hello", "access_token": pickup_resp.data["access_token"]},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 403)
+
+
+class UpdateGPSTests(BaseAPITestCase):
+    def setUp(self):
+        super().setUp()
+        self.campaign = make_campaign()
+        self.wilaya = self.campaign.authorized_wilayas.first()
+        resp = self.client.post(
+            "/api/needs/",
+            dict(NEED_PAYLOAD, campaign=self.campaign.pk, wilaya=self.wilaya.pk),
+            format="json",
+        )
+        self.need_id = resp.data["id"]
+        self.token = resp.data["access_token"]
+
+    def test_creator_can_add_gps_after_creation_pin_moves_to_exact(self):
+        need = Need.objects.get(pk=self.need_id)
+        self.assertEqual(need.position_accuracy, Need.POSITION_APPROXIMATE)
+        self.assertIsNone(need.latitude)
+
+        resp = self.client.post(
+            f"/api/needs/{self.need_id}/update-gps/",
+            {"latitude": 36.75, "longitude": 3.06, "access_token": self.token},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 200)
+        need.refresh_from_db()
+        self.assertEqual(need.position_accuracy, Need.POSITION_EXACT)
+        self.assertAlmostEqual(need.latitude, 36.75)
+        self.assertAlmostEqual(need.longitude, 3.06)
+
+    def test_update_gps_outside_algeria_rejected(self):
+        resp = self.client.post(
+            f"/api/needs/{self.need_id}/update-gps/",
+            {"latitude": 48.85, "longitude": 2.35, "access_token": self.token},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 400)
+
+    def test_update_gps_wrong_token_rejected(self):
+        resp = self.client.post(
+            f"/api/needs/{self.need_id}/update-gps/",
+            {"latitude": 36.75, "longitude": 3.06, "access_token": "wrong"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 403)
+
+    def test_update_gps_does_not_affect_existing_pickups(self):
+        pickup_resp = self.client.post(
+            "/api/pickups/",
+            {
+                "need": self.need_id,
+                "responder_type": "individual_volunteer",
+                "responder_last_name": "A",
+                "responder_first_name": "B",
+                "responder_phone": "0600",
+                "responder_date_of_birth": "1990-01-01",
+                "content_brought": "x",
+            },
+            format="json",
+        )
+        self.client.post(
+            f"/api/needs/{self.need_id}/update-gps/",
+            {"latitude": 36.75, "longitude": 3.06, "access_token": self.token},
+            format="json",
+        )
+        pickup = Pickup.objects.get(pk=pickup_resp.data["id"])
+        self.assertEqual(pickup.status, Pickup.STATUS_EN_ROUTE)
+
+
+class TurnstileCaptchaTests(BaseAPITestCase):
+    def setUp(self):
+        super().setUp()
+        self.campaign = make_campaign()
+        self.wilaya = self.campaign.authorized_wilayas.first()
+
+    @override_settings(TURNSTILE_ENABLED=True, TURNSTILE_SECRET_KEY="fake-secret-for-test")
+    def test_creation_rejected_without_captcha_token_when_enabled(self):
+        resp = self.client.post(
+            "/api/needs/",
+            dict(NEED_PAYLOAD, campaign=self.campaign.pk, wilaya=self.wilaya.pk),
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 400)
+
+    def test_creation_allowed_without_captcha_token_when_disabled(self):
+        # settings.TURNSTILE_ENABLED is False by default (no secret key
+        # configured in this environment) -- verified skipped entirely.
+        resp = self.client.post(
+            "/api/needs/",
+            dict(NEED_PAYLOAD, campaign=self.campaign.pk, wilaya=self.wilaya.pk),
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 201)
+
 
 class AnonymizationTests(BaseAPITestCase):
     def setUp(self):

@@ -42,8 +42,10 @@ function app() {
     needTokens: loadJSON("rassemble_need_tokens", {}),
     pickupTokens: loadJSON("rassemble_pickup_tokens", {}),
     showPhone: false,
+    revealedPickupPhones: {},
     shareLink: "",
     canSeeLiveMap: false,
+    mapHasNoNeedsAtAll: false,
     progressText: {},
     createForm: this_defaultCreateForm(),
     createError: "",
@@ -60,7 +62,17 @@ function app() {
     async init() {
       window.addEventListener("hashchange", () => this.onRouteChange());
       this.onRouteChange();
-      try { this.config = await api("/config/"); } catch (e) { /* ignore */ }
+      try {
+        this.config = await api("/config/");
+        if (this.config.turnstile_enabled && !document.getElementById("turnstile-script")) {
+          const s = document.createElement("script");
+          s.id = "turnstile-script";
+          s.src = "https://challenges.cloudflare.com/turnstile/v0/api.js";
+          s.async = true;
+          s.defer = true;
+          document.head.appendChild(s);
+        }
+      } catch (e) { /* ignore */ }
       try {
         const w = await api("/wilayas/");
         this.wilayas = w.results || w;
@@ -78,7 +90,8 @@ function app() {
         this.route = "home";
       } else if (parts[0] === "needs" && parts[1]) {
         this.route = "detail";
-        await this.loadNeedDetail(parts[1]);
+        const needId = parts[1].split("?")[0];
+        await this.loadNeedDetail(needId);
       } else if (parts[0] === "needs") {
         this.route = "needs";
         await this.loadNeeds();
@@ -139,7 +152,8 @@ function app() {
     async submitNeed() {
       this.createError = "";
       try {
-        const need = await api("/needs/", { method: "POST", body: JSON.stringify(this.createForm) });
+        const payload = { ...this.createForm, turnstile_token: window.__turnstileToken || "" };
+        const need = await api("/needs/", { method: "POST", body: JSON.stringify(payload) });
         this.needTokens[need.id] = { access_token: need.access_token, location_viewer_share_token: need.location_viewer_share_token };
         saveJSON("rassemble_need_tokens", this.needTokens);
         window.location.hash = `#/needs/${need.id}`;
@@ -250,12 +264,13 @@ function app() {
       try {
         const pickup = await api("/pickups/", {
           method: "POST",
-          body: JSON.stringify({ ...this.pickupForm, need: this.currentNeed.id }),
+          body: JSON.stringify({ ...this.pickupForm, need: this.currentNeed.id, turnstile_token: window.__turnstileToken || "" }),
         });
         this.pickupTokens[pickup.id] = pickup.access_token;
         saveJSON("rassemble_pickup_tokens", this.pickupTokens);
         window.location.hash = `#/needs/${this.currentNeed.id}`;
         await this.loadNeedDetail(this.currentNeed.id);
+        this.route = "detail"; // hash may be unchanged (see "Also take charge" below), so hashchange won't fire
       } catch (e) {
         this.pickupError = (e.data && JSON.stringify(e.data)) || e.message;
       }
@@ -341,6 +356,10 @@ function app() {
     },
 
     async renderMainMap() {
+      const pins = await api("/needs/locations/");
+      this.mapHasNoNeedsAtAll = pins.length === 0;
+      if (this.mapHasNoNeedsAtAll) return; // truly zero listings anywhere -- show the message instead of a map
+      await this.$nextTick();
       const el = document.getElementById("main-map");
       if (!el || typeof L === "undefined") return;
       if (!this._mainMap) {
@@ -348,11 +367,11 @@ function app() {
         L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution: "&copy; OpenStreetMap" }).addTo(this._mainMap);
       }
       const map = this._mainMap;
-      map.eachLayer((layer) => { if (layer instanceof L.Marker) map.removeLayer(layer); });
-
-      const pins = await api("/needs/locations/");
-      const withPos = pins.filter((p) => p.display_latitude != null && p.display_longitude != null);
+      (this._mainMapMarkers || []).forEach((m) => map.removeLayer(m));
       const markers = [];
+      this._mainMapMarkers = markers;
+
+      const withPos = pins.filter((p) => p.display_latitude != null && p.display_longitude != null);
       withPos.forEach((p) => {
         const marker = L.circleMarker([p.display_latitude, p.display_longitude], {
           radius: 9, color: this.urgencyColor(p.urgency), fillColor: this.urgencyColor(p.urgency), fillOpacity: 0.85,

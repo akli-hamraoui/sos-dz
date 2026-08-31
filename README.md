@@ -76,6 +76,10 @@ Single monolithic Django project (Django + Django REST Framework), not microserv
 - **Frontend**: served by Django in Wave 1-4 (plain HTML/Alpine.js, `backend/templates/index.html` + `backend/static/`); migrates to a separate React/Vite PWA in Wave 5 (`frontend/`).
 - **Media storage**: Cloudflare R2 (S3-compatible) in production; falls back to local filesystem storage automatically when R2 credentials are not set in `.env` (convenient for local dev).
 
+## Deployment
+
+See [`DEPLOYMENT.md`](./DEPLOYMENT.md) for the exact IONOS VPS setup (Gunicorn + Nginx + systemd + Let's Encrypt), plus a temporary Railway/Render fallback. **Not yet actually deployed** — no live public URL exists yet; see that file for why.
+
 ## Security notes
 
 - No real secret is ever committed to this repository. `.env.example` only holds placeholders; the actual `.env` file is gitignored. `createsuperuser` credentials are chosen interactively and never written anywhere.

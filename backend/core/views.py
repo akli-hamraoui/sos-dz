@@ -6,6 +6,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from core.access import authorized_for_write, get_presented_token, is_admin_request, owner_authorized
+from core.captcha import verify_turnstile
 from core.models import (
     AppConfiguration,
     AuditLog,
@@ -78,7 +79,12 @@ class AppConfigurationView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
-        return Response(AppConfigurationPublicSerializer(AppConfiguration.get_solo()).data)
+        from django.conf import settings
+
+        data = AppConfigurationPublicSerializer(AppConfiguration.get_solo()).data
+        data["turnstile_site_key"] = settings.TURNSTILE_SITE_KEY
+        data["turnstile_enabled"] = settings.TURNSTILE_ENABLED
+        return Response(data)
 
 
 class NeedViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.RetrieveModelMixin):
@@ -109,6 +115,9 @@ class NeedViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retriev
         block_reason = write_guard(request)
         if block_reason:
             return Response({"detail": block_reason}, status=status.HTTP_403_FORBIDDEN)
+        captcha_ok, captcha_error = verify_turnstile(request.data.get("turnstile_token"), getattr(request, "client_ip", None))
+        if not captcha_ok:
+            return Response({"detail": captcha_error}, status=status.HTTP_400_BAD_REQUEST)
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         need = serializer.save()
@@ -279,6 +288,9 @@ class PickupViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retri
         block_reason = write_guard(request)
         if block_reason:
             return Response({"detail": block_reason}, status=status.HTTP_403_FORBIDDEN)
+        captcha_ok, captcha_error = verify_turnstile(request.data.get("turnstile_token"), getattr(request, "client_ip", None))
+        if not captcha_ok:
+            return Response({"detail": captcha_error}, status=status.HTTP_400_BAD_REQUEST)
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         pickup = serializer.save()

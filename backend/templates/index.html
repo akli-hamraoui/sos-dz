@@ -5,7 +5,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Rassemble</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="{% static 'vendor/leaflet/leaflet.css' %}" />
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
 </head>
 <body x-data="app()" x-init="init()">
@@ -86,6 +86,7 @@
           <label>Organization or person name (optional) <input type="text" x-model="createForm.organization_or_person_name"></label>
         </fieldset>
 
+        <div x-show="config.turnstile_enabled" class="cf-turnstile" :data-sitekey="config.turnstile_site_key" data-callback="onTurnstileToken"></div>
         <p class="error" x-show="createError" x-text="createError"></p>
         <button type="submit" class="btn btn-primary">Publish this need</button>
       </form>
@@ -121,8 +122,9 @@
       </div>
 
       <div x-show="viewMode === 'map'" class="map-wrap">
-        <div id="main-map" style="height: 500px;"></div>
-        <p class="legend">🔴 critical &nbsp; 🟠 medium &nbsp; 🟡 low &nbsp; — pins without exact GPS sit at the wilaya's approximate centroid ("no exact GPS position")</p>
+        <p x-show="mapHasNoNeedsAtAll" class="hint">No active needs right now.</p>
+        <div id="main-map" style="height: 500px;" x-show="!mapHasNoNeedsAtAll"></div>
+        <p class="legend" x-show="!mapHasNoNeedsAtAll">🔴 critical &nbsp; 🟠 medium &nbsp; 🟡 low &nbsp; — pins without exact GPS sit at the wilaya's approximate centroid ("no exact GPS position")</p>
       </div>
     </section>
 
@@ -174,6 +176,10 @@
               <p><strong x-text="p.responder_last_name + ' ' + p.responder_first_name"></strong>
                  <span class="status" x-text="p.status"></span>
                  <span x-show="p.needs_verification" class="badge badge-warn">to verify</span></p>
+              <p x-show="p.responder_phone">
+                <span x-text="maskPhone(p.responder_phone, revealedPickupPhones[p.id])"></span>
+                <button class="link" @click="revealedPickupPhones[p.id] = !revealedPickupPhones[p.id]" x-text="revealedPickupPhones[p.id] ? 'hide number' : 'show full number'"></button>
+              </p>
               <p x-text="'Bringing: ' + p.content_brought"></p>
               <div class="timeline">
                 <template x-for="u in p.progress_updates" :key="u.id">
@@ -223,6 +229,7 @@
           <label>Email (optional) <input type="email" x-model="pickupForm.responder_email"></label>
           <label>Organization/person name <input type="text" x-model="pickupForm.organization_or_person_name"></label>
         </fieldset>
+        <div x-show="config.turnstile_enabled" class="cf-turnstile" :data-sitekey="config.turnstile_site_key" data-callback="onTurnstileToken"></div>
         <p class="error" x-show="pickupError" x-text="pickupError"></p>
         <button type="submit" class="btn btn-primary">Confirm — I'm taking charge</button>
       </form>
@@ -261,8 +268,9 @@
     <p>Admin contact: <a href="tel:+213000000000">+213 0 00 00 00 00</a> (phone/WhatsApp)</p>
   </footer>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script defer src="https://unpkg.com/alpinejs@3.14.1/dist/cdn.min.js"></script>
+  <script src="{% static 'vendor/leaflet/leaflet.js' %}"></script>
+  <script>function onTurnstileToken(token) { window.__turnstileToken = token; }</script>
+  <script defer src="{% static 'vendor/alpinejs/alpine.min.js' %}"></script>
   <script src="{% static 'js/app.js' %}"></script>
 </body>
 </html>
