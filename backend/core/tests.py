@@ -1274,3 +1274,35 @@ class CommentTests(BaseAPITestCase):
         config.save()
         resp = self.client.post("/api/comments/", self._comment_payload(), format="json")
         self.assertEqual(resp.status_code, 403)
+
+    def test_rate_limit_applies_to_comment_creation(self):
+        # The rate limit is shared across all creation endpoints for a given
+        # IP (one "creation" throttle scope) -- setUp already used one slot
+        # creating the Need these comments attach to.
+        from django.conf import settings
+
+        remaining = settings.RATE_LIMIT_CREATIONS_PER_HOUR - 1
+        for i in range(remaining):
+            resp = self.client.post("/api/comments/", self._comment_payload(text=f"msg {i}"), format="json")
+            self.assertEqual(resp.status_code, 201)
+        resp = self.client.post("/api/comments/", self._comment_payload(text="one too many"), format="json")
+        self.assertEqual(resp.status_code, 429)
+
+
+class CollectionPointRateLimitTest(BaseAPITestCase):
+    def test_rate_limit_applies_to_collection_point_creation(self):
+        from django.conf import settings
+
+        wilaya = Wilaya.objects.first()
+        limit = settings.RATE_LIMIT_CREATIONS_PER_HOUR
+        for i in range(limit):
+            resp = self.client.post(
+                "/api/collection-points/",
+                dict(COLLECTION_POINT_PAYLOAD, wilaya=wilaya.pk, point_name=f"Point {i}"),
+                format="json",
+            )
+            self.assertEqual(resp.status_code, 201)
+        resp = self.client.post(
+            "/api/collection-points/", dict(COLLECTION_POINT_PAYLOAD, wilaya=wilaya.pk), format="json"
+        )
+        self.assertEqual(resp.status_code, 429)
