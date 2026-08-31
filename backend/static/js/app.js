@@ -28,6 +28,45 @@ async function api(path, options = {}) {
   return data;
 }
 
+const RETRY_DELAYS_MS = [1000, 3000, 6000];
+
+// Upload retry for weak/rural connections (spec Wave 2: "automatic retry on
+// upload failure, 3 attempts with increasing delay"). Only retries on
+// network failure or a 5xx -- a 4xx (validation error, rejected content) is
+// never retried, since retrying it would just fail again. FormData bodies
+// are never JSON-encoded: the browser sets its own multipart boundary.
+async function apiUpload(path, formData, method = "POST", onStatus = () => {}) {
+  let lastError = null;
+  for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
+    if (attempt > 0) {
+      onStatus(`Upload failed, retrying (${attempt}/${RETRY_DELAYS_MS.length})...`);
+      await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[attempt - 1]));
+    }
+    try {
+      const resp = await fetch(API + path, { method, body: formData });
+      let data = null;
+      try { data = await resp.json(); } catch (e) { /* no body */ }
+      if (resp.ok) {
+        onStatus("");
+        return data;
+      }
+      if (resp.status < 500) {
+        // Validation/permission error -- retrying would not help.
+        const err = new Error((data && data.detail) || "Request failed");
+        err.status = resp.status;
+        err.data = data;
+        throw err;
+      }
+      lastError = new Error((data && data.detail) || `Server error (${resp.status})`);
+    } catch (e) {
+      if (e.status && e.status < 500) throw e; // non-retryable, re-throw immediately
+      lastError = e;
+    }
+  }
+  onStatus("Upload failed after several attempts. Your entry was kept on this screen -- check your connection and try again.");
+  throw lastError;
+}
+
 function app() {
   return {
     route: "home",
@@ -49,6 +88,10 @@ function app() {
     progressText: {},
     createForm: this_defaultCreateForm(),
     createError: "",
+    createUploadStatus: "",
+    damagePhotos: [],
+    deliveryPhotos: {},
+    recorder: { recording: false, seconds: 0, blob: null, blobUrl: null, mediaRecorder: null, stream: null, timer: null },
     pickupForm: this_defaultPickupForm(),
     pickupError: "",
     recoverForm: { last_name: "", first_name: "", phone: "", date_of_birth: "" },
@@ -152,14 +195,86 @@ function app() {
     async submitNeed() {
       this.createError = "";
       try {
-        const payload = { ...this.createForm, turnstile_token: window.__turnstileToken || "" };
-        const need = await api("/needs/", { method: "POST", body: JSON.stringify(payload) });
+        const formData = new FormData();
+        for (const [k, v] of Object.entries(this.createForm)) {
+          if (v !== null && v !== "") formData.append(k, v);
+        }
+        formData.append("turnstile_token", window.__turnstileToken || "");
+        if (this.createForm.media_type !== "text" && this.recorder.blob) {
+          const ext = this.createForm.media_type === "audio" ? "webm" : "webm";
+          formData.append("media_file", this.recorder.blob, `recording.${ext}`);
+        }
+        this.damagePhotos.forEach((p) => formData.append("damage_photos", p.file, p.file.name));
+
+        const need = await apiUpload("/needs/", formData, "POST", (s) => (this.createUploadStatus = s));
         this.needTokens[need.id] = { access_token: need.access_token, location_viewer_share_token: need.location_viewer_share_token };
         saveJSON("rassemble_need_tokens", this.needTokens);
+        this.discardRecording();
+        this.damagePhotos = [];
         window.location.hash = `#/needs/${need.id}`;
       } catch (e) {
         this.createError = (e.data && JSON.stringify(e.data)) || e.message;
       }
+    },
+
+    // ---- Media capture (Wave 2) ----
+    async startRecording(kind) {
+      const constraints = kind === "video" ? { video: { facingMode: "environment" }, audio: true } : { audio: true };
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      const mediaRecorder = new MediaRecorder(stream);
+      const chunks = [];
+      mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(chunks, { type: mediaRecorder.mimeType || (kind === "video" ? "video/webm" : "audio/webm") });
+        this.recorder.blob = blob;
+        this.recorder.blobUrl = URL.createObjectURL(blob);
+        stream.getTracks().forEach((t) => t.stop());
+      };
+      this.recorder.mediaRecorder = mediaRecorder;
+      this.recorder.stream = stream;
+      this.recorder.seconds = 0;
+      this.recorder.recording = true;
+      mediaRecorder.start();
+      this.recorder.timer = setInterval(() => {
+        this.recorder.seconds += 1;
+        if (kind === "video" && this.recorder.seconds >= 20) this.stopRecording(); // hard cap, spec Wave 2
+      }, 1000);
+    },
+    stopRecording() {
+      if (this.recorder.timer) clearInterval(this.recorder.timer);
+      this.recorder.recording = false;
+      if (this.recorder.mediaRecorder && this.recorder.mediaRecorder.state !== "inactive") {
+        this.recorder.mediaRecorder.stop();
+      }
+    },
+    discardRecording() {
+      if (this.recorder.timer) clearInterval(this.recorder.timer);
+      if (this.recorder.stream) this.recorder.stream.getTracks().forEach((t) => t.stop());
+      if (this.recorder.blobUrl) URL.revokeObjectURL(this.recorder.blobUrl);
+      this.recorder = { recording: false, seconds: 0, blob: null, blobUrl: null, mediaRecorder: null, stream: null, timer: null };
+    },
+    async compressPhoto(file) {
+      if (typeof imageCompression === "undefined") return file; // vendored lib failed to load -- upload uncompressed rather than block
+      try {
+        return await imageCompression(file, { maxWidthOrHeight: 1280, initialQuality: 0.7, useWebWorker: true, fileType: "image/jpeg" });
+      } catch (e) {
+        return file;
+      }
+    },
+    async addDamagePhoto(event) {
+      const file = event.target.files[0];
+      event.target.value = ""; // allow re-selecting/re-capturing the same shot
+      if (!file || this.damagePhotos.length >= 3) return;
+      const compressed = await this.compressPhoto(file);
+      this.damagePhotos.push({ file: compressed, previewUrl: URL.createObjectURL(compressed) });
+    },
+    async addDeliveryPhoto(event, pickupId) {
+      const file = event.target.files[0];
+      event.target.value = "";
+      if (!this.deliveryPhotos[pickupId]) this.deliveryPhotos[pickupId] = [];
+      if (!file || this.deliveryPhotos[pickupId].length >= 3) return;
+      const compressed = await this.compressPhoto(file);
+      this.deliveryPhotos[pickupId].push({ file: compressed, previewUrl: URL.createObjectURL(compressed) });
     },
 
     isNeedOwner(id) {
@@ -307,7 +422,11 @@ function app() {
     },
     async markDelivered(pickupId) {
       const token = this.pickupTokens[pickupId];
-      await api(`/pickups/${pickupId}/deliver/`, { method: "POST", body: JSON.stringify({ access_token: token }) });
+      const formData = new FormData();
+      formData.append("access_token", token);
+      (this.deliveryPhotos[pickupId] || []).forEach((p) => formData.append("delivery_photos", p.file, p.file.name));
+      await apiUpload(`/pickups/${pickupId}/deliver/`, formData);
+      delete this.deliveryPhotos[pickupId];
       await this.loadNeedDetail(this.currentNeed.id);
     },
     async anonymizePickup(pickupId) {
@@ -453,7 +572,7 @@ function this_defaultCreateForm() {
     campaign: "", wilaya: "", commune: "", title: "", urgency: "medium",
     estimated_quantity: "", location_description: "", latitude: null, longitude: null,
     contact_last_name: "", contact_first_name: "", contact_phone: "", contact_date_of_birth: "",
-    contact_email: "", organization_or_person_name: "",
+    contact_email: "", organization_or_person_name: "", media_type: "text",
   };
 }
 function this_defaultPickupForm() {

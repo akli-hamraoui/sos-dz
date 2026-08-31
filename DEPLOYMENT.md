@@ -121,6 +121,10 @@ python manage.py collectstatic --noinput
 sudo systemctl restart rassemble-gunicorn
 ```
 
+### 6b. Cloudflare R2 (media storage, Wave 2)
+
+Create an R2 bucket in the Cloudflare dashboard, generate an S3-compatible API token (Account Home -> R2 -> Manage API Tokens), and set in `.env`: `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`, `R2_ENDPOINT_URL` (looks like `https://<account-id>.r2.cloudflarestorage.com`), and `R2_PUBLIC_BASE_URL` if the bucket has a public custom domain attached. When these are unset, the app automatically falls back to local filesystem storage (`media/` on the server) -- convenient for a first deploy, but means uploaded photos/audio/video live only on that one VPS with no CDN/egress-fee-free delivery, which defeats the point for a project this spec-sensitive about weak connections. Set the R2 variables before considering the app production-ready.
+
 ### 7. NSFWJS sidecar (Wave 3)
 
 To be documented here once Wave 3 (media moderation) is built: it runs as its own systemd service (`rassemble-nsfwjs.service`) on the same VPS, started/restarted the same way as Gunicorn, called by Django over local HTTP (`NSFWJS_SIDECAR_URL`, default `http://127.0.0.1:8801`) — never split into a separate networked service.

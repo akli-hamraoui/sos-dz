@@ -1,16 +1,20 @@
 from django.shortcuts import get_object_or_404
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from core.access import authorized_for_write, get_presented_token, is_admin_request, owner_authorized
 from core.captcha import verify_turnstile
+from core.media_validation import validate_photo_count
 from core.models import (
     AppConfiguration,
     AuditLog,
     Campaign,
+    DamagePhoto,
+    DeliveryPhoto,
     DisasterType,
     LocationPing,
     Need,
@@ -88,8 +92,11 @@ class AppConfigurationView(APIView):
 
 
 class NeedViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.RetrieveModelMixin):
-    queryset = Need.objects.select_related("wilaya", "campaign", "disaster_type").prefetch_related("pickups__progress_updates")
+    queryset = Need.objects.select_related("wilaya", "campaign", "disaster_type").prefetch_related(
+        "pickups__progress_updates", "pickups__delivery_photos", "damage_photos"
+    )
     permission_classes = [AllowAny]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get_serializer_class(self):
         if self.action == "create":
@@ -118,9 +125,16 @@ class NeedViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retriev
         captcha_ok, captcha_error = verify_turnstile(request.data.get("turnstile_token"), getattr(request, "client_ip", None))
         if not captcha_ok:
             return Response({"detail": captcha_error}, status=status.HTTP_400_BAD_REQUEST)
+        damage_photos = request.FILES.getlist("damage_photos")
+        try:
+            validate_photo_count(damage_photos)
+        except Exception as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         need = serializer.save()
+        for photo in damage_photos:
+            DamagePhoto.objects.create(need=need, image=photo)
         out = NeedPublicSerializer(need).data
         out["access_token"] = need.access_token
         out["location_viewer_share_token"] = need.location_viewer_share_token
@@ -271,8 +285,9 @@ class NeedViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retriev
 
 
 class PickupViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.RetrieveModelMixin):
-    queryset = Pickup.objects.select_related("need").prefetch_related("progress_updates")
+    queryset = Pickup.objects.select_related("need").prefetch_related("progress_updates", "delivery_photos")
     permission_classes = [AllowAny]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get_serializer_class(self):
         if self.action == "create":
@@ -330,6 +345,15 @@ class PickupViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retri
             return Response({"detail": block_reason}, status=status.HTTP_403_FORBIDDEN)
         if not authorized_for_write(request, pickup):
             return Response({"detail": "Not authorized."}, status=status.HTTP_403_FORBIDDEN)
+        delivery_photos = request.FILES.getlist("delivery_photos")
+        try:
+            validate_photo_count(delivery_photos)
+        except Exception as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        for photo in delivery_photos:
+            DeliveryPhoto.objects.create(pickup=pickup, image=photo)
+        if delivery_photos and hasattr(pickup, "_prefetched_objects_cache"):
+            pickup._prefetched_objects_cache.pop("delivery_photos", None)  # was cached empty by get_object()
         pickup.mark_delivered()
         return Response(PickupPublicSerializer(pickup).data)
 

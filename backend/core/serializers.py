@@ -3,6 +3,8 @@ from rest_framework import serializers
 from core.models import (
     AppConfiguration,
     Campaign,
+    DamagePhoto,
+    DeliveryPhoto,
     DisasterType,
     LocationPing,
     Need,
@@ -11,7 +13,20 @@ from core.models import (
     SupportRequest,
     Wilaya,
 )
+from core.media_validation import validate_video_duration
 from core.validators import validate_algeria_bounds
+
+
+class DamagePhotoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DamagePhoto
+        fields = ["id", "image"]
+
+
+class DeliveryPhotoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DeliveryPhoto
+        fields = ["id", "image"]
 
 
 class WilayaSerializer(serializers.ModelSerializer):
@@ -70,6 +85,7 @@ class LocationPingSerializer(serializers.ModelSerializer):
 
 class PickupPublicSerializer(serializers.ModelSerializer):
     progress_updates = ProgressUpdateSerializer(many=True, read_only=True)
+    delivery_photos = DeliveryPhotoSerializer(many=True, read_only=True)
     needs_verification = serializers.BooleanField(read_only=True)
     is_anonymized = serializers.BooleanField(read_only=True)
 
@@ -92,6 +108,7 @@ class PickupPublicSerializer(serializers.ModelSerializer):
             "actual_delivery_date",
             "created_at",
             "progress_updates",
+            "delivery_photos",
             "needs_verification",
             "is_anonymized",
         ]
@@ -125,6 +142,7 @@ class PickupCreateSerializer(serializers.ModelSerializer):
 
 class NeedPublicSerializer(serializers.ModelSerializer):
     pickups = PickupPublicSerializer(many=True, read_only=True)
+    damage_photos = DamagePhotoSerializer(many=True, read_only=True)
     wilaya_name = serializers.CharField(source="wilaya.name", read_only=True)
     is_anonymized = serializers.BooleanField(read_only=True)
 
@@ -149,6 +167,10 @@ class NeedPublicSerializer(serializers.ModelSerializer):
             "contact_phone",
             "contact_email",
             "organization_or_person_name",
+            "media_type",
+            "media_file",
+            "media_moderation_status",
+            "damage_photos",
             "overall_status",
             "covered_quantity",
             "is_cancelled",
@@ -199,6 +221,8 @@ class NeedMapPinSerializer(serializers.ModelSerializer):
 
 
 class NeedCreateSerializer(serializers.ModelSerializer):
+    media_file = serializers.FileField(required=False, allow_null=True)
+
     class Meta:
         model = Need
         fields = [
@@ -218,6 +242,8 @@ class NeedCreateSerializer(serializers.ModelSerializer):
             "contact_email",
             "contact_date_of_birth",
             "organization_or_person_name",
+            "media_type",
+            "media_file",
         ]
 
     def validate(self, attrs):
@@ -234,6 +260,12 @@ class NeedCreateSerializer(serializers.ModelSerializer):
         lat, lon = attrs.get("latitude"), attrs.get("longitude")
         if lat is not None or lon is not None:
             validate_algeria_bounds(lat, lon)
+        media_type = attrs.get("media_type", Need.MEDIA_TEXT)
+        media_file = attrs.get("media_file")
+        if media_type in (Need.MEDIA_AUDIO, Need.MEDIA_VIDEO) and not media_file:
+            raise serializers.ValidationError(f"A recorded {media_type} file is required for media_type={media_type}.")
+        if media_type == Need.MEDIA_VIDEO and media_file:
+            validate_video_duration(media_file)
         return attrs
 
     def create(self, validated_data):

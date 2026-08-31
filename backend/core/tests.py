@@ -696,3 +696,127 @@ class RateLimitTests(BaseAPITestCase):
         resp = self.client.post("/api/needs/", payload, format="json")
         self.assertEqual(resp.status_code, 429)
         self.assertIn("detail", resp.data)
+
+
+def make_test_image(name="photo.jpg"):
+    import io
+
+    from PIL import Image
+    from django.core.files.uploadedfile import SimpleUploadedFile
+
+    buf = io.BytesIO()
+    Image.new("RGB", (10, 10), color="red").save(buf, format="JPEG")
+    return SimpleUploadedFile(name, buf.getvalue(), content_type="image/jpeg")
+
+
+class MediaUploadTests(BaseAPITestCase):
+    def setUp(self):
+        super().setUp()
+        self.campaign = make_campaign()
+        self.wilaya = self.campaign.authorized_wilayas.first()
+
+    def _multipart_payload(self, **overrides):
+        data = dict(NEED_PAYLOAD, campaign=self.campaign.pk, wilaya=self.wilaya.pk)
+        data.update(overrides)
+        return data
+
+    def test_create_need_with_damage_photos(self):
+        resp = self.client.post(
+            "/api/needs/",
+            self._multipart_payload(
+                damage_photos=[make_test_image("a.jpg"), make_test_image("b.jpg")]
+            ),
+            format="multipart",
+        )
+        self.assertEqual(resp.status_code, 201, resp.content)
+        self.assertEqual(len(resp.data["damage_photos"]), 2)
+        need = Need.objects.get(pk=resp.data["id"])
+        self.assertEqual(need.damage_photos.count(), 2)
+
+    def test_damage_photos_capped_at_3(self):
+        resp = self.client.post(
+            "/api/needs/",
+            self._multipart_payload(
+                damage_photos=[
+                    make_test_image("a.jpg"), make_test_image("b.jpg"),
+                    make_test_image("c.jpg"), make_test_image("d.jpg"),
+                ]
+            ),
+            format="multipart",
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(Need.objects.count(), 0)
+
+    def test_video_media_type_requires_a_file(self):
+        resp = self.client.post(
+            "/api/needs/",
+            self._multipart_payload(media_type="video"),
+            format="multipart",
+        )
+        self.assertEqual(resp.status_code, 400)
+
+    def test_audio_media_type_with_file_accepted(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        audio = SimpleUploadedFile("voice.webm", b"fake-audio-bytes", content_type="audio/webm")
+        resp = self.client.post(
+            "/api/needs/",
+            self._multipart_payload(media_type="audio", media_file=audio),
+            format="multipart",
+        )
+        self.assertEqual(resp.status_code, 201, resp.content)
+        need = Need.objects.get(pk=resp.data["id"])
+        self.assertEqual(need.media_type, "audio")
+        self.assertTrue(need.media_file.name)
+
+    def test_video_duration_rejected_when_determinable(self):
+        from unittest.mock import patch
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        video = SimpleUploadedFile("clip.webm", b"fake-video-bytes", content_type="video/webm")
+        with patch("core.serializers.validate_video_duration") as mocked:
+            from rest_framework import serializers as drf_serializers
+
+            mocked.side_effect = drf_serializers.ValidationError("Video is 35s long, the maximum is 20s.")
+            resp = self.client.post(
+                "/api/needs/",
+                self._multipart_payload(media_type="video", media_file=video),
+                format="multipart",
+            )
+        self.assertEqual(resp.status_code, 400)
+
+    def test_delivery_photos_on_deliver(self):
+        need_resp = self.client.post("/api/needs/", self._multipart_payload(), format="json")
+        pickup_resp = self.client.post(
+            "/api/pickups/",
+            {
+                "need": need_resp.data["id"],
+                "responder_type": "individual_volunteer",
+                "responder_last_name": "A",
+                "responder_first_name": "B",
+                "responder_phone": "0600",
+                "responder_date_of_birth": "1990-01-01",
+                "content_brought": "x",
+            },
+            format="json",
+        )
+        resp = self.client.post(
+            f"/api/pickups/{pickup_resp.data['id']}/deliver/",
+            {"access_token": pickup_resp.data["access_token"], "delivery_photos": [make_test_image("d.jpg")]},
+            format="multipart",
+        )
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.assertEqual(len(resp.data["delivery_photos"]), 1)
+
+    def test_media_stored_via_configured_storage_backend(self):
+        # Local dev has no R2 credentials configured, so this exercises the
+        # documented fallback (FileSystemStorage) -- see settings.USE_R2_STORAGE.
+        from django.conf import settings
+
+        self.assertFalse(settings.USE_R2_STORAGE)
+        resp = self.client.post(
+            "/api/needs/", self._multipart_payload(damage_photos=[make_test_image()]), format="multipart"
+        )
+        need = Need.objects.get(pk=resp.data["id"])
+        photo = need.damage_photos.first()
+        self.assertTrue(photo.image.storage.exists(photo.image.name))

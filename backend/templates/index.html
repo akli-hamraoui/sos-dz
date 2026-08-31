@@ -77,6 +77,42 @@
         <p x-show="createForm.latitude" x-text="'GPS captured: ' + createForm.latitude + ', ' + createForm.longitude"></p>
 
         <fieldset>
+          <legend>Add more detail (optional): voice or video message</legend>
+          <div class="media-choice">
+            <label><input type="radio" name="mediaType" value="text" x-model="createForm.media_type"> Text only</label>
+            <label><input type="radio" name="mediaType" value="audio" x-model="createForm.media_type"> Voice message</label>
+            <label><input type="radio" name="mediaType" value="video" x-model="createForm.media_type"> Video (max 20s)</label>
+          </div>
+          <div x-show="createForm.media_type !== 'text'" class="recorder">
+            <p x-show="!recorder.blobUrl && !recorder.recording">
+              <button type="button" class="btn record-btn" @click="startRecording(createForm.media_type)">⏺ Start recording</button>
+            </p>
+            <p x-show="recorder.recording">
+              <button type="button" class="btn btn-danger record-btn" @click="stopRecording()">⏹ Stop (<span x-text="recorder.seconds"></span>s / 20s)</button>
+            </p>
+            <div x-show="recorder.blobUrl && !recorder.recording">
+              <audio x-show="createForm.media_type === 'audio'" :src="recorder.blobUrl" controls></audio>
+              <video x-show="createForm.media_type === 'video'" :src="recorder.blobUrl" controls style="max-width:100%"></video>
+              <br>
+              <button type="button" class="btn" @click="discardRecording()">Discard &amp; re-record</button>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Damage photos (optional, up to 3, camera only)</legend>
+          <input type="file" accept="image/*" capture="environment" @change="addDamagePhoto($event)" x-show="damagePhotos.length < 3">
+          <div class="photo-thumbs">
+            <template x-for="(p, idx) in damagePhotos" :key="idx">
+              <div class="photo-thumb">
+                <img :src="p.previewUrl">
+                <button type="button" class="link" @click="damagePhotos.splice(idx, 1)">remove</button>
+              </div>
+            </template>
+          </div>
+        </fieldset>
+
+        <fieldset>
           <legend>Your contact details (needed to edit/cancel later)</legend>
           <label>Last name * <input type="text" x-model="createForm.contact_last_name" required></label>
           <label>First name * <input type="text" x-model="createForm.contact_first_name" required></label>
@@ -88,6 +124,7 @@
 
         <div x-show="config.turnstile_enabled" class="cf-turnstile" :data-sitekey="config.turnstile_site_key" data-callback="onTurnstileToken"></div>
         <p class="error" x-show="createError" x-text="createError"></p>
+        <p class="upload-status" x-show="createUploadStatus" x-text="createUploadStatus"></p>
         <button type="submit" class="btn btn-primary">Publish this need</button>
       </form>
     </section>
@@ -138,6 +175,18 @@
           <p x-text="currentNeed.wilaya_name + (currentNeed.commune ? ' — ' + currentNeed.commune : '')"></p>
           <p x-text="currentNeed.location_description"></p>
           <p x-show="currentNeed.position_accuracy !== 'exact'" class="hint">no exact GPS position</p>
+
+          <div x-show="currentNeed.media_type === 'audio' && currentNeed.media_file">
+            <audio :src="currentNeed.media_file" controls></audio>
+          </div>
+          <div x-show="currentNeed.media_type === 'video' && currentNeed.media_file">
+            <video :src="currentNeed.media_file" controls style="max-width:100%"></video>
+          </div>
+          <div class="photo-thumbs" x-show="currentNeed.damage_photos && currentNeed.damage_photos.length">
+            <template x-for="photo in currentNeed.damage_photos" :key="photo.id">
+              <a :href="photo.image" target="_blank"><img class="gallery-thumb" :src="photo.image"></a>
+            </template>
+          </div>
           <p>Contact: <span x-text="currentNeed.contact_last_name + ' ' + currentNeed.contact_first_name"></span> —
             <span x-text="maskPhone(currentNeed.contact_phone, showPhone)"></span>
             <button class="link" @click="showPhone = !showPhone" x-text="showPhone ? 'hide number' : 'show full number'"></button>
@@ -189,12 +238,30 @@
                   </div>
                 </template>
               </div>
+              <div class="photo-thumbs" x-show="p.delivery_photos && p.delivery_photos.length">
+                <template x-for="photo in p.delivery_photos" :key="photo.id">
+                  <a :href="photo.image" target="_blank"><img class="gallery-thumb" :src="photo.image"></a>
+                </template>
+              </div>
               <div x-show="isPickupOwner(p.id)" class="pickup-owner-actions">
                 <input type="text" x-model="progressText[p.id]" placeholder="Add a progress update (e.g. just passed Boumerdès)">
                 <button class="btn" @click="addProgressUpdate(p.id)">Post update</button>
                 <label><input type="checkbox" :checked="p.location_sharing_active" @change="toggleLocationSharing(p, $event.target.checked)"> Share my live location</label>
                 <button class="btn" x-show="p.location_sharing_active" @click="pingLocation(p.id)">📍 Update my position now</button>
-                <button class="btn btn-primary" x-show="p.status === 'en_route'" @click="markDelivered(p.id)">Mark as delivered</button>
+                <div x-show="p.status === 'en_route'">
+                  <label>Delivery photos (optional, up to 3, camera only)
+                    <input type="file" accept="image/*" capture="environment" @change="addDeliveryPhoto($event, p.id)" x-show="(deliveryPhotos[p.id] || []).length < 3">
+                  </label>
+                  <div class="photo-thumbs">
+                    <template x-for="(ph, idx) in (deliveryPhotos[p.id] || [])" :key="idx">
+                      <div class="photo-thumb">
+                        <img :src="ph.previewUrl">
+                        <button type="button" class="link" @click="deliveryPhotos[p.id].splice(idx, 1)">remove</button>
+                      </div>
+                    </template>
+                  </div>
+                  <button class="btn btn-primary" @click="markDelivered(p.id)">Mark as delivered</button>
+                </div>
                 <button class="btn btn-danger" @click="anonymizePickup(p.id)">Anonymize my information</button>
               </div>
               <div x-show="!isPickupOwner(p.id)">
@@ -269,6 +336,7 @@
   </footer>
 
   <script src="{% static 'vendor/leaflet/leaflet.js' %}"></script>
+  <script src="{% static 'vendor/browser-image-compression/browser-image-compression.js' %}"></script>
   <script>function onTurnstileToken(token) { window.__turnstileToken = token; }</script>
   <script defer src="{% static 'vendor/alpinejs/alpine.min.js' %}"></script>
   <script src="{% static 'js/app.js' %}"></script>

@@ -99,3 +99,13 @@ fieldset { border: 1px solid var(--border); border-radius: 12px; padding: 12px; 
 
 footer { text-align: center; padding: 20px; color: #777; font-size: 13px; }
 .legend { font-size: 13px; color: #555; }
+
+.media-choice { display: flex; gap: 12px; flex-wrap: wrap; font-size: 14px; }
+.media-choice label { flex-direction: row; align-items: center; gap: 6px; }
+.recorder { margin-top: 8px; }
+.record-btn { border-radius: 999px; }
+.photo-thumbs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.photo-thumb { position: relative; }
+.photo-thumb img, .gallery-thumb { width: 84px; height: 84px; object-fit: cover; border-radius: 10px; border: 1px solid var(--border); }
+.upload-status { font-size: 13px; color: #555; }
+.upload-status.error { color: var(--danger); }
