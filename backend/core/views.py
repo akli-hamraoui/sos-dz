@@ -8,14 +8,18 @@ from rest_framework.views import APIView
 
 from core.access import authorized_for_write, get_presented_token, is_admin_request, owner_authorized
 from core.captcha import verify_turnstile
+from core.duplicates import find_similar_needs
 from core.media_validation import validate_photo_count
+from core.moderation import moderate_image_field, moderate_video_field
 from core.models import (
     AppConfiguration,
     AuditLog,
     Campaign,
+    ContentReport,
     DamagePhoto,
     DeliveryPhoto,
     DisasterType,
+    DuplicateReport,
     LocationPing,
     Need,
     Pickup,
@@ -28,7 +32,9 @@ from core.serializers import (
     AnonymizeSerializer,
     AppConfigurationPublicSerializer,
     CampaignSerializer,
+    ContentReportSerializer,
     DisasterTypeSerializer,
+    DuplicateReportCreateSerializer,
     IdentityRecoverySerializer,
     LocationPingSerializer,
     NeedCreateSerializer,
@@ -55,6 +61,26 @@ class WilayaViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.G
     serializer_class = WilayaSerializer
     permission_classes = [AllowAny]
     pagination_class = None
+
+    @action(detail=False, methods=["get"], url_path="nearest")
+    def nearest(self, request):
+        """Local reverse-geocoding convenience (Wave 3): suggests a wilaya
+        from lat/long by nearest centroid -- the wilaya field itself stays
+        the authoritative, user-confirmable value, this is just a prefill."""
+        try:
+            lat = float(request.query_params["lat"])
+            lon = float(request.query_params["lon"])
+        except (KeyError, ValueError):
+            return Response({"detail": "lat and lon query params are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        best, best_dist = None, None
+        for wilaya in Wilaya.objects.exclude(centroid_latitude=None):
+            dist = (wilaya.centroid_latitude - lat) ** 2 + (wilaya.centroid_longitude - lon) ** 2
+            if best_dist is None or dist < best_dist:
+                best, best_dist = wilaya, dist
+        if best is None:
+            return Response({"detail": "No wilaya reference data available."}, status=status.HTTP_404_NOT_FOUND)
+        return Response(WilayaSerializer(best).data)
 
 
 class DisasterTypeViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
@@ -133,12 +159,48 @@ class NeedViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retriev
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         need = serializer.save()
+
+        if need.media_type == Need.MEDIA_VIDEO and need.media_file:
+            need.media_moderation_status = moderate_video_field(need.media_file)
+            need.save(update_fields=["media_moderation_status"])
+        # media_type == audio has no visual content for NSFWJS to score;
+        # media_moderation_status keeps its default (approved).
+
         for photo in damage_photos:
-            DamagePhoto.objects.create(need=need, image=photo)
+            dp = DamagePhoto(need=need, image=photo)
+            dp.moderation_status = moderate_image_field(photo)
+            dp.save()
+
         out = NeedPublicSerializer(need).data
         out["access_token"] = need.access_token
         out["location_viewer_share_token"] = need.location_viewer_share_token
+        out["duplicate_suggestions"] = NeedPublicSerializer(
+            find_similar_needs(need.wilaya_id, f"{need.title} {need.location_description}", exclude_id=need.pk)[:3],
+            many=True,
+        ).data
         return Response(out, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=["get"], url_path="check-duplicates")
+    def check_duplicates(self, request):
+        """Non-blocking pre-submit suggestion: "a similar need already
+        exists nearby, would you like to view it instead?" -- the frontend
+        calls this before the user finishes publishing; it never blocks
+        creation, per spec."""
+        wilaya = request.query_params.get("wilaya")
+        if not wilaya:
+            return Response([])
+        text = f"{request.query_params.get('title', '')} {request.query_params.get('description', '')}"
+        matches = find_similar_needs(wilaya, text)
+        return Response(NeedPublicSerializer(matches[:3], many=True).data)
+
+    @action(detail=True, methods=["post"], url_path="report-duplicate")
+    def report_duplicate(self, request, pk=None):
+        need = self.get_object()
+        reference = get_object_or_404(Need, pk=request.data.get("reference_need_id"))
+        serializer = DuplicateReportCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        DuplicateReport.objects.create(reported_need=need, reference_need=reference, **serializer.validated_data)
+        return Response(status=status.HTTP_201_CREATED)
 
     def partial_update(self, request, *args, **kwargs):
         need = self.get_object()
@@ -351,7 +413,9 @@ class PickupViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retri
         except Exception as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         for photo in delivery_photos:
-            DeliveryPhoto.objects.create(pickup=pickup, image=photo)
+            dp = DeliveryPhoto(pickup=pickup, image=photo)
+            dp.moderation_status = moderate_image_field(photo)
+            dp.save()
         if delivery_photos and hasattr(pickup, "_prefetched_objects_cache"):
             pickup._prefetched_objects_cache.pop("delivery_photos", None)  # was cached empty by get_object()
         pickup.mark_delivered()
@@ -441,3 +505,26 @@ class SupportRequestViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
     queryset = SupportRequest.objects.all()
     serializer_class = SupportRequestSerializer
     permission_classes = [AllowAny]
+
+
+class ContentReportViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
+    """'Report this content' -- public, no auth beyond name+phone. Reporting
+    immediately hides the content (sets its moderation_status back to
+    pending, independent of the media_moderation_active toggle) and queues
+    it for admin review."""
+
+    queryset = ContentReport.objects.all()
+    serializer_class = ContentReportSerializer
+    permission_classes = [AllowAny]
+    throttle_classes = [CreationRateThrottle]
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        report = serializer.save()
+        media_obj = report.get_media_object()
+        if media_obj is not None:
+            field = "media_moderation_status" if isinstance(media_obj, Need) else "moderation_status"
+            setattr(media_obj, field, Need.MODERATION_PENDING)
+            media_obj.save(update_fields=[field])
+        return Response(self.get_serializer(report).data, status=status.HTTP_201_CREATED)

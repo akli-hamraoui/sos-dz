@@ -125,9 +125,46 @@ sudo systemctl restart rassemble-gunicorn
 
 Create an R2 bucket in the Cloudflare dashboard, generate an S3-compatible API token (Account Home -> R2 -> Manage API Tokens), and set in `.env`: `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`, `R2_ENDPOINT_URL` (looks like `https://<account-id>.r2.cloudflarestorage.com`), and `R2_PUBLIC_BASE_URL` if the bucket has a public custom domain attached. When these are unset, the app automatically falls back to local filesystem storage (`media/` on the server) -- convenient for a first deploy, but means uploaded photos/audio/video live only on that one VPS with no CDN/egress-fee-free delivery, which defeats the point for a project this spec-sensitive about weak connections. Set the R2 variables before considering the app production-ready.
 
-### 7. NSFWJS sidecar (Wave 3)
+### 7. NSFWJS moderation sidecar (Wave 3)
 
-To be documented here once Wave 3 (media moderation) is built: it runs as its own systemd service (`rassemble-nsfwjs.service`) on the same VPS, started/restarted the same way as Gunicorn, called by Django over local HTTP (`NSFWJS_SIDECAR_URL`, default `http://127.0.0.1:8801`) — never split into a separate networked service.
+Small Node.js service (`moderation-sidecar/`) wrapping NSFWJS -- free, open-source, MIT-licensed, self-hosted, no API key or billing account. The classification model ships bundled inside the `nsfwjs` npm package itself, so this needs **no external network access at all** once `npm install` has run (confirmed in development: `nsfw.load()` loads the model entirely from local files).
+
+```bash
+cd /opt/rassemble/moderation-sidecar
+npm install --production
+```
+
+`/etc/systemd/system/rassemble-nsfwjs.service`:
+
+```ini
+[Unit]
+Description=Rassemble NSFWJS moderation sidecar
+After=network.target
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/rassemble/moderation-sidecar
+Environment=HOST=127.0.0.1
+Environment=PORT=8801
+ExecStart=/usr/bin/node server.js
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now rassemble-nsfwjs
+curl http://127.0.0.1:8801/health   # {"status":"ok","model_loaded":true}
+```
+
+It binds to `127.0.0.1` only (never exposed publicly) and is called by Django over local HTTP at `NSFWJS_SIDECAR_URL` (default `http://127.0.0.1:8801`, see `.env.example`). This is a deliberate, documented exception to the "single monolith" architecture -- see `moderation-sidecar/server.js`'s header comment for why.
+
+**Video frame extraction requires `ffmpeg` on PATH** (`apt install ffmpeg`) for `core/media_validation.py`'s duration check and `core/moderation.py`'s frame-by-frame video moderation. Neither is installed in the development sandbox this project was built in, so both gracefully degrade (video duration goes unchecked server-side; video moderation queues for manual review instead of auto-approving) when `ffmpeg` is missing -- installing it on the VPS is what enables full enforcement in production.
+
+**Known accepted risk**: `npm audit` on `moderation-sidecar/` reports 4 vulnerabilities (3 high, 1 critical) in `@tensorflow/tfjs-node`'s own transitive *install-time* dependencies (`@mapbox/node-pre-gyp` -> `tar`/`adm-zip`, used only to fetch tfjs-node's native binary during `npm install`, not part of the running server's request-handling code). `npm audit fix --force` would downgrade `@tensorflow/tfjs-node` to 0.1.11, an unusably ancient version -- not a real fix. This is a common, currently-unresolved upstream situation for `@tensorflow/tfjs-node` consumers; re-check `npm audit` periodically for an upstream fix.
 
 ## Option B — temporary fallback (Railway/Render)
 

@@ -213,5 +213,12 @@ TURNSTILE_ENABLED = bool(TURNSTILE_SECRET_KEY)
 
 # NSFWJS moderation sidecar (Wave 3).
 NSFWJS_SIDECAR_URL = env("NSFWJS_SIDECAR_URL", default="http://127.0.0.1:8801")
+# Combined score (sum of Hentai+Porn+Sexy probabilities, 0-1) below which
+# media is auto-approved, and above which it's auto-rejected. Between the
+# two: queued for human review. Tuned conservatively (wide "pending" band)
+# since community reporting is the documented safety net for anything this
+# free, self-hosted model gets wrong either way.
+NSFWJS_APPROVE_THRESHOLD = float(env("NSFWJS_APPROVE_THRESHOLD", default="0.4"))
+NSFWJS_REJECT_THRESHOLD = float(env("NSFWJS_REJECT_THRESHOLD", default="0.85"))
 
 RATE_LIMIT_CREATIONS_PER_HOUR = int(env("RATE_LIMIT_CREATIONS_PER_HOUR", default="20"))

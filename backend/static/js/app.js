@@ -178,9 +178,17 @@ function app() {
 
     async useMyLocation(formKey) {
       if (!navigator.geolocation) return;
-      navigator.geolocation.getCurrentPosition((pos) => {
+      navigator.geolocation.getCurrentPosition(async (pos) => {
         this[formKey].latitude = pos.coords.latitude;
         this[formKey].longitude = pos.coords.longitude;
+        // Reverse-geocode convenience prefill -- the wilaya field stays
+        // user-confirmable/overridable, this is only a suggestion.
+        if (formKey === "createForm" && !this.createForm.wilaya) {
+          try {
+            const suggestion = await api(`/wilayas/nearest/?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}`);
+            this.createForm.wilaya = suggestion.id;
+          } catch (e) { /* best-effort only */ }
+        }
       });
     },
 
@@ -192,9 +200,26 @@ function app() {
       if (this.viewMode === "map") this.$nextTick(() => this.renderMainMap());
     },
 
-    async submitNeed() {
+    async submitNeed(skipDuplicateCheck) {
       this.createError = "";
       try {
+        if (!skipDuplicateCheck && this.createForm.wilaya) {
+          const dupes = await api(
+            `/needs/check-duplicates/?wilaya=${this.createForm.wilaya}` +
+              `&title=${encodeURIComponent(this.createForm.title)}` +
+              `&description=${encodeURIComponent(this.createForm.location_description)}`
+          ).catch(() => []);
+          if (dupes && dupes.length) {
+            const proceed = confirm(
+              `A similar need already exists nearby: "${dupes[0].title}" (${dupes[0].wilaya_name}).\n\n` +
+              `Click OK to publish yours anyway, or Cancel to view the existing one instead.`
+            );
+            if (!proceed) {
+              window.location.hash = `#/needs/${dupes[0].id}`;
+              return;
+            }
+          }
+        }
         const formData = new FormData();
         for (const [k, v] of Object.entries(this.createForm)) {
           if (v !== null && v !== "") formData.append(k, v);
@@ -467,6 +492,31 @@ function app() {
     async submitSupport() {
       await api("/support-requests/", { method: "POST", body: JSON.stringify(this.supportForm) });
       this.supportSent = true;
+    },
+
+    // ---- Reporting (Wave 3) ----
+    async reportContent(mediaType, mediaId) {
+      const reason = prompt("Why are you reporting this content?");
+      if (!reason) return;
+      const reporter_name = prompt("Your name:") || "";
+      const reporter_phone = prompt("Your phone:") || "";
+      await api("/content-reports/", {
+        method: "POST",
+        body: JSON.stringify({ media_type: mediaType, media_id: mediaId, reporter_name, reporter_phone, reason }),
+      });
+      alert("Thanks -- this content is now hidden pending admin review.");
+      if (this.currentNeed) await this.loadNeedDetail(this.currentNeed.id);
+    },
+    async reportDuplicateOfCurrentNeed() {
+      const referenceId = prompt("ID of the need this duplicates (open it in another tab to check its number):");
+      if (!referenceId) return;
+      const reporter_name = prompt("Your name:") || "";
+      const reporter_phone = prompt("Your phone:") || "";
+      await api(`/needs/${this.currentNeed.id}/report-duplicate/`, {
+        method: "POST",
+        body: JSON.stringify({ reference_need_id: referenceId, reporter_name, reporter_phone }),
+      });
+      alert("Thanks -- an admin will review this.");
     },
 
     // ---- Maps ----

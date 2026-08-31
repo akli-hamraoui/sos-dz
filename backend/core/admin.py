@@ -5,7 +5,11 @@ from core.models import (
     AppConfiguration,
     AuditLog,
     Campaign,
+    ContentReport,
+    DamagePhoto,
+    DeliveryPhoto,
     DisasterType,
+    DuplicateReport,
     LocationPing,
     Need,
     Pickup,
@@ -160,3 +164,118 @@ class AuditLogAdmin(admin.ModelAdmin):
 
     def has_change_permission(self, request, obj=None):
         return False
+
+
+# ---------------------------------------------------------------------------
+# Moderation and report queues (Wave 3)
+# ---------------------------------------------------------------------------
+
+def approve_media(modeladmin, request, queryset):
+    count = queryset.update(moderation_status=Need.MODERATION_APPROVED)
+    AuditLog.objects.create(admin_user=request.user, action="approved media", target_description=f"{count} item(s)")
+    modeladmin.message_user(request, f"Approved {count} item(s).")
+
+
+approve_media.short_description = "Approve selected media"
+
+
+def reject_media(modeladmin, request, queryset):
+    count = queryset.update(moderation_status=Need.MODERATION_REJECTED)
+    AuditLog.objects.create(admin_user=request.user, action="rejected media", target_description=f"{count} item(s)")
+    modeladmin.message_user(request, f"Rejected {count} item(s).")
+
+
+reject_media.short_description = "Reject selected media"
+
+
+@admin.register(DamagePhoto)
+class DamagePhotoAdmin(admin.ModelAdmin):
+    list_display = ["id", "need", "moderation_status", "created_at"]
+    list_filter = ["moderation_status"]  # filter to "pending" for the review queue
+    actions = [approve_media, reject_media]
+
+
+@admin.register(DeliveryPhoto)
+class DeliveryPhotoAdmin(admin.ModelAdmin):
+    list_display = ["id", "pickup", "moderation_status", "created_at"]
+    list_filter = ["moderation_status"]
+    actions = [approve_media, reject_media]
+
+
+def process_duplicate_merge(modeladmin, request, queryset):
+    """Admin decides the reported need was indeed a duplicate: cancel it,
+    pointing people to the reference need instead."""
+    count = 0
+    for report in queryset.filter(status=DuplicateReport.STATUS_PENDING):
+        need = report.reported_need
+        need.is_cancelled = True
+        need.cancellation_reason = f"Merged as duplicate of Need #{report.reference_need_id}"
+        need.save()
+        need.recompute_status()
+        report.status = DuplicateReport.STATUS_PROCESSED
+        report.save(update_fields=["status"])
+        count += 1
+    AuditLog.objects.create(admin_user=request.user, action="processed duplicate report (merged)", target_description=f"{count} report(s)")
+    modeladmin.message_user(request, f"Merged/cancelled {count} reported need(s).")
+
+
+process_duplicate_merge.short_description = "Merge: cancel the reported need as a duplicate"
+
+
+def dismiss_duplicate_report(modeladmin, request, queryset):
+    count = queryset.update(status=DuplicateReport.STATUS_PROCESSED)
+    AuditLog.objects.create(admin_user=request.user, action="dismissed duplicate report", target_description=f"{count} report(s)")
+    modeladmin.message_user(request, f"Dismissed {count} report(s).")
+
+
+dismiss_duplicate_report.short_description = "Dismiss (not a duplicate)"
+
+
+@admin.register(DuplicateReport)
+class DuplicateReportAdmin(admin.ModelAdmin):
+    list_display = ["id", "reported_need", "reference_need", "status", "reported_at"]
+    list_filter = ["status"]
+    actions = [process_duplicate_merge, dismiss_duplicate_report]
+
+
+def restore_content(modeladmin, request, queryset):
+    count = 0
+    for report in queryset.filter(status=ContentReport.STATUS_PENDING):
+        media_obj = report.get_media_object()
+        if media_obj is not None:
+            field = "media_moderation_status" if isinstance(media_obj, Need) else "moderation_status"
+            setattr(media_obj, field, Need.MODERATION_APPROVED)
+            media_obj.save(update_fields=[field])
+        report.status = ContentReport.STATUS_PROCESSED
+        report.save(update_fields=["status"])
+        count += 1
+    AuditLog.objects.create(admin_user=request.user, action="restored reported content", target_description=f"{count} report(s)")
+    modeladmin.message_user(request, f"Restored {count} item(s).")
+
+
+restore_content.short_description = "Restore (report was unfounded)"
+
+
+def confirm_content_rejection(modeladmin, request, queryset):
+    count = 0
+    for report in queryset.filter(status=ContentReport.STATUS_PENDING):
+        media_obj = report.get_media_object()
+        if media_obj is not None:
+            field = "media_moderation_status" if isinstance(media_obj, Need) else "moderation_status"
+            setattr(media_obj, field, Need.MODERATION_REJECTED)
+            media_obj.save(update_fields=[field])
+        report.status = ContentReport.STATUS_PROCESSED
+        report.save(update_fields=["status"])
+        count += 1
+    AuditLog.objects.create(admin_user=request.user, action="confirmed content report rejection", target_description=f"{count} report(s)")
+    modeladmin.message_user(request, f"Kept {count} item(s) rejected.")
+
+
+confirm_content_rejection.short_description = "Confirm rejection (report was valid)"
+
+
+@admin.register(ContentReport)
+class ContentReportAdmin(admin.ModelAdmin):
+    list_display = ["id", "media_type", "media_id", "reason", "status", "reported_at"]
+    list_filter = ["status", "media_type"]
+    actions = [restore_content, confirm_content_rejection]

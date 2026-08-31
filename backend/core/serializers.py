@@ -3,9 +3,11 @@ from rest_framework import serializers
 from core.models import (
     AppConfiguration,
     Campaign,
+    ContentReport,
     DamagePhoto,
     DeliveryPhoto,
     DisasterType,
+    DuplicateReport,
     LocationPing,
     Need,
     Pickup,
@@ -17,16 +19,47 @@ from core.media_validation import validate_video_duration
 from core.validators import validate_algeria_bounds
 
 
-class DamagePhotoSerializer(serializers.ModelSerializer):
+class ModeratedPhotoMixin:
+    """Hides the image URL unless it's been approved (Wave 3) -- a
+    rejected or still-pending photo must never be publicly visible,
+    per spec. The id/status are still returned so the uploader/admin UI
+    can show a "pending review" placeholder instead of a broken image."""
+
+    def get_image(self, obj):
+        if obj.moderation_status == Need.MODERATION_APPROVED:
+            request = self.context.get("request")
+            url = obj.image.url
+            return request.build_absolute_uri(url) if request else url
+        return None
+
+
+class DamagePhotoSerializer(ModeratedPhotoMixin, serializers.ModelSerializer):
+    image = serializers.SerializerMethodField()
+
     class Meta:
         model = DamagePhoto
-        fields = ["id", "image"]
+        fields = ["id", "image", "moderation_status"]
 
 
-class DeliveryPhotoSerializer(serializers.ModelSerializer):
+class DeliveryPhotoSerializer(ModeratedPhotoMixin, serializers.ModelSerializer):
+    image = serializers.SerializerMethodField()
+
     class Meta:
         model = DeliveryPhoto
-        fields = ["id", "image"]
+        fields = ["id", "image", "moderation_status"]
+
+
+class DuplicateReportCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DuplicateReport
+        fields = ["reporter_name", "reporter_phone"]
+
+
+class ContentReportSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ContentReport
+        fields = ["id", "media_type", "media_id", "reporter_name", "reporter_phone", "reason", "reported_at", "status"]
+        read_only_fields = ["id", "reported_at", "status"]
 
 
 class WilayaSerializer(serializers.ModelSerializer):
@@ -145,6 +178,16 @@ class NeedPublicSerializer(serializers.ModelSerializer):
     damage_photos = DamagePhotoSerializer(many=True, read_only=True)
     wilaya_name = serializers.CharField(source="wilaya.name", read_only=True)
     is_anonymized = serializers.BooleanField(read_only=True)
+    media_file = serializers.SerializerMethodField()
+
+    def get_media_file(self, obj):
+        """Hides the audio/video file unless it's been approved (Wave 3),
+        same policy as damage/delivery photos."""
+        if not obj.media_file or obj.media_moderation_status != Need.MODERATION_APPROVED:
+            return None
+        request = self.context.get("request")
+        url = obj.media_file.url
+        return request.build_absolute_uri(url) if request else url
 
     class Meta:
         model = Need

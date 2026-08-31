@@ -25,6 +25,25 @@ class BaseAPITestCase(TestCase):
             config.save()
 
 
+def _admin_site():
+    from django.contrib.admin.sites import AdminSite
+
+    return AdminSite()
+
+
+def _fake_admin_request(user):
+    """A RequestFactory request usable with ModelAdmin.message_user, which
+    needs a messages storage attached (normally provided by MessageMiddleware)."""
+    from django.contrib.messages.storage.fallback import FallbackStorage
+    from django.test import RequestFactory
+
+    request = RequestFactory().post("/admin/")
+    request.user = user
+    request.session = {}
+    request._messages = FallbackStorage(request)
+    return request
+
+
 def make_campaign(status=Campaign.STATUS_ACTIVE, wilayas=None):
     dt = DisasterType.objects.create(name="Wildfire", icon="fire")
     campaign = Campaign.objects.create(campaign_name="Test campaign", disaster_type=dt, status=status)
@@ -820,3 +839,253 @@ class MediaUploadTests(BaseAPITestCase):
         need = Need.objects.get(pk=resp.data["id"])
         photo = need.damage_photos.first()
         self.assertTrue(photo.image.storage.exists(photo.image.name))
+
+
+class ModerationTests(BaseAPITestCase):
+    """Wave 3: automatic NSFWJS moderation. Behavior tests use mocks for
+    deterministic, CI-reproducible results (approve/reject/pending is a
+    business-logic decision, independent of whether a real sidecar process
+    happens to be running); test_real_sidecar_classifies_a_benign_photo
+    below additionally exercises the actual running sidecar in this dev
+    session when reachable, skipping gracefully otherwise (same pattern as
+    every other optional external dependency in this project)."""
+
+    def setUp(self):
+        super().setUp()
+        self.campaign = make_campaign()
+        self.wilaya = self.campaign.authorized_wilayas.first()
+
+    def _payload(self, **overrides):
+        data = dict(NEED_PAYLOAD, campaign=self.campaign.pk, wilaya=self.wilaya.pk)
+        data.update(overrides)
+        return data
+
+    def test_real_sidecar_classifies_a_benign_photo(self):
+        import requests
+
+        try:
+            requests.get("http://127.0.0.1:8801/health", timeout=1).raise_for_status()
+        except Exception:
+            self.skipTest("moderation-sidecar is not running in this environment")
+
+        resp = self.client.post(
+            "/api/needs/", self._payload(damage_photos=[make_test_image()]), format="multipart"
+        )
+        self.assertEqual(resp.status_code, 201, resp.content)
+        need = Need.objects.get(pk=resp.data["id"])
+        photo = need.damage_photos.first()
+        # A solid-color test image should score low and be auto-approved by the real model.
+        self.assertEqual(photo.moderation_status, "approved")
+        self.assertIsNotNone(resp.data["damage_photos"][0]["image"])  # approved -> visible
+
+    def test_low_score_auto_approves_and_is_publicly_visible(self):
+        from unittest.mock import patch
+
+        with patch("core.views.moderate_image_field", return_value="approved"):
+            resp = self.client.post(
+                "/api/needs/", self._payload(damage_photos=[make_test_image()]), format="multipart"
+            )
+        self.assertEqual(resp.data["damage_photos"][0]["moderation_status"], "approved")
+        self.assertIsNotNone(resp.data["damage_photos"][0]["image"])
+
+    def test_high_score_auto_rejects_and_hides_image_url(self):
+        from unittest.mock import patch
+
+        with patch("core.views.moderate_image_field", return_value="rejected"):
+            resp = self.client.post(
+                "/api/needs/", self._payload(damage_photos=[make_test_image()]), format="multipart"
+            )
+        self.assertEqual(resp.data["damage_photos"][0]["moderation_status"], "rejected")
+        self.assertIsNone(resp.data["damage_photos"][0]["image"])  # never visible once rejected
+
+    def test_intermediate_score_goes_to_pending_queue_and_hides_image_url(self):
+        from unittest.mock import patch
+
+        with patch("core.views.moderate_image_field", return_value="pending"):
+            resp = self.client.post(
+                "/api/needs/", self._payload(damage_photos=[make_test_image()]), format="multipart"
+            )
+        self.assertEqual(resp.data["damage_photos"][0]["moderation_status"], "pending")
+        self.assertIsNone(resp.data["damage_photos"][0]["image"])  # not published until a human approves
+
+    def test_moderation_toggle_off_skips_check_and_auto_approves(self):
+        from unittest.mock import patch
+
+        config = AppConfiguration.get_solo()
+        config.media_moderation_active = False
+        config.save()
+        with patch("core.moderation.classify_image_bytes") as mocked:
+            resp = self.client.post(
+                "/api/needs/", self._payload(damage_photos=[make_test_image()]), format="multipart"
+            )
+            mocked.assert_not_called()
+        self.assertEqual(resp.data["damage_photos"][0]["moderation_status"], "approved")
+
+    def test_sidecar_unreachable_queues_for_review_never_auto_approves(self):
+        from unittest.mock import patch
+
+        from core.moderation import ModerationUnavailable
+
+        with patch("core.moderation.classify_image_bytes", side_effect=ModerationUnavailable("down")):
+            resp = self.client.post(
+                "/api/needs/", self._payload(damage_photos=[make_test_image()]), format="multipart"
+            )
+        self.assertEqual(resp.data["damage_photos"][0]["moderation_status"], "pending")
+
+    def test_report_content_hides_it_immediately_independent_of_toggle(self):
+        config = AppConfiguration.get_solo()
+        config.media_moderation_active = False  # even with moderation off entirely
+        config.save()
+        from unittest.mock import patch
+
+        with patch("core.views.moderate_image_field", return_value="approved"):
+            need_resp = self.client.post(
+                "/api/needs/", self._payload(damage_photos=[make_test_image()]), format="multipart"
+            )
+        photo_id = need_resp.data["damage_photos"][0]["id"]
+        self.assertIsNotNone(need_resp.data["damage_photos"][0]["image"])
+
+        report_resp = self.client.post(
+            "/api/content-reports/",
+            {"media_type": "damage_photo", "media_id": photo_id, "reporter_name": "A", "reporter_phone": "0600", "reason": "inappropriate"},
+            format="json",
+        )
+        self.assertEqual(report_resp.status_code, 201, report_resp.content)
+
+        need_resp2 = self.client.get(f"/api/needs/{need_resp.data['id']}/")
+        self.assertIsNone(need_resp2.data["damage_photos"][0]["image"])  # hidden immediately
+
+    def test_admin_moderation_action_is_logged(self):
+        from unittest.mock import patch
+
+        from core.models import AuditLog, DamagePhoto
+
+        with patch("core.views.moderate_image_field", return_value="pending"):
+            need_resp = self.client.post(
+                "/api/needs/", self._payload(damage_photos=[make_test_image()]), format="multipart"
+            )
+        photo = DamagePhoto.objects.get(pk=need_resp.data["damage_photos"][0]["id"])
+        admin = get_user_model().objects.create_superuser("modadmin", "m@example.com", "pw123456!")
+
+        from core.admin import DamagePhotoAdmin, approve_media
+        request = _fake_admin_request(admin)
+        modeladmin = DamagePhotoAdmin(DamagePhoto, _admin_site())
+        approve_media(modeladmin, request, DamagePhoto.objects.filter(pk=photo.pk))
+        photo.refresh_from_db()
+        self.assertEqual(photo.moderation_status, "approved")
+        self.assertTrue(AuditLog.objects.filter(action="approved media").exists())
+
+
+class DuplicateDetectionTests(BaseAPITestCase):
+    def setUp(self):
+        super().setUp()
+        self.campaign = make_campaign()
+        self.wilaya = self.campaign.authorized_wilayas.first()
+
+    def test_similar_need_suggested_within_24h_same_wilaya(self):
+        first = self.client.post(
+            "/api/needs/",
+            dict(NEED_PAYLOAD, campaign=self.campaign.pk, wilaya=self.wilaya.pk, title="Blankets urgently needed"),
+            format="json",
+        )
+        resp = self.client.get(
+            "/api/needs/check-duplicates/",
+            {"wilaya": self.wilaya.pk, "title": "Blankets urgently needed", "description": NEED_PAYLOAD["location_description"]},
+        )
+        self.assertEqual(resp.status_code, 200)
+        ids = [n["id"] for n in resp.data]
+        self.assertIn(first.data["id"], ids)
+
+    def test_suggestion_is_non_blocking_creation_still_succeeds(self):
+        self.client.post(
+            "/api/needs/",
+            dict(NEED_PAYLOAD, campaign=self.campaign.pk, wilaya=self.wilaya.pk, title="Blankets urgently needed"),
+            format="json",
+        )
+        resp = self.client.post(
+            "/api/needs/",
+            dict(NEED_PAYLOAD, campaign=self.campaign.pk, wilaya=self.wilaya.pk, title="Blankets urgently needed"),
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 201)
+        self.assertGreaterEqual(len(resp.data["duplicate_suggestions"]), 1)
+
+    def test_different_wilaya_not_suggested(self):
+        other_campaign = make_campaign()
+        other_wilaya = other_campaign.authorized_wilayas.exclude(pk=self.wilaya.pk).first()
+        self.client.post(
+            "/api/needs/",
+            dict(NEED_PAYLOAD, campaign=self.campaign.pk, wilaya=self.wilaya.pk, title="Blankets urgently needed"),
+            format="json",
+        )
+        resp = self.client.get(
+            "/api/needs/check-duplicates/",
+            {"wilaya": other_wilaya.pk, "title": "Blankets urgently needed", "description": NEED_PAYLOAD["location_description"]},
+        )
+        self.assertEqual(resp.data, [])
+
+    def test_report_as_duplicate_creates_report_and_admin_can_merge(self):
+        from core.models import DuplicateReport
+
+        original = self.client.post(
+            "/api/needs/", dict(NEED_PAYLOAD, campaign=self.campaign.pk, wilaya=self.wilaya.pk), format="json"
+        )
+        dup = self.client.post(
+            "/api/needs/", dict(NEED_PAYLOAD, campaign=self.campaign.pk, wilaya=self.wilaya.pk), format="json"
+        )
+        resp = self.client.post(
+            f"/api/needs/{dup.data['id']}/report-duplicate/",
+            {"reference_need_id": original.data["id"], "reporter_name": "Neighbor", "reporter_phone": "0611"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 201, resp.content)
+        self.assertTrue(DuplicateReport.objects.filter(reported_need_id=dup.data["id"]).exists())
+
+        from core.admin import DuplicateReportAdmin, process_duplicate_merge
+
+        admin = get_user_model().objects.create_superuser("dupadmin", "d@example.com", "pw123456!")
+        request = _fake_admin_request(admin)
+        modeladmin = DuplicateReportAdmin(DuplicateReport, _admin_site())
+        process_duplicate_merge(modeladmin, request, DuplicateReport.objects.all())
+
+        dup_need = Need.objects.get(pk=dup.data["id"])
+        self.assertTrue(dup_need.is_cancelled)
+
+
+class ReverseGeocodeTests(BaseAPITestCase):
+    def test_nearest_wilaya_returned_for_coordinates(self):
+        # Algiers coordinates -- should resolve to wilaya "Alger" (16).
+        resp = self.client.get("/api/wilayas/nearest/", {"lat": 36.75, "lon": 3.06})
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data["name"], "Alger")
+
+    def test_missing_params_rejected_clearly(self):
+        resp = self.client.get("/api/wilayas/nearest/")
+        self.assertEqual(resp.status_code, 400)
+
+
+class GPSBoundingBoxTests(BaseAPITestCase):
+    """Re-confirms the Algeria bounding-box check (built in Wave 1 ahead of
+    this wave's spec text) is distinct from, and coexists with, the
+    Wave 1 IP-based write restriction."""
+
+    def setUp(self):
+        super().setUp()
+        self.campaign = make_campaign()
+        self.wilaya = self.campaign.authorized_wilayas.first()
+
+    def test_paris_coordinates_rejected_with_graceful_fallback_not_hard_error(self):
+        resp = self.client.post(
+            "/api/needs/",
+            dict(NEED_PAYLOAD, campaign=self.campaign.pk, wilaya=self.wilaya.pk, latitude=48.85, longitude=2.35),
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("Algeria", str(resp.data))  # a clear message, not a silent/500 failure
+
+    def test_same_request_without_gps_succeeds(self):
+        # Confirms rejection falls back gracefully to manual entry rather
+        # than failing the whole form.
+        payload = dict(NEED_PAYLOAD, campaign=self.campaign.pk, wilaya=self.wilaya.pk)
+        resp = self.client.post("/api/needs/", payload, format="json")
+        self.assertEqual(resp.status_code, 201)

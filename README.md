@@ -61,6 +61,16 @@ If a required environment variable is missing, the app fails immediately with a 
 
 To actually install the real database: create a free account at https://www.maxmind.com/en/geolite2/signup, download `GeoLite2-Country.mmdb`, and either place it at the repo root (default `GEOIP_DB_PATH`) or point `GEOIP_DB_PATH` in `.env` at wherever you put it. Never commit the `.mmdb` file (it's gitignored) — MaxMind's license does not allow redistributing it.
 
+### Moderation sidecar (optional for local dev)
+
+Photo/video moderation (Wave 3) calls a small local NSFWJS service. Without it running, uploads that need moderation are simply queued as "pending" (safe default -- see `core/moderation.py`) rather than auto-approved. To run it locally:
+
+```bash
+cd moderation-sidecar
+npm install
+npm start   # listens on http://127.0.0.1:8801, no model download needed -- it's bundled in the npm package
+```
+
 ### Running tests
 
 ```bash

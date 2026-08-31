@@ -3,6 +3,7 @@ from rest_framework.routers import DefaultRouter
 from core.views import (
     AppConfigurationView,
     CampaignViewSet,
+    ContentReportViewSet,
     DisasterTypeViewSet,
     NeedViewSet,
     PickupViewSet,
@@ -18,6 +19,7 @@ router.register("campaigns", CampaignViewSet, basename="campaign")
 router.register("needs", NeedViewSet, basename="need")
 router.register("pickups", PickupViewSet, basename="pickup")
 router.register("support-requests", SupportRequestViewSet, basename="support-request")
+router.register("content-reports", ContentReportViewSet, basename="content-report")
 
 urlpatterns = router.urls + [
     path("config/", AppConfigurationView.as_view(), name="app-configuration"),

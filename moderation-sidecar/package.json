@@ -1,0 +1,16 @@
+{
+  "name": "rassemble-moderation-sidecar",
+  "version": "1.0.0",
+  "description": "Local NSFWJS moderation sidecar for Rassemble. Called by the Django backend over local HTTP only -- never exposed publicly. See ../DEPLOYMENT.md for how this runs as its own systemd service on the IONOS VPS.",
+  "private": true,
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@tensorflow/tfjs-node": "4.22.0",
+    "express": "^4.21.0",
+    "multer": "^2.0.0",
+    "nsfwjs": "4.3.0"
+  }
+}

@@ -289,10 +289,13 @@ class Need(IdentityListingMixin, models.Model):
 
 
 class DamagePhoto(models.Model):
-    """Up to 3 live-captured photos per Need (Wave 2)."""
+    """Up to 3 live-captured photos per Need (Wave 2). Each photo is
+    moderated independently (Wave 3) -- one photo being flagged must not
+    hide the other two."""
 
     need = models.ForeignKey(Need, on_delete=models.CASCADE, related_name="damage_photos")
     image = models.ImageField(upload_to="damage_photos/")
+    moderation_status = models.CharField(max_length=10, choices=Need.MODERATION_CHOICES, default=Need.MODERATION_PENDING)
     created_at = models.DateTimeField(auto_now_add=True)
 
 
@@ -385,6 +388,7 @@ class DeliveryPhoto(models.Model):
 
     pickup = models.ForeignKey(Pickup, on_delete=models.CASCADE, related_name="delivery_photos")
     image = models.ImageField(upload_to="delivery_photos/")
+    moderation_status = models.CharField(max_length=10, choices=Need.MODERATION_CHOICES, default=Need.MODERATION_PENDING)
     created_at = models.DateTimeField(auto_now_add=True)
 
 
@@ -412,6 +416,51 @@ class LocationPing(models.Model):
 
     class Meta:
         ordering = ["recorded_at"]
+
+
+# ---------------------------------------------------------------------------
+# Duplicate / content reporting (Wave 3)
+# ---------------------------------------------------------------------------
+
+class DuplicateReport(models.Model):
+    STATUS_PENDING, STATUS_PROCESSED = "pending", "processed"
+    STATUS_CHOICES = [(STATUS_PENDING, "Pending"), (STATUS_PROCESSED, "Processed")]
+
+    reported_need = models.ForeignKey(Need, on_delete=models.CASCADE, related_name="duplicate_reports_against")
+    reference_need = models.ForeignKey(Need, on_delete=models.CASCADE, related_name="duplicate_reports_as_reference")
+    reporter_name = models.CharField(max_length=200)
+    reporter_phone = models.CharField(max_length=30)
+    reported_at = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
+
+
+class ContentReport(models.Model):
+    MEDIA_NEED_FILE = "need_media_file"
+    MEDIA_DAMAGE_PHOTO = "damage_photo"
+    MEDIA_DELIVERY_PHOTO = "delivery_photo"
+    MEDIA_TYPE_CHOICES = [
+        (MEDIA_NEED_FILE, "Need media file (audio/video)"),
+        (MEDIA_DAMAGE_PHOTO, "Damage photo"),
+        (MEDIA_DELIVERY_PHOTO, "Delivery photo"),
+    ]
+    STATUS_PENDING, STATUS_PROCESSED = "pending", "processed"
+    STATUS_CHOICES = [(STATUS_PENDING, "Pending"), (STATUS_PROCESSED, "Processed")]
+
+    media_type = models.CharField(max_length=20, choices=MEDIA_TYPE_CHOICES)
+    media_id = models.PositiveIntegerField()
+    reporter_name = models.CharField(max_length=200)
+    reporter_phone = models.CharField(max_length=30)
+    reason = models.CharField(max_length=500)
+    reported_at = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
+
+    def get_media_object(self):
+        model = {
+            self.MEDIA_NEED_FILE: Need,
+            self.MEDIA_DAMAGE_PHOTO: DamagePhoto,
+            self.MEDIA_DELIVERY_PHOTO: DeliveryPhoto,
+        }[self.media_type]
+        return model.objects.filter(pk=self.media_id).first()
 
 
 # ---------------------------------------------------------------------------

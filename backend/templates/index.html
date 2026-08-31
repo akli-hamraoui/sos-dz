@@ -176,15 +176,23 @@
           <p x-text="currentNeed.location_description"></p>
           <p x-show="currentNeed.position_accuracy !== 'exact'" class="hint">no exact GPS position</p>
 
-          <div x-show="currentNeed.media_type === 'audio' && currentNeed.media_file">
-            <audio :src="currentNeed.media_file" controls></audio>
-          </div>
-          <div x-show="currentNeed.media_type === 'video' && currentNeed.media_file">
-            <video :src="currentNeed.media_file" controls style="max-width:100%"></video>
+          <div x-show="currentNeed.media_type !== 'text'">
+            <p x-show="!currentNeed.media_file" class="hint" x-text="'Recorded ' + currentNeed.media_type + ' message: ' + (currentNeed.media_moderation_status === 'rejected' ? 'removed by moderation' : 'pending review')"></p>
+            <template x-if="currentNeed.media_file">
+              <div>
+                <audio x-show="currentNeed.media_type === 'audio'" :src="currentNeed.media_file" controls></audio>
+                <video x-show="currentNeed.media_type === 'video'" :src="currentNeed.media_file" controls style="max-width:100%"></video>
+                <br><button class="link" @click="reportContent('need_media_file', currentNeed.id)">Report this content</button>
+              </div>
+            </template>
           </div>
           <div class="photo-thumbs" x-show="currentNeed.damage_photos && currentNeed.damage_photos.length">
             <template x-for="photo in currentNeed.damage_photos" :key="photo.id">
-              <a :href="photo.image" target="_blank"><img class="gallery-thumb" :src="photo.image"></a>
+              <div class="photo-thumb">
+                <template x-if="photo.image"><a :href="photo.image" target="_blank"><img class="gallery-thumb" :src="photo.image"></a></template>
+                <span x-show="!photo.image" class="hint" x-text="photo.moderation_status === 'rejected' ? 'removed' : 'pending review'"></span>
+                <br x-show="photo.image"><button x-show="photo.image" class="link" @click="reportContent('damage_photo', photo.id)">Report</button>
+              </div>
             </template>
           </div>
           <p>Contact: <span x-text="currentNeed.contact_last_name + ' ' + currentNeed.contact_first_name"></span> —
@@ -210,6 +218,7 @@
           <div x-show="!isNeedOwner(currentNeed.id)">
             <a class="link" href="#/recover" @click="recoverContext = {type: 'need', id: currentNeed.id}">Is this your need? Recover access</a>
           </div>
+          <button class="link" @click="reportDuplicateOfCurrentNeed()">Report as duplicate</button>
 
           <h3>Live tracking map</h3>
           <div x-show="canSeeLiveMap" >
@@ -240,7 +249,11 @@
               </div>
               <div class="photo-thumbs" x-show="p.delivery_photos && p.delivery_photos.length">
                 <template x-for="photo in p.delivery_photos" :key="photo.id">
-                  <a :href="photo.image" target="_blank"><img class="gallery-thumb" :src="photo.image"></a>
+                  <div class="photo-thumb">
+                    <template x-if="photo.image"><a :href="photo.image" target="_blank"><img class="gallery-thumb" :src="photo.image"></a></template>
+                    <span x-show="!photo.image" class="hint" x-text="photo.moderation_status === 'rejected' ? 'removed' : 'pending review'"></span>
+                    <br x-show="photo.image"><button x-show="photo.image" class="link" @click="reportContent('delivery_photo', photo.id)">Report</button>
+                  </div>
                 </template>
               </div>
               <div x-show="isPickupOwner(p.id)" class="pickup-owner-actions">
