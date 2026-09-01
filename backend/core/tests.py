@@ -1310,6 +1310,16 @@ class AppConfigurationEndpointTests(BaseAPITestCase):
         self.assertEqual(resp.data["contact_phones"], [])
         self.assertEqual(resp.data["admin_contact_email"], "")
 
+    def test_is_admin_false_for_anonymous(self):
+        resp = self.client.get("/api/config/")
+        self.assertFalse(resp.data["is_admin"])
+
+    def test_is_admin_true_for_logged_in_staff(self):
+        admin_user = get_user_model().objects.create_superuser("cfgadmin", "cfg@example.com", "pw123456!")
+        self.client.force_authenticate(admin_user)
+        resp = self.client.get("/api/config/")
+        self.assertTrue(resp.data["is_admin"])
+
     def test_at_most_5_contact_phones_enforced_in_admin(self):
         config = AppConfiguration.get_solo()
         for i in range(5):

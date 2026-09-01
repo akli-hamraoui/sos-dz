@@ -20,7 +20,8 @@
     "hideNumber": "masquer le numéro",
     "noExactGpsPosition": "sans position GPS exacte",
     "adminContact": "Contact admin",
-    "searchPlaceholder": "Rechercher (nom, description...)"
+    "searchPlaceholder": "Rechercher (nom, description...)",
+    "adminModeBadge": "Mode admin"
   },
   "readOnly": {
     "banner": "L'application est actuellement en mode lecture seule. Les données existantes restent consultables."
@@ -70,7 +71,6 @@
     "campaign": "Campagne",
     "selectPlaceholder": "-- sélectionner --",
     "wilaya": "Wilaya",
-    "commune": "Commune",
     "urgency": "Urgence",
     "estimatedQuantity": "Nombre de familles",
     "estimatedQuantityPlaceholder": "ex. 12",
@@ -103,7 +103,11 @@
     "gpsError": "Impossible d'obtenir votre position GPS. Vérifiez que la localisation est autorisée pour ce site.",
     "recoveryCode": "Code de récupération (optionnel)",
     "recoveryCodePlaceholder": "ex : 1234",
-    "recoveryCodeHint": "Un code facile à retenir pour retrouver l'accès depuis un autre appareil. Si vous l'oubliez, votre nom et téléphone permettent aussi de le récupérer."
+    "recoveryCodeHint": "Un code facile à retenir pour retrouver l'accès depuis un autre appareil. Si vous l'oubliez, votre nom et téléphone permettent aussi de le récupérer.",
+    "place": "Lieu",
+    "placePlaceholder": "Quartier, rue, lieu-dit... (optionnel)",
+    "clearGps": "Supprimer la position",
+    "gpsPlaceSet": "Lieu rempli automatiquement à partir de votre position."
   },
   "needsList": {
     "filterByWilaya": "Filtrer par wilaya",

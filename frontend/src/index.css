@@ -91,6 +91,20 @@ a {
 .bottom-nav::before {
   top: -1px;
 }
+.admin-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #0f7a4a;
+  background: #e3f1e7;
+  border: 1px solid #bfe0cb;
+  border-radius: 999px;
+  padding: 3px 10px;
+  white-space: nowrap;
+}
 .brand {
   font-weight: 700;
   font-size: clamp(15px, 4.5vw, 20px);
@@ -308,6 +322,47 @@ textarea {
   font-size: 15px;
   font-family: inherit;
 }
+
+.gps-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* --- Place autocomplete (Nominatim/OpenStreetMap suggestions) --- */
+.place-autocomplete {
+  position: relative;
+}
+.place-autocomplete input,
+.place-autocomplete textarea {
+  width: 100%;
+}
+.place-suggestions {
+  position: absolute;
+  z-index: 20;
+  inset-inline: 0;
+  top: calc(100% + 4px);
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
+  max-height: 220px;
+  overflow-y: auto;
+}
+.place-suggestions li {
+  padding: 8px 10px;
+  border-radius: 7px;
+  font-size: 13.5px;
+  line-height: 1.35;
+  cursor: pointer;
+}
+.place-suggestions li:hover {
+  background: var(--bg);
+}
 fieldset {
   border: 1px solid var(--border);
   border-radius: 12px;
@@ -393,9 +448,14 @@ fieldset {
   font-size: 15px;
 }
 .view-toggle button {
+  /* Matches the wilaya <select> (input, select, textarea { padding: 10px;
+     font-size: 15px }) so the toolbar's two controls read as the same
+     height/weight instead of the toggle looking visually smaller. */
   border: 1px solid var(--border);
   background: #fff;
-  padding: 6px 14px;
+  padding: 10px 16px;
+  font-size: 15px;
+  font-family: inherit;
   cursor: pointer;
 }
 .view-toggle button.active {

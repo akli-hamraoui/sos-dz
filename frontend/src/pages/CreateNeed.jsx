@@ -4,8 +4,9 @@ import { useTranslation } from 'react-i18next'
 import { useApp } from '../context/AppContext'
 import { useDialog } from '../context/DialogContext'
 import { api, createOrQueue } from '../api'
-import { compressPhoto } from '../utils'
+import { compressPhoto, isInAlgeria, reverseGeocodePlace } from '../utils'
 import { IconMapPin, IconMic, IconVideoCam, IconCamera, IconTrash } from '../icons'
+import PlaceAutocomplete from '../components/PlaceAutocomplete'
 
 const DEFAULT_FORM = {
   campaign: '',
@@ -24,9 +25,9 @@ const DEFAULT_FORM = {
 }
 
 export default function CreateNeed() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const navigate = useNavigate()
-  const { campaigns, wilayasForCampaign, saveNeedToken, config } = useApp()
+  const { campaigns, wilayasForCampaign, wilayas, saveNeedToken, config } = useApp()
   const { showConfirm, showAlert } = useDialog()
   const [form, setForm] = useState(DEFAULT_FORM)
   const [gpsStatus, setGpsStatus] = useState(null) // null | 'locating' | 'error'
@@ -72,19 +73,47 @@ export default function CreateNeed() {
     setGpsStatus('locating')
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
+        let { latitude, longitude } = pos.coords
+        // An admin testing/reporting from outside Algeria would otherwise
+        // hit the backend's "coordinates outside Algeria" validation on
+        // submit -- default to Algiers instead of erroring out, since the
+        // point here is exercising/administering the app, not a real
+        // report of a need physically outside the country.
+        if (!isInAlgeria(latitude, longitude) && config.is_admin) {
+          const alger = wilayas.find((w) => w.name === 'Alger')
+          if (alger && alger.centroid_latitude != null) {
+            latitude = alger.centroid_latitude
+            longitude = alger.centroid_longitude
+          }
+        }
         setGpsStatus(null)
-        setForm((f) => ({ ...f, latitude: pos.coords.latitude, longitude: pos.coords.longitude }))
+        setForm((f) => ({ ...f, latitude, longitude }))
         try {
-          const suggestion = await api(`/wilayas/nearest/?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}`)
+          const suggestion = await api(`/wilayas/nearest/?lat=${latitude}&lon=${longitude}`)
           setForm((f) => (f.wilaya ? f : { ...f, wilaya: suggestion.id }))
         } catch {
           /* best-effort only */
+        }
+        try {
+          const place = await reverseGeocodePlace(latitude, longitude, i18n.language)
+          if (place) setForm((f) => ({ ...f, commune: place }))
+        } catch {
+          /* best-effort only -- the place field just stays whatever it already was */
         }
       },
       () => setGpsStatus('error'),
       { timeout: 8000 }
     )
-  }, [])
+  }, [config.is_admin, wilayas, i18n.language])
+
+  // Lets a visitor recover from a bad GPS read (wrong network/IP-based
+  // fallback, a stale cached position, simply changing their mind) --
+  // previously there was no way to clear a captured/errored position
+  // short of reloading the whole page.
+  const clearLocation = () => {
+    setGpsStatus(null)
+    setForm((f) => ({ ...f, latitude: null, longitude: null }))
+  }
 
   const startRecording = async (kind) => {
     if (recordingKind) return // one at a time (shared mic/camera)
@@ -222,8 +251,12 @@ export default function CreateNeed() {
           </select>
         </label>
         <label>
-          {t('createNeed.commune')}
-          <input type="text" value={form.commune} onChange={set('commune')} />
+          {t('createNeed.place')}
+          <PlaceAutocomplete
+            value={form.commune}
+            onChange={(v) => setForm((f) => ({ ...f, commune: v }))}
+            placeholder={t('createNeed.placePlaceholder')}
+          />
         </label>
         <label className="checkbox-label">
           <input type="checkbox" checked={form.urgency === 'critical'} onChange={setUrgent} />
@@ -244,9 +277,16 @@ export default function CreateNeed() {
           {t('createNeed.description')}
           <textarea value={form.location_description} onChange={set('location_description')} placeholder={t('createNeed.descriptionPlaceholder')} />
         </label>
-        <button type="button" className="btn btn-icon" onClick={useMyLocation} disabled={gpsStatus === 'locating'}>
-          <IconMapPin width={16} height={16} strokeWidth={2} /> {t('createNeed.useMyLocation')}
-        </button>
+        <div className="gps-controls">
+          <button type="button" className="btn btn-icon" onClick={useMyLocation} disabled={gpsStatus === 'locating'}>
+            <IconMapPin width={16} height={16} strokeWidth={2} /> {t('createNeed.useMyLocation')}
+          </button>
+          {(gpsStatus === 'error' || form.latitude) && (
+            <button type="button" className="link" onClick={clearLocation}>
+              {t('createNeed.clearGps')}
+            </button>
+          )}
+        </div>
         {gpsStatus === 'locating' && <p className="hint">{t('createNeed.gpsLocating')}</p>}
         {gpsStatus === 'error' && <p className="error">{t('createNeed.gpsError')}</p>}
         {form.latitude && !gpsStatus && <p>{t('createNeed.gpsCaptured', { lat: form.latitude, lon: form.longitude })}</p>}

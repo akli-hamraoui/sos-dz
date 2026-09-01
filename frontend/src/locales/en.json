@@ -20,7 +20,8 @@
     "hideNumber": "hide number",
     "noExactGpsPosition": "no exact GPS position",
     "adminContact": "Admin contact",
-    "searchPlaceholder": "Search (name, description...)"
+    "searchPlaceholder": "Search (name, description...)",
+    "adminModeBadge": "Admin mode"
   },
   "readOnly": {
     "banner": "The app is currently in read-only mode. Existing data remains viewable."
@@ -70,7 +71,6 @@
     "campaign": "Campaign",
     "selectPlaceholder": "-- select --",
     "wilaya": "Wilaya",
-    "commune": "Commune",
     "urgency": "Urgency",
     "estimatedQuantity": "Number of families",
     "estimatedQuantityPlaceholder": "e.g. 12",
@@ -103,7 +103,11 @@
     "gpsError": "Couldn't get your GPS position. Check that location access is allowed for this site.",
     "recoveryCode": "Recovery code (optional)",
     "recoveryCodePlaceholder": "e.g. 1234",
-    "recoveryCodeHint": "An easy-to-remember code to recover access from another device. If you forget it, your name and phone also work to recover access."
+    "recoveryCodeHint": "An easy-to-remember code to recover access from another device. If you forget it, your name and phone also work to recover access.",
+    "place": "Place",
+    "placePlaceholder": "Neighborhood, street, landmark... (optional)",
+    "clearGps": "Clear position",
+    "gpsPlaceSet": "Place filled in automatically from your position."
   },
   "needsList": {
     "filterByWilaya": "Filter by wilaya",

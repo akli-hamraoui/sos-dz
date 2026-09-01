@@ -125,6 +125,12 @@ class AppConfigurationView(APIView):
         data = AppConfigurationPublicSerializer(AppConfiguration.get_solo()).data
         data["turnstile_site_key"] = settings.TURNSTILE_SITE_KEY
         data["turnstile_enabled"] = settings.TURNSTILE_ENABLED
+        # Lets the frontend show an "admin mode" badge and apply
+        # admin-only conveniences (e.g. defaulting to Algiers instead of
+        # erroring when a GPS position outside Algeria bounds would
+        # otherwise be rejected) -- never a security boundary itself,
+        # every actual write still re-checks is_admin_request server-side.
+        data["is_admin"] = is_admin_request(request)
         return Response(data)
 
 

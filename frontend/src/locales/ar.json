@@ -20,7 +20,8 @@
     "hideNumber": "إخفاء الرقم",
     "noExactGpsPosition": "بدون موقع GPS دقيق",
     "adminContact": "التواصل مع الإدارة",
-    "searchPlaceholder": "بحث (اسم، وصف...)"
+    "searchPlaceholder": "بحث (اسم، وصف...)",
+    "adminModeBadge": "وضع الإدارة"
   },
   "readOnly": {
     "banner": "التطبيق حالياً في وضع القراءة فقط. تبقى البيانات الموجودة قابلة للعرض."
@@ -70,7 +71,6 @@
     "campaign": "الحملة",
     "selectPlaceholder": "-- اختر --",
     "wilaya": "الولاية",
-    "commune": "البلدية",
     "urgency": "درجة الإلحاح",
     "estimatedQuantity": "عدد العائلات",
     "estimatedQuantityPlaceholder": "مثال: 12",
@@ -103,7 +103,11 @@
     "gpsError": "تعذر الحصول على موقعك عبر GPS. تأكد من السماح بالوصول إلى الموقع لهذا الموقع.",
     "recoveryCode": "رمز الاسترجاع (اختياري)",
     "recoveryCodePlaceholder": "مثال: 1234",
-    "recoveryCodeHint": "رمز سهل التذكر لاسترجاع الوصول من جهاز آخر. إذا نسيته، يمكنك أيضاً استخدام اسمك وهاتفك لاسترجاعه."
+    "recoveryCodeHint": "رمز سهل التذكر لاسترجاع الوصول من جهاز آخر. إذا نسيته، يمكنك أيضاً استخدام اسمك وهاتفك لاسترجاعه.",
+    "place": "المكان",
+    "placePlaceholder": "الحي، الشارع، معلم... (اختياري)",
+    "clearGps": "حذف الموقع",
+    "gpsPlaceSet": "تم ملء المكان تلقائياً من موقعك."
   },
   "needsList": {
     "filterByWilaya": "تصفية حسب الولاية",

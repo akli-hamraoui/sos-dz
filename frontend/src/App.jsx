@@ -96,6 +96,7 @@ export default function App() {
         <Link to="/" className="brand">
           {t('common.brand')}
         </Link>
+        {config.is_admin && <span className="admin-badge">{t('common.adminModeBadge')}</span>}
         <nav className="topbar-nav-desktop">
           <Link to="/needs">{t('nav.needs')}</Link>
           <Link to="/collection-points">{t('nav.collectionPoints')}</Link>

@@ -41,6 +41,31 @@ export function isInAlgeria(lat, lon) {
   return lat >= ALGERIA_BOUNDS.latMin && lat <= ALGERIA_BOUNDS.latMax && lon >= ALGERIA_BOUNDS.lonMin && lon <= ALGERIA_BOUNDS.lonMax
 }
 
+const NOMINATIM_BASE = 'https://nominatim.openstreetmap.org'
+
+// Free-text place search via Nominatim (OpenStreetMap), restricted to
+// Algeria. Best-effort only: any network/CORS failure just means no
+// suggestions show up -- the caller always keeps whatever the visitor
+// actually typed regardless (see components/PlaceAutocomplete.jsx), so a
+// place that isn't in OSM's data never blocks a report from going through.
+export async function searchPlaces(query, lang, signal) {
+  const url = `${NOMINATIM_BASE}/search?format=json&countrycodes=dz&addressdetails=0&limit=6&accept-language=${lang}&q=${encodeURIComponent(query)}`
+  const resp = await fetch(url, { signal })
+  if (!resp.ok) throw new Error('Place search failed')
+  return resp.json()
+}
+
+// Reverse-geocodes a GPS position into a human-readable place name --
+// used to prefill the "place" field after a successful "use my location"
+// capture. Best-effort: callers ignore failures (network/CORS/no result).
+export async function reverseGeocodePlace(lat, lon, lang) {
+  const url = `${NOMINATIM_BASE}/reverse?format=json&lat=${lat}&lon=${lon}&accept-language=${lang}&zoom=16`
+  const resp = await fetch(url)
+  if (!resp.ok) throw new Error('Reverse geocode failed')
+  const data = await resp.json()
+  return data.display_name || null
+}
+
 export async function compressPhoto(file) {
   try {
     const imageCompression = (await import('browser-image-compression')).default

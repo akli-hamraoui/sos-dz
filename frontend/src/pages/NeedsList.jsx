@@ -263,7 +263,7 @@ export default function NeedsList() {
       {viewMode === 'map' && (
         <div className="map-wrap">
           {mapHasNothing && <p className="hint">{t('needsList.noActiveNeeds')}</p>}
-          <div id="main-map" ref={mapElRef} style={{ height: 680 }} />
+          <div id="main-map" ref={mapElRef} style={{ height: 600 }} />
           <div className="legend">
             <span className="legend-item">
               <span className="legend-dot" style={{ background: urgencyColor('critical') }} />

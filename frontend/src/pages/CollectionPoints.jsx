@@ -218,7 +218,7 @@ export default function CollectionPoints() {
       {viewMode === 'map' && (
         <div className="map-wrap">
           {mapHasNothing && <p className="hint">{t('collectionPoints.noPointsYet')}</p>}
-          <div id="cp-map" ref={mapElRef} style={{ height: 680 }} />
+          <div id="cp-map" ref={mapElRef} style={{ height: 600 }} />
         </div>
       )}
     </section>

@@ -3,13 +3,15 @@ import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useApp } from '../context/AppContext'
 import { api } from '../api'
+import { isInAlgeria, reverseGeocodePlace } from '../utils'
+import PlaceAutocomplete from '../components/PlaceAutocomplete'
 
 const DEFAULT_FORM = { wilaya: '', point_name: '', contact_name: '', contact_phone: '', organization: '', location_description: '', hours: '' }
 
 export default function CreateCollectionPoint() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const navigate = useNavigate()
-  const { activeCampaignWilayas } = useApp()
+  const { activeCampaignWilayas, wilayas, config } = useApp()
   const [form, setForm] = useState(DEFAULT_FORM)
   const [gpsStatus, setGpsStatus] = useState(null) // null | 'locating' | 'error'
   const [error, setError] = useState('')
@@ -24,18 +26,40 @@ export default function CreateCollectionPoint() {
     setGpsStatus('locating')
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
+        let { latitude, longitude } = pos.coords
+        // See CreateNeed.jsx for why: an admin testing from outside
+        // Algeria gets Algiers instead of a "coordinates outside
+        // Algeria" error on submit.
+        if (!isInAlgeria(latitude, longitude) && config.is_admin) {
+          const alger = wilayas.find((w) => w.name === 'Alger')
+          if (alger && alger.centroid_latitude != null) {
+            latitude = alger.centroid_latitude
+            longitude = alger.centroid_longitude
+          }
+        }
         setGpsStatus(null)
-        setForm((f) => ({ ...f, latitude: pos.coords.latitude, longitude: pos.coords.longitude }))
+        setForm((f) => ({ ...f, latitude, longitude }))
         try {
-          const suggestion = await api(`/wilayas/nearest/?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}`)
+          const suggestion = await api(`/wilayas/nearest/?lat=${latitude}&lon=${longitude}`)
           setForm((f) => (f.wilaya ? f : { ...f, wilaya: suggestion.id }))
         } catch {
           /* best-effort */
+        }
+        try {
+          const place = await reverseGeocodePlace(latitude, longitude, i18n.language)
+          if (place) setForm((f) => ({ ...f, location_description: place }))
+        } catch {
+          /* best-effort only -- the field just stays whatever it already was */
         }
       },
       () => setGpsStatus('error'),
       { timeout: 8000 }
     )
+  }
+
+  const clearLocation = () => {
+    setGpsStatus(null)
+    setForm((f) => ({ ...f, latitude: null, longitude: null }))
   }
 
   const submit = async (e) => {
@@ -77,14 +101,27 @@ export default function CreateCollectionPoint() {
           {t('collectionPoints.organization')} <input type="text" value={form.organization} onChange={set('organization')} />
         </label>
         <label>
-          {t('collectionPoints.locationDescription')} * <textarea value={form.location_description} onChange={set('location_description')} required />
+          {t('collectionPoints.locationDescription')} *
+          <PlaceAutocomplete
+            as="textarea"
+            value={form.location_description}
+            onChange={(v) => setForm((f) => ({ ...f, location_description: v }))}
+            required
+          />
         </label>
         <label>
           {t('collectionPoints.hours')} <input type="text" value={form.hours} onChange={set('hours')} placeholder={t('collectionPoints.hoursPlaceholder')} />
         </label>
-        <button type="button" className="btn" onClick={useMyLocation} disabled={gpsStatus === 'locating'}>
-          {t('createNeed.useMyLocation')}
-        </button>
+        <div className="gps-controls">
+          <button type="button" className="btn" onClick={useMyLocation} disabled={gpsStatus === 'locating'}>
+            {t('createNeed.useMyLocation')}
+          </button>
+          {(gpsStatus === 'error' || form.latitude) && (
+            <button type="button" className="link" onClick={clearLocation}>
+              {t('createNeed.clearGps')}
+            </button>
+          )}
+        </div>
         {gpsStatus === 'locating' && <p className="hint">{t('createNeed.gpsLocating')}</p>}
         {gpsStatus === 'error' && <p className="error">{t('createNeed.gpsError')}</p>}
         {form.latitude && !gpsStatus && <p>{t('createNeed.gpsCaptured', { lat: form.latitude, lon: form.longitude })}</p>}

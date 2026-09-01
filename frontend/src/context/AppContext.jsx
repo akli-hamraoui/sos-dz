@@ -13,6 +13,7 @@ export function AppProvider({ children }) {
     turnstile_site_key: '',
     contact_phones: [],
     admin_contact_email: '',
+    is_admin: false,
   })
   const [wilayas, setWilayas] = useState([])
   const [campaigns, setCampaigns] = useState([])
