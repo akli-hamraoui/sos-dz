@@ -34,7 +34,13 @@ export function urgencyColor(u) {
 export async function compressPhoto(file) {
   try {
     const imageCompression = (await import('browser-image-compression')).default
-    return await imageCompression(file, { maxWidthOrHeight: 1280, initialQuality: 0.7, useWebWorker: true, fileType: 'image/jpeg' })
+    // maxSizeMB is enforced iteratively by the library (it re-encodes at a
+    // lower quality/resolution as needed until under the cap), on top of
+    // the maxWidthOrHeight/initialQuality starting point -- without it, an
+    // unusually high-entropy photo (dense damage/rubble detail) could
+    // still land well above what's reasonable to submit over a weak
+    // connection despite already being downscaled once.
+    return await imageCompression(file, { maxWidthOrHeight: 1280, initialQuality: 0.7, maxSizeMB: 1, useWebWorker: true, fileType: 'image/jpeg' })
   } catch {
     return file
   }
