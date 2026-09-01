@@ -619,7 +619,13 @@ fieldset {
   grid-template-columns: 1fr 1fr auto 1fr 1fr;
   align-items: center;
   padding: 8px 0 max(8px, env(safe-area-inset-bottom));
-  z-index: 50;
+  /* Leaflet's own zoom/attribution controls default to z-index: 1000 in
+     its stylesheet -- since the map container doesn't establish its own
+     stacking context, that z-index competes directly with this bar's, so
+     the nav must sit above it or the map's own bottom-right corner
+     (zoom control, attribution) paints over the fixed footer and FAB
+     whenever they visually overlap on scroll. */
+  z-index: 1100;
 }
 .bottom-nav a,
 .bottom-nav button {
@@ -681,7 +687,8 @@ footer {
 /* --- Dialog (replaces window.alert/confirm/prompt) --- */
 /* A bottom sheet on narrow screens (Uber-style: slides up from the edge
    closest to the thumb), a centered card on wider ones. Above the bottom
-   nav's z-index: 50. */
+   nav's z-index: 1100 (itself raised above Leaflet's default 1000, see
+   .bottom-nav). */
 .dialog-backdrop {
   position: fixed;
   inset: 0;
@@ -689,7 +696,7 @@ footer {
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  z-index: 200;
+  z-index: 1200;
   animation: dialog-fade-in 0.15s ease-out;
 }
 .dialog-sheet {
