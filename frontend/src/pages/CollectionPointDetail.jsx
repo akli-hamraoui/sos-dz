@@ -17,7 +17,7 @@ function CommentThread({ comments, targetId, onChanged }) {
 
   const ensureAuthor = () => {
     if (author.name && author.phone) return author
-    const name = prompt(t('createNeed.firstName') + ':') || ''
+    const name = prompt(t('createNeed.name') + ':') || ''
     const phone = prompt(t('createNeed.phone') + ':') || ''
     const a = { name, phone }
     setAuthor(a)

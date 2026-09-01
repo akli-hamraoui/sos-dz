@@ -59,10 +59,8 @@ NEED_PAYLOAD = {
     "urgency": "critical",
     "commune": "Village X",
     "location_description": "Near the old school",
-    "contact_last_name": "Benali",
-    "contact_first_name": "Karim",
+    "contact_name": "Karim Benali",
     "contact_phone": "0555000001",
-    "contact_date_of_birth": "1990-01-01",
     "organization_or_person_name": "",
 }
 
@@ -166,10 +164,8 @@ class PickupAndStatusTests(BaseAPITestCase):
         data = {
             "need": self.need_id,
             "responder_type": "individual_volunteer",
-            "responder_last_name": "Amrani",
-            "responder_first_name": "Sara",
+            "responder_name": "Sara Amrani",
             "responder_phone": "0666000002",
-            "responder_date_of_birth": "1995-05-05",
             "content_brought": "30 blankets",
         }
         data.update(overrides)
@@ -179,7 +175,7 @@ class PickupAndStatusTests(BaseAPITestCase):
         r1 = self.client.post("/api/pickups/", self._pickup_payload(), format="json")
         r2 = self.client.post(
             "/api/pickups/",
-            self._pickup_payload(responder_last_name="Kaci", responder_phone="0777000003"),
+            self._pickup_payload(responder_name="Kaci", responder_phone="0777000003"),
             format="json",
         )
         self.assertEqual(r1.status_code, 201)
@@ -236,10 +232,8 @@ class PickupAndStatusTests(BaseAPITestCase):
         resp = self.client.post(
             f"/api/needs/{self.need_id}/recover-access/",
             {
-                "last_name": NEED_PAYLOAD["contact_last_name"],
-                "first_name": NEED_PAYLOAD["contact_first_name"],
+                "name": NEED_PAYLOAD["contact_name"],
                 "phone": NEED_PAYLOAD["contact_phone"],
-                "date_of_birth": NEED_PAYLOAD["contact_date_of_birth"],
             },
             format="json",
         )
@@ -266,7 +260,7 @@ class PickupAndStatusTests(BaseAPITestCase):
     def test_identity_recovery_wrong_identity_rejected(self):
         resp = self.client.post(
             f"/api/needs/{self.need_id}/recover-access/",
-            {"last_name": "Wrong", "first_name": "Wrong", "phone": "0000000000", "date_of_birth": "2000-01-01"},
+            {"name": "Wrong", "phone": "0000000000"},
             format="json",
         )
         self.assertEqual(resp.status_code, 403)
@@ -303,10 +297,8 @@ class PickupListTests(BaseAPITestCase):
         data = {
             "need": need_id,
             "responder_type": "individual_volunteer",
-            "responder_last_name": "Amrani",
-            "responder_first_name": "Sara",
+            "responder_name": "Sara Amrani",
             "responder_phone": "0666000002",
-            "responder_date_of_birth": "1995-05-05",
             "content_brought": "30 blankets",
         }
         data.update(overrides)
@@ -423,10 +415,8 @@ class ReadOnlyModeTests(BaseAPITestCase):
             {
                 "need": need_resp.data["id"],
                 "responder_type": "individual_volunteer",
-                "responder_last_name": "A",
-                "responder_first_name": "B",
+                "responder_name": "A B",
                 "responder_phone": "0600",
-                "responder_date_of_birth": "1990-01-01",
                 "content_brought": "x",
             },
             format="json",
@@ -447,10 +437,8 @@ class ReadOnlyModeTests(BaseAPITestCase):
             {
                 "need": need_resp.data["id"],
                 "responder_type": "individual_volunteer",
-                "responder_last_name": "A",
-                "responder_first_name": "B",
+                "responder_name": "A B",
                 "responder_phone": "0600",
-                "responder_date_of_birth": "1990-01-01",
                 "content_brought": "x",
             },
             format="json",
@@ -516,10 +504,8 @@ class UpdateGPSTests(BaseAPITestCase):
             {
                 "need": self.need_id,
                 "responder_type": "individual_volunteer",
-                "responder_last_name": "A",
-                "responder_first_name": "B",
+                "responder_name": "A B",
                 "responder_phone": "0600",
-                "responder_date_of_birth": "1990-01-01",
                 "content_brought": "x",
             },
             format="json",
@@ -587,7 +573,7 @@ class AnonymizationTests(BaseAPITestCase):
         self.assertEqual(resp.status_code, 200)
         need = Need.objects.get(pk=self.need_id)
         self.assertTrue(need.is_anonymized)
-        self.assertEqual(need.contact_last_name, "Anonymized")
+        self.assertEqual(need.contact_name, "Anonymized")
         self.assertEqual(need.title, NEED_PAYLOAD["title"])  # untouched
 
     def test_anonymize_no_warning_when_cancelled(self):
@@ -608,7 +594,7 @@ class AnonymizationTests(BaseAPITestCase):
             format="json",
         )
         resp = self.client.get(f"/api/needs/{self.need_id}/")
-        self.assertEqual(resp.data["contact_last_name"], "Anonymized")
+        self.assertEqual(resp.data["contact_name"], "Anonymized")
         self.assertEqual(resp.data["contact_phone"], "")
 
         admin_user = get_user_model().objects.create_superuser("admin2", "a2@example.com", "pw123456!")
@@ -658,10 +644,8 @@ class MapAndLocationPrivacyTests(BaseAPITestCase):
             {
                 "need": self.need_id,
                 "responder_type": "individual_volunteer",
-                "responder_last_name": "Amrani",
-                "responder_first_name": "Sara",
+                "responder_name": "Sara Amrani",
                 "responder_phone": "0666000002",
-                "responder_date_of_birth": "1995-05-05",
                 "content_brought": "30 blankets",
             },
             format="json",
@@ -943,10 +927,8 @@ class MediaUploadTests(BaseAPITestCase):
             {
                 "need": need_resp.data["id"],
                 "responder_type": "individual_volunteer",
-                "responder_last_name": "A",
-                "responder_first_name": "B",
+                "responder_name": "A B",
                 "responder_phone": "0600",
-                "responder_date_of_birth": "1990-01-01",
                 "content_brought": "x",
             },
             format="json",

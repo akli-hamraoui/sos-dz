@@ -94,7 +94,7 @@ anonymize_selected.short_description = "Anonymize this listing"
 class PickupInline(admin.TabularInline):
     model = Pickup
     extra = 0
-    fields = ["responder_type", "responder_last_name", "status", "created_at"]
+    fields = ["responder_type", "responder_name", "status", "created_at"]
     readonly_fields = ["created_at"]
     show_change_link = True
 
@@ -103,7 +103,7 @@ class PickupInline(admin.TabularInline):
 class NeedAdmin(admin.ModelAdmin):
     list_display = ["title", "wilaya", "urgency", "overall_status", "campaign", "is_anonymized_display", "created_at"]
     list_filter = ["urgency", "overall_status", "wilaya", "campaign", "video_moderation_status"]
-    search_fields = ["title", "contact_last_name", "contact_phone"]
+    search_fields = ["title", "contact_name", "contact_phone"]
     readonly_fields = ["access_token", "location_viewer_share_token", "covered_quantity", "overall_status", "edit_history", "pii_obfuscated_at", "obfuscated_by"]
     actions = [anonymize_selected]
     inlines = [PickupInline]
@@ -116,9 +116,9 @@ class NeedAdmin(admin.ModelAdmin):
 
 @admin.register(Pickup)
 class PickupAdmin(admin.ModelAdmin):
-    list_display = ["id", "need", "responder_type", "responder_last_name", "status", "is_anonymized_display", "created_at"]
+    list_display = ["id", "need", "responder_type", "responder_name", "status", "is_anonymized_display", "created_at"]
     list_filter = ["status", "responder_type"]
-    search_fields = ["responder_last_name", "responder_phone"]
+    search_fields = ["responder_name", "responder_phone"]
     readonly_fields = ["access_token", "pii_obfuscated_at", "obfuscated_by"]
     actions = [anonymize_selected]
 

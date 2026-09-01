@@ -7,10 +7,8 @@ import { api, createOrQueue } from '../api'
 const DEFAULT_FORM = {
   responder_type: 'individual_volunteer',
   content_brought: '',
-  responder_last_name: '',
-  responder_first_name: '',
+  responder_name: '',
   responder_phone: '',
-  responder_date_of_birth: '',
   responder_email: '',
   organization_or_person_name: '',
 }
@@ -67,16 +65,10 @@ export default function TakeCharge() {
         <fieldset>
           <legend>{t('createNeed.contactDetailsLegend')}</legend>
           <label>
-            {t('createNeed.lastName')} * <input type="text" value={form.responder_last_name} onChange={set('responder_last_name')} required />
-          </label>
-          <label>
-            {t('createNeed.firstName')} * <input type="text" value={form.responder_first_name} onChange={set('responder_first_name')} required />
+            {t('createNeed.name')} * <input type="text" value={form.responder_name} onChange={set('responder_name')} required />
           </label>
           <label>
             {t('createNeed.phone')} * <input type="tel" value={form.responder_phone} onChange={set('responder_phone')} required />
-          </label>
-          <label>
-            {t('createNeed.dateOfBirth')} * <input type="date" value={form.responder_date_of_birth} onChange={set('responder_date_of_birth')} required />
           </label>
           <label>
             {t('createNeed.email')} <input type="email" value={form.responder_email} onChange={set('responder_email')} />

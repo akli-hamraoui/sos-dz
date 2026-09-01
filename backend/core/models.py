@@ -140,15 +140,13 @@ class IdentityListingMixin(models.Model):
     def is_anonymized(self):
         return self.pii_obfuscated_at is not None
 
-    def matches_identity(self, last_name, first_name, phone, date_of_birth):
+    def matches_identity(self, name, phone):
         if self.is_anonymized:
             return False
         f = self.identity_fields()
         return (
-            (f["last_name"] or "").strip().lower() == (last_name or "").strip().lower()
-            and (f["first_name"] or "").strip().lower() == (first_name or "").strip().lower()
+            (f["name"] or "").strip().lower() == (name or "").strip().lower()
             and (f["phone"] or "").strip() == (phone or "").strip()
-            and str(f["date_of_birth"]) == str(date_of_birth)
         )
 
     def regenerate_token(self):
@@ -215,11 +213,9 @@ class Need(IdentityListingMixin, models.Model):
     longitude = models.FloatField(null=True, blank=True)
     position_accuracy = models.CharField(max_length=20, choices=POSITION_CHOICES, default=POSITION_APPROXIMATE)
 
-    contact_last_name = models.CharField(max_length=100)
-    contact_first_name = models.CharField(max_length=100)
+    contact_name = models.CharField(max_length=200)
     contact_phone = models.CharField(max_length=30)
     contact_email = models.EmailField(blank=True)
-    contact_date_of_birth = models.DateField(null=True)  # null only ever set by anonymization
     organization_or_person_name = models.CharField(max_length=200, blank=True)
 
     # Media (Wave 2): voice and video are independent and combinable (along
@@ -271,18 +267,14 @@ class Need(IdentityListingMixin, models.Model):
 
     def identity_fields(self):
         return {
-            "last_name": self.contact_last_name,
-            "first_name": self.contact_first_name,
+            "name": self.contact_name,
             "phone": self.contact_phone,
-            "date_of_birth": self.contact_date_of_birth,
         }
 
     def anonymize_identity_fields(self):
-        self.contact_last_name = "Anonymized"
-        self.contact_first_name = "Anonymized"
+        self.contact_name = "Anonymized"
         self.contact_phone = ""
         self.contact_email = ""
-        self.contact_date_of_birth = None
         self.organization_or_person_name = ""
 
     def record_edit(self):
@@ -347,11 +339,9 @@ class Pickup(IdentityListingMixin, models.Model):
 
     need = models.ForeignKey(Need, on_delete=models.CASCADE, related_name="pickups")
     responder_type = models.CharField(max_length=30, choices=RESPONDER_TYPE_CHOICES)
-    responder_last_name = models.CharField(max_length=100)
-    responder_first_name = models.CharField(max_length=100)
+    responder_name = models.CharField(max_length=200)
     responder_phone = models.CharField(max_length=30)
     responder_email = models.EmailField(blank=True)
-    responder_date_of_birth = models.DateField(null=True)  # null only ever set by anonymization
     organization_or_person_name = models.CharField(max_length=200, blank=True)
     content_brought = models.TextField(blank=True)
 
@@ -373,18 +363,14 @@ class Pickup(IdentityListingMixin, models.Model):
 
     def identity_fields(self):
         return {
-            "last_name": self.responder_last_name,
-            "first_name": self.responder_first_name,
+            "name": self.responder_name,
             "phone": self.responder_phone,
-            "date_of_birth": self.responder_date_of_birth,
         }
 
     def anonymize_identity_fields(self):
-        self.responder_last_name = "Anonymized"
-        self.responder_first_name = "Anonymized"
+        self.responder_name = "Anonymized"
         self.responder_phone = ""
         self.responder_email = ""
-        self.responder_date_of_birth = None
         self.organization_or_person_name = ""
 
     @property

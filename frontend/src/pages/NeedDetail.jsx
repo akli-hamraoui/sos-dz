@@ -19,7 +19,7 @@ function CommentThread({ comments, target, targetId, onChanged }) {
 
   const ensureAuthor = () => {
     if (commentAuthor.name && commentAuthor.phone) return commentAuthor
-    const name = prompt(t('createNeed.lastName') + '/' + t('createNeed.firstName') + ':') || ''
+    const name = prompt(t('createNeed.name') + ':') || ''
     const phone = prompt(t('createNeed.phone') + ':') || ''
     const author = { name, phone }
     setCommentAuthor(author)
@@ -182,7 +182,7 @@ export default function NeedDetail() {
       L.polyline(latlngs, { color: '#111' }).addTo(map)
       const marker = L.marker(latlngs[latlngs.length - 1]).addTo(map)
       marker.bindPopup(
-        `<strong>${entry.pickup.responder_last_name} ${entry.pickup.responder_first_name}</strong><br>Bringing: ${entry.pickup.content_brought}<br>Latest: ${entry.latest_progress_text || '—'}`
+        `<strong>${entry.pickup.responder_name}</strong><br>Bringing: ${entry.pickup.content_brought}<br>Latest: ${entry.latest_progress_text || '—'}`
       )
       allPoints.push(...latlngs)
 
@@ -267,7 +267,7 @@ export default function NeedDetail() {
   const reportContent = async (mediaType, mediaId) => {
     const reason = prompt(t('needDetail.reportContent') + '?')
     if (!reason) return
-    const reporter_name = prompt(t('createNeed.firstName') + ':') || ''
+    const reporter_name = prompt(t('createNeed.name') + ':') || ''
     const reporter_phone = prompt(t('createNeed.phone') + ':') || ''
     await api('/content-reports/', { method: 'POST', body: JSON.stringify({ media_type: mediaType, media_id: mediaId, reporter_name, reporter_phone, reason }) })
     load()
@@ -276,7 +276,7 @@ export default function NeedDetail() {
   const reportDuplicate = async () => {
     const referenceId = prompt(t('needDetail.reportAsDuplicate') + ' -- ID:')
     if (!referenceId) return
-    const reporter_name = prompt(t('createNeed.firstName') + ':') || ''
+    const reporter_name = prompt(t('createNeed.name') + ':') || ''
     const reporter_phone = prompt(t('createNeed.phone') + ':') || ''
     await api(`/needs/${id}/report-duplicate/`, { method: 'POST', body: JSON.stringify({ reference_need_id: referenceId, reporter_name, reporter_phone }) })
     alert(t('common.confirm'))
@@ -414,7 +414,7 @@ export default function NeedDetail() {
       )}
 
       <p>
-        {t('needDetail.contact')}: {need.contact_last_name} {need.contact_first_name} — {maskPhone(need.contact_phone, showPhone)}{' '}
+        {t('needDetail.contact')}: {need.contact_name} — {maskPhone(need.contact_phone, showPhone)}{' '}
         <button className="link" onClick={() => setShowPhone(!showPhone)}>
           {showPhone ? t('common.hideNumber') : t('common.showFullNumber')}
         </button>
@@ -482,9 +482,7 @@ export default function NeedDetail() {
         return (
           <div className="pickup-card" key={p.id}>
             <p>
-              <strong>
-                {p.responder_last_name} {p.responder_first_name}
-              </strong>{' '}
+              <strong>{p.responder_name}</strong>{' '}
               <span className="status">{statusLabel(t, p.status)}</span>{' '}
               {p.needs_verification && <span className="badge badge-warn">{t('status.toVerify')}</span>}
             </p>

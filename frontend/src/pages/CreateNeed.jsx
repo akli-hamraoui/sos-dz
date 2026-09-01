@@ -15,10 +15,8 @@ const DEFAULT_FORM = {
   location_description: '',
   latitude: null,
   longitude: null,
-  contact_last_name: '',
-  contact_first_name: '',
+  contact_name: '',
   contact_phone: '',
-  contact_date_of_birth: '',
   contact_email: '',
   organization_or_person_name: '',
 }
@@ -314,16 +312,10 @@ export default function CreateNeed() {
         <fieldset>
           <legend>{t('createNeed.contactDetailsLegend')}</legend>
           <label>
-            {t('createNeed.lastName')} * <input type="text" value={form.contact_last_name} onChange={set('contact_last_name')} required />
-          </label>
-          <label>
-            {t('createNeed.firstName')} * <input type="text" value={form.contact_first_name} onChange={set('contact_first_name')} required />
+            {t('createNeed.name')} * <input type="text" value={form.contact_name} onChange={set('contact_name')} required />
           </label>
           <label>
             {t('createNeed.phone')} * <input type="tel" value={form.contact_phone} onChange={set('contact_phone')} required />
-          </label>
-          <label>
-            {t('createNeed.dateOfBirth')} * <input type="date" value={form.contact_date_of_birth} onChange={set('contact_date_of_birth')} required />
           </label>
           <label>
             {t('createNeed.email')} <input type="email" value={form.contact_email} onChange={set('contact_email')} />

@@ -10,7 +10,7 @@ export default function Recover() {
   const navigate = useNavigate()
   const { saveNeedToken, savePickupToken } = useApp()
   const recoverContext = location.state // { type: 'need'|'pickup', id }
-  const [form, setForm] = useState({ last_name: '', first_name: '', phone: '', date_of_birth: '' })
+  const [form, setForm] = useState({ name: '', phone: '' })
   const [error, setError] = useState('')
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }))
@@ -43,16 +43,10 @@ export default function Recover() {
       <p>{t('recover.description')}</p>
       <form onSubmit={submit}>
         <label>
-          {t('createNeed.lastName')} * <input type="text" value={form.last_name} onChange={set('last_name')} required />
-        </label>
-        <label>
-          {t('createNeed.firstName')} * <input type="text" value={form.first_name} onChange={set('first_name')} required />
+          {t('createNeed.name')} * <input type="text" value={form.name} onChange={set('name')} required />
         </label>
         <label>
           {t('createNeed.phone')} * <input type="tel" value={form.phone} onChange={set('phone')} required />
-        </label>
-        <label>
-          {t('createNeed.dateOfBirth')} * <input type="date" value={form.date_of_birth} onChange={set('date_of_birth')} required />
         </label>
         {error && <p className="error">{error}</p>}
         <button type="submit" className="btn btn-primary">

@@ -130,8 +130,7 @@ class PickupPublicSerializer(serializers.ModelSerializer):
             "id",
             "need",
             "responder_type",
-            "responder_last_name",
-            "responder_first_name",
+            "responder_name",
             "responder_phone",
             "responder_email",
             "organization_or_person_name",
@@ -168,8 +167,7 @@ class PickupListSerializer(serializers.ModelSerializer):
             "need_title",
             "need_wilaya_name",
             "responder_type",
-            "responder_last_name",
-            "responder_first_name",
+            "responder_name",
             "responder_phone",
             "organization_or_person_name",
             "content_brought",
@@ -186,11 +184,9 @@ class PickupCreateSerializer(serializers.ModelSerializer):
         fields = [
             "need",
             "responder_type",
-            "responder_last_name",
-            "responder_first_name",
+            "responder_name",
             "responder_phone",
             "responder_email",
-            "responder_date_of_birth",
             "organization_or_person_name",
             "content_brought",
             "location_sharing_active",
@@ -253,8 +249,7 @@ class NeedPublicSerializer(serializers.ModelSerializer):
             "latitude",
             "longitude",
             "position_accuracy",
-            "contact_last_name",
-            "contact_first_name",
+            "contact_name",
             "contact_phone",
             "contact_email",
             "organization_or_person_name",
@@ -330,11 +325,9 @@ class NeedCreateSerializer(serializers.ModelSerializer):
             "location_description",
             "latitude",
             "longitude",
-            "contact_last_name",
-            "contact_first_name",
+            "contact_name",
             "contact_phone",
             "contact_email",
-            "contact_date_of_birth",
             "organization_or_person_name",
             "voice_file",
             "video_file",
@@ -385,10 +378,8 @@ class NeedUpdateGPSSerializer(serializers.Serializer):
 
 
 class IdentityRecoverySerializer(serializers.Serializer):
-    last_name = serializers.CharField()
-    first_name = serializers.CharField()
+    name = serializers.CharField()
     phone = serializers.CharField()
-    date_of_birth = serializers.DateField()
 
 
 class AnonymizeSerializer(serializers.Serializer):

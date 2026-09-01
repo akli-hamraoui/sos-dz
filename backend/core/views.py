@@ -297,7 +297,7 @@ class NeedViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retriev
         serializer = IdentityRecoverySerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         d = serializer.validated_data
-        if not need.matches_identity(d["last_name"], d["first_name"], d["phone"], d["date_of_birth"]):
+        if not need.matches_identity(d["name"], d["phone"]):
             return Response(
                 {"detail": "No match. If this keeps happening, use the support/contact-admin form."},
                 status=status.HTTP_403_FORBIDDEN,
@@ -483,7 +483,7 @@ class PickupViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retri
         serializer = IdentityRecoverySerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         d = serializer.validated_data
-        if not pickup.matches_identity(d["last_name"], d["first_name"], d["phone"], d["date_of_birth"]):
+        if not pickup.matches_identity(d["name"], d["phone"]):
             return Response(
                 {"detail": "No match. If this keeps happening, use the support/contact-admin form."},
                 status=status.HTTP_403_FORBIDDEN,
