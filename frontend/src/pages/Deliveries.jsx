@@ -9,7 +9,7 @@ const STATUSES = ['en_route', 'delivered', 'cancelled']
 
 export default function Deliveries() {
   const { t, i18n } = useTranslation()
-  const { wilayas } = useApp()
+  const { activeCampaignWilayas } = useApp()
   const [filterWilaya, setFilterWilaya] = useState('')
   const [filterStatus, setFilterStatus] = useState('en_route')
   const [pickups, setPickups] = useState([])
@@ -34,7 +34,7 @@ export default function Deliveries() {
           {t('needsList.filterByWilaya')}
           <select value={filterWilaya} onChange={(e) => setFilterWilaya(e.target.value)}>
             <option value="">{t('needsList.all')}</option>
-            {wilayas.map((w) => (
+            {activeCampaignWilayas.map((w) => (
               <option key={w.id} value={w.id}>
                 {w.name}
               </option>

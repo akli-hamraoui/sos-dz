@@ -4,11 +4,11 @@ import { useTranslation } from 'react-i18next'
 import L from 'leaflet'
 import { useApp } from '../context/AppContext'
 import { api } from '../api'
-import { haversineKm } from '../utils'
+import { haversineKm, isInAlgeria } from '../utils'
 
 export default function CollectionPoints() {
   const { t } = useTranslation()
-  const { wilayas } = useApp()
+  const { activeCampaignWilayas } = useApp()
   const [filterWilaya, setFilterWilaya] = useState('')
   const [points, setPoints] = useState([])
   // Always defaults to the map on every visit -- see NeedsList.jsx for why
@@ -29,29 +29,47 @@ export default function CollectionPoints() {
     load().catch(() => {}) // offline/network failure -- offline banner already informs the user
   }, [load])
 
+  // Frames the active campaign's authorized wilayas (the affected zones)
+  // rather than a flat whole-country view -- used whenever there's
+  // nothing more specific to zoom to.
+  const zoomToConcernedWilayas = (map) => {
+    const centroids = activeCampaignWilayas
+      .filter((w) => w.centroid_latitude != null && w.centroid_longitude != null)
+      .map((w) => [w.centroid_latitude, w.centroid_longitude])
+    if (centroids.length) {
+      map.fitBounds(L.latLngBounds(centroids).pad(0.2), { maxZoom: 8 })
+    } else {
+      map.setView([28.0, 2.6], 5) // last-resort fallback, e.g. before campaigns have loaded yet
+    }
+  }
+
   const smartZoom = (map, mapPoints, wilayaId) => {
     if (wilayaId) {
-      const selected = wilayas.find((w) => String(w.id) === String(wilayaId))
+      const selected = activeCampaignWilayas.find((w) => String(w.id) === String(wilayaId))
       if (mapPoints.length === 0) {
         if (selected && selected.centroid_latitude != null) {
           map.setView([selected.centroid_latitude, selected.centroid_longitude], 10)
         } else {
-          map.setView([28.0, 2.6], 5)
+          zoomToConcernedWilayas(map)
         }
         return
       }
       map.fitBounds(L.latLngBounds(mapPoints).pad(0.3), { maxZoom: 12 })
       return
     }
-    if (mapPoints.length === 0) {
-      map.setView([28.0, 2.6], 5)
-      return
-    }
+    // No wilaya filter: show the visitor's actual position if they're
+    // genuinely in Algeria, otherwise zoom to the concerned wilayas.
     const doZoom = (userLatLng) => {
-      const nearby = userLatLng ? mapPoints.filter((pt) => haversineKm(userLatLng, pt) <= 50) : []
-      const target = nearby.length ? nearby : mapPoints
-      const bounds = L.latLngBounds(target)
-      map.fitBounds(bounds.pad(0.3), { maxZoom: nearby.length ? 11 : 6 })
+      if (userLatLng && isInAlgeria(userLatLng[0], userLatLng[1])) {
+        const nearby = mapPoints.filter((pt) => haversineKm(userLatLng, pt) <= 50)
+        if (nearby.length) {
+          map.fitBounds(L.latLngBounds(nearby).pad(0.3), { maxZoom: 11 })
+        } else {
+          map.setView(userLatLng, 9)
+        }
+        return
+      }
+      zoomToConcernedWilayas(map)
     }
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -82,11 +100,15 @@ export default function CollectionPoints() {
       requestAnimationFrame(() => {
         if (!mapElRef.current) return
         if (!mapRef.current) {
-          mapRef.current = L.map(mapElRef.current)
-          L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; OpenStreetMap contributors, SRTM | &copy; OpenTopoMap (CC-BY-SA)',
-            maxZoom: 17,
+          mapRef.current = L.map(mapElRef.current, { attributionControl: false })
+          // CartoDB Positron: flat, light basemap with city/road labels
+          // and no elevation/terrain shading -- see NeedsList.jsx for why.
+          L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+            subdomains: 'abcd',
+            maxZoom: 20,
           }).addTo(mapRef.current)
+          L.control.attribution({ prefix: false }).addTo(mapRef.current)
         }
         const map = mapRef.current
         markersRef.current.forEach((m) => map.removeLayer(m))
@@ -113,8 +135,20 @@ export default function CollectionPoints() {
     return () => {
       cancelled = true
     }
+    // activeCampaignWilayas is included so the map re-zooms once campaigns
+    // finish loading, in case that response lands after this effect's
+    // first run already captured an empty fallback list.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewMode, filterWilaya])
+  }, [viewMode, filterWilaya, activeCampaignWilayas])
+
+  // See NeedsList.jsx for why this is needed: without it, switching back
+  // to "Carte" after "Liste" left the map permanently blank.
+  useEffect(() => {
+    if (viewMode === 'map' || !mapRef.current) return
+    mapRef.current.remove()
+    mapRef.current = null
+    markersRef.current = []
+  }, [viewMode])
 
   return (
     <section className="needs-page">
@@ -123,7 +157,7 @@ export default function CollectionPoints() {
           {t('needsList.filterByWilaya')}
           <select value={filterWilaya} onChange={(e) => setFilterWilaya(e.target.value)}>
             <option value="">{t('needsList.all')}</option>
-            {wilayas.map((w) => (
+            {activeCampaignWilayas.map((w) => (
               <option key={w.id} value={w.id}>
                 {w.name}
               </option>

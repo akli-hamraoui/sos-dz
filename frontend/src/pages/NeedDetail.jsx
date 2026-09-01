@@ -163,11 +163,15 @@ export default function NeedDetail() {
       mapRef.current.remove()
       mapRef.current = null
     }
-    const map = L.map(mapElRef.current)
-    L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap contributors, SRTM | &copy; OpenTopoMap (CC-BY-SA)',
-      maxZoom: 17,
+    const map = L.map(mapElRef.current, { attributionControl: false })
+    // CartoDB Positron: flat, light basemap with city/road labels and no
+    // elevation/terrain shading -- see NeedsList.jsx for why.
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+      subdomains: 'abcd',
+      maxZoom: 20,
     }).addTo(map)
+    L.control.attribution({ prefix: false }).addTo(map)
     mapRef.current = map
     const allPoints = []
     const dest = destinationPoint()

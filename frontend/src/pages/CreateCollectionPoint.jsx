@@ -9,7 +9,7 @@ const DEFAULT_FORM = { wilaya: '', point_name: '', contact_name: '', contact_pho
 export default function CreateCollectionPoint() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const { wilayas } = useApp()
+  const { activeCampaignWilayas } = useApp()
   const [form, setForm] = useState(DEFAULT_FORM)
   const [error, setError] = useState('')
 
@@ -47,7 +47,7 @@ export default function CreateCollectionPoint() {
           {t('createNeed.wilaya')} *
           <select value={form.wilaya} onChange={set('wilaya')} required>
             <option value="">{t('createNeed.selectPlaceholder')}</option>
-            {wilayas.map((w) => (
+            {activeCampaignWilayas.map((w) => (
               <option key={w.id} value={w.id}>
                 {w.name}
               </option>

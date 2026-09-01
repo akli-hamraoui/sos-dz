@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useCallback } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react'
 import { api, loadJSON, saveJSON } from '../api'
 import { setupAutoSync } from '../offlineQueue'
 import i18n from '../i18n'
@@ -105,11 +105,30 @@ export function AppProvider({ children }) {
     [campaigns, wilayas]
   )
 
+  // The single active campaign's authorized wilayas -- since only one
+  // campaign is ever active at a time (see the campaign lock in
+  // CreateNeed), this is the one list of "wilayas that matter" for every
+  // wilaya dropdown and map default-zoom across the app, not just the
+  // create-need form. Falls back to the full 58-wilaya list before
+  // campaigns have loaded or if none is active.
+  //
+  // Memoized (not just computed inline) so its reference only changes
+  // when campaigns/wilayas themselves actually change, not on every
+  // AppProvider render (isOnline/syncMessage/etc. all live in this same
+  // provider) -- pages that put this in a useEffect dependency array (to
+  // re-zoom a map once campaigns finish loading, if that happens after
+  // the map's own data already arrived) would otherwise re-run on almost
+  // every unrelated re-render.
+  const activeCampaign = useMemo(() => campaigns.find((c) => c.status === 'active') || null, [campaigns])
+  const activeCampaignWilayas = useMemo(() => (activeCampaign ? activeCampaign.authorized_wilayas : wilayas), [activeCampaign, wilayas])
+
   const value = {
     config,
     wilayas,
     campaigns,
     wilayasForCampaign,
+    activeCampaign,
+    activeCampaignWilayas,
     needTokens,
     saveNeedToken,
     pickupTokens,

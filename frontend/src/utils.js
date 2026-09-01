@@ -31,6 +31,16 @@ export function urgencyColor(u) {
   return { critical: '#d92626', medium: '#e08a1e', low: '#cbb400' }[u] || '#555'
 }
 
+// Same bounding box as the backend's ALGERIA_BOUNDING_BOX
+// (config/settings.py) -- used client-side only to decide whether a
+// visitor's geolocation is worth centering a map on directly, never for
+// any actual write validation (the backend is the source of truth there).
+const ALGERIA_BOUNDS = { latMin: 18.9, latMax: 37.3, lonMin: -8.7, lonMax: 12.0 }
+
+export function isInAlgeria(lat, lon) {
+  return lat >= ALGERIA_BOUNDS.latMin && lat <= ALGERIA_BOUNDS.latMax && lon >= ALGERIA_BOUNDS.lonMin && lon <= ALGERIA_BOUNDS.lonMax
+}
+
 export async function compressPhoto(file) {
   try {
     const imageCompression = (await import('browser-image-compression')).default
