@@ -154,7 +154,7 @@ class AdminContactPhoneInline(admin.TabularInline):
 
 @admin.register(AppConfiguration)
 class AppConfigurationAdmin(admin.ModelAdmin):
-    list_display = ["mode", "media_moderation_active", "geo_restrict_writes_to_algeria"]
+    list_display = ["mode", "media_moderation_active", "geo_restrict_writes_to_algeria", "enforce_video_duration_check"]
     inlines = [AdminContactPhoneInline]
 
     def has_add_permission(self, request):

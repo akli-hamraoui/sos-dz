@@ -98,6 +98,20 @@ class AppConfiguration(models.Model):
             "diaspora volunteers coordinating from abroad."
         ),
     )
+    enforce_video_duration_check = models.BooleanField(
+        default=False,
+        help_text=(
+            "When enabled, every video upload's duration is verified server-side via "
+            "ffmpeg/ffprobe, and rejected outright if it's over 20s OR if the duration "
+            "can't be verified at all (e.g. ffmpeg isn't installed on this server) -- "
+            "unlike media_moderation_active above, this never degrades to 'pending "
+            "review', it's a hard reject. Defaults to OFF so video reports still go "
+            "through (unverified) on a server without ffmpeg installed, instead of "
+            "every video submission failing outright. Turn this on once ffmpeg is "
+            "confirmed installed (see DEPLOYMENT.md step 1) if you want the 20s cap "
+            "actually enforced server-side rather than relying on the client-side stop."
+        ),
+    )
     # Phone numbers are a related model (AdminContactPhone, up to 5 --
     # enforced by AdminContactPhoneInline's max_num in admin.py) rather
     # than a single field, so an admin can list more than one contact

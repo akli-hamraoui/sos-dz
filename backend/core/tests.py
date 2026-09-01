@@ -1054,15 +1054,39 @@ class MediaUploadTests(BaseAPITestCase):
             )
         self.assertEqual(resp.status_code, 400)
 
-    def test_video_rejected_when_duration_undeterminable(self):
-        """Server-side duration check must fail closed: if it can't verify
-        the duration (no ffprobe on PATH -- true in this sandbox, so this
-        exercises the real code path, no mocking needed), the video is
-        rejected outright rather than silently accepted."""
+    def test_video_accepted_by_default_even_when_duration_undeterminable(self):
+        """Server-side duration verification is opt-in, off by default (see
+        AppConfiguration.enforce_video_duration_check) -- with it off, a
+        video is accepted even when its duration can't be verified (no
+        ffprobe on PATH -- true in this sandbox, so this exercises the
+        real code path, no mocking needed), so a server without ffmpeg
+        installed doesn't reject every video submission outright."""
         from django.core.files.uploadedfile import SimpleUploadedFile
         from core.media_validation import ffprobe_available
 
         self.assertFalse(ffprobe_available(), "this test assumes ffprobe is not installed")
+        video = SimpleUploadedFile("clip.webm", b"fake-video-bytes", content_type="video/webm")
+        resp = self.client.post(
+            "/api/needs/",
+            self._multipart_payload(video_file=video),
+            format="multipart",
+        )
+        self.assertEqual(resp.status_code, 201, resp.content)
+        self.assertEqual(Need.objects.count(), 1)
+
+    def test_video_rejected_when_duration_undeterminable_and_check_enforced(self):
+        """Once an admin turns enforce_video_duration_check on, the
+        fail-closed behavior applies: an unverifiable duration is rejected
+        rather than silently accepted, since accepting it would mean the
+        20s cap is unenforced despite the setting saying it should be."""
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from core.media_validation import ffprobe_available
+        from core.models import AppConfiguration
+
+        self.assertFalse(ffprobe_available(), "this test assumes ffprobe is not installed")
+        config = AppConfiguration.get_solo()
+        config.enforce_video_duration_check = True
+        config.save()
         video = SimpleUploadedFile("clip.webm", b"fake-video-bytes", content_type="video/webm")
         resp = self.client.post(
             "/api/needs/",
@@ -1730,7 +1754,18 @@ class VideoDurationValidationTests(TestCase):
     """Unit-level coverage of core/media_validation.py's fail-closed
     behavior, requested in PR review: the 20s video cap must hold
     server-side even when ffprobe is unavailable or errors, not just when
-    it successfully reports an over-long duration."""
+    it successfully reports an over-long duration. This behavior is gated
+    behind AppConfiguration.enforce_video_duration_check (off by default,
+    see AppConfigurationEndpointTests/PickupAndStatusTests for that
+    default-off behavior) -- these tests are specifically about the
+    strict-mode code path, so they turn it on."""
+
+    def setUp(self):
+        from core.models import AppConfiguration
+
+        config = AppConfiguration.get_solo()
+        config.enforce_video_duration_check = True
+        config.save()
 
     def test_rejects_when_ffprobe_not_on_path(self):
         from unittest.mock import patch
@@ -1777,4 +1812,21 @@ class VideoDurationValidationTests(TestCase):
         from unittest.mock import patch
 
         with patch("core.media_validation.get_video_duration_seconds", return_value=15.0):
+            validate_video_duration(video)  # should not raise
+
+    def test_no_op_when_check_disabled(self):
+        """The default-off case, overriding this class's own setUp: even
+        an over-long, unverifiable video is a no-op when the admin setting
+        is off -- see test_video_accepted_by_default_even_when_duration_undeterminable
+        for the same behavior exercised through the actual API."""
+        from unittest.mock import patch
+        from core.media_validation import validate_video_duration
+        from core.models import AppConfiguration
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        config = AppConfiguration.get_solo()
+        config.enforce_video_duration_check = False
+        config.save()
+        video = SimpleUploadedFile("clip.webm", b"fake-video-bytes", content_type="video/webm")
+        with patch("core.media_validation.ffprobe_available", return_value=False):
             validate_video_duration(video)  # should not raise

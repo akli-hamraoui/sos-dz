@@ -15,14 +15,18 @@ sudo apt update && sudo apt upgrade -y
 sudo apt install -y python3-venv python3-pip nginx certbot python3-certbot-nginx git ffmpeg
 ```
 
-`ffmpeg` (and the `ffprobe` binary that ships with it) is not optional: it's
-what step 7's video duration check and moderation frame extraction use, and
-unlike the other optional integrations (R2, MaxMind, Turnstile, the NSFWJS
-sidecar itself) this one does **not** degrade gracefully -- without it, every
-video upload is rejected outright at submit time (the whole report, not just
-the video, since duration can't be verified). Installing it here, in the very
-first command block of the deploy, means it's just *there* by the time step 7
-needs it, instead of a separate step that's easy to skip.
+`ffmpeg` (and the `ffprobe` binary that ships with it) is what step 7's video
+duration check and moderation frame extraction use. The server-side duration
+check itself is gated behind `AppConfiguration.enforce_video_duration_check`
+in Django Admin, **off by default** precisely so a server without ffmpeg
+installed doesn't reject every video submission outright -- but when that
+setting is turned on, it does not degrade gracefully like the other optional
+integrations (R2, MaxMind, Turnstile, the NSFWJS sidecar itself): an
+unverifiable duration is rejected rather than silently accepted. Install
+ffmpeg here, in the very first command block of the deploy, so it's already
+in place by the time you decide whether to turn that setting on -- and so
+frame-by-frame video moderation (which does degrade gracefully, queuing
+"pending" instead) works either way.
 
 The moderation sidecar (step 7) also needs Node.js, which Ubuntu's own `apt`
 package is usually too old for (`@tensorflow/tfjs-node` needs a reasonably
@@ -182,7 +186,7 @@ curl http://127.0.0.1:8801/health   # {"status":"ok","model_loaded":true}
 
 It binds to `127.0.0.1` only (never exposed publicly) and is called by Django over local HTTP at `NSFWJS_SIDECAR_URL` (default `http://127.0.0.1:8801`, see `.env.example`). This is a deliberate, documented exception to the "single monolith" architecture -- see `moderation-sidecar/server.js`'s header comment for why.
 
-**Video frame extraction requires `ffmpeg` on PATH**, already installed back in step 1, for `core/media_validation.py`'s duration check and `core/moderation.py`'s frame-by-frame video moderation. Video moderation degrades gracefully without it (queues for manual review instead of auto-approving). Video duration does **not** degrade gracefully by design: the 20s cap is a security-relevant limit, not just UX, so if the server can't verify a video's duration (`ffprobe` missing or erroring), it rejects the upload outright rather than accepting an unverified video -- if step 1 was skipped, video uploads won't work at all in production, not just with laxer enforcement. Sanity-check with `ffprobe -version` if in doubt.
+**Video frame extraction requires `ffmpeg` on PATH**, already installed back in step 1, for `core/media_validation.py`'s duration check and `core/moderation.py`'s frame-by-frame video moderation. Video moderation degrades gracefully without it (queues for manual review instead of auto-approving). Server-side video duration verification is a separate, opt-in setting -- **`AppConfiguration.enforce_video_duration_check` in Django Admin, off by default**. Leave it off and video reports go through unverified (relying on the client-side 20s auto-stop only) even without ffmpeg. Turn it on once ffmpeg is confirmed installed (`ffprobe -version`) if you want the 20s cap actually enforced server-side -- once on, it fails closed: an unverifiable duration is rejected outright rather than accepted.
 
 **Known accepted risk**: `npm audit` on `moderation-sidecar/` reports 4 vulnerabilities (3 high, 1 critical) in `@tensorflow/tfjs-node`'s own transitive *install-time* dependencies (`@mapbox/node-pre-gyp` -> `tar`/`adm-zip`, used only to fetch tfjs-node's native binary during `npm install`, not part of the running server's request-handling code). `npm audit fix --force` would downgrade `@tensorflow/tfjs-node` to 0.1.11, an unusably ancient version -- not a real fix. This is a common, currently-unresolved upstream situation for `@tensorflow/tfjs-node` consumers; re-check `npm audit` periodically for an upstream fix.
 
