@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib import admin
 from django.utils import timezone
 
@@ -20,6 +21,11 @@ from core.models import (
     TranslationOverride,
     Wilaya,
 )
+
+# "View site" (top-right of every admin page) must open the real,
+# maintained, fr/en/ar React frontend -- not this backend's own "/"
+# (there is none worth visiting; see config/urls.py).
+admin.site.site_url = settings.FRONTEND_URL
 
 
 @admin.register(Wilaya)

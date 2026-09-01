@@ -55,6 +55,13 @@ _cors_origins = env("CORS_ALLOWED_ORIGINS", default="http://localhost:5173,http:
 CORS_ALLOWED_ORIGINS = [o.strip() for o in _cors_origins.split(",") if o.strip()]
 CORS_ALLOW_CREDENTIALS = True
 
+# The real, maintained frontend (React/Vite, deployed separately from this
+# backend -- see DEPLOYMENT.md). Used for Django Admin's "View site" link
+# and the backend's own "/" route, so neither ever points a visitor (staff
+# or public) at the stale, English-only Wave 1-4 Alpine.js page still kept
+# under templates/index.html purely for history/reference.
+FRONTEND_URL = env("FRONTEND_URL", default="http://127.0.0.1:5173")
+
 # --- Applications ---------------------------------------------------------
 
 INSTALLED_APPS = [
