@@ -40,7 +40,7 @@ export async function compressPhoto(file) {
     // unusually high-entropy photo (dense damage/rubble detail) could
     // still land well above what's reasonable to submit over a weak
     // connection despite already being downscaled once.
-    return await imageCompression(file, { maxWidthOrHeight: 1280, initialQuality: 0.7, maxSizeMB: 1, useWebWorker: true, fileType: 'image/jpeg' })
+    return await imageCompression(file, { maxWidthOrHeight: 1280, initialQuality: 0.7, maxSizeMB: 3, useWebWorker: true, fileType: 'image/jpeg' })
   } catch {
     return file
   }

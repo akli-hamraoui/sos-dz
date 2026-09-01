@@ -51,7 +51,7 @@ python manage.py createsuperuser
 python manage.py runserver
 ```
 
-Open http://127.0.0.1:8000/ for the app, and http://127.0.0.1:8000/admin/ for the Django Admin dashboard (disaster types, campaigns, moderation, config toggles).
+Open http://127.0.0.1:8000/ for the app, and http://127.0.0.1:8000/admin/ for the Django Admin dashboard (disaster types, campaigns, moderation, config toggles). A logged-in admin can switch the admin site's own interface language (French/English/Arabic, top-right dropdown) independently of the public app's language.
 
 If a required environment variable is missing, the app fails immediately with a clear error message rather than starting in a broken state.
 

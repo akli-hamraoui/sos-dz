@@ -5,6 +5,7 @@ from django.urls import include, path
 from django.views.generic import TemplateView
 
 urlpatterns = [
+    path("i18n/", include("django.conf.urls.i18n")),  # powers the admin's language switcher
     path("admin/", admin.site.urls),
     path("api/", include("core.urls")),
     path("", TemplateView.as_view(template_name="index.html")),

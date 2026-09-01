@@ -73,6 +73,11 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    # Must come after SessionMiddleware and before CommonMiddleware (Django
+    # requirement) -- lets the admin's language switcher (see
+    # templates/admin/base_site.html) actually take effect per-session,
+    # instead of the whole admin being permanently stuck on LANGUAGE_CODE.
+    "django.middleware.locale.LocaleMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -141,6 +146,17 @@ LANGUAGE_CODE = "fr"
 TIME_ZONE = env("TIME_ZONE", default="Africa/Algiers")
 USE_I18N = True
 USE_TZ = True
+
+# Restricts Django's admin language switcher (see
+# templates/admin/base_site.html) to the app's actual 3 supported
+# languages -- Django ships built-in admin-chrome translations (Add,
+# Change, Save, date pickers, etc.) for all of these -- instead of
+# Django's full built-in list of 100+ unrelated languages.
+LANGUAGES = [
+    ("fr", "Français"),
+    ("en", "English"),
+    ("ar", "العربية"),
+]
 
 # --- Static / media ---------------------------------------------------------
 
