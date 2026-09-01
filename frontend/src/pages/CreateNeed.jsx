@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useApp } from '../context/AppContext'
@@ -43,6 +43,20 @@ export default function CreateNeed() {
   const turnstileTokenRef = useRef('')
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }))
+
+  const activeCampaign = campaigns.find((c) => c.status === 'active')
+
+  // Only one campaign is ever active at a time (see migration
+  // 0007_wildfire_campaign) -- lock the form to it instead of asking the
+  // reporter to pick, one less decision for someone in an emergency.
+  useEffect(() => {
+    if (activeCampaign && form.campaign !== String(activeCampaign.id)) {
+      setForm((f) => ({ ...f, campaign: String(activeCampaign.id) }))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeCampaign])
+
+  const setUrgent = (e) => setForm((f) => ({ ...f, urgency: e.target.checked ? 'critical' : 'medium' }))
 
   const setMediaType = (e) => {
     // blob/blobUrl are shared across media types (only one is recorded at a
@@ -163,15 +177,12 @@ export default function CreateNeed() {
       <form onSubmit={submit}>
         <label>
           {t('createNeed.campaign')}
-          <select value={form.campaign} onChange={set('campaign')} required>
-            <option value="">{t('createNeed.selectPlaceholder')}</option>
-            {campaigns
-              .filter((c) => c.status === 'active')
-              .map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.campaign_name}
-                </option>
-              ))}
+          <select value={form.campaign} disabled required>
+            {activeCampaign ? (
+              <option value={activeCampaign.id}>{activeCampaign.campaign_name}</option>
+            ) : (
+              <option value="">{t('createNeed.selectPlaceholder')}</option>
+            )}
           </select>
         </label>
         <label>
@@ -193,17 +204,20 @@ export default function CreateNeed() {
           {t('createNeed.typeOfNeed')} *
           <input type="text" value={form.title} onChange={set('title')} placeholder={t('createNeed.typeOfNeedPlaceholder')} required />
         </label>
-        <label>
-          {t('createNeed.urgency')} *
-          <select value={form.urgency} onChange={set('urgency')} required>
-            <option value="low">{t('urgency.low')}</option>
-            <option value="medium">{t('urgency.medium')}</option>
-            <option value="critical">{t('urgency.critical')}</option>
-          </select>
+        <label className="checkbox-label">
+          <input type="checkbox" checked={form.urgency === 'critical'} onChange={setUrgent} />
+          {t('createNeed.urgentCheckbox')}
         </label>
         <label>
           {t('createNeed.estimatedQuantity')}
-          <input type="text" value={form.estimated_quantity} onChange={set('estimated_quantity')} placeholder={t('createNeed.estimatedQuantityPlaceholder')} />
+          <input
+            type="number"
+            min="0"
+            inputMode="numeric"
+            value={form.estimated_quantity}
+            onChange={set('estimated_quantity')}
+            placeholder={t('createNeed.estimatedQuantityPlaceholder')}
+          />
         </label>
         <label>
           {t('createNeed.description')} *

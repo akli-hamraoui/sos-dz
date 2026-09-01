@@ -71,10 +71,26 @@ class SeedDataTests(TestCase):
     def test_58_wilayas_seeded(self):
         self.assertEqual(Wilaya.objects.count(), 58)
 
-    def test_default_campaign_covers_all_wilayas(self):
+    def test_general_campaign_covers_all_wilayas(self):
+        # "Général" is the baseline seed campaign covering every wilaya --
+        # kept around (not deleted) but paused once the real "Feux en
+        # Algérie" campaign exists (0007_wildfire_campaign), since the
+        # create-need form locks its campaign picker to whichever campaign
+        # is active and only one should be at a time.
         campaign = Campaign.objects.get(campaign_name="Général")
-        self.assertEqual(campaign.status, Campaign.STATUS_ACTIVE)
         self.assertEqual(campaign.authorized_wilayas.count(), 58)
+
+    def test_wildfire_campaign_is_the_active_one_restricted_to_affected_wilayas(self):
+        campaign = Campaign.objects.get(campaign_name="Feux en Algérie")
+        self.assertEqual(campaign.status, Campaign.STATUS_ACTIVE)
+        names = set(campaign.authorized_wilayas.values_list("name", flat=True))
+        self.assertEqual(len(names), 18)
+        self.assertIn("Béjaïa", names)
+        self.assertIn("Tizi Ouzou", names)
+        self.assertNotIn("Adrar", names)  # not a fire-affected wilaya
+
+        general = Campaign.objects.get(campaign_name="Général")
+        self.assertEqual(general.status, Campaign.STATUS_PAUSED)
 
 
 class NeedCreationTests(BaseAPITestCase):

@@ -70,8 +70,8 @@
     "typeOfNeed": "Type de besoin (titre)",
     "typeOfNeedPlaceholder": "ex. couvertures, eau, nourriture, médicaments",
     "urgency": "Urgence",
-    "estimatedQuantity": "Quantité estimée",
-    "estimatedQuantityPlaceholder": "ex. environ 50 familles",
+    "estimatedQuantity": "Nombre de familles",
+    "estimatedQuantityPlaceholder": "ex. 12",
     "description": "Description (texte)",
     "descriptionPlaceholder": "Décrivez le besoin et le lieu précis",
     "useMyLocation": "Utiliser ma position GPS actuelle",
@@ -95,7 +95,8 @@
     "publish": "Publier ce besoin",
     "duplicateWarning": "Un besoin similaire existe déjà à proximité : « {{title}} » ({{wilaya}}). Publier le vôtre quand même, ou voir celui qui existe déjà ?",
     "publishAnyway": "Publier quand même",
-    "viewExisting": "Voir celui qui existe"
+    "viewExisting": "Voir celui qui existe",
+    "urgentCheckbox": "Situation urgente"
   },
   "needsList": {
     "filterByWilaya": "Filtrer par wilaya",

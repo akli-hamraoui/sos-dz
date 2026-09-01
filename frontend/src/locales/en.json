@@ -70,8 +70,8 @@
     "typeOfNeed": "Type of need (title)",
     "typeOfNeedPlaceholder": "e.g. blankets, water, food, medicine",
     "urgency": "Urgency",
-    "estimatedQuantity": "Estimated quantity",
-    "estimatedQuantityPlaceholder": "e.g. about 50 families",
+    "estimatedQuantity": "Number of families",
+    "estimatedQuantityPlaceholder": "e.g. 12",
     "description": "Description (text)",
     "descriptionPlaceholder": "Describe the need and precise location",
     "useMyLocation": "Use my current GPS position",
@@ -95,7 +95,8 @@
     "publish": "Publish this need",
     "duplicateWarning": "A similar need already exists nearby: \"{{title}}\" ({{wilaya}}). Publish yours anyway, or view the existing one instead?",
     "publishAnyway": "Publish anyway",
-    "viewExisting": "View existing instead"
+    "viewExisting": "View existing instead",
+    "urgentCheckbox": "Urgent situation"
   },
   "needsList": {
     "filterByWilaya": "Filter by wilaya",

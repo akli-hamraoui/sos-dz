@@ -70,8 +70,8 @@
     "typeOfNeed": "نوع الاحتياج (العنوان)",
     "typeOfNeedPlaceholder": "مثال: بطانيات، ماء، طعام، أدوية",
     "urgency": "درجة الإلحاح",
-    "estimatedQuantity": "الكمية التقديرية",
-    "estimatedQuantityPlaceholder": "مثال: حوالي 50 عائلة",
+    "estimatedQuantity": "عدد العائلات",
+    "estimatedQuantityPlaceholder": "مثال: 12",
     "description": "الوصف (نص)",
     "descriptionPlaceholder": "صف الاحتياج والموقع بدقة",
     "useMyLocation": "استخدام موقعي الحالي (GPS)",
@@ -95,7 +95,8 @@
     "publish": "نشر هذا الاحتياج",
     "duplicateWarning": "يوجد احتياج مشابه بالقرب من هنا: «{{title}}» ({{wilaya}}). هل تريد نشر احتياجك على أي حال، أم عرض الاحتياج الموجود بدلاً من ذلك؟",
     "publishAnyway": "النشر على أي حال",
-    "viewExisting": "عرض الاحتياج الموجود"
+    "viewExisting": "عرض الاحتياج الموجود",
+    "urgentCheckbox": "حالة طارئة"
   },
   "needsList": {
     "filterByWilaya": "تصفية حسب الولاية",
