@@ -18,7 +18,8 @@ export function AppProvider({ children }) {
   const [campaigns, setCampaigns] = useState([])
   const [needTokens, setNeedTokens] = useState(() => loadJSON('rassemble_need_tokens', {}))
   const [pickupTokens, setPickupTokens] = useState(() => loadJSON('rassemble_pickup_tokens', {}))
-  const [commentAuthor, setCommentAuthorState] = useState(() => loadJSON('rassemble_comment_author', { name: '', phone: '' }))
+  const [commentTokens, setCommentTokens] = useState(() => loadJSON('rassemble_comment_tokens', {}))
+  const [commentAuthor, setCommentAuthorState] = useState(() => loadJSON('rassemble_comment_author', { name: '' }))
   const [isOnline, setIsOnline] = useState(navigator.onLine)
   const [syncMessage, setSyncMessage] = useState('')
 
@@ -97,6 +98,14 @@ export function AppProvider({ children }) {
     saveJSON('rassemble_comment_author', author)
   }, [])
 
+  const saveCommentToken = useCallback((commentId, token) => {
+    setCommentTokens((prev) => {
+      const next = { ...prev, [commentId]: token }
+      saveJSON('rassemble_comment_tokens', next)
+      return next
+    })
+  }, [])
+
   const wilayasForCampaign = useCallback(
     (campaignId) => {
       const c = campaigns.find((c) => String(c.id) === String(campaignId))
@@ -135,6 +144,8 @@ export function AppProvider({ children }) {
     savePickupToken,
     commentAuthor,
     setCommentAuthor,
+    commentTokens,
+    saveCommentToken,
     isOnline,
     syncMessage,
   }

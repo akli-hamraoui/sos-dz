@@ -265,6 +265,27 @@ class PickupAndStatusTests(BaseAPITestCase):
         )
         self.assertEqual(resp.status_code, 403)
 
+    def test_code_recovery_issues_new_token(self):
+        resp = self.client.post(
+            "/api/needs/",
+            dict(NEED_PAYLOAD, campaign=self.campaign.pk, wilaya=self.wilaya.pk, recovery_code="myPin123"),
+            format="json",
+        )
+        need_id = resp.data["id"]
+        resp = self.client.post(f"/api/needs/{need_id}/recover-access/", {"code": "myPin123"}, format="json")
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("access_token", resp.data)
+
+    def test_code_recovery_wrong_code_rejected(self):
+        resp = self.client.post(
+            "/api/needs/",
+            dict(NEED_PAYLOAD, campaign=self.campaign.pk, wilaya=self.wilaya.pk, recovery_code="myPin123"),
+            format="json",
+        )
+        need_id = resp.data["id"]
+        resp = self.client.post(f"/api/needs/{need_id}/recover-access/", {"code": "wrongPin"}, format="json")
+        self.assertEqual(resp.status_code, 403)
+
     def test_to_verify_after_24h_without_update(self):
         r1 = self.client.post("/api/pickups/", self._pickup_payload(), format="json")
         pickup = Pickup.objects.get(pk=r1.data["id"])
@@ -1418,6 +1439,13 @@ class CollectionPointTests(BaseAPITestCase):
         resp = self.client.get("/api/collection-points/locations/")
         self.assertEqual(resp.data, [])
 
+    def test_search_matches_point_name_and_description(self):
+        self.client.post("/api/collection-points/", self._payload(point_name="Mosquée El Kheir"), format="json")
+        self.client.post("/api/collection-points/", self._payload(point_name="Autre point"), format="json")
+        resp = self.client.get("/api/collection-points/?search=Kheir")
+        self.assertEqual(len(resp.data["results"]), 1)
+        self.assertEqual(resp.data["results"][0]["point_name"], "Mosquée El Kheir")
+
     def test_creator_can_close_with_matching_name_phone(self):
         create_resp = self.client.post("/api/collection-points/", self._payload(), format="json")
         resp = self.client.post(
@@ -1438,6 +1466,49 @@ class CollectionPointTests(BaseAPITestCase):
         self.assertEqual(resp.status_code, 403)
 
 
+class SearchFilterTests(BaseAPITestCase):
+    def setUp(self):
+        super().setUp()
+        self.campaign = make_campaign()
+        self.wilaya = self.campaign.authorized_wilayas.first()
+
+    def test_need_search_matches_title_and_description(self):
+        self.client.post("/api/needs/", dict(NEED_PAYLOAD, campaign=self.campaign.pk, wilaya=self.wilaya.pk, title="Couvertures"), format="json")
+        self.client.post(
+            "/api/needs/",
+            dict(NEED_PAYLOAD, campaign=self.campaign.pk, wilaya=self.wilaya.pk, title="Eau potable", location_description="Besoin urgent"),
+            format="json",
+        )
+        resp = self.client.get("/api/needs/?search=Couvertures")
+        self.assertEqual(len(resp.data["results"]), 1)
+        self.assertEqual(resp.data["results"][0]["title"], "Couvertures")
+
+    def test_need_search_is_case_insensitive_and_matches_description(self):
+        self.client.post(
+            "/api/needs/",
+            dict(NEED_PAYLOAD, campaign=self.campaign.pk, wilaya=self.wilaya.pk, location_description="Near the old bakery"),
+            format="json",
+        )
+        resp = self.client.get("/api/needs/?search=bakery")
+        self.assertEqual(len(resp.data["results"]), 1)
+
+    def test_pickup_search_matches_responder_name(self):
+        need_resp = self.client.post("/api/needs/", dict(NEED_PAYLOAD, campaign=self.campaign.pk, wilaya=self.wilaya.pk), format="json")
+        self.client.post(
+            "/api/pickups/",
+            {
+                "need": need_resp.data["id"],
+                "responder_type": "individual_volunteer",
+                "responder_name": "Yacine Volunteer",
+                "responder_phone": "0666000009",
+                "content_brought": "Water",
+            },
+            format="json",
+        )
+        resp = self.client.get("/api/pickups/?search=Yacine")
+        self.assertEqual(len(resp.data["results"]), 1)
+
+
 class CommentTests(BaseAPITestCase):
     def setUp(self):
         super().setUp()
@@ -1449,7 +1520,7 @@ class CommentTests(BaseAPITestCase):
         self.need_id = need_resp.data["id"]
 
     def _comment_payload(self, **overrides):
-        data = {"need": self.need_id, "author_name": "Villager", "author_phone": "0611111111", "text": "Any update?"}
+        data = {"need": self.need_id, "author_name": "Villager", "text": "Any update?"}
         data.update(overrides)
         return data
 
@@ -1457,6 +1528,11 @@ class CommentTests(BaseAPITestCase):
         resp = self.client.post("/api/comments/", self._comment_payload(), format="json")
         self.assertEqual(resp.status_code, 201, resp.content)
         self.assertNotIn("author_phone", resp.data)  # never shown publicly
+        self.assertIn("owner_token", resp.data)  # returned once, to the author only
+
+    def test_comment_creation_does_not_require_phone(self):
+        resp = self.client.post("/api/comments/", {"need": self.need_id, "author_name": "Villager", "text": "No phone given"}, format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
 
     def test_reply_one_level_only(self):
         root = self.client.post("/api/comments/", self._comment_payload(), format="json")
@@ -1499,16 +1575,16 @@ class CommentTests(BaseAPITestCase):
         root = self.client.post("/api/comments/", self._comment_payload(), format="json")
         resp = self.client.delete(
             f"/api/comments/{root.data['id']}/",
-            {"author_name": "Villager", "author_phone": "0611111111"},
+            {"owner_token": root.data["owner_token"]},
             format="json",
         )
         self.assertEqual(resp.status_code, 204)
 
-    def test_delete_rejected_with_wrong_author(self):
+    def test_delete_rejected_with_wrong_token(self):
         root = self.client.post("/api/comments/", self._comment_payload(), format="json")
         resp = self.client.delete(
             f"/api/comments/{root.data['id']}/",
-            {"author_name": "Impostor", "author_phone": "0000000000"},
+            {"owner_token": "wrong-token"},
             format="json",
         )
         self.assertEqual(resp.status_code, 403)

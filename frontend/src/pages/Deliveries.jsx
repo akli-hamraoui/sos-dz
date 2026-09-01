@@ -12,16 +12,25 @@ export default function Deliveries() {
   const { activeCampaignWilayas } = useApp()
   const [filterWilaya, setFilterWilaya] = useState('')
   const [filterStatus, setFilterStatus] = useState('en_route')
+  const [searchInput, setSearchInput] = useState('')
+  const [search, setSearch] = useState('')
   const [pickups, setPickups] = useState([])
+
+  // Debounced so typing doesn't fire a request on every keystroke.
+  useEffect(() => {
+    const timer = setTimeout(() => setSearch(searchInput.trim()), 300)
+    return () => clearTimeout(timer)
+  }, [searchInput])
 
   const load = useCallback(async () => {
     const params = new URLSearchParams()
     if (filterWilaya) params.set('wilaya', filterWilaya)
     if (filterStatus) params.set('status', filterStatus)
+    if (search) params.set('search', search)
     const qs = params.toString() ? `?${params.toString()}` : ''
     const data = await api(`/pickups/${qs}`)
     setPickups(data.results || data)
-  }, [filterWilaya, filterStatus])
+  }, [filterWilaya, filterStatus, search])
 
   useEffect(() => {
     load().catch(() => {}) // offline/network failure -- offline banner already informs the user
@@ -30,6 +39,13 @@ export default function Deliveries() {
   return (
     <section className="needs-page">
       <div className="toolbar">
+        <input
+          type="search"
+          className="search-input"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          placeholder={t('common.searchPlaceholder')}
+        />
         <label>
           {t('needsList.filterByWilaya')}
           <select value={filterWilaya} onChange={(e) => setFilterWilaya(e.target.value)}>

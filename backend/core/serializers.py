@@ -209,6 +209,7 @@ class PickupCreateSerializer(serializers.ModelSerializer):
             "organization_or_person_name",
             "content_brought",
             "location_sharing_active",
+            "recovery_code",
         ]
 
     def validate_need(self, need):
@@ -350,6 +351,7 @@ class NeedCreateSerializer(serializers.ModelSerializer):
             "organization_or_person_name",
             "voice_file",
             "video_file",
+            "recovery_code",
         ]
 
     def validate(self, attrs):
@@ -397,8 +399,18 @@ class NeedUpdateGPSSerializer(serializers.Serializer):
 
 
 class IdentityRecoverySerializer(serializers.Serializer):
-    name = serializers.CharField()
-    phone = serializers.CharField()
+    """Either `code` (the memorable code optionally set at creation) or the
+    `name`+`phone` fallback must be provided -- see the view, which tries
+    the code first when present."""
+
+    code = serializers.CharField(required=False, allow_blank=True)
+    name = serializers.CharField(required=False, allow_blank=True)
+    phone = serializers.CharField(required=False, allow_blank=True)
+
+    def validate(self, attrs):
+        if not attrs.get("code") and not (attrs.get("name") and attrs.get("phone")):
+            raise serializers.ValidationError("Provide either a code, or both name and phone.")
+        return attrs
 
 
 class AnonymizeSerializer(serializers.Serializer):
@@ -457,7 +469,7 @@ class CommentSerializer(serializers.ModelSerializer):
 class CommentCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Comment
-        fields = ["need", "collection_point", "parent_comment", "author_name", "author_phone", "text", "category"]
+        fields = ["need", "collection_point", "parent_comment", "author_name", "text", "category"]
 
     def validate(self, attrs):
         need, collection_point = attrs.get("need"), attrs.get("collection_point")
@@ -469,11 +481,6 @@ class CommentCreateSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError("Replies cannot themselves be replied to (one level of nesting only).")
             attrs["category"] = ""  # category is only meaningful for root Need comments
         return attrs
-
-
-class CommentDeleteSerializer(serializers.Serializer):
-    author_name = serializers.CharField(required=False, allow_blank=True)
-    author_phone = serializers.CharField(required=False, allow_blank=True)
 
 
 class CollectionPointSerializer(serializers.ModelSerializer):

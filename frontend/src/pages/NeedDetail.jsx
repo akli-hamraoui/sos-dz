@@ -3,100 +3,15 @@ import { useParams, useSearchParams, Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import L from 'leaflet'
 import { useApp } from '../context/AppContext'
+import { useDialog } from '../context/DialogContext'
 import { api, apiUpload, createOrQueue } from '../api'
 import { maskPhone, formatDate, compressPhoto } from '../utils'
 import { IconMapPin } from '../icons'
 import { fetchDrivingRoute } from '../routing'
+import CommentThread from '../components/CommentThread'
 
 function statusLabel(t, s) {
   return t(`status.${s}`, s)
-}
-
-function CommentThread({ comments, target, targetId, onChanged }) {
-  const { t, i18n } = useTranslation()
-  const { commentAuthor, setCommentAuthor } = useApp()
-  const [texts, setTexts] = useState({})
-
-  const ensureAuthor = () => {
-    if (commentAuthor.name && commentAuthor.phone) return commentAuthor
-    const name = prompt(t('createNeed.name') + ':') || ''
-    const phone = prompt(t('createNeed.phone') + ':') || ''
-    const author = { name, phone }
-    setCommentAuthor(author)
-    return author
-  }
-
-  const submit = async (parentId, key) => {
-    const text = texts[key]
-    if (!text) return
-    const author = ensureAuthor()
-    const payload = { author_name: author.name, author_phone: author.phone, text }
-    payload[target] = targetId
-    if (parentId) payload.parent_comment = parentId
-    await api('/comments/', { method: 'POST', body: JSON.stringify(payload) })
-    setTexts((p) => ({ ...p, [key]: '' }))
-    onChanged()
-  }
-
-  const confirmComment = async (id) => {
-    await api(`/comments/${id}/confirm/`, { method: 'POST' })
-    onChanged()
-  }
-
-  const deleteComment = async (id) => {
-    if (!confirm(t('common.delete') + '?')) return
-    await fetch(`/api/comments/${id}/`, {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ author_name: commentAuthor.name, author_phone: commentAuthor.phone }),
-    })
-    onChanged()
-  }
-
-  return (
-    <div className="comment-thread">
-      <h3>{t('comments.title')}</h3>
-      {comments.map((c) => (
-        <div key={c.id}>
-          <div className="comment">
-            <p>{c.text}</p>
-            <p className="comment-meta">
-              {c.author_name} — {formatDate(c.created_at, i18n.language)}
-              {c.category && ` · ${t(`comments.category.${c.category}`)}`} ·{' '}
-              <button className="link" onClick={() => confirmComment(c.id)}>
-                {t('comments.confirmCount', { count: c.confirmation_count })}
-              </button>{' '}
-              · <button className="link" onClick={() => deleteComment(c.id)}>{t('common.delete')}</button>
-            </p>
-            <div className="comment-form">
-              <input type="text" value={texts[`reply-${c.id}`] || ''} onChange={(e) => setTexts((p) => ({ ...p, [`reply-${c.id}`]: e.target.value }))} placeholder={t('comments.replyPlaceholder')} />
-              <button className="btn" onClick={() => submit(c.id, `reply-${c.id}`)}>
-                {t('common.reply')}
-              </button>
-            </div>
-          </div>
-          {(c.replies || []).map((r) => (
-            <div className="comment reply" key={r.id}>
-              <p>{r.text}</p>
-              <p className="comment-meta">
-                {r.author_name} — {formatDate(r.created_at, i18n.language)} ·{' '}
-                <button className="link" onClick={() => confirmComment(r.id)}>
-                  {t('comments.confirmCount', { count: r.confirmation_count })}
-                </button>{' '}
-                · <button className="link" onClick={() => deleteComment(r.id)}>{t('common.delete')}</button>
-              </p>
-            </div>
-          ))}
-        </div>
-      ))}
-      <div className="comment-form">
-        <input type="text" value={texts[`root-${target}-${targetId}`] || ''} onChange={(e) => setTexts((p) => ({ ...p, [`root-${target}-${targetId}`]: e.target.value }))} placeholder={t('comments.placeholder')} />
-        <button className="btn btn-primary" onClick={() => submit(null, `root-${target}-${targetId}`)}>
-          {t('common.post')}
-        </button>
-      </div>
-    </div>
-  )
 }
 
 export default function NeedDetail() {
@@ -105,6 +20,7 @@ export default function NeedDetail() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { needTokens, saveNeedToken, pickupTokens, savePickupToken, wilayas } = useApp()
+  const { showAlert, showConfirm, showPrompt } = useDialog()
   const [need, setNeed] = useState(null)
   const [showPhone, setShowPhone] = useState(false)
   const [revealedPickupPhones, setRevealedPickupPhones] = useState({})
@@ -220,14 +136,14 @@ export default function NeedDetail() {
     setNeed(data)
   }
 
-  const startEdit = () => {
-    const title = prompt(t('createNeed.typeOfNeed') + ':', need.title)
+  const startEdit = async () => {
+    const title = await showPrompt(t('createNeed.typeOfNeed') + ':', need.title)
     if (title === null) return
     editNeed({ title })
   }
 
-  const cancelNeed = () => {
-    const reason = prompt(t('needDetail.cancelThisNeed') + '?', '')
+  const cancelNeed = async () => {
+    const reason = await showPrompt(t('needDetail.cancelThisNeed') + '?', '')
     if (reason === null) return
     editNeed({ is_cancelled: true, cancellation_reason: reason })
   }
@@ -240,7 +156,7 @@ export default function NeedDetail() {
         const data = await api(`/needs/${id}/update-gps/`, { method: 'POST', body: JSON.stringify({ latitude: pos.coords.latitude, longitude: pos.coords.longitude, access_token: token }) })
         setNeed(data)
       } catch (e) {
-        alert(e.message)
+        showAlert(e.message)
       }
     })
   }
@@ -263,7 +179,7 @@ export default function NeedDetail() {
       const data = await api(`/needs/${id}/anonymize/`, { method: 'POST', body: JSON.stringify({ access_token: token }) })
       setNeed(data)
     } catch (e) {
-      if (e.data && e.data.requires_confirmation && confirm(e.data.detail + '\n\n' + t('common.confirm') + '?')) {
+      if (e.data && e.data.requires_confirmation && (await showConfirm(e.data.detail + '\n\n' + t('common.confirm') + '?'))) {
         const data = await api(`/needs/${id}/anonymize/`, { method: 'POST', body: JSON.stringify({ access_token: token, confirm: true }) })
         setNeed(data)
       }
@@ -271,21 +187,21 @@ export default function NeedDetail() {
   }
 
   const reportContent = async (mediaType, mediaId) => {
-    const reason = prompt(t('needDetail.reportContent') + '?')
+    const reason = await showPrompt(t('needDetail.reportContent') + '?')
     if (!reason) return
-    const reporter_name = prompt(t('createNeed.name') + ':') || ''
-    const reporter_phone = prompt(t('createNeed.phone') + ':') || ''
+    const reporter_name = (await showPrompt(t('createNeed.name') + ':')) || ''
+    const reporter_phone = (await showPrompt(t('createNeed.phone') + ':')) || ''
     await api('/content-reports/', { method: 'POST', body: JSON.stringify({ media_type: mediaType, media_id: mediaId, reporter_name, reporter_phone, reason }) })
     load()
   }
 
   const reportDuplicate = async () => {
-    const referenceId = prompt(t('needDetail.reportAsDuplicate') + ' -- ID:')
+    const referenceId = await showPrompt(t('needDetail.reportAsDuplicate') + ' -- ID:')
     if (!referenceId) return
-    const reporter_name = prompt(t('createNeed.name') + ':') || ''
-    const reporter_phone = prompt(t('createNeed.phone') + ':') || ''
+    const reporter_name = (await showPrompt(t('createNeed.name') + ':')) || ''
+    const reporter_phone = (await showPrompt(t('createNeed.phone') + ':')) || ''
     await api(`/needs/${id}/report-duplicate/`, { method: 'POST', body: JSON.stringify({ reference_need_id: referenceId, reporter_name, reporter_phone }) })
-    alert(t('common.confirm'))
+    showAlert(t('common.confirm'))
   }
 
   const addProgressUpdate = async (pickupId) => {
@@ -299,7 +215,7 @@ export default function NeedDetail() {
     })
     setProgressText((p) => ({ ...p, [pickupId]: '' }))
     if (result.queued) {
-      alert(t('offline.pendingSync'))
+      showAlert(t('offline.pendingSync'))
       return
     }
     load()
@@ -344,7 +260,7 @@ export default function NeedDetail() {
     try {
       await api(`/pickups/${pickupId}/anonymize/`, { method: 'POST', body: JSON.stringify({ access_token: token }) })
     } catch (e) {
-      if (e.data && e.data.requires_confirmation && confirm(e.data.detail)) {
+      if (e.data && e.data.requires_confirmation && (await showConfirm(e.data.detail))) {
         await api(`/pickups/${pickupId}/anonymize/`, { method: 'POST', body: JSON.stringify({ access_token: token, confirm: true }) })
       }
     }

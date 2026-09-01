@@ -197,19 +197,15 @@ main {
   padding: 60px 20px;
   position: relative;
   overflow: hidden;
-  /* A soft, low-opacity nod to the Algerian flag behind the hero content:
-     a faint green wash near the top-left plus a crescent-and-star
-     watermark bottom-right, both subtle enough to stay out of the way of
-     the text and buttons layered on top via normal stacking order. */
-  background-image: radial-gradient(ellipse 640px 420px at 10% 6%, rgba(0, 98, 51, 0.05), transparent 60%),
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Ccircle cx='100' cy='100' r='55' fill='rgba(210,16,52,0.1)'/%3E%3Ccircle cx='120' cy='100' r='48' fill='%23fafafa'/%3E%3Cpolygon points='128,82 132.11,94.34 145.12,94.44 134.66,102.16 138.58,114.56 128,107 117.42,114.56 121.34,102.16 110.88,94.44 123.89,94.34' fill='rgba(210,16,52,0.1)'/%3E%3C/svg%3E");
+  /* A very subtle Algerian crescent-and-star watermark in the bottom-right
+     corner -- previously paired with a radial-gradient green "wash" near
+     the top-left, but that gradient rendered as a visible hard-edged
+     rectangle in real browsers (its low-alpha fade was too abrupt to read
+     as ambient light), so it was dropped rather than tuned further. */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Ccircle cx='100' cy='100' r='55' fill='rgba(210,16,52,0.1)'/%3E%3Ccircle cx='120' cy='100' r='48' fill='%23fafafa'/%3E%3Cpolygon points='128,82 132.11,94.34 145.12,94.44 134.66,102.16 138.58,114.56 128,107 117.42,114.56 121.34,102.16 110.88,94.44 123.89,94.34' fill='rgba(210,16,52,0.1)'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position:
-    -40px -30px,
-    100% 100%;
-  background-size:
-    auto,
-    300px 300px;
+  background-position: 100% 100%;
+  background-size: 300px 300px;
 }
 .home-actions {
   display: flex;
@@ -388,6 +384,14 @@ fieldset {
   flex-wrap: wrap;
   gap: 10px;
 }
+.search-input {
+  flex: 1 1 220px;
+  min-width: 160px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  font-size: 15px;
+}
 .view-toggle button {
   border: 1px solid var(--border);
   background: #fff;
@@ -416,6 +420,15 @@ fieldset {
   margin-block-end: 12px;
   text-decoration: none;
   color: #111;
+}
+.need-card-description {
+  font-size: 13px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 .badge {
   display: inline-block;
@@ -663,6 +676,72 @@ footer {
 }
 .footer-links a {
   text-decoration: underline;
+}
+
+/* --- Dialog (replaces window.alert/confirm/prompt) --- */
+/* A bottom sheet on narrow screens (Uber-style: slides up from the edge
+   closest to the thumb), a centered card on wider ones. Above the bottom
+   nav's z-index: 50. */
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 200;
+  animation: dialog-fade-in 0.15s ease-out;
+}
+.dialog-sheet {
+  background: var(--card);
+  border-radius: 18px 18px 0 0;
+  padding: 24px 20px max(20px, env(safe-area-inset-bottom));
+  width: 100%;
+  max-width: 420px;
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.2);
+  animation: dialog-slide-up 0.2s ease-out;
+}
+.dialog-message {
+  margin: 0 0 16px;
+  font-size: 16px;
+  white-space: pre-wrap;
+}
+.dialog-input {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  font-size: 15px;
+  margin-block-end: 16px;
+}
+.dialog-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+.dialog-actions .btn {
+  flex: 1;
+  text-align: center;
+  padding: 12px 18px;
+}
+@keyframes dialog-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes dialog-slide-up {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+}
+@media (min-width: 640px) {
+  .dialog-backdrop {
+    align-items: center;
+  }
+  .dialog-sheet {
+    border-radius: 18px;
+  }
 }
 
 /* --- RTL: Arabic --- */

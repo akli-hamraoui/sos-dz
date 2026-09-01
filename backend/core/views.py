@@ -1,3 +1,4 @@
+from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
@@ -40,7 +41,6 @@ from core.serializers import (
     CollectionPointMapPinSerializer,
     CollectionPointSerializer,
     CommentCreateSerializer,
-    CommentDeleteSerializer,
     CommentSerializer,
     ContentReportSerializer,
     DisasterTypeSerializer,
@@ -169,10 +169,20 @@ class NeedViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retriev
         qs = super().get_queryset()
         wilaya = self.request.query_params.get("wilaya")
         campaign = self.request.query_params.get("campaign")
+        search = self.request.query_params.get("search")
         if wilaya:
             qs = qs.filter(wilaya_id=wilaya)
         if campaign:
             qs = qs.filter(campaign_id=campaign)
+        if search:
+            qs = qs.filter(
+                Q(title__icontains=search)
+                | Q(location_description__icontains=search)
+                | Q(commune__icontains=search)
+                | Q(wilaya__name__icontains=search)
+                | Q(organization_or_person_name__icontains=search)
+                | Q(contact_name__icontains=search)
+            )
         return qs
 
     def create(self, request, *args, **kwargs):
@@ -318,7 +328,8 @@ class NeedViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retriev
         serializer = IdentityRecoverySerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         d = serializer.validated_data
-        if not need.matches_identity(d["name"], d["phone"]):
+        matched = need.matches_code(d.get("code")) if d.get("code") else need.matches_identity(d.get("name"), d.get("phone"))
+        if not matched:
             return Response(
                 {"detail": "No match. If this keeps happening, use the support/contact-admin form."},
                 status=status.HTTP_403_FORBIDDEN,
@@ -393,10 +404,19 @@ class PickupViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retri
         qs = super().get_queryset()
         wilaya = self.request.query_params.get("wilaya")
         status_param = self.request.query_params.get("status")
+        search = self.request.query_params.get("search")
         if wilaya:
             qs = qs.filter(need__wilaya_id=wilaya)
         if status_param:
             qs = qs.filter(status=status_param)
+        if search:
+            qs = qs.filter(
+                Q(responder_name__icontains=search)
+                | Q(content_brought__icontains=search)
+                | Q(organization_or_person_name__icontains=search)
+                | Q(need__title__icontains=search)
+                | Q(need__wilaya__name__icontains=search)
+            )
         return qs
 
     def get_throttles(self):
@@ -504,7 +524,8 @@ class PickupViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retri
         serializer = IdentityRecoverySerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         d = serializer.validated_data
-        if not pickup.matches_identity(d["name"], d["phone"]):
+        matched = pickup.matches_code(d.get("code")) if d.get("code") else pickup.matches_identity(d.get("name"), d.get("phone"))
+        if not matched:
             return Response(
                 {"detail": "No match. If this keeps happening, use the support/contact-admin form."},
                 status=status.HTTP_403_FORBIDDEN,
@@ -588,8 +609,18 @@ class CollectionPointViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mix
     def get_queryset(self):
         qs = super().get_queryset()
         wilaya = self.request.query_params.get("wilaya")
+        search = self.request.query_params.get("search")
         if wilaya:
             qs = qs.filter(wilaya_id=wilaya)
+        if search:
+            qs = qs.filter(
+                Q(point_name__icontains=search)
+                | Q(contact_name__icontains=search)
+                | Q(organization__icontains=search)
+                | Q(location_description__icontains=search)
+                | Q(hours__icontains=search)
+                | Q(wilaya__name__icontains=search)
+            )
         return qs
 
     def create(self, request, *args, **kwargs):
@@ -644,7 +675,9 @@ class CommentViewSet(mixins.CreateModelMixin, mixins.DestroyModelMixin, viewsets
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         comment = serializer.save()
-        return Response(CommentSerializer(comment, context={"request": request}).data, status=status.HTTP_201_CREATED)
+        out = CommentSerializer(comment, context={"request": request}).data
+        out["owner_token"] = comment.owner_token
+        return Response(out, status=status.HTTP_201_CREATED)
 
     def destroy(self, request, *args, **kwargs):
         comment = self.get_object()
@@ -652,10 +685,9 @@ class CommentViewSet(mixins.CreateModelMixin, mixins.DestroyModelMixin, viewsets
             log_admin_action(request, "deleted comment", comment)
             comment.delete()
             return Response(status=status.HTTP_204_NO_CONTENT)
-        serializer = CommentDeleteSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        if not comment.matches_author(serializer.validated_data.get("author_name"), serializer.validated_data.get("author_phone")):
-            return Response({"detail": "Name/phone don't match this comment's author."}, status=status.HTTP_403_FORBIDDEN)
+        token = request.headers.get("X-Owner-Token") or request.data.get("owner_token")
+        if not comment.matches_owner_token(token):
+            return Response({"detail": "Not authorized to delete this comment."}, status=status.HTTP_403_FORBIDDEN)
         comment.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 

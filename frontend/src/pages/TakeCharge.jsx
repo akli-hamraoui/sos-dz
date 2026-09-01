@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useApp } from '../context/AppContext'
+import { useDialog } from '../context/DialogContext'
 import { api, createOrQueue } from '../api'
 
 const DEFAULT_FORM = {
@@ -11,6 +12,7 @@ const DEFAULT_FORM = {
   responder_phone: '',
   responder_email: '',
   organization_or_person_name: '',
+  recovery_code: '',
 }
 
 export default function TakeCharge() {
@@ -18,6 +20,7 @@ export default function TakeCharge() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { savePickupToken, config } = useApp()
+  const { showAlert } = useDialog()
   const [need, setNeed] = useState(null)
   const [form, setForm] = useState(DEFAULT_FORM)
   const [error, setError] = useState('')
@@ -35,7 +38,7 @@ export default function TakeCharge() {
       const fields = { ...form, need: id, turnstile_token: window.__turnstileToken || '' }
       const result = await createOrQueue({ type: 'pickup', endpoint: '/api/pickups/', fields })
       if (result.queued) {
-        alert(t('offline.pendingSync'))
+        showAlert(t('offline.pendingSync'))
         navigate(`/needs/${id}`)
         return
       }
@@ -77,6 +80,11 @@ export default function TakeCharge() {
             {t('createNeed.orgOrPerson')} <input type="text" value={form.organization_or_person_name} onChange={set('organization_or_person_name')} />
           </label>
         </fieldset>
+        <label>
+          {t('createNeed.recoveryCode')}{' '}
+          <input type="text" value={form.recovery_code} onChange={set('recovery_code')} placeholder={t('createNeed.recoveryCodePlaceholder')} />
+          <span className="hint">{t('createNeed.recoveryCodeHint')}</span>
+        </label>
         {config.turnstile_enabled && <div className="cf-turnstile" data-sitekey={config.turnstile_site_key} data-callback="onTurnstileToken" />}
         {error && <p className="error">{error}</p>}
         <button type="submit" className="btn btn-primary">

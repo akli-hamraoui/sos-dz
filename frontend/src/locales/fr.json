@@ -3,6 +3,7 @@
     "brand": "SOS DZ",
     "loading": "Chargement...",
     "save": "Enregistrer",
+    "ok": "OK",
     "cancel": "Annuler",
     "confirm": "Confirmer",
     "delete": "Supprimer",
@@ -18,7 +19,8 @@
     "showFullNumber": "afficher le numéro complet",
     "hideNumber": "masquer le numéro",
     "noExactGpsPosition": "sans position GPS exacte",
-    "adminContact": "Contact admin"
+    "adminContact": "Contact admin",
+    "searchPlaceholder": "Rechercher (nom, description...)"
   },
   "readOnly": {
     "banner": "L'application est actuellement en mode lecture seule. Les données existantes restent consultables."
@@ -98,7 +100,10 @@
     "mediaPhoto": "Photo",
     "fallbackTitle": "Besoin signalé",
     "gpsLocating": "Recherche de votre position…",
-    "gpsError": "Impossible d'obtenir votre position GPS. Vérifiez que la localisation est autorisée pour ce site."
+    "gpsError": "Impossible d'obtenir votre position GPS. Vérifiez que la localisation est autorisée pour ce site.",
+    "recoveryCode": "Code de récupération (optionnel)",
+    "recoveryCodePlaceholder": "ex : 1234",
+    "recoveryCodeHint": "Un code facile à retenir pour retrouver l'accès depuis un autre appareil. Si vous l'oubliez, votre nom et téléphone permettent aussi de le récupérer."
   },
   "needsList": {
     "filterByWilaya": "Filtrer par wilaya",
@@ -151,7 +156,8 @@
       "field_info": "info terrain",
       "contact_info": "info contact",
       "confirmation": "confirmation"
-    }
+    },
+    "namePrompt": "Votre nom (pour ce commentaire) :"
   },
   "takeCharge": {
     "title": "Prendre en charge : {{need}}",
@@ -167,7 +173,9 @@
     "title": "Récupérer l'accès à mon annonce",
     "description": "Ressaisissez exactement l'identité utilisée lors de la création.",
     "recoverButton": "Récupérer l'accès",
-    "stillNotWorking": "Toujours bloqué ? Contactez le support admin"
+    "stillNotWorking": "Toujours bloqué ? Contactez le support admin",
+    "forgotCode": "Code oublié ? Utiliser mon nom et téléphone",
+    "useCodeInstead": "J'ai un code de récupération"
   },
   "support": {
     "title": "Coordonnées oubliées / contacter l'admin",

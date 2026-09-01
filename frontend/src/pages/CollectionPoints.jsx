@@ -10,6 +10,8 @@ export default function CollectionPoints() {
   const { t } = useTranslation()
   const { activeCampaignWilayas } = useApp()
   const [filterWilaya, setFilterWilaya] = useState('')
+  const [searchInput, setSearchInput] = useState('')
+  const [search, setSearch] = useState('')
   const [points, setPoints] = useState([])
   // Always defaults to the map on every visit -- see NeedsList.jsx for why
   // this is deliberately not persisted.
@@ -19,11 +21,20 @@ export default function CollectionPoints() {
   const mapElRef = useRef(null)
   const markersRef = useRef([])
 
+  // Debounced so typing doesn't fire a request on every keystroke.
+  useEffect(() => {
+    const timer = setTimeout(() => setSearch(searchInput.trim()), 300)
+    return () => clearTimeout(timer)
+  }, [searchInput])
+
   const load = useCallback(async () => {
-    const qs = filterWilaya ? `?wilaya=${filterWilaya}` : ''
+    const params = new URLSearchParams()
+    if (filterWilaya) params.set('wilaya', filterWilaya)
+    if (search) params.set('search', search)
+    const qs = params.toString() ? `?${params.toString()}` : ''
     const data = await api(`/collection-points/${qs}`)
     setPoints(data.results || data)
-  }, [filterWilaya])
+  }, [filterWilaya, search])
 
   useEffect(() => {
     load().catch(() => {}) // offline/network failure -- offline banner already informs the user
@@ -88,7 +99,10 @@ export default function CollectionPoints() {
 
     ;(async () => {
       let cpPins
-      const qs = filterWilaya ? `?wilaya=${filterWilaya}` : ''
+      const params = new URLSearchParams()
+      if (filterWilaya) params.set('wilaya', filterWilaya)
+      if (search) params.set('search', search)
+      const qs = params.toString() ? `?${params.toString()}` : ''
       try {
         cpPins = await api(`/collection-points/locations/${qs}`)
       } catch {
@@ -138,7 +152,7 @@ export default function CollectionPoints() {
     // finish loading, in case that response lands after this effect's
     // first run already captured an empty fallback list.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewMode, filterWilaya, activeCampaignWilayas])
+  }, [viewMode, filterWilaya, search, activeCampaignWilayas])
 
   // See NeedsList.jsx for why this is needed: without it, switching back
   // to "Carte" after "Liste" left the map permanently blank.
@@ -152,6 +166,13 @@ export default function CollectionPoints() {
   return (
     <section className="needs-page">
       <div className="toolbar">
+        <input
+          type="search"
+          className="search-input"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          placeholder={t('common.searchPlaceholder')}
+        />
         <label>
           {t('needsList.filterByWilaya')}
           <select value={filterWilaya} onChange={(e) => setFilterWilaya(e.target.value)}>
@@ -197,7 +218,7 @@ export default function CollectionPoints() {
       {viewMode === 'map' && (
         <div className="map-wrap">
           {mapHasNothing && <p className="hint">{t('collectionPoints.noPointsYet')}</p>}
-          <div id="cp-map" ref={mapElRef} style={{ height: 580 }} />
+          <div id="cp-map" ref={mapElRef} style={{ height: 680 }} />
         </div>
       )}
     </section>

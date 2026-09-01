@@ -15,6 +15,8 @@ export default function NeedsList() {
   const { t } = useTranslation()
   const { activeCampaignWilayas } = useApp()
   const [filterWilaya, setFilterWilaya] = useState('')
+  const [searchInput, setSearchInput] = useState('')
+  const [search, setSearch] = useState('')
   const [needs, setNeeds] = useState([])
   // Always defaults to the map on every visit -- deliberately not
   // persisted (a prior "Liste" choice must never keep the map hidden on
@@ -26,11 +28,20 @@ export default function NeedsList() {
   const mapElRef = useRef(null)
   const markersRef = useRef([])
 
+  // Debounced so typing doesn't fire a request on every keystroke.
+  useEffect(() => {
+    const timer = setTimeout(() => setSearch(searchInput.trim()), 300)
+    return () => clearTimeout(timer)
+  }, [searchInput])
+
   const loadNeeds = useCallback(async () => {
-    const qs = filterWilaya ? `?wilaya=${filterWilaya}` : ''
+    const params = new URLSearchParams()
+    if (filterWilaya) params.set('wilaya', filterWilaya)
+    if (search) params.set('search', search)
+    const qs = params.toString() ? `?${params.toString()}` : ''
     const data = await api(`/needs/${qs}`)
     setNeeds(data.results || data)
-  }, [filterWilaya])
+  }, [filterWilaya, search])
 
   useEffect(() => {
     loadNeeds().catch(() => {}) // offline/network failure -- offline banner already informs the user, nothing more to do here
@@ -101,7 +112,10 @@ export default function NeedsList() {
 
     ;(async () => {
       let needPins, cpPins
-      const qs = filterWilaya ? `?wilaya=${filterWilaya}` : ''
+      const params = new URLSearchParams()
+      if (filterWilaya) params.set('wilaya', filterWilaya)
+      if (search) params.set('search', search)
+      const qs = params.toString() ? `?${params.toString()}` : ''
       try {
         ;[needPins, cpPins] = await Promise.all([api(`/needs/locations/${qs}`), api(`/collection-points/locations/${qs}`).catch(() => [])])
       } catch {
@@ -179,7 +193,7 @@ export default function NeedsList() {
     // finish loading, in case that response lands after this effect's
     // first run already captured an empty fallback list.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewMode, filterWilaya, activeCampaignWilayas])
+  }, [viewMode, filterWilaya, search, activeCampaignWilayas])
 
   // Switching to "Liste" unmounts the #main-map div (see the JSX below),
   // but without this the Leaflet instance in mapRef.current kept pointing
@@ -198,6 +212,13 @@ export default function NeedsList() {
   return (
     <section className="needs-page">
       <div className="toolbar">
+        <input
+          type="search"
+          className="search-input"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          placeholder={t('common.searchPlaceholder')}
+        />
         <label>
           {t('needsList.filterByWilaya')}
           <select value={filterWilaya} onChange={(e) => setFilterWilaya(e.target.value)}>
@@ -230,6 +251,7 @@ export default function NeedsList() {
                 {n.wilaya_name}
                 {n.commune ? ' — ' + n.commune : ''}
               </p>
+              {n.location_description && <p className="need-card-description">{n.location_description}</p>}
               <p className="status">
                 {statusLabel(t, n.overall_status)} — {t('needsList.pickupsCount', { count: n.pickups.length })}
               </p>
@@ -241,7 +263,7 @@ export default function NeedsList() {
       {viewMode === 'map' && (
         <div className="map-wrap">
           {mapHasNothing && <p className="hint">{t('needsList.noActiveNeeds')}</p>}
-          <div id="main-map" ref={mapElRef} style={{ height: 580 }} />
+          <div id="main-map" ref={mapElRef} style={{ height: 680 }} />
           <div className="legend">
             <span className="legend-item">
               <span className="legend-dot" style={{ background: urgencyColor('critical') }} />

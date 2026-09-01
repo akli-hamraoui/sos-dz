@@ -154,6 +154,11 @@ class IdentityListingMixin(models.Model):
     ]
 
     access_token = models.CharField(max_length=32, unique=True, default=generate_token, editable=False)
+    # Optional, user-chosen memorable code offered at creation time -- an
+    # easier way to recover access from a new device than the name+phone
+    # identity match below (which stays as the fallback for anyone who
+    # skipped or forgot the code). Blank means "no code set".
+    recovery_code = models.CharField(max_length=20, blank=True)
     pii_obfuscated_at = models.DateTimeField(null=True, blank=True)
     obfuscated_by = models.CharField(max_length=20, choices=OBFUSCATED_BY_CHOICES, null=True, blank=True)
 
@@ -172,6 +177,11 @@ class IdentityListingMixin(models.Model):
             (f["name"] or "").strip().lower() == (name or "").strip().lower()
             and (f["phone"] or "").strip() == (phone or "").strip()
         )
+
+    def matches_code(self, code):
+        if self.is_anonymized or not self.recovery_code:
+            return False
+        return self.recovery_code.strip() == (code or "").strip()
 
     def regenerate_token(self):
         self.access_token = generate_token()
@@ -574,7 +584,16 @@ class Comment(models.Model):
     parent_comment = models.ForeignKey("self", null=True, blank=True, on_delete=models.CASCADE, related_name="replies")
 
     author_name = models.CharField(max_length=200)
-    author_phone = models.CharField(max_length=30)  # never serialized publicly -- see CommentSerializer
+    # Optional -- comment authoring only requires a name (see spec update);
+    # kept for any legacy comment created back when it was required, and
+    # still settable from Django Admin, but never serialized publicly (see
+    # CommentSerializer). Deletion is authorized via owner_token below, not
+    # by matching this.
+    author_phone = models.CharField(max_length=30, blank=True)
+    # Returned once, only in the create response (like Need/Pickup's
+    # access_token) -- lets the author delete this specific comment later
+    # without re-proving identity. Never included in any public read.
+    owner_token = models.CharField(max_length=32, unique=True, default=generate_token, editable=False)
     text = models.TextField()
     category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, blank=True)
     confirmation_count = models.PositiveIntegerField(default=0)
@@ -583,11 +602,8 @@ class Comment(models.Model):
     class Meta:
         ordering = ["created_at"]
 
-    def matches_author(self, name, phone):
-        return (
-            self.author_name.strip().lower() == (name or "").strip().lower()
-            and self.author_phone.strip() == (phone or "").strip()
-        )
+    def matches_owner_token(self, token):
+        return bool(token) and self.owner_token == token
 
 
 class AuditLog(models.Model):

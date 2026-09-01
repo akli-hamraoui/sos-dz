@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useApp } from '../context/AppContext'
+import { useDialog } from '../context/DialogContext'
 import { api, createOrQueue } from '../api'
 import { compressPhoto } from '../utils'
 import { IconMapPin, IconMic, IconVideoCam, IconCamera, IconTrash } from '../icons'
@@ -19,12 +20,14 @@ const DEFAULT_FORM = {
   contact_phone: '',
   contact_email: '',
   organization_or_person_name: '',
+  recovery_code: '',
 }
 
 export default function CreateNeed() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const { campaigns, wilayasForCampaign, saveNeedToken, config } = useApp()
+  const { showConfirm, showAlert } = useDialog()
   const [form, setForm] = useState(DEFAULT_FORM)
   const [gpsStatus, setGpsStatus] = useState(null) // null | 'locating' | 'error'
   const [error, setError] = useState('')
@@ -165,7 +168,7 @@ export default function CreateNeed() {
           `/needs/check-duplicates/?wilaya=${form.wilaya}&title=${encodeURIComponent(title)}&description=${encodeURIComponent(description)}`
         ).catch(() => [])
         if (dupes && dupes.length) {
-          const proceed = confirm(t('createNeed.duplicateWarning', { title: dupes[0].title, wilaya: dupes[0].wilaya_name }))
+          const proceed = await showConfirm(t('createNeed.duplicateWarning', { title: dupes[0].title, wilaya: dupes[0].wilaya_name }))
           if (!proceed) {
             navigate(`/needs/${dupes[0].id}`)
             return
@@ -181,7 +184,7 @@ export default function CreateNeed() {
 
       const result = await createOrQueue({ type: 'need', endpoint: '/api/needs/', fields, files, onStatus: setUploadStatus })
       if (result.queued) {
-        alert(t('offline.pendingSync'))
+        showAlert(t('offline.pendingSync'))
         navigate('/needs')
         return
       }
@@ -334,6 +337,11 @@ export default function CreateNeed() {
           </label>
           <label>
             {t('createNeed.orgOrPerson')} <input type="text" value={form.organization_or_person_name} onChange={set('organization_or_person_name')} />
+          </label>
+          <label>
+            {t('createNeed.recoveryCode')}{' '}
+            <input type="text" value={form.recovery_code} onChange={set('recovery_code')} placeholder={t('createNeed.recoveryCodePlaceholder')} />
+            <span className="hint">{t('createNeed.recoveryCodeHint')}</span>
           </label>
         </fieldset>
 

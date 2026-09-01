@@ -3,6 +3,7 @@
     "brand": "SOS DZ",
     "loading": "Loading...",
     "save": "Save",
+    "ok": "OK",
     "cancel": "Cancel",
     "confirm": "Confirm",
     "delete": "Delete",
@@ -18,7 +19,8 @@
     "showFullNumber": "show full number",
     "hideNumber": "hide number",
     "noExactGpsPosition": "no exact GPS position",
-    "adminContact": "Admin contact"
+    "adminContact": "Admin contact",
+    "searchPlaceholder": "Search (name, description...)"
   },
   "readOnly": {
     "banner": "The app is currently in read-only mode. Existing data remains viewable."
@@ -98,7 +100,10 @@
     "mediaPhoto": "Photo",
     "fallbackTitle": "Need reported",
     "gpsLocating": "Locating your position…",
-    "gpsError": "Couldn't get your GPS position. Check that location access is allowed for this site."
+    "gpsError": "Couldn't get your GPS position. Check that location access is allowed for this site.",
+    "recoveryCode": "Recovery code (optional)",
+    "recoveryCodePlaceholder": "e.g. 1234",
+    "recoveryCodeHint": "An easy-to-remember code to recover access from another device. If you forget it, your name and phone also work to recover access."
   },
   "needsList": {
     "filterByWilaya": "Filter by wilaya",
@@ -151,7 +156,8 @@
       "field_info": "field info",
       "contact_info": "contact info",
       "confirmation": "confirmation"
-    }
+    },
+    "namePrompt": "Your name (for this comment):"
   },
   "takeCharge": {
     "title": "Take charge of: {{need}}",
@@ -167,7 +173,9 @@
     "title": "Recover access to my listing",
     "description": "Re-enter the exact identity used when you created it.",
     "recoverButton": "Recover access",
-    "stillNotWorking": "Still not working? Contact admin support"
+    "stillNotWorking": "Still not working? Contact admin support",
+    "forgotCode": "Forgot your code? Use your name and phone instead",
+    "useCodeInstead": "I have a recovery code"
   },
   "support": {
     "title": "Forgot my details / contact admin",
