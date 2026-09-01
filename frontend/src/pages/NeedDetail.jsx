@@ -45,13 +45,16 @@ export default function NeedDetail() {
   }, [load])
 
   const checkLiveMapAccess = useCallback(async () => {
+    // Always ask the backend rather than gating the request on a locally
+    // held token/viewer param -- it's the single source of truth for who
+    // may see this (owner token, share-link viewer token, or a logged-in
+    // admin's session cookie), and an admin browsing a need they didn't
+    // personally create in this browser has neither of the first two but
+    // is still authorized. A 403 here just means "not authorized," same
+    // as before.
     let qs = ''
     if (isNeedOwner) qs = `?access_token=${needTokens[id].access_token}`
     else if (viewerToken) qs = `?viewer=${viewerToken}`
-    else {
-      setCanSeeLiveMap(false)
-      return
-    }
     try {
       const pickups = await api(`/needs/${id}/pickup-locations/${qs}`)
       setCanSeeLiveMap(true)
