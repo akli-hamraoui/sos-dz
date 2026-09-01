@@ -36,7 +36,8 @@
     "collectionPoints": "Points de collecte",
     "iNeedHelp": "J'ai besoin d'aide",
     "forgotDetails": "Coordonnées oubliées ?",
-    "support": "Aide"
+    "support": "Aide",
+    "deliveries": "Livraisons"
   },
   "home": {
     "tagline": "Coordination de l'aide humanitaire en Algérie.",
@@ -194,5 +195,13 @@
     "fr": "Français",
     "ar": "العربية",
     "en": "English"
+  },
+  "deliveries": {
+    "filterByStatus": "Filtrer par statut",
+    "statusAll": "Tous les statuts",
+    "noDeliveries": "Aucune livraison pour le moment.",
+    "bringing": "Apporte",
+    "responder": "Livreur/livreuse",
+    "since": "depuis"
   }
 }

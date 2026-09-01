@@ -36,7 +36,8 @@
     "collectionPoints": "Collection points",
     "iNeedHelp": "I need help",
     "forgotDetails": "Forgot my details?",
-    "support": "Support"
+    "support": "Support",
+    "deliveries": "Deliveries"
   },
   "home": {
     "tagline": "Disaster relief coordination for Algeria.",
@@ -194,5 +195,13 @@
     "fr": "Français",
     "ar": "العربية",
     "en": "English"
+  },
+  "deliveries": {
+    "filterByStatus": "Filter by status",
+    "statusAll": "All statuses",
+    "noDeliveries": "No deliveries right now.",
+    "bringing": "Bringing",
+    "responder": "Responder",
+    "since": "since"
   }
 }

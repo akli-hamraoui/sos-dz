@@ -12,6 +12,7 @@ import Support from './pages/Support'
 import CollectionPoints from './pages/CollectionPoints'
 import CreateCollectionPoint from './pages/CreateCollectionPoint'
 import CollectionPointDetail from './pages/CollectionPointDetail'
+import Deliveries from './pages/Deliveries'
 import { IconHome, IconNeeds, IconBox, IconHelp, IconPlus, IconWarning, IconWifiOff, IconCheckCircle } from './icons'
 
 function LanguageSwitcher() {
@@ -89,6 +90,7 @@ export default function App() {
         <nav>
           <Link to="/needs">{t('nav.needs')}</Link>
           <Link to="/collection-points">{t('nav.collectionPoints')}</Link>
+          <Link to="/deliveries">{t('nav.deliveries')}</Link>
           <Link to="/create">{t('nav.iNeedHelp')}</Link>
           <Link to="/support">{t('nav.forgotDetails')}</Link>
           <LanguageSwitcher />
@@ -107,6 +109,7 @@ export default function App() {
           <Route path="/collection-points" element={<CollectionPoints />} />
           <Route path="/collection-points/create" element={<CreateCollectionPoint />} />
           <Route path="/collection-points/:id" element={<CollectionPointDetail />} />
+          <Route path="/deliveries" element={<Deliveries />} />
         </Routes>
       </main>
 

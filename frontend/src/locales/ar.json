@@ -36,7 +36,8 @@
     "collectionPoints": "نقاط التجميع",
     "iNeedHelp": "أحتاج مساعدة",
     "forgotDetails": "نسيت معلوماتي؟",
-    "support": "المساعدة"
+    "support": "المساعدة",
+    "deliveries": "التوصيلات"
   },
   "home": {
     "tagline": "تنسيق الإغاثة الإنسانية في الجزائر.",
@@ -194,5 +195,13 @@
     "fr": "Français",
     "ar": "العربية",
     "en": "English"
+  },
+  "deliveries": {
+    "filterByStatus": "تصفية حسب الحالة",
+    "statusAll": "كل الحالات",
+    "noDeliveries": "لا توجد توصيلات حاليًا.",
+    "bringing": "يجلب",
+    "responder": "المتطوع",
+    "since": "منذ"
   }
 }

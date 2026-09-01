@@ -149,6 +149,37 @@ class PickupPublicSerializer(serializers.ModelSerializer):
         ]
 
 
+class PickupListSerializer(serializers.ModelSerializer):
+    """Lighter than PickupPublicSerializer for the global "deliveries in
+    progress" list (no nested progress_updates/delivery_photos -- not
+    needed for an overview row, and keeps the payload small for weak
+    connectivity). Adds need_title/need_wilaya_name so the list is
+    readable without a second request per row."""
+
+    need_title = serializers.CharField(source="need.title", read_only=True)
+    need_wilaya_name = serializers.CharField(source="need.wilaya.name", read_only=True)
+    is_anonymized = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = Pickup
+        fields = [
+            "id",
+            "need",
+            "need_title",
+            "need_wilaya_name",
+            "responder_type",
+            "responder_last_name",
+            "responder_first_name",
+            "responder_phone",
+            "organization_or_person_name",
+            "content_brought",
+            "status",
+            "pickup_date",
+            "actual_delivery_date",
+            "is_anonymized",
+        ]
+
+
 class PickupCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Pickup

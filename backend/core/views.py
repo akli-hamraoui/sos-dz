@@ -51,6 +51,7 @@ from core.serializers import (
     NeedPublicSerializer,
     NeedUpdateGPSSerializer,
     PickupCreateSerializer,
+    PickupListSerializer,
     PickupPublicSerializer,
     ProgressUpdateCreateSerializer,
     ProgressUpdateSerializer,
@@ -356,14 +357,26 @@ class NeedViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retriev
 
 
 class PickupViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.RetrieveModelMixin):
-    queryset = Pickup.objects.select_related("need").prefetch_related("progress_updates", "delivery_photos")
+    queryset = Pickup.objects.select_related("need", "need__wilaya").prefetch_related("progress_updates", "delivery_photos")
     permission_classes = [AllowAny]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get_serializer_class(self):
         if self.action == "create":
             return PickupCreateSerializer
+        if self.action == "list":
+            return PickupListSerializer
         return PickupPublicSerializer
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        wilaya = self.request.query_params.get("wilaya")
+        status_param = self.request.query_params.get("status")
+        if wilaya:
+            qs = qs.filter(need__wilaya_id=wilaya)
+        if status_param:
+            qs = qs.filter(status=status_param)
+        return qs
 
     def get_throttles(self):
         if self.action == "create":

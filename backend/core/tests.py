@@ -263,6 +263,75 @@ class PickupAndStatusTests(BaseAPITestCase):
         self.assertTrue(pickup.needs_verification)
 
 
+class PickupListTests(BaseAPITestCase):
+    """The global "deliveries in progress" list (GET /api/pickups/), added
+    alongside the frontend screen of the same name -- covers the
+    wilaya/status filters and that the list payload carries enough need
+    context (need_title/need_wilaya_name) to render without a second
+    request per row."""
+
+    def setUp(self):
+        super().setUp()
+        self.campaign = make_campaign()
+        self.wilayas = list(self.campaign.authorized_wilayas.all())
+        self.need1 = self.client.post(
+            "/api/needs/", dict(NEED_PAYLOAD, campaign=self.campaign.pk, wilaya=self.wilayas[0].pk), format="json"
+        ).data
+        self.need2 = self.client.post(
+            "/api/needs/",
+            dict(NEED_PAYLOAD, title="Other need", campaign=self.campaign.pk, wilaya=self.wilayas[1].pk),
+            format="json",
+        ).data
+
+    def _pickup(self, need_id, **overrides):
+        data = {
+            "need": need_id,
+            "responder_type": "individual_volunteer",
+            "responder_last_name": "Amrani",
+            "responder_first_name": "Sara",
+            "responder_phone": "0666000002",
+            "responder_date_of_birth": "1995-05-05",
+            "content_brought": "30 blankets",
+        }
+        data.update(overrides)
+        return self.client.post("/api/pickups/", data, format="json").data
+
+    def test_list_includes_need_context(self):
+        self._pickup(self.need1["id"])
+        resp = self.client.get("/api/pickups/")
+        self.assertEqual(resp.status_code, 200)
+        row = resp.data["results"][0]
+        self.assertEqual(row["need_title"], self.need1["title"])
+        self.assertEqual(row["need_wilaya_name"], self.wilayas[0].name)
+        self.assertEqual(row["status"], "en_route")
+
+    def test_filter_by_status(self):
+        p1 = self._pickup(self.need1["id"])
+        self._pickup(self.need2["id"], responder_phone="0777000003")
+        self.client.post(f"/api/pickups/{p1['id']}/deliver/", {"access_token": p1["access_token"]}, format="json")
+
+        resp = self.client.get("/api/pickups/?status=delivered")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(len(resp.data["results"]), 1)
+        self.assertEqual(resp.data["results"][0]["id"], p1["id"])
+
+        resp = self.client.get("/api/pickups/?status=en_route")
+        self.assertEqual(len(resp.data["results"]), 1)
+        self.assertNotEqual(resp.data["results"][0]["id"], p1["id"])
+
+    def test_filter_by_wilaya(self):
+        self._pickup(self.need1["id"])
+        self._pickup(self.need2["id"], responder_phone="0777000003")
+
+        resp = self.client.get(f"/api/pickups/?wilaya={self.wilayas[0].pk}")
+        self.assertEqual(len(resp.data["results"]), 1)
+        self.assertEqual(resp.data["results"][0]["need_wilaya_name"], self.wilayas[0].name)
+
+        resp = self.client.get(f"/api/pickups/?wilaya={self.wilayas[1].pk}")
+        self.assertEqual(len(resp.data["results"]), 1)
+        self.assertEqual(resp.data["results"][0]["need_wilaya_name"], self.wilayas[1].name)
+
+
 class AdminOverrideTests(BaseAPITestCase):
     def setUp(self):
         super().setUp()

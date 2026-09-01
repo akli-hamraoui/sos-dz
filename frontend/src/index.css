@@ -277,6 +277,15 @@ fieldset {
   background: var(--low);
   color: #222;
 }
+.badge-status-en_route {
+  background: var(--medium);
+}
+.badge-status-delivered {
+  background: #2e7d32;
+}
+.badge-status-cancelled {
+  background: #888;
+}
 
 .status {
   font-size: 13px;
