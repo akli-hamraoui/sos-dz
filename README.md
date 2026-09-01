@@ -51,7 +51,9 @@ python manage.py createsuperuser
 python manage.py runserver
 ```
 
-Open http://127.0.0.1:8000/ for the app, and http://127.0.0.1:8000/admin/ for the Django Admin dashboard (disaster types, campaigns, moderation, config toggles). A logged-in admin can switch the admin site's own interface language (French/English/Arabic, top-right dropdown) independently of the public app's language.
+Open http://localhost:8000/ for the app, and http://localhost:8000/admin/ for the Django Admin dashboard (disaster types, campaigns, moderation, config toggles). A logged-in admin can switch the admin site's own interface language (French/English/Arabic, top-right dropdown) independently of the public app's language.
+
+**Always use the same hostname (`localhost`, not `127.0.0.1`) for both Django Admin and the frontend below.** Django's session cookie is host-only -- `localhost` and `127.0.0.1` never share it, even on the same machine -- so logging into `/admin/` on one and browsing the frontend on the other silently drops the admin bypass (e.g. the GeoIP write restriction below applies again as if you were logged out, or Django Admin's "View site" link opens a host the admin session doesn't reach).
 
 If a required environment variable is missing, the app fails immediately with a clear error message rather than starting in a broken state.
 
@@ -59,7 +61,7 @@ If a required environment variable is missing, the app fails immediately with a 
 
 `AppConfiguration.geo_restrict_writes_to_algeria` (enabled by default) blocks non-admin writes (creating/editing a Need, Pickup, Comment, CollectionPoint) from IP addresses that don't geolocate to Algeria, using a local, offline MaxMind GeoLite2-Country database. **This database is not included in the repo** (MaxMind requires a free account to download it) and testing from `localhost` does not count as an Algerian IP, so out of the box this restriction will block anonymous write requests during local testing. Two ways to test anyway, both intentional (see spec):
 
-- (a) Log in as the admin you created in step 6 (`request.user.is_staff`) — admins always bypass this check, from anywhere.
+- (a) Log in as the admin you created in step 6 (`request.user.is_staff`) — admins always bypass this check, from anywhere, **as long as you browse the frontend on the same hostname you logged into `/admin/` with** (see the hostname note above — this is the #1 reason the bypass silently doesn't apply).
 - (b) Temporarily set `geo_restrict_writes_to_algeria` to "No" for the one `AppConfiguration` row in Django Admin.
 
 To actually install the real database: create a free account at https://www.maxmind.com/en/geolite2/signup, download `GeoLite2-Country.mmdb`, and either place it at the repo root (default `GEOIP_DB_PATH`) or point `GEOIP_DB_PATH` in `.env` at wherever you put it. Never commit the `.mmdb` file (it's gitignored) — MaxMind's license does not allow redistributing it.
@@ -103,7 +105,7 @@ npm install
 npm run dev
 ```
 
-Open http://127.0.0.1:5173/. To try the installable/offline PWA build specifically (the dev server doesn't run a real service worker):
+Open http://localhost:5173/ (see the hostname note above -- use `localhost` here too, matching Django Admin). To try the installable/offline PWA build specifically (the dev server doesn't run a real service worker):
 
 ```bash
 cd frontend

@@ -69,7 +69,7 @@ CSRF_TRUSTED_ORIGINS = [o.strip() for o in _csrf_trusted_origins.split(",") if o
 # and the backend's own "/" route, so neither ever points a visitor (staff
 # or public) at the stale, English-only Wave 1-4 Alpine.js page still kept
 # under templates/index.html purely for history/reference.
-FRONTEND_URL = env("FRONTEND_URL", default="http://127.0.0.1:5173")
+FRONTEND_URL = env("FRONTEND_URL", default="http://localhost:5173")
 
 # --- Applications ---------------------------------------------------------
 
