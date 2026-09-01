@@ -99,6 +99,32 @@ export function IconMapPin(props) {
   )
 }
 
+export function IconMic(props) {
+  return (
+    <svg {...base} {...props}>
+      <rect x="9" y="3" width="6" height="11" rx="3" />
+      <path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5v3M9 20.5h6" />
+    </svg>
+  )
+}
+
+export function IconVideoCam(props) {
+  return (
+    <svg {...base} {...props}>
+      <rect x="3" y="6.5" width="12" height="11" rx="2.5" />
+      <path d="M15 10.2 21 7v10l-6-3.2Z" />
+    </svg>
+  )
+}
+
+export function IconTrash(props) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13" />
+    </svg>
+  )
+}
+
 export function IconMenu(props) {
   return (
     <svg {...base} {...props}>

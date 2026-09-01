@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { useApp } from '../context/AppContext'
 import { api, createOrQueue } from '../api'
 import { compressPhoto } from '../utils'
-import { IconMapPin } from '../icons'
+import { IconMapPin, IconMic, IconVideoCam, IconTrash } from '../icons'
 
 const DEFAULT_FORM = {
   campaign: '',
@@ -22,7 +22,6 @@ const DEFAULT_FORM = {
   contact_date_of_birth: '',
   contact_email: '',
   organization_or_person_name: '',
-  media_type: 'text',
 }
 
 export default function CreateNeed() {
@@ -33,10 +32,16 @@ export default function CreateNeed() {
   const [error, setError] = useState('')
   const [uploadStatus, setUploadStatus] = useState('')
   const [damagePhotos, setDamagePhotos] = useState([])
-  const [recording, setRecording] = useState(false)
+  // Voice and video are independent, combinable recordings (not a single
+  // either/or choice) -- only one can be actively recording at a time
+  // (shared mic/camera access), but once stopped each is kept and
+  // discardable/re-recordable on its own.
+  const [recordingKind, setRecordingKind] = useState(null) // null | 'voice' | 'video'
   const [seconds, setSeconds] = useState(0)
-  const [blob, setBlob] = useState(null)
-  const [blobUrl, setBlobUrl] = useState(null)
+  const [voiceBlob, setVoiceBlob] = useState(null)
+  const [voiceBlobUrl, setVoiceBlobUrl] = useState(null)
+  const [videoBlob, setVideoBlob] = useState(null)
+  const [videoBlobUrl, setVideoBlobUrl] = useState(null)
   const mediaRecorderRef = useRef(null)
   const streamRef = useRef(null)
   const timerRef = useRef(null)
@@ -58,16 +63,6 @@ export default function CreateNeed() {
 
   const setUrgent = (e) => setForm((f) => ({ ...f, urgency: e.target.checked ? 'critical' : 'medium' }))
 
-  const setMediaType = (e) => {
-    // blob/blobUrl are shared across media types (only one is recorded at a
-    // time), so switching type while a previous recording is still sitting
-    // there left the recorder stuck showing that old recording's
-    // playback/discard view instead of a fresh "start recording" button --
-    // discard it so the new type gets a clean recorder.
-    discardRecording()
-    set('media_type')(e)
-  }
-
   const useMyLocation = useCallback(() => {
     if (!navigator.geolocation) return
     navigator.geolocation.getCurrentPosition(async (pos) => {
@@ -82,6 +77,7 @@ export default function CreateNeed() {
   }, [])
 
   const startRecording = async (kind) => {
+    if (recordingKind) return // one at a time (shared mic/camera)
     const constraints = kind === 'video' ? { video: { facingMode: 'environment' }, audio: true } : { audio: true }
     const stream = await navigator.mediaDevices.getUserMedia(constraints)
     const mediaRecorder = new MediaRecorder(stream)
@@ -91,14 +87,20 @@ export default function CreateNeed() {
     }
     mediaRecorder.onstop = () => {
       const b = new Blob(chunks, { type: mediaRecorder.mimeType || (kind === 'video' ? 'video/webm' : 'audio/webm') })
-      setBlob(b)
-      setBlobUrl(URL.createObjectURL(b))
+      const url = URL.createObjectURL(b)
+      if (kind === 'video') {
+        setVideoBlob(b)
+        setVideoBlobUrl(url)
+      } else {
+        setVoiceBlob(b)
+        setVoiceBlobUrl(url)
+      }
       stream.getTracks().forEach((t) => t.stop())
     }
     mediaRecorderRef.current = mediaRecorder
     streamRef.current = stream
     setSeconds(0)
-    setRecording(true)
+    setRecordingKind(kind)
     mediaRecorder.start()
     timerRef.current = setInterval(() => {
       setSeconds((s) => {
@@ -111,20 +113,22 @@ export default function CreateNeed() {
 
   const stopRecording = () => {
     if (timerRef.current) clearInterval(timerRef.current)
-    setRecording(false)
+    setRecordingKind(null)
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.stop()
     }
   }
 
-  const discardRecording = () => {
-    if (timerRef.current) clearInterval(timerRef.current)
-    if (streamRef.current) streamRef.current.getTracks().forEach((t) => t.stop())
-    if (blobUrl) URL.revokeObjectURL(blobUrl)
-    setBlob(null)
-    setBlobUrl(null)
-    setSeconds(0)
-    setRecording(false)
+  const discardRecording = (kind) => {
+    if (kind === 'video') {
+      if (videoBlobUrl) URL.revokeObjectURL(videoBlobUrl)
+      setVideoBlob(null)
+      setVideoBlobUrl(null)
+    } else {
+      if (voiceBlobUrl) URL.revokeObjectURL(voiceBlobUrl)
+      setVoiceBlob(null)
+      setVoiceBlobUrl(null)
+    }
   }
 
   const addDamagePhoto = async (e) => {
@@ -138,6 +142,10 @@ export default function CreateNeed() {
   const submit = async (e, skipDuplicateCheck) => {
     e.preventDefault()
     setError('')
+    if (!form.location_description.trim() && !voiceBlob && !videoBlob) {
+      setError(t('createNeed.atLeastOneMediaRequired'))
+      return
+    }
     try {
       if (!skipDuplicateCheck && form.wilaya) {
         const dupes = await api(
@@ -154,7 +162,8 @@ export default function CreateNeed() {
 
       const fields = { ...form, turnstile_token: turnstileTokenRef.current || window.__turnstileToken || '' }
       const files = {}
-      if (form.media_type !== 'text' && blob) files.media_file = new File([blob], 'recording.webm', { type: blob.type })
+      if (voiceBlob) files.voice_file = new File([voiceBlob], 'voice.webm', { type: voiceBlob.type })
+      if (videoBlob) files.video_file = new File([videoBlob], 'video.webm', { type: videoBlob.type })
       if (damagePhotos.length) files.damage_photos = damagePhotos.map((p) => p.file)
 
       const result = await createOrQueue({ type: 'need', endpoint: '/api/needs/', fields, files, onStatus: setUploadStatus })
@@ -220,8 +229,8 @@ export default function CreateNeed() {
           />
         </label>
         <label>
-          {t('createNeed.description')} *
-          <textarea value={form.location_description} onChange={set('location_description')} placeholder={t('createNeed.descriptionPlaceholder')} required />
+          {t('createNeed.description')}
+          <textarea value={form.location_description} onChange={set('location_description')} placeholder={t('createNeed.descriptionPlaceholder')} />
         </label>
         <button type="button" className="btn btn-icon" onClick={useMyLocation}>
           <IconMapPin width={16} height={16} strokeWidth={2} /> {t('createNeed.useMyLocation')}
@@ -230,43 +239,53 @@ export default function CreateNeed() {
 
         <fieldset>
           <legend>{t('createNeed.mediaSectionLegend')}</legend>
-          <div className="media-choice">
-            <label>
-              <input type="radio" name="mediaType" value="text" checked={form.media_type === 'text'} onChange={setMediaType} />
-              {t('createNeed.mediaTextOnly')}
-            </label>
-            <label>
-              <input type="radio" name="mediaType" value="audio" checked={form.media_type === 'audio'} onChange={setMediaType} />
-              {t('createNeed.mediaVoice')}
-            </label>
-            <label>
-              <input type="radio" name="mediaType" value="video" checked={form.media_type === 'video'} onChange={setMediaType} />
-              {t('createNeed.mediaVideo')}
-            </label>
-          </div>
-          {form.media_type !== 'text' && (
-            <div className="recorder">
-              {!blobUrl && !recording && (
-                <button type="button" className="btn record-btn" onClick={() => startRecording(form.media_type)}>
+          <p className="hint">{t('createNeed.atLeastOneMediaHint')}</p>
+          <div className="media-capture-grid">
+            <div className="media-capture-card">
+              <IconMic width={28} height={28} strokeWidth={1.5} />
+              <span>{t('createNeed.mediaVoice')}</span>
+              {!voiceBlobUrl && recordingKind !== 'voice' && (
+                <button type="button" className="btn record-btn" onClick={() => startRecording('voice')} disabled={!!recordingKind}>
                   {t('createNeed.startRecording')}
                 </button>
               )}
-              {recording && (
+              {recordingKind === 'voice' && (
                 <button type="button" className="btn btn-danger record-btn" onClick={stopRecording}>
                   {t('createNeed.stopRecording', { seconds })}
                 </button>
               )}
-              {blobUrl && !recording && (
-                <div>
-                  {form.media_type === 'audio' ? <audio src={blobUrl} controls /> : <video src={blobUrl} controls style={{ maxWidth: '100%' }} />}
-                  <br />
-                  <button type="button" className="btn" onClick={discardRecording}>
-                    {t('createNeed.discardRerecord')}
+              {voiceBlobUrl && recordingKind !== 'voice' && (
+                <>
+                  <audio src={voiceBlobUrl} controls />
+                  <button type="button" className="btn btn-icon" onClick={() => discardRecording('voice')}>
+                    <IconTrash width={16} height={16} strokeWidth={2} /> {t('createNeed.discardRerecord')}
                   </button>
-                </div>
+                </>
               )}
             </div>
-          )}
+            <div className="media-capture-card">
+              <IconVideoCam width={28} height={28} strokeWidth={1.5} />
+              <span>{t('createNeed.mediaVideo')}</span>
+              {!videoBlobUrl && recordingKind !== 'video' && (
+                <button type="button" className="btn record-btn" onClick={() => startRecording('video')} disabled={!!recordingKind}>
+                  {t('createNeed.startRecording')}
+                </button>
+              )}
+              {recordingKind === 'video' && (
+                <button type="button" className="btn btn-danger record-btn" onClick={stopRecording}>
+                  {t('createNeed.stopRecording', { seconds })}
+                </button>
+              )}
+              {videoBlobUrl && recordingKind !== 'video' && (
+                <>
+                  <video src={videoBlobUrl} controls style={{ maxWidth: '100%' }} />
+                  <button type="button" className="btn btn-icon" onClick={() => discardRecording('video')}>
+                    <IconTrash width={16} height={16} strokeWidth={2} /> {t('createNeed.discardRerecord')}
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
         </fieldset>
 
         <fieldset>

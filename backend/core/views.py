@@ -170,11 +170,11 @@ class NeedViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retriev
         serializer.is_valid(raise_exception=True)
         need = serializer.save()
 
-        if need.media_type == Need.MEDIA_VIDEO and need.media_file:
-            need.media_moderation_status = moderate_video_field(need.media_file)
-            need.save(update_fields=["media_moderation_status"])
-        # media_type == audio has no visual content for NSFWJS to score;
-        # media_moderation_status keeps its default (approved).
+        if need.video_file:
+            need.video_moderation_status = moderate_video_field(need.video_file)
+            need.save(update_fields=["video_moderation_status"])
+        # Voice has no visual content for NSFWJS to score; no moderation
+        # field or step exists for it.
 
         for photo in damage_photos:
             dp = DamagePhoto(need=need, image=photo)

@@ -216,15 +216,25 @@ class NeedPublicSerializer(serializers.ModelSerializer):
     def get_comments(self, obj):
         roots = obj.comments.filter(parent_comment__isnull=True)
         return CommentSerializer(roots, many=True, context=self.context).data
-    media_file = serializers.SerializerMethodField()
+    voice_file = serializers.SerializerMethodField()
+    video_file = serializers.SerializerMethodField()
 
-    def get_media_file(self, obj):
-        """Hides the audio/video file unless it's been approved (Wave 3),
-        same policy as damage/delivery photos."""
-        if not obj.media_file or obj.media_moderation_status != Need.MODERATION_APPROVED:
+    def get_voice_file(self, obj):
+        """Voice is never moderated (no visual content for NSFWJS), so
+        unlike video it's shown as soon as it exists."""
+        if not obj.voice_file:
             return None
         request = self.context.get("request")
-        url = obj.media_file.url
+        url = obj.voice_file.url
+        return request.build_absolute_uri(url) if request else url
+
+    def get_video_file(self, obj):
+        """Hides the video file unless it's been approved (Wave 3), same
+        policy as damage/delivery photos."""
+        if not obj.video_file or obj.video_moderation_status != Need.MODERATION_APPROVED:
+            return None
+        request = self.context.get("request")
+        url = obj.video_file.url
         return request.build_absolute_uri(url) if request else url
 
     class Meta:
@@ -248,9 +258,9 @@ class NeedPublicSerializer(serializers.ModelSerializer):
             "contact_phone",
             "contact_email",
             "organization_or_person_name",
-            "media_type",
-            "media_file",
-            "media_moderation_status",
+            "voice_file",
+            "video_file",
+            "video_moderation_status",
             "damage_photos",
             "overall_status",
             "covered_quantity",
@@ -303,7 +313,9 @@ class NeedMapPinSerializer(serializers.ModelSerializer):
 
 
 class NeedCreateSerializer(serializers.ModelSerializer):
-    media_file = serializers.FileField(required=False, allow_null=True)
+    location_description = serializers.CharField(required=False, allow_blank=True)
+    voice_file = serializers.FileField(required=False, allow_null=True)
+    video_file = serializers.FileField(required=False, allow_null=True)
 
     class Meta:
         model = Need
@@ -324,8 +336,8 @@ class NeedCreateSerializer(serializers.ModelSerializer):
             "contact_email",
             "contact_date_of_birth",
             "organization_or_person_name",
-            "media_type",
-            "media_file",
+            "voice_file",
+            "video_file",
         ]
 
     def validate(self, attrs):
@@ -342,12 +354,15 @@ class NeedCreateSerializer(serializers.ModelSerializer):
         lat, lon = attrs.get("latitude"), attrs.get("longitude")
         if lat is not None or lon is not None:
             validate_algeria_bounds(lat, lon)
-        media_type = attrs.get("media_type", Need.MEDIA_TEXT)
-        media_file = attrs.get("media_file")
-        if media_type in (Need.MEDIA_AUDIO, Need.MEDIA_VIDEO) and not media_file:
-            raise serializers.ValidationError(f"A recorded {media_type} file is required for media_type={media_type}.")
-        if media_type == Need.MEDIA_VIDEO and media_file:
-            validate_video_duration(media_file)
+        description = (attrs.get("location_description") or "").strip()
+        voice_file = attrs.get("voice_file")
+        video_file = attrs.get("video_file")
+        if not description and not voice_file and not video_file:
+            raise serializers.ValidationError(
+                "Please provide at least one of: a text description, a voice message, or a video."
+            )
+        if video_file:
+            validate_video_duration(video_file)
         return attrs
 
     def create(self, validated_data):

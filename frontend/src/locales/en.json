@@ -77,11 +77,10 @@
     "useMyLocation": "Use my current GPS position",
     "gpsCaptured": "GPS captured: {{lat}}, {{lon}}",
     "mediaSectionLegend": "Add more detail (optional): voice or video message",
-    "mediaTextOnly": "Text only",
     "mediaVoice": "Voice message",
     "mediaVideo": "Video (max 20s)",
-    "startRecording": "⏺ Start recording",
-    "stopRecording": "⏹ Stop ({{seconds}}s / 20s)",
+    "startRecording": "Start recording",
+    "stopRecording": "Stop ({{seconds}}s / 20s)",
     "discardRerecord": "Discard & re-record",
     "damagePhotosLegend": "Damage photos (optional, up to 3, camera only)",
     "remove": "remove",
@@ -96,7 +95,9 @@
     "duplicateWarning": "A similar need already exists nearby: \"{{title}}\" ({{wilaya}}). Publish yours anyway, or view the existing one instead?",
     "publishAnyway": "Publish anyway",
     "viewExisting": "View existing instead",
-    "urgentCheckbox": "Urgent situation"
+    "urgentCheckbox": "Urgent situation",
+    "atLeastOneMediaHint": "At least one of the three: text, voice message, or video.",
+    "atLeastOneMediaRequired": "Please provide at least one of the three: text description, voice message, or video."
   },
   "needsList": {
     "filterByWilaya": "Filter by wilaya",
@@ -132,7 +133,7 @@
     "deliveryPhotosLabel": "Delivery photos (optional, up to 3, camera only)",
     "markAsDelivered": "Mark as delivered",
     "isThisYourPickup": "Is this your pickup? Recover access",
-    "recordedMessage": "Recorded {{type}} message: {{status}}",
+    "recordedMessage": "Recorded video message: {{status}}",
     "pendingReview": "pending review",
     "removedByModeration": "removed by moderation",
     "removed": "removed",

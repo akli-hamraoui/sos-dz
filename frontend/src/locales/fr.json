@@ -77,11 +77,10 @@
     "useMyLocation": "Utiliser ma position GPS actuelle",
     "gpsCaptured": "GPS capturé : {{lat}}, {{lon}}",
     "mediaSectionLegend": "Ajouter plus de détails (optionnel) : message vocal ou vidéo",
-    "mediaTextOnly": "Texte uniquement",
     "mediaVoice": "Message vocal",
     "mediaVideo": "Vidéo (20s max)",
-    "startRecording": "⏺ Démarrer l'enregistrement",
-    "stopRecording": "⏹ Arrêter ({{seconds}}s / 20s)",
+    "startRecording": "Démarrer l'enregistrement",
+    "stopRecording": "Arrêter ({{seconds}}s / 20s)",
     "discardRerecord": "Supprimer et réenregistrer",
     "damagePhotosLegend": "Photos des dégâts (optionnel, jusqu'à 3, appareil photo uniquement)",
     "remove": "supprimer",
@@ -96,7 +95,9 @@
     "duplicateWarning": "Un besoin similaire existe déjà à proximité : « {{title}} » ({{wilaya}}). Publier le vôtre quand même, ou voir celui qui existe déjà ?",
     "publishAnyway": "Publier quand même",
     "viewExisting": "Voir celui qui existe",
-    "urgentCheckbox": "Situation urgente"
+    "urgentCheckbox": "Situation urgente",
+    "atLeastOneMediaHint": "Au moins un des trois : texte, message vocal ou vidéo.",
+    "atLeastOneMediaRequired": "Merci de renseigner au moins un des trois : description texte, message vocal, ou vidéo."
   },
   "needsList": {
     "filterByWilaya": "Filtrer par wilaya",
@@ -132,7 +133,7 @@
     "deliveryPhotosLabel": "Photos de livraison (optionnel, jusqu'à 3, appareil photo uniquement)",
     "markAsDelivered": "Marquer comme livré",
     "isThisYourPickup": "C'est votre prise en charge ? Récupérer l'accès",
-    "recordedMessage": "Message {{type}} enregistré : {{status}}",
+    "recordedMessage": "Message vidéo enregistré : {{status}}",
     "pendingReview": "en attente de modération",
     "removedByModeration": "supprimé par la modération",
     "removed": "supprimé",

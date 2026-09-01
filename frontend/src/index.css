@@ -272,19 +272,28 @@ fieldset {
   flex-direction: column;
   gap: 10px;
 }
-.media-choice {
-  display: flex;
+.media-capture-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 12px;
-  flex-wrap: wrap;
-  font-size: 14px;
 }
-.media-choice label {
-  flex-direction: row;
+.media-capture-card {
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 6px;
+  text-align: center;
+  gap: 8px;
+  padding: 16px 10px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: #fff;
 }
-.recorder {
-  margin-block-start: 8px;
+.media-capture-card span {
+  font-size: 13px;
+  font-weight: 600;
+}
+.media-capture-card audio {
+  max-width: 100%;
 }
 .record-btn {
   border-radius: 999px;

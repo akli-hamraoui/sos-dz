@@ -102,7 +102,7 @@ class PickupInline(admin.TabularInline):
 @admin.register(Need)
 class NeedAdmin(admin.ModelAdmin):
     list_display = ["title", "wilaya", "urgency", "overall_status", "campaign", "is_anonymized_display", "created_at"]
-    list_filter = ["urgency", "overall_status", "wilaya", "campaign", "media_moderation_status"]
+    list_filter = ["urgency", "overall_status", "wilaya", "campaign", "video_moderation_status"]
     search_fields = ["title", "contact_last_name", "contact_phone"]
     readonly_fields = ["access_token", "location_viewer_share_token", "covered_quantity", "overall_status", "edit_history", "pii_obfuscated_at", "obfuscated_by"]
     actions = [anonymize_selected]
@@ -245,7 +245,7 @@ def restore_content(modeladmin, request, queryset):
     for report in queryset.filter(status=ContentReport.STATUS_PENDING):
         media_obj = report.get_media_object()
         if media_obj is not None:
-            field = "media_moderation_status" if isinstance(media_obj, Need) else "moderation_status"
+            field = "video_moderation_status" if isinstance(media_obj, Need) else "moderation_status"
             setattr(media_obj, field, Need.MODERATION_APPROVED)
             media_obj.save(update_fields=[field])
         report.status = ContentReport.STATUS_PROCESSED
@@ -263,7 +263,7 @@ def confirm_content_rejection(modeladmin, request, queryset):
     for report in queryset.filter(status=ContentReport.STATUS_PENDING):
         media_obj = report.get_media_object()
         if media_obj is not None:
-            field = "media_moderation_status" if isinstance(media_obj, Need) else "moderation_status"
+            field = "video_moderation_status" if isinstance(media_obj, Need) else "moderation_status"
             setattr(media_obj, field, Need.MODERATION_REJECTED)
             media_obj.save(update_fields=[field])
         report.status = ContentReport.STATUS_PROCESSED

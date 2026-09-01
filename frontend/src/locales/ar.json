@@ -77,11 +77,10 @@
     "useMyLocation": "استخدام موقعي الحالي (GPS)",
     "gpsCaptured": "تم تحديد الموقع: {{lat}}, {{lon}}",
     "mediaSectionLegend": "إضافة تفاصيل أخرى (اختياري): رسالة صوتية أو فيديو",
-    "mediaTextOnly": "نص فقط",
     "mediaVoice": "رسالة صوتية",
     "mediaVideo": "فيديو (20 ثانية كحد أقصى)",
-    "startRecording": "⏺ بدء التسجيل",
-    "stopRecording": "⏹ إيقاف ({{seconds}}ث / 20ث)",
+    "startRecording": "بدء التسجيل",
+    "stopRecording": "إيقاف ({{seconds}}ث / 20ث)",
     "discardRerecord": "حذف وإعادة التسجيل",
     "damagePhotosLegend": "صور الأضرار (اختياري، حتى 3 صور، بالكاميرا فقط)",
     "remove": "إزالة",
@@ -96,7 +95,9 @@
     "duplicateWarning": "يوجد احتياج مشابه بالقرب من هنا: «{{title}}» ({{wilaya}}). هل تريد نشر احتياجك على أي حال، أم عرض الاحتياج الموجود بدلاً من ذلك؟",
     "publishAnyway": "النشر على أي حال",
     "viewExisting": "عرض الاحتياج الموجود",
-    "urgentCheckbox": "حالة طارئة"
+    "urgentCheckbox": "حالة طارئة",
+    "atLeastOneMediaHint": "واحد على الأقل من الثلاثة: نص، رسالة صوتية، أو فيديو.",
+    "atLeastOneMediaRequired": "الرجاء إدخال واحد على الأقل من الثلاثة: وصف نصي، رسالة صوتية، أو فيديو."
   },
   "needsList": {
     "filterByWilaya": "تصفية حسب الولاية",
@@ -132,7 +133,7 @@
     "deliveryPhotosLabel": "صور التسليم (اختياري، حتى 3 صور، بالكاميرا فقط)",
     "markAsDelivered": "تحديد كمُسلَّم",
     "isThisYourPickup": "هل هذه عملية الاستلام الخاصة بك؟ استرجاع الوصول",
-    "recordedMessage": "رسالة {{type}} مسجّلة: {{status}}",
+    "recordedMessage": "رسالة فيديو مسجلة: {{status}}",
     "pendingReview": "بانتظار المراجعة",
     "removedByModeration": "أُزيل بواسطة المراجعة",
     "removed": "أُزيل",

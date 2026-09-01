@@ -207,7 +207,10 @@ class Need(IdentityListingMixin, models.Model):
 
     wilaya = models.ForeignKey(Wilaya, on_delete=models.PROTECT, related_name="needs")
     commune = models.CharField(max_length=200, blank=True)
-    location_description = models.TextField()
+    # Not required at the field level -- NeedCreateSerializer enforces "at
+    # least one of description/voice/video" instead, since any one of the
+    # three can carry the actual content of the request.
+    location_description = models.TextField(blank=True)
     latitude = models.FloatField(null=True, blank=True)
     longitude = models.FloatField(null=True, blank=True)
     position_accuracy = models.CharField(max_length=20, choices=POSITION_CHOICES, default=POSITION_APPROXIMATE)
@@ -219,11 +222,13 @@ class Need(IdentityListingMixin, models.Model):
     contact_date_of_birth = models.DateField(null=True)  # null only ever set by anonymization
     organization_or_person_name = models.CharField(max_length=200, blank=True)
 
-    # Media (Wave 2)
-    MEDIA_TEXT, MEDIA_AUDIO, MEDIA_VIDEO = "text", "audio", "video"
-    MEDIA_TYPE_CHOICES = [(MEDIA_TEXT, "Text"), (MEDIA_AUDIO, "Audio"), (MEDIA_VIDEO, "Video")]
-    media_type = models.CharField(max_length=10, choices=MEDIA_TYPE_CHOICES, default=MEDIA_TEXT)
-    media_file = models.FileField(upload_to="need_media/", null=True, blank=True)
+    # Media (Wave 2): voice and video are independent and combinable (along
+    # with the text description above) rather than a single either/or
+    # choice -- someone reporting in an emergency can attach as many of the
+    # three as they're able to, as long as at least one is present (see
+    # NeedCreateSerializer.validate).
+    voice_file = models.FileField(upload_to="need_media/", null=True, blank=True)
+    video_file = models.FileField(upload_to="need_media/", null=True, blank=True)
 
     MODERATION_PENDING, MODERATION_APPROVED, MODERATION_REJECTED = "pending", "approved", "rejected"
     MODERATION_CHOICES = [
@@ -231,7 +236,9 @@ class Need(IdentityListingMixin, models.Model):
         (MODERATION_APPROVED, "Approved"),
         (MODERATION_REJECTED, "Rejected"),
     ]
-    media_moderation_status = models.CharField(max_length=10, choices=MODERATION_CHOICES, default=MODERATION_APPROVED)
+    # Voice has no visual content for NSFWJS to score, so only video is ever
+    # actually moderated -- there's no equivalent moderation field for voice.
+    video_moderation_status = models.CharField(max_length=10, choices=MODERATION_CHOICES, default=MODERATION_APPROVED)
 
     is_cancelled = models.BooleanField(default=False)
     cancellation_reason = models.CharField(max_length=500, blank=True)

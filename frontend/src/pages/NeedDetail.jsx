@@ -355,19 +355,31 @@ export default function NeedDetail() {
         {need.wilaya_name}
         {need.commune ? ' — ' + need.commune : ''}
       </p>
-      <p>{need.location_description}</p>
+      {need.location_description && <p>{need.location_description}</p>}
       {need.position_accuracy !== 'exact' && <p className="hint">{t('common.noExactGpsPosition')}</p>}
 
-      {need.media_type !== 'text' && (
+      {need.voice_file && (
         <div>
-          {!need.media_file && (
+          <audio src={need.voice_file} controls />
+          <br />
+          <button className="link" onClick={() => reportContent('need_media_file', need.id)}>
+            {t('needDetail.reportContent')}
+          </button>
+        </div>
+      )}
+
+      {(need.video_file || need.video_moderation_status !== 'approved') && (
+        <div>
+          {!need.video_file && (
             <p className="hint">
-              {t('needDetail.recordedMessage', { type: need.media_type, status: need.media_moderation_status === 'rejected' ? t('needDetail.removedByModeration') : t('needDetail.pendingReview') })}
+              {t('needDetail.recordedMessage', {
+                status: need.video_moderation_status === 'rejected' ? t('needDetail.removedByModeration') : t('needDetail.pendingReview'),
+              })}
             </p>
           )}
-          {need.media_file && (
+          {need.video_file && (
             <div>
-              {need.media_type === 'audio' ? <audio src={need.media_file} controls /> : <video src={need.media_file} controls style={{ maxWidth: '100%' }} />}
+              <video src={need.video_file} controls style={{ maxWidth: '100%' }} />
               <br />
               <button className="link" onClick={() => reportContent('need_media_file', need.id)}>
                 {t('needDetail.reportContent')}

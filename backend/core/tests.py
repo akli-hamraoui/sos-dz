@@ -851,27 +851,56 @@ class MediaUploadTests(BaseAPITestCase):
         self.assertEqual(resp.status_code, 400)
         self.assertEqual(Need.objects.count(), 0)
 
-    def test_video_media_type_requires_a_file(self):
+    def test_at_least_one_of_description_voice_video_required(self):
         resp = self.client.post(
             "/api/needs/",
-            self._multipart_payload(media_type="video"),
+            self._multipart_payload(location_description=""),
             format="multipart",
         )
         self.assertEqual(resp.status_code, 400)
+        self.assertEqual(Need.objects.count(), 0)
 
-    def test_audio_media_type_with_file_accepted(self):
+    def test_description_only_accepted_voice_and_video_optional(self):
+        resp = self.client.post("/api/needs/", self._multipart_payload(), format="multipart")
+        self.assertEqual(resp.status_code, 201, resp.content)
+        self.assertIsNone(resp.data["voice_file"])
+        self.assertIsNone(resp.data["video_file"])
+
+    def test_voice_only_accepted_no_description_needed(self):
         from django.core.files.uploadedfile import SimpleUploadedFile
 
         audio = SimpleUploadedFile("voice.webm", b"fake-audio-bytes", content_type="audio/webm")
         resp = self.client.post(
             "/api/needs/",
-            self._multipart_payload(media_type="audio", media_file=audio),
+            self._multipart_payload(location_description="", voice_file=audio),
             format="multipart",
         )
         self.assertEqual(resp.status_code, 201, resp.content)
         need = Need.objects.get(pk=resp.data["id"])
-        self.assertEqual(need.media_type, "audio")
-        self.assertTrue(need.media_file.name)
+        self.assertTrue(need.voice_file.name)
+        # voice is never moderated, so its URL is present immediately
+        self.assertIsNotNone(resp.data["voice_file"])
+
+    def test_voice_and_video_and_text_combinable(self):
+        """The spec explicitly wants these combinable, not mutually
+        exclusive -- someone reporting in an emergency can attach as many
+        as they're able to."""
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from unittest.mock import patch
+
+        audio = SimpleUploadedFile("voice.webm", b"fake-audio-bytes", content_type="audio/webm")
+        video = SimpleUploadedFile("clip.webm", b"fake-video-bytes", content_type="video/webm")
+        with patch("core.serializers.validate_video_duration"):
+            resp = self.client.post(
+                "/api/needs/",
+                self._multipart_payload(voice_file=audio, video_file=video),
+                format="multipart",
+            )
+        self.assertEqual(resp.status_code, 201, resp.content)
+        need = Need.objects.get(pk=resp.data["id"])
+        self.assertTrue(need.voice_file.name)
+        self.assertTrue(need.video_file.name)
+        self.assertTrue(need.location_description)
 
     def test_video_duration_rejected_when_determinable(self):
         from unittest.mock import patch
@@ -884,7 +913,7 @@ class MediaUploadTests(BaseAPITestCase):
             mocked.side_effect = drf_serializers.ValidationError("Video is 35s long, the maximum is 20s.")
             resp = self.client.post(
                 "/api/needs/",
-                self._multipart_payload(media_type="video", media_file=video),
+                self._multipart_payload(video_file=video),
                 format="multipart",
             )
         self.assertEqual(resp.status_code, 400)
@@ -901,7 +930,7 @@ class MediaUploadTests(BaseAPITestCase):
         video = SimpleUploadedFile("clip.webm", b"fake-video-bytes", content_type="video/webm")
         resp = self.client.post(
             "/api/needs/",
-            self._multipart_payload(media_type="video", media_file=video),
+            self._multipart_payload(video_file=video),
             format="multipart",
         )
         self.assertEqual(resp.status_code, 400)
