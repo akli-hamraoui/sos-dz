@@ -1,14 +1,19 @@
 # Deployment
 
-**Status: not yet actually deployed.** The steps below are the exact, tested-as-written commands for standing up the Wave 1 backend on an IONOS VPS. They have not been run against a real IONOS server in this environment (no IONOS account/credentials are available here), so there is no live public URL yet. This is the tradeoff flagged in the Wave 1 spec: rather than get stuck on server provisioning, this document is written so a real deploy is a copy-paste job for whoever has IONOS access, and a Railway/Render fallback is documented below as an alternative if that's faster to get live.
+**Target: Contabo VPS, Ubuntu 24.04, domain `sosdz.org`.** The steps below are the exact, copy-paste commands for standing up the whole app (backend + frontend + moderation sidecar) on one VPS with Nginx as the single public entry point. They're written to be run by whoever holds SSH access to that server -- an AI session has no path to execute them itself (no SSH tool, and this kind of sandboxed session's outbound network is HTTPS-only through a policy proxy that doesn't carry raw SSH traffic). Run each block yourself over SSH, in order; paste back any error output for help debugging it. A Railway/Render fallback is documented below as an alternative if VPS setup is ever blocking progress.
 
-IONOS "Deploy Now" only supports static sites/SPAs/PHP — it does **not** support Python/Django, so the backend needs a real VPS (Virtual Server), not Deploy Now. Deploy Now becomes usable directly once the frontend is a proper build (React/Vite, Wave 5 onward).
+Nothing IONOS-specific is used anywhere below (no "Deploy Now") -- these are plain Ubuntu/systemd/Nginx commands, so they apply equally to Contabo, IONOS, or any other Ubuntu 22.04+/24.04 VPS with root/sudo SSH access. Both the Django backend and the built React frontend are served from this one server, via Nginx, so there's no separate static-hosting product to configure.
 
-## Option A — IONOS VPS (target)
+## VPS setup
 
-Assumes a fresh Ubuntu 22.04+ IONOS VPS, a domain/subdomain pointed at its IP, and SSH access.
+Assumes a fresh Ubuntu 24.04 Contabo VPS, the domain `sosdz.org` (and `www.sosdz.org`, optional) already pointed at its IP via an A record, and root/sudo SSH access.
 
-### 1. Server packages
+### 1. Confirm the server and install packages
+
+```bash
+ssh root@<vps-ip>   # or your sudo-capable user
+lsb_release -a       # confirm Ubuntu 24.04
+```
 
 ```bash
 sudo apt update && sudo apt upgrade -y
@@ -51,16 +56,52 @@ source backend-venv/bin/activate
 pip install -r backend/requirements.txt
 
 cp .env.example .env
-# Edit .env: generate a real SECRET_KEY, set DEBUG=False, set ALLOWED_HOSTS
-# to your domain, set DB_ENGINE=mysql (or postgresql) with real DB
-# credentials, set R2_* if using Cloudflare R2 for media. Never commit this
-# file -- it stays only on the server.
-nano .env
+nano .env   # fill in real values -- see "Required .env values" below
+```
 
+**Required `.env` values** (generate/gather these yourself -- nothing here should be invented or hardcoded by an AI session; see `.env.example` for the full commented list):
+
+| Variable | For `sosdz.org` | Where it comes from |
+|---|---|---|
+| `SECRET_KEY` | (generate) | `python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"` -- run this once, paste the output, never reuse the placeholder |
+| `DEBUG` | `False` | fixed |
+| `ALLOWED_HOSTS` | `sosdz.org,www.sosdz.org` | your domain |
+| `CORS_ALLOWED_ORIGINS` | `https://sosdz.org` | Nginx serves frontend + API from the same origin below, so this mostly matters for defense in depth |
+| `CSRF_TRUSTED_ORIGINS` | `https://sosdz.org` | must match the real public HTTPS origin or admin POSTs get "CSRF Failed" |
+| `FRONTEND_URL` | `https://sosdz.org` | drives Django Admin's "View site" link |
+| `DB_ENGINE` | your choice | `sqlite3` (default) needs no extra setup and is fine at this app's scale; only switch to `mysql`/`postgresql` if you specifically want a separate DB server -- your call, not something to decide silently |
+| `DB_NAME`/`DB_USER`/`DB_PASSWORD`/`DB_HOST`/`DB_PORT` | (yours) | only if you chose mysql/postgresql above -- leave blank for sqlite |
+| `R2_ACCESS_KEY_ID`/`R2_SECRET_ACCESS_KEY`/`R2_BUCKET_NAME`/`R2_ENDPOINT_URL`/`R2_PUBLIC_BASE_URL` | (yours, optional) | Cloudflare dashboard, see step 6b below -- leave all blank to use local filesystem storage on this VPS instead |
+| `GEOIP_DB_PATH` | (yours, optional) | free MaxMind account, see README.md "GeoIP setup" -- leave unset and the Algeria-only write restriction (Django Admin toggle) fails closed until it's installed |
+| `TURNSTILE_SITE_KEY`/`TURNSTILE_SECRET_KEY` | (yours, optional) | your own Cloudflare Turnstile dashboard, see README.md -- leave blank to run without captcha |
+| `NSFWJS_SIDECAR_URL` | `http://127.0.0.1:8801` | fixed, set up in step 7 |
+
+Then run migrations, seed the reference data, and create your own admin login:
+
+```bash
 cd backend
 python manage.py migrate
+python manage.py seed_data          # 58 wilayas of Algeria + the default "Général" campaign -- idempotent, easy to forget, and the site is unusable without it
 python manage.py collectstatic --noinput
-python manage.py createsuperuser   # choose credentials interactively
+python manage.py createsuperuser    # choose credentials interactively -- this is your own admin login, not something to hand me
+cd ..
+```
+
+Build the frontend (served as static files by Nginx below -- no separate build/hosting product needed since it's all one server):
+
+```bash
+cd frontend
+npm install
+npm run build   # outputs frontend/dist/ -- Nginx's `root` points straight at this in step 4
+cd ..
+```
+
+Gunicorn and Nginx both run as `www-data`, but everything above was created as your own SSH user. Rather than hand over ownership outright (which would then block your own `git pull` on redeploy, see step 6), share the group instead -- `www-data` gets read/write, you keep ownership, and the setgid bit means files created by either side (a `git pull`, a Django migration, an uploaded photo) keep working:
+
+```bash
+sudo chown -R $USER:www-data /opt/sos-dz
+sudo chmod -R g+rwX /opt/sos-dz
+sudo find /opt/sos-dz -type d -exec chmod g+s {} \;
 ```
 
 ### 3. Gunicorn systemd service
@@ -93,14 +134,18 @@ sudo systemctl enable --now sos-dz-gunicorn
 sudo systemctl status sos-dz-gunicorn
 ```
 
-### 4. Nginx reverse proxy
+### 4. Nginx: serves the frontend directly, reverse-proxies the backend
+
+Unlike a split IONOS-Deploy-Now-plus-VPS setup, everything is one server here, so Nginx serves the built frontend (`frontend/dist/`) as static files at `/`, and only hands `/api/` and `/admin/` off to Gunicorn -- no separate frontend hosting product, no cross-origin config, no build-time `VITE_API_BASE` needed (the frontend's own relative `/api` fetch calls just work, same origin).
 
 `/etc/nginx/sites-available/sos-dz`:
 
 ```nginx
 server {
     listen 80;
-    server_name your-domain.example;
+    server_name sosdz.org www.sosdz.org;
+
+    root /opt/sos-dz/frontend/dist;
 
     location /static/ {
         alias /opt/sos-dz/staticfiles/;
@@ -109,12 +154,20 @@ server {
         alias /opt/sos-dz/media/;
     }
 
-    location / {
+    # Django Admin and the API both go to Gunicorn -- everything else
+    # (the SPA's own routes: /, /needs, /needs/123, etc.) is served as
+    # static files by the `location /` fallback below, since the React
+    # app itself handles client-side routing for those paths.
+    location ~ ^/(api|admin)/ {
         proxy_pass http://unix:/run/sos-dz.sock;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location / {
+        try_files $uri $uri/ /index.html;
     }
 }
 ```
@@ -124,13 +177,32 @@ sudo ln -s /etc/nginx/sites-available/sos-dz /etc/nginx/sites-enabled/
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
+At this point the site is reachable over plain HTTP at `http://sosdz.org` -- confirm that works (and that DNS is actually pointing here: `dig +short sosdz.org` should print this VPS's IP) before moving to HTTPS below.
+
 ### 5. HTTPS via Let's Encrypt
 
+Only run this once DNS for `sosdz.org` (and `www.sosdz.org`, if using it) is actually pointing at this VPS's IP -- Let's Encrypt's domain-validation challenge fails otherwise. Confirm first:
+
 ```bash
-sudo certbot --nginx -d your-domain.example
+dig +short sosdz.org
+dig +short www.sosdz.org   # only if you added the www A/CNAME record too
+# both should print this VPS's public IP -- if not, wait for DNS to propagate before continuing
 ```
 
-Certbot edits the Nginx config in place to add the SSL server block and sets up auto-renewal via a systemd timer (`sudo systemctl status certbot.timer` to confirm).
+```bash
+sudo certbot --nginx -d sosdz.org -d www.sosdz.org
+```
+
+(Drop `-d www.sosdz.org` from the command if you didn't point that subdomain here.)
+
+Certbot edits the Nginx config in place to add the SSL server block and sets up auto-renewal via a systemd timer (`sudo systemctl status certbot.timer` to confirm). Once it completes, confirm the app is actually live:
+
+```bash
+curl -I https://sosdz.org           # expect HTTP/2 200
+curl -sS https://sosdz.org/api/config/   # expect a JSON config response, not an error
+```
+
+And update `.env`'s `ALLOWED_HOSTS`/`CORS_ALLOWED_ORIGINS`/`CSRF_TRUSTED_ORIGINS`/`FRONTEND_URL` to the `https://` versions if you'd filled them in as `http://` earlier, then `sudo systemctl restart sos-dz-gunicorn`.
 
 ### 6. Redeploying on a new push
 
@@ -142,8 +214,14 @@ pip install -r backend/requirements.txt
 cd backend
 python manage.py migrate
 python manage.py collectstatic --noinput
+cd ../frontend
+npm install
+npm run build   # re-generates frontend/dist/ -- Nginx picks it up immediately, no restart needed
+cd ..
 sudo systemctl restart sos-dz-gunicorn
 ```
+
+(`moderation-sidecar/` only needs its own `npm install` again if `moderation-sidecar/package.json` changed -- see step 7.)
 
 ### 6b. Cloudflare R2 (media storage, Wave 2)
 
@@ -198,7 +276,7 @@ By default it calls the public demo server (`https://router.project-osrm.org`), 
 
 ## Option B — temporary fallback (Railway/Render)
 
-If IONOS server setup is blocking progress, either Railway or Render can host the Django backend directly from the GitHub repo with minimal config:
+If VPS setup is ever blocking progress, either Railway or Render can host the Django backend directly from the GitHub repo with minimal config (the frontend would then need its own separate static host too, e.g. Cloudflare Pages/Netlify/Vercel, since this fallback is backend-only):
 
 1. Create a new project from the `akli-hamraoui/sos-dz` repo, root directory `backend/`.
 2. Build command: `pip install -r requirements.txt`.
@@ -207,15 +285,6 @@ If IONOS server setup is blocking progress, either Railway or Render can host th
 5. Add a managed MySQL/PostgreSQL add-on (Railway) or a Render PostgreSQL instance, and point `DB_*` at it.
 6. Run `python manage.py migrate` via the platform's one-off command/shell after first deploy.
 
-This is meant to be temporary, to keep momentum — Option A (IONOS VPS) remains the intended target.
+This is meant to be temporary, to keep momentum — the Contabo VPS (above) remains the intended target.
 
-## Frontend (Wave 5+): React/Vite PWA via IONOS Deploy Now
-
-The frontend is now `frontend/`, a React + Vite PWA, deployed separately from the Django backend:
-
-1. In the IONOS control panel, connect **Deploy Now** to this GitHub repo, with the app root set to `frontend/` and build command `npm run build` (output directory `frontend/dist/`). It auto-detects the Vite/SPA setup and redeploys on every push to the configured branch.
-2. Set an environment/build variable so the built app's `/api` and `/media` requests reach the Django backend's real domain instead of the dev-only Vite proxy -- either configure IONOS Deploy Now's URL rewrite/reverse-proxy rules for `/api/*` and `/media/*` to point at the IONOS VPS backend, or point the frontend at an absolute backend URL (e.g. via a `VITE_API_BASE` build-time env var) if Deploy Now doesn't support path-based proxying to an external origin -- confirm whichever path is used against the actual backend domain once both are live.
-3. **PWA/service worker note**: the manifest's `start_url` and the service worker are same-origin by design (`vite-plugin-pwa`'s default `generateSW` mode) -- serve the frontend and its `/api` calls from the same public origin (via the reverse-proxy rules above) so the installed PWA and its offline cache work correctly; a cross-origin API without the rewrite will still function for online use but the offline-queue's "already cached" GET responses would be scoped to the frontend's own origin only.
-4. Update `CORS_ALLOWED_ORIGINS` **and** `FRONTEND_URL` in the backend's `.env` to the real frontend domain once it's live (see `.env.example`). `FRONTEND_URL` drives Django Admin's "View site" link and the backend's own "/" redirect -- left at its localhost default, both would point at the dev-only Vite server instead of the real deployed frontend.
-
-The old Wave 1-4 plain HTML/Alpine.js frontend (`backend/templates/`, `backend/static/js/app.js`) no longer needs a deploy step of its own -- it's kept for reference/history but is not what ships from Wave 5 onward, is no longer served at any live route (see `config/urls.py`), and predates the fr/en/ar i18n work so was always English-only.
+The old Wave 1-4 plain HTML/Alpine.js frontend (`backend/templates/`, `backend/static/js/app.js`) doesn't need a deploy step of its own -- it's kept for reference/history but is not what ships from Wave 5 onward, is no longer served at any live route (see `config/urls.py`), and predates the fr/en/ar i18n work so was always English-only.
