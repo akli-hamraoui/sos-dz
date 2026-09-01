@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { useApp } from '../context/AppContext'
 import { useDialog } from '../context/DialogContext'
 import { api, createOrQueue } from '../api'
+import { translateApiError } from '../apiErrors'
 
 const DEFAULT_FORM = {
   responder_type: 'individual_volunteer',
@@ -45,7 +46,7 @@ export default function TakeCharge() {
       savePickupToken(result.data.id, result.data.access_token)
       navigate(`/needs/${id}`)
     } catch (err) {
-      setError((err.data && JSON.stringify(err.data)) || err.message)
+      setError(translateApiError(err, t))
     }
   }
 

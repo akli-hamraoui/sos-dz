@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { useApp } from '../context/AppContext'
 import { api } from '../api'
 import { isInAlgeria, reverseGeocodePlace } from '../utils'
+import { translateApiError } from '../apiErrors'
 import PlaceAutocomplete from '../components/PlaceAutocomplete'
 
 const DEFAULT_FORM = { wilaya: '', point_name: '', contact_name: '', contact_phone: '', organization: '', location_description: '', hours: '' }
@@ -69,7 +70,7 @@ export default function CreateCollectionPoint() {
       const point = await api('/collection-points/', { method: 'POST', body: JSON.stringify(form) })
       navigate(`/collection-points/${point.id}`)
     } catch (err) {
-      setError((err.data && JSON.stringify(err.data)) || err.message)
+      setError(translateApiError(err, t))
     }
   }
 

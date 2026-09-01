@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { useDialog } from '../context/DialogContext'
 import { api } from '../api'
 import { maskPhone } from '../utils'
+import { translateApiError } from '../apiErrors'
 import CommentThread from '../components/CommentThread'
 
 export default function CollectionPointDetail() {
@@ -28,7 +29,7 @@ export default function CollectionPointDetail() {
     try {
       setCp(await api(`/collection-points/${id}/close/`, { method: 'POST', body: JSON.stringify({ contact_name, contact_phone }) }))
     } catch (e) {
-      showAlert(e.message)
+      showAlert(translateApiError(e, t))
     }
   }
 

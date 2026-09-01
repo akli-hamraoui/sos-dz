@@ -179,7 +179,8 @@
     "recoverButton": "Recover access",
     "stillNotWorking": "Still not working? Contact admin support",
     "forgotCode": "Forgot your code? Use your name and phone instead",
-    "useCodeInstead": "I have a recovery code"
+    "useCodeInstead": "I have a recovery code",
+    "noContextHint": "This page is meant to be opened from the \"Recover access\" button on a specific need or pickup's own page. If you lost that link, search for your listing in the needs list below."
   },
   "support": {
     "title": "Forgot my details / contact admin",
@@ -239,5 +240,43 @@
     "p2": "The project isn't affiliated with any administration or official organization -- it's a free, ad-free citizen tool designed to stay usable even on a weak connection.",
     "p3": "The source code is public; anyone can review how it works or contribute.",
     "contactLink": "A question or a suggestion? Contact the admin."
+  },
+  "apiErrors": {
+    "generic": "Something went wrong. Please try again, or contact the admin if this persists.",
+    "needCancelled": "This need has been cancelled.",
+    "campaignNotAcceptingPickups": "This campaign is not accepting new pickups right now.",
+    "campaignNotAcceptingNeeds": "This campaign is not accepting new needs right now (paused or stopped).",
+    "wilayaNotAuthorized": "This wilaya is not authorized for the selected campaign.",
+    "needAtLeastOneMedia": "Please provide at least one of the three: a description, a voice message, or a video.",
+    "provideCodeOrIdentity": "Provide a code, or your name and phone.",
+    "supportContactMethodRequired": "Please provide at least one way to reach you (phone or email).",
+    "commentTargetInvalid": "Technical error: invalid comment target.",
+    "commentReplyTooDeep": "Can't reply to a reply (only one level of replies is allowed).",
+    "coordinatesOutsideAlgeria": "These coordinates fall outside Algeria and were rejected. Please use the wilaya + description fields instead.",
+    "recoveryCodeTooShort": "The recovery code must be at least 6 characters long.",
+    "recoveryCodeTaken": "This recovery code is already in use. Please choose a different one.",
+    "readOnlyMode": "The app is currently in read-only mode. Existing data remains viewable.",
+    "geoRestricted": "Only visible from within Algeria can create or edit listings — you can still browse everything.",
+    "captchaRequired": "Please complete the anti-spam check before submitting.",
+    "captchaFailed": "Anti-spam check failed, please try again.",
+    "captchaUnavailable": "Could not verify the anti-spam check right now, please try again.",
+    "listingAnonymizedFrozen": "This listing has been anonymized and is frozen from further edits.",
+    "notAuthorizedToken": "Not authorized: this access link doesn't match this listing.",
+    "notAuthorizedLiveLocation": "You're not authorized to view this need's live location.",
+    "notAuthorizedGeneric": "Not authorized.",
+    "listingAnonymizedNoRecover": "This listing has been anonymized; access can no longer be recovered.",
+    "recoveryNoMatch": "No match. If this keeps happening, use the support/contact-admin form.",
+    "needAnonymizeConfirm": "This need is still active. Your contact details will be removed, others will no longer be able to reach you about this. Confirm to proceed.",
+    "pickupAnonymizeConfirm": "This pickup is still active. Your contact details will be removed, others will no longer be able to reach you about this. Confirm to proceed.",
+    "notAuthorizedPickupUpdates": "Not authorized: only the volunteer who owns this pickup can post updates.",
+    "notAuthorizedPickupPosition": "Not authorized: only this pickup's own volunteer can submit its position.",
+    "nameDontMatchCollectionPoint": "Name/phone don't match this collection point's contact.",
+    "notAuthorizedDeleteComment": "Not authorized to delete this comment.",
+    "videoDurationUnverifiable": "Video duration could not be verified server-side, so it can't be accepted. Please try again, or contact support if this persists.",
+    "tooManyPhotos": "Maximum 3 photos allowed.",
+    "rateLimitedGeneric": "Too many submissions from this connection. Please try again later.",
+    "rateLimitedWithWait": "Too many submissions from this connection. Please wait about {{minutes}} minute(s) and try again.",
+    "videoTooLong": "Video is {{duration}}s long, the maximum is {{max}}s.",
+    "genericFieldError": "Please check the form fields and try again."
   }
 }

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { useApp } from '../context/AppContext'
 import { useDialog } from '../context/DialogContext'
 import { api } from '../api'
+import { translateApiError } from '../apiErrors'
 
 export default function Recover() {
   const { t } = useTranslation()
@@ -21,10 +22,6 @@ export default function Recover() {
   const submit = async (e) => {
     e.preventDefault()
     setError('')
-    if (!recoverContext) {
-      setError('Open this from a need/pickup page first.')
-      return
-    }
     const { type, id } = recoverContext
     const payload = useCode ? { code: form.code } : { name: form.name, phone: form.phone }
     try {
@@ -37,8 +34,29 @@ export default function Recover() {
         showAlert(t('recover.recoverButton') + ' ✓')
       }
     } catch (err) {
-      setError(err.message)
+      setError(translateApiError(err, t))
     }
+  }
+
+  // This page only makes sense reached from a specific need/pickup's own
+  // "Is this yours? Recover access" link (which carries the id via router
+  // state) -- there's no global "look up by code" lookup, by design (see
+  // check_recovery_code_available: a code is only ever checked against
+  // one specific listing, never searched for across all of them). Landed
+  // here without that context (e.g. a bookmarked/typed URL, or "the link"
+  // was lost) -- point back to finding the listing itself instead of a
+  // dead-end form, since the listing's own page is just its normal public
+  // URL, always reachable again via search/browse.
+  if (!recoverContext) {
+    return (
+      <section className="form-page">
+        <h2>{t('recover.title')}</h2>
+        <p>{t('recover.noContextHint')}</p>
+        <Link className="btn btn-primary" to="/needs">
+          {t('nav.needs')}
+        </Link>
+      </section>
+    )
   }
 
   return (

@@ -6,6 +6,7 @@ import { useApp } from '../context/AppContext'
 import { useDialog } from '../context/DialogContext'
 import { api, apiUpload, createOrQueue } from '../api'
 import { maskPhone, formatDate, compressPhoto } from '../utils'
+import { translateApiError } from '../apiErrors'
 import { IconMapPin } from '../icons'
 import { fetchDrivingRoute } from '../routing'
 import CommentThread from '../components/CommentThread'
@@ -176,7 +177,7 @@ export default function NeedDetail() {
         const data = await api(`/needs/${id}/update-gps/`, { method: 'POST', body: JSON.stringify({ latitude: pos.coords.latitude, longitude: pos.coords.longitude, access_token: token }) })
         setNeed(data)
       } catch (e) {
-        showAlert(e.message)
+        showAlert(translateApiError(e, t))
       }
     })
   }
@@ -199,7 +200,7 @@ export default function NeedDetail() {
       const data = await api(`/needs/${id}/anonymize/`, { method: 'POST', body: JSON.stringify({ access_token: token }) })
       setNeed(data)
     } catch (e) {
-      if (e.data && e.data.requires_confirmation && (await showConfirm(e.data.detail + '\n\n' + t('common.confirm') + '?'))) {
+      if (e.data && e.data.requires_confirmation && (await showConfirm(translateApiError(e, t) + '\n\n' + t('common.confirm') + '?'))) {
         const data = await api(`/needs/${id}/anonymize/`, { method: 'POST', body: JSON.stringify({ access_token: token, confirm: true }) })
         setNeed(data)
       }
@@ -280,7 +281,7 @@ export default function NeedDetail() {
     try {
       await api(`/pickups/${pickupId}/anonymize/`, { method: 'POST', body: JSON.stringify({ access_token: token }) })
     } catch (e) {
-      if (e.data && e.data.requires_confirmation && (await showConfirm(e.data.detail))) {
+      if (e.data && e.data.requires_confirmation && (await showConfirm(translateApiError(e, t)))) {
         await api(`/pickups/${pickupId}/anonymize/`, { method: 'POST', body: JSON.stringify({ access_token: token, confirm: true }) })
       }
     }

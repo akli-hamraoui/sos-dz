@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { api } from '../api'
+import { translateApiError } from '../apiErrors'
 
 export default function ReportBug() {
   const { t } = useTranslation()
@@ -18,7 +19,7 @@ export default function ReportBug() {
       await api('/support-requests/', { method: 'POST', body: JSON.stringify({ ...form, category: 'bug' }) })
       setSent(true)
     } catch (err) {
-      setError((err.data && JSON.stringify(err.data)) || err.message)
+      setError(translateApiError(err, t))
     }
   }
 

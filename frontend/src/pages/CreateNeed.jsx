@@ -5,6 +5,7 @@ import { useApp } from '../context/AppContext'
 import { useDialog } from '../context/DialogContext'
 import { api, createOrQueue } from '../api'
 import { compressPhoto, isInAlgeria, reverseGeocodePlace } from '../utils'
+import { translateApiError } from '../apiErrors'
 import { IconMapPin, IconMic, IconVideoCam, IconCamera, IconTrash } from '../icons'
 import PlaceAutocomplete from '../components/PlaceAutocomplete'
 
@@ -221,7 +222,7 @@ export default function CreateNeed() {
       saveNeedToken(need.id, { access_token: need.access_token, location_viewer_share_token: need.location_viewer_share_token })
       navigate(`/needs/${need.id}`)
     } catch (err) {
-      setError((err.data && JSON.stringify(err.data)) || err.message)
+      setError(translateApiError(err, t))
     }
   }
 

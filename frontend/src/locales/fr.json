@@ -179,7 +179,8 @@
     "recoverButton": "Récupérer l'accès",
     "stillNotWorking": "Toujours bloqué ? Contactez le support admin",
     "forgotCode": "Code oublié ? Utiliser mon nom et téléphone",
-    "useCodeInstead": "J'ai un code de récupération"
+    "useCodeInstead": "J'ai un code de récupération",
+    "noContextHint": "Cette page s'utilise depuis le bouton « Récupérer l'accès » sur la page d'un besoin ou d'une prise en charge précis. Si vous ne retrouvez plus ce lien, cherchez votre annonce dans la liste des besoins ci-dessous."
   },
   "support": {
     "title": "Coordonnées oubliées / contacter l'admin",
@@ -239,5 +240,43 @@
     "p2": "Le projet n'est affilié à aucune administration ni organisation officielle -- c'est un outil citoyen, gratuit et sans publicité, pensé pour rester simple à utiliser même en connexion faible.",
     "p3": "Le code source est public ; toute personne peut vérifier son fonctionnement ou contribuer.",
     "contactLink": "Une question, une suggestion ? Contactez l'admin."
+  },
+  "apiErrors": {
+    "generic": "Une erreur est survenue. Veuillez réessayer, ou contacter l'admin si le problème persiste.",
+    "needCancelled": "Ce besoin a été annulé.",
+    "campaignNotAcceptingPickups": "Cette campagne n'accepte plus de nouvelles prises en charge pour le moment.",
+    "campaignNotAcceptingNeeds": "Cette campagne n'accepte plus de nouveaux besoins pour le moment (en pause ou arrêtée).",
+    "wilayaNotAuthorized": "Cette wilaya n'est pas autorisée pour la campagne sélectionnée.",
+    "needAtLeastOneMedia": "Merci de fournir au moins l'un des trois : une description, un message vocal ou une vidéo.",
+    "provideCodeOrIdentity": "Indiquez un code, ou bien votre nom et téléphone.",
+    "supportContactMethodRequired": "Merci de fournir au moins un moyen de vous contacter (téléphone ou email).",
+    "commentTargetInvalid": "Erreur technique : la cible du commentaire est invalide.",
+    "commentReplyTooDeep": "Impossible de répondre à une réponse (un seul niveau de réponses est autorisé).",
+    "coordinatesOutsideAlgeria": "Ces coordonnées sont en dehors de l'Algérie et ont été refusées. Utilisez les champs wilaya + description à la place.",
+    "recoveryCodeTooShort": "Le code de récupération doit contenir au moins 6 caractères.",
+    "recoveryCodeTaken": "Ce code de récupération est déjà utilisé. Choisissez-en un autre.",
+    "readOnlyMode": "L'application est actuellement en lecture seule. Les données existantes restent consultables.",
+    "geoRestricted": "Seules les personnes en Algérie peuvent créer ou modifier des annonces — vous pouvez tout de même tout consulter.",
+    "captchaRequired": "Merci de valider le contrôle anti-spam avant d'envoyer.",
+    "captchaFailed": "Le contrôle anti-spam a échoué, veuillez réessayer.",
+    "captchaUnavailable": "Impossible de vérifier le contrôle anti-spam pour le moment, veuillez réessayer.",
+    "listingAnonymizedFrozen": "Cette annonce a été anonymisée et ne peut plus être modifiée.",
+    "notAuthorizedToken": "Non autorisé : ce lien d'accès ne correspond pas à cette annonce.",
+    "notAuthorizedLiveLocation": "Vous n'êtes pas autorisé à voir la position en direct de ce besoin.",
+    "notAuthorizedGeneric": "Non autorisé.",
+    "listingAnonymizedNoRecover": "Cette annonce a été anonymisée ; l'accès ne peut plus être récupéré.",
+    "recoveryNoMatch": "Aucune correspondance. Si cela persiste, utilisez le formulaire de contact avec l'admin.",
+    "needAnonymizeConfirm": "Ce besoin est toujours actif. Vos coordonnées seront supprimées, les autres ne pourront plus vous contacter à ce sujet. Confirmez pour continuer.",
+    "pickupAnonymizeConfirm": "Cette prise en charge est toujours active. Vos coordonnées seront supprimées, les autres ne pourront plus vous contacter à ce sujet. Confirmez pour continuer.",
+    "notAuthorizedPickupUpdates": "Non autorisé : seul le bénévole propriétaire de cette prise en charge peut publier des mises à jour.",
+    "notAuthorizedPickupPosition": "Non autorisé : seul le bénévole propriétaire de cette prise en charge peut envoyer sa position.",
+    "nameDontMatchCollectionPoint": "Le nom/téléphone ne correspond pas au contact de ce point de collecte.",
+    "notAuthorizedDeleteComment": "Non autorisé à supprimer ce commentaire.",
+    "videoDurationUnverifiable": "La durée de la vidéo n'a pas pu être vérifiée côté serveur, elle ne peut donc pas être acceptée. Réessayez, ou contactez le support si cela persiste.",
+    "tooManyPhotos": "Maximum 3 photos autorisées.",
+    "rateLimitedGeneric": "Trop d'envois depuis cette connexion. Merci de réessayer plus tard.",
+    "rateLimitedWithWait": "Trop d'envois depuis cette connexion. Merci de patienter environ {{minutes}} minute(s) puis réessayer.",
+    "videoTooLong": "La vidéo dure {{duration}}s, le maximum est {{max}}s.",
+    "genericFieldError": "Merci de vérifier les champs du formulaire et réessayer."
   }
 }
