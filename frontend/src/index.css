@@ -274,26 +274,57 @@ fieldset {
 }
 .media-capture-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
 }
 .media-capture-card {
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: 8px;
-  padding: 16px 10px;
+  gap: 6px;
+  padding: 12px 6px;
   border: 1px solid var(--border);
   border-radius: 14px;
   background: #fff;
+  min-width: 0;
 }
 .media-capture-card span {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
 }
+.media-capture-card .btn {
+  font-size: 12px;
+  padding: 8px 6px;
+  width: 100%;
+  box-sizing: border-box;
+}
 .media-capture-card audio {
-  max-width: 100%;
+  width: 100%;
+}
+.photo-add-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  text-align: center;
+}
+.media-capture-card .photo-thumbs {
+  justify-content: center;
+}
+.media-capture-card .photo-thumb img {
+  width: 48px;
+  height: 48px;
+}
+.media-capture-card .photo-thumb .link {
+  position: absolute;
+  top: -6px;
+  inset-inline-end: -6px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  padding: 2px;
+  line-height: 0;
 }
 .record-btn {
   border-radius: 999px;

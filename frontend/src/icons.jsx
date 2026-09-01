@@ -117,6 +117,15 @@ export function IconVideoCam(props) {
   )
 }
 
+export function IconCamera(props) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2l1-2h7l1 2h2a1.5 1.5 0 0 1 1.5 1.5v9A1.5 1.5 0 0 1 18.5 19h-13A1.5 1.5 0 0 1 4 17.5Z" />
+      <circle cx="12" cy="13" r="3.3" />
+    </svg>
+  )
+}
+
 export function IconTrash(props) {
   return (
     <svg {...base} {...props}>

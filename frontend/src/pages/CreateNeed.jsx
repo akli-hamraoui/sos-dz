@@ -4,13 +4,12 @@ import { useTranslation } from 'react-i18next'
 import { useApp } from '../context/AppContext'
 import { api, createOrQueue } from '../api'
 import { compressPhoto } from '../utils'
-import { IconMapPin, IconMic, IconVideoCam, IconTrash } from '../icons'
+import { IconMapPin, IconMic, IconVideoCam, IconCamera, IconTrash } from '../icons'
 
 const DEFAULT_FORM = {
   campaign: '',
   wilaya: '',
   commune: '',
-  title: '',
   urgency: 'medium',
   estimated_quantity: '',
   location_description: '',
@@ -142,14 +141,20 @@ export default function CreateNeed() {
   const submit = async (e, skipDuplicateCheck) => {
     e.preventDefault()
     setError('')
-    if (!form.location_description.trim() && !voiceBlob && !videoBlob) {
+    const description = form.location_description.trim()
+    if (!description && !voiceBlob && !videoBlob) {
       setError(t('createNeed.atLeastOneMediaRequired'))
       return
     }
+    // There's no separate "title" field in the UI anymore -- one field,
+    // "describe the need", covers both. Derive a short title from it for
+    // list/map display (the backend still stores title separately), or
+    // fall back to a generic label when only voice/video was provided.
+    const title = description ? (description.length > 197 ? description.slice(0, 197) + '…' : description) : t('createNeed.fallbackTitle')
     try {
       if (!skipDuplicateCheck && form.wilaya) {
         const dupes = await api(
-          `/needs/check-duplicates/?wilaya=${form.wilaya}&title=${encodeURIComponent(form.title)}&description=${encodeURIComponent(form.location_description)}`
+          `/needs/check-duplicates/?wilaya=${form.wilaya}&title=${encodeURIComponent(title)}&description=${encodeURIComponent(description)}`
         ).catch(() => [])
         if (dupes && dupes.length) {
           const proceed = confirm(t('createNeed.duplicateWarning', { title: dupes[0].title, wilaya: dupes[0].wilaya_name }))
@@ -160,7 +165,7 @@ export default function CreateNeed() {
         }
       }
 
-      const fields = { ...form, turnstile_token: turnstileTokenRef.current || window.__turnstileToken || '' }
+      const fields = { ...form, title, turnstile_token: turnstileTokenRef.current || window.__turnstileToken || '' }
       const files = {}
       if (voiceBlob) files.voice_file = new File([voiceBlob], 'voice.webm', { type: voiceBlob.type })
       if (videoBlob) files.video_file = new File([videoBlob], 'video.webm', { type: videoBlob.type })
@@ -208,10 +213,6 @@ export default function CreateNeed() {
         <label>
           {t('createNeed.commune')}
           <input type="text" value={form.commune} onChange={set('commune')} />
-        </label>
-        <label>
-          {t('createNeed.typeOfNeed')} *
-          <input type="text" value={form.title} onChange={set('title')} placeholder={t('createNeed.typeOfNeedPlaceholder')} required />
         </label>
         <label className="checkbox-label">
           <input type="checkbox" checked={form.urgency === 'critical'} onChange={setUrgent} />
@@ -285,21 +286,28 @@ export default function CreateNeed() {
                 </>
               )}
             </div>
-          </div>
-        </fieldset>
-
-        <fieldset>
-          <legend>{t('createNeed.damagePhotosLegend')}</legend>
-          {damagePhotos.length < 3 && <input type="file" accept="image/*" capture="environment" onChange={addDamagePhoto} />}
-          <div className="photo-thumbs">
-            {damagePhotos.map((p, idx) => (
-              <div className="photo-thumb" key={idx}>
-                <img src={p.previewUrl} alt="" />
-                <button type="button" className="link" onClick={() => setDamagePhotos((prev) => prev.filter((_, i) => i !== idx))}>
-                  {t('createNeed.remove')}
-                </button>
-              </div>
-            ))}
+            <div className="media-capture-card">
+              <IconCamera width={28} height={28} strokeWidth={1.5} />
+              <span>{t('createNeed.mediaPhoto')}</span>
+              {damagePhotos.length < 3 && (
+                <label className="btn record-btn photo-add-btn">
+                  {t('createNeed.startRecording')}
+                  <input type="file" accept="image/*" capture="environment" onChange={addDamagePhoto} hidden />
+                </label>
+              )}
+              {damagePhotos.length > 0 && (
+                <div className="photo-thumbs">
+                  {damagePhotos.map((p, idx) => (
+                    <div className="photo-thumb" key={idx}>
+                      <img src={p.previewUrl} alt="" />
+                      <button type="button" className="link" onClick={() => setDamagePhotos((prev) => prev.filter((_, i) => i !== idx))}>
+                        <IconTrash width={14} height={14} strokeWidth={2} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </fieldset>
 
