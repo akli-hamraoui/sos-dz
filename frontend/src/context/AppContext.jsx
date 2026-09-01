@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react'
 import { api, loadJSON, saveJSON } from '../api'
 import { setupAutoSync } from '../offlineQueue'
+import i18n from '../i18n'
 
 const AppContext = createContext(null)
 
@@ -40,6 +41,22 @@ export function AppProvider({ children }) {
       .catch(() => {})
     api('/campaigns/')
       .then((d) => setCampaigns(d.results || d))
+      .catch(() => {})
+    // Admin-entered text corrections (Django Admin), merged over the
+    // static locale JSON bundles -- lets a wrong/outdated string be fixed
+    // without a frontend deploy. Missing entirely (network/API failure)
+    // just means the static bundles are used as-is, same as before this
+    // existed.
+    api('/translations/')
+      .then((overrides) => {
+        let changed = false
+        for (const [locale, tree] of Object.entries(overrides)) {
+          if (Object.keys(tree).length === 0) continue
+          i18n.addResourceBundle(locale, 'translation', tree, true, true)
+          changed = true
+        }
+        if (changed) i18n.changeLanguage(i18n.language) // re-render components bound via useTranslation
+      })
       .catch(() => {})
   }, [])
 

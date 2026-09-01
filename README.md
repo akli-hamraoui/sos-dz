@@ -74,6 +74,10 @@ npm install
 npm start   # listens on http://127.0.0.1:8801, no model download needed -- it's bundled in the npm package
 ```
 
+### Admin-manageable translations
+
+An admin can correct a piece of UI text from Django Admin ("Translation overrides") without a frontend deploy: add a row with the locale (fr/en/ar), the dotted key exactly as used in the frontend (e.g. `home.tagline`, `createNeed.name` -- see `frontend/src/locales/*.json` for the available keys), and the replacement text. The frontend fetches all overrides at startup (`/api/translations/`) and merges them over the static locale JSON bundles, so a key with no override just keeps using the static file's value.
+
 ### Logging
 
 The backend logs to both the console and a rotating file at `logs/django.log` (repo root by default, gitignored -- 5MB x 5 backups). Override the location or verbosity with `LOG_DIR`/`LOG_LEVEL` in `.env` if needed.

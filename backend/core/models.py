@@ -587,3 +587,25 @@ class AuditLog(models.Model):
     def __str__(self):
         who = self.admin_user or "system"
         return f"{self.created_at:%Y-%m-%d %H:%M} - {who} - {self.action}"
+
+
+class TranslationOverride(models.Model):
+    """Lets an admin correct/adjust a piece of UI text from Django Admin
+    without a code deploy. `key` is a dotted i18next key exactly as used in
+    the frontend's t() calls (e.g. "home.tagline", "createNeed.name") --
+    the frontend fetches all overrides at startup and merges them over the
+    static locale JSON bundles (see /api/translations/), so an override
+    for a key that doesn't exist in the static files has no effect."""
+
+    LOCALE_CHOICES = [("fr", "Français"), ("en", "English"), ("ar", "العربية")]
+
+    locale = models.CharField(max_length=5, choices=LOCALE_CHOICES)
+    key = models.CharField(max_length=200, help_text='Dotted i18next key, e.g. "home.tagline"')
+    value = models.TextField()
+
+    class Meta:
+        unique_together = [("locale", "key")]
+        ordering = ["locale", "key"]
+
+    def __str__(self):
+        return f"[{self.locale}] {self.key}"

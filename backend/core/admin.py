@@ -17,6 +17,7 @@ from core.models import (
     Pickup,
     ProgressUpdate,
     SupportRequest,
+    TranslationOverride,
     Wilaya,
 )
 
@@ -153,6 +154,13 @@ class AppConfigurationAdmin(admin.ModelAdmin):
 class SupportRequestAdmin(admin.ModelAdmin):
     list_display = ["category", "requester_phone", "requester_email", "status", "created_at"]
     list_filter = ["category", "status"]
+
+
+@admin.register(TranslationOverride)
+class TranslationOverrideAdmin(admin.ModelAdmin):
+    list_display = ["key", "locale", "value"]
+    list_filter = ["locale"]
+    search_fields = ["key", "value"]
 
 
 @admin.register(AuditLog)

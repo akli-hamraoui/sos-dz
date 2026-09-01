@@ -27,6 +27,7 @@ from core.models import (
     Pickup,
     ProgressUpdate,
     SupportRequest,
+    TranslationOverride,
     Wilaya,
 )
 from core.permissions import write_guard
@@ -125,6 +126,26 @@ class AppConfigurationView(APIView):
         data["turnstile_site_key"] = settings.TURNSTILE_SITE_KEY
         data["turnstile_enabled"] = settings.TURNSTILE_ENABLED
         return Response(data)
+
+
+class TranslationOverridesView(APIView):
+    """Public: admin-entered text corrections, one nested tree per locale
+    (e.g. {"fr": {"home": {"tagline": "..."}}}) -- the frontend merges
+    this over its static locale JSON bundles at startup so an admin can
+    fix a piece of UI text without a deploy. A key with no override is
+    simply absent here; the static bundle's value is used as-is."""
+
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        result = {locale: {} for locale, _ in TranslationOverride.LOCALE_CHOICES}
+        for override in TranslationOverride.objects.all():
+            node = result.setdefault(override.locale, {})
+            parts = override.key.split(".")
+            for part in parts[:-1]:
+                node = node.setdefault(part, {})
+            node[parts[-1]] = override.value
+        return Response(result)
 
 
 class NeedViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.RetrieveModelMixin):

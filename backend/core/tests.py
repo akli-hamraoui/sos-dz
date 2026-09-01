@@ -3,7 +3,7 @@ from django.core.cache import cache
 from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
 
-from core.models import AppConfiguration, Campaign, DisasterType, Need, Pickup, ProgressUpdate, Wilaya
+from core.models import AppConfiguration, Campaign, DisasterType, Need, Pickup, ProgressUpdate, TranslationOverride, Wilaya
 
 
 class BaseAPITestCase(TestCase):
@@ -1284,6 +1284,32 @@ class AppConfigurationEndpointTests(BaseAPITestCase):
         resp = self.client.get("/api/config/")
         self.assertEqual(resp.data["admin_contact_phone"], "")
         self.assertEqual(resp.data["admin_contact_email"], "")
+
+
+class TranslationOverridesTests(BaseAPITestCase):
+    def test_empty_by_default_but_all_locales_present(self):
+        resp = self.client.get("/api/translations/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data, {"fr": {}, "en": {}, "ar": {}})
+
+    def test_dotted_key_becomes_nested_tree(self):
+        TranslationOverride.objects.create(locale="fr", key="home.tagline", value="Texte corrigé")
+        resp = self.client.get("/api/translations/")
+        self.assertEqual(resp.data["fr"], {"home": {"tagline": "Texte corrigé"}})
+
+    def test_multiple_keys_same_branch_merge_into_one_tree(self):
+        TranslationOverride.objects.create(locale="fr", key="createNeed.name", value="Nom")
+        TranslationOverride.objects.create(locale="fr", key="createNeed.phone", value="Tél.")
+        resp = self.client.get("/api/translations/")
+        self.assertEqual(resp.data["fr"], {"createNeed": {"name": "Nom", "phone": "Tél."}})
+
+    def test_locales_are_independent(self):
+        TranslationOverride.objects.create(locale="fr", key="home.tagline", value="FR text")
+        TranslationOverride.objects.create(locale="en", key="home.tagline", value="EN text")
+        resp = self.client.get("/api/translations/")
+        self.assertEqual(resp.data["fr"]["home"]["tagline"], "FR text")
+        self.assertEqual(resp.data["en"]["home"]["tagline"], "EN text")
+        self.assertEqual(resp.data["ar"], {})
 
 
 class ReverseGeocodeTests(BaseAPITestCase):
