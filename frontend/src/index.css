@@ -583,8 +583,13 @@ fieldset {
   bottom: 0;
   background: var(--card);
   border-block-start: 1px solid var(--border);
-  display: flex;
-  justify-content: space-around;
+  /* Grid, not flex: two symmetric 1fr columns on each side of the FAB's
+     own (auto-sized) middle column keeps it exactly centered regardless
+     of how much wider one label ("Points de collecte") is than another
+     ("Aide") -- flex's space-around distributed free space per item's
+     own width instead, which visibly pushed the FAB off-center. */
+  display: grid;
+  grid-template-columns: 1fr 1fr auto 1fr 1fr;
   align-items: center;
   padding: 8px 0 max(8px, env(safe-area-inset-bottom));
   z-index: 50;
@@ -594,6 +599,7 @@ fieldset {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-self: center;
   gap: 2px;
   font-size: 11px;
   color: #555;
@@ -624,6 +630,14 @@ fieldset {
   justify-content: center;
   margin-block-start: -24px;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+  /* The raised FAB pokes up above the bar's own top edge, where the
+     green-white-red gradient hairline (.bottom-nav::before, an
+     absolutely-positioned pseudo-element) lives. Absolutely-positioned
+     elements paint after normal-flow siblings regardless of DOM order,
+     so without this the hairline visibly cut across the button; an
+     explicit stacking context + z-index puts the button back on top. */
+  position: relative;
+  z-index: 1;
 }
 
 footer {

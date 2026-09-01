@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import L from 'leaflet'
 import { useApp } from '../context/AppContext'
-import { api, loadJSON, saveJSON } from '../api'
+import { api } from '../api'
 import { haversineKm } from '../utils'
 
 export default function CollectionPoints() {
@@ -11,7 +11,9 @@ export default function CollectionPoints() {
   const { wilayas } = useApp()
   const [filterWilaya, setFilterWilaya] = useState('')
   const [points, setPoints] = useState([])
-  const [viewMode, setViewMode] = useState(() => loadJSON('rassemble_cp_view_mode', 'map'))
+  // Always defaults to the map on every visit -- see NeedsList.jsx for why
+  // this is deliberately not persisted.
+  const [viewMode, setViewMode] = useState('map')
   const [mapHasNothing, setMapHasNothing] = useState(false)
   const mapRef = useRef(null)
   const mapElRef = useRef(null)
@@ -26,11 +28,6 @@ export default function CollectionPoints() {
   useEffect(() => {
     load().catch(() => {}) // offline/network failure -- offline banner already informs the user
   }, [load])
-
-  const setMode = (mode) => {
-    setViewMode(mode)
-    saveJSON('rassemble_cp_view_mode', mode)
-  }
 
   const smartZoom = (map, mapPoints, wilayaId) => {
     if (wilayaId) {
@@ -80,9 +77,7 @@ export default function CollectionPoints() {
         return // offline/network failure -- offline banner already informs the user
       }
       if (cancelled) return
-      const hasNothing = cpPins.length === 0
-      setMapHasNothing(hasNothing)
-      if (hasNothing) return
+      setMapHasNothing(cpPins.length === 0)
 
       requestAnimationFrame(() => {
         if (!mapElRef.current) return
@@ -136,10 +131,10 @@ export default function CollectionPoints() {
           </select>
         </label>
         <div className="view-toggle">
-          <button className={viewMode === 'list' ? 'active' : ''} onClick={() => setMode('list')}>
+          <button className={viewMode === 'list' ? 'active' : ''} onClick={() => setViewMode('list')}>
             {t('needsList.list')}
           </button>
-          <button className={viewMode === 'map' ? 'active' : ''} onClick={() => setMode('map')}>
+          <button className={viewMode === 'map' ? 'active' : ''} onClick={() => setViewMode('map')}>
             {t('needsList.map')}
           </button>
         </div>
@@ -169,7 +164,7 @@ export default function CollectionPoints() {
       {viewMode === 'map' && (
         <div className="map-wrap">
           {mapHasNothing && <p className="hint">{t('collectionPoints.noPointsYet')}</p>}
-          {!mapHasNothing && <div id="cp-map" ref={mapElRef} style={{ height: 500 }} />}
+          <div id="cp-map" ref={mapElRef} style={{ height: 500 }} />
         </div>
       )}
     </section>

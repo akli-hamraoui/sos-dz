@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import L from 'leaflet'
 import { useApp } from '../context/AppContext'
-import { api, loadJSON, saveJSON } from '../api'
+import { api } from '../api'
 import { urgencyColor, haversineKm } from '../utils'
 import { IconBox } from '../icons'
 
@@ -16,7 +16,11 @@ export default function NeedsList() {
   const { wilayas } = useApp()
   const [filterWilaya, setFilterWilaya] = useState('')
   const [needs, setNeeds] = useState([])
-  const [viewMode, setViewMode] = useState(() => loadJSON('rassemble_view_mode', 'map'))
+  // Always defaults to the map on every visit -- deliberately not
+  // persisted (a prior "Liste" choice must never keep the map hidden on
+  // a later visit; see the toggle buttons below for the session-only
+  // manual switch).
+  const [viewMode, setViewMode] = useState('map')
   const [mapHasNothing, setMapHasNothing] = useState(false)
   const mapRef = useRef(null)
   const mapElRef = useRef(null)
@@ -31,11 +35,6 @@ export default function NeedsList() {
   useEffect(() => {
     loadNeeds().catch(() => {}) // offline/network failure -- offline banner already informs the user, nothing more to do here
   }, [loadNeeds])
-
-  const setMode = (mode) => {
-    setViewMode(mode)
-    saveJSON('rassemble_view_mode', mode)
-  }
 
   const smartZoom = (map, points, wilayaId) => {
     if (wilayaId) {
@@ -88,9 +87,11 @@ export default function NeedsList() {
         return // offline/network failure -- offline banner already informs the user
       }
       if (cancelled) return
-      const hasNothing = needPins.length === 0 && cpPins.length === 0
-      setMapHasNothing(hasNothing)
-      if (hasNothing) return
+      // The map itself is always shown (see below) -- this only controls
+      // whether a supplementary "nothing yet" hint is shown alongside it,
+      // e.g. right after a campaign starts before any need/collection
+      // point has been reported yet.
+      setMapHasNothing(needPins.length === 0 && cpPins.length === 0)
 
       requestAnimationFrame(() => {
         if (!mapElRef.current) return
@@ -169,10 +170,10 @@ export default function NeedsList() {
           </select>
         </label>
         <div className="view-toggle">
-          <button className={viewMode === 'list' ? 'active' : ''} onClick={() => setMode('list')}>
+          <button className={viewMode === 'list' ? 'active' : ''} onClick={() => setViewMode('list')}>
             {t('needsList.list')}
           </button>
-          <button className={viewMode === 'map' ? 'active' : ''} onClick={() => setMode('map')}>
+          <button className={viewMode === 'map' ? 'active' : ''} onClick={() => setViewMode('map')}>
             {t('needsList.map')}
           </button>
         </div>
@@ -200,28 +201,26 @@ export default function NeedsList() {
       {viewMode === 'map' && (
         <div className="map-wrap">
           {mapHasNothing && <p className="hint">{t('needsList.noActiveNeeds')}</p>}
-          {!mapHasNothing && <div id="main-map" ref={mapElRef} style={{ height: 500 }} />}
-          {!mapHasNothing && (
-            <div className="legend">
-              <span className="legend-item">
-                <span className="legend-dot" style={{ background: urgencyColor('critical') }} />
-                {t('urgency.critical')}
-              </span>
-              <span className="legend-item">
-                <span className="legend-dot" style={{ background: urgencyColor('medium') }} />
-                {t('urgency.medium')}
-              </span>
-              <span className="legend-item">
-                <span className="legend-dot" style={{ background: urgencyColor('low') }} />
-                {t('urgency.low')}
-              </span>
-              <span className="legend-item">
-                <IconBox width={14} height={14} strokeWidth={2} />
-                {t('needsList.collectionPointLabel')}
-              </span>
-              <span className="legend-note">{t('needsList.legendNote')}</span>
-            </div>
-          )}
+          <div id="main-map" ref={mapElRef} style={{ height: 500 }} />
+          <div className="legend">
+            <span className="legend-item">
+              <span className="legend-dot" style={{ background: urgencyColor('critical') }} />
+              {t('urgency.critical')}
+            </span>
+            <span className="legend-item">
+              <span className="legend-dot" style={{ background: urgencyColor('medium') }} />
+              {t('urgency.medium')}
+            </span>
+            <span className="legend-item">
+              <span className="legend-dot" style={{ background: urgencyColor('low') }} />
+              {t('urgency.low')}
+            </span>
+            <span className="legend-item">
+              <IconBox width={14} height={14} strokeWidth={2} />
+              {t('needsList.collectionPointLabel')}
+            </span>
+            <span className="legend-note">{t('needsList.legendNote')}</span>
+          </div>
         </div>
       )}
     </section>
