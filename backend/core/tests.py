@@ -3,7 +3,7 @@ from django.core.cache import cache
 from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
 
-from core.models import AppConfiguration, Campaign, DisasterType, Need, Pickup, Wilaya
+from core.models import AppConfiguration, Campaign, DisasterType, Need, Pickup, ProgressUpdate, Wilaya
 
 
 class BaseAPITestCase(TestCase):
@@ -713,6 +713,30 @@ class MapAndLocationPrivacyTests(BaseAPITestCase):
         texts = [u["free_text"] for p in resp.data["pickups"] for u in p["progress_updates"]]
         self.assertIn("arriving soon", texts)
 
+    def test_progress_update_gps_never_exposed_via_public_need_detail(self):
+        """A progress update's optional GPS must never leak through the
+        fully public Need-detail endpoint -- that would bypass the
+        access-controlled pickup-locations endpoint's privacy boundary
+        entirely. GPS is only ever echoed back to the pickup's own token
+        holder right after they submit it (asserted below)."""
+        create_resp = self.client.post(
+            f"/api/pickups/{self.pickup_id}/progress-updates/",
+            {"free_text": "at the drop-off point", "gps_latitude": 36.75, "gps_longitude": 3.04, "access_token": self.pickup_token},
+            format="json",
+        )
+        self.assertEqual(create_resp.status_code, 201, create_resp.content)
+        # The creator (token holder) IS shown their own just-submitted GPS.
+        self.assertEqual(create_resp.data["gps_latitude"], 36.75)
+
+        resp = self.client.get(f"/api/needs/{self.need_id}/")
+        for p in resp.data["pickups"]:
+            for u in p["progress_updates"]:
+                self.assertNotIn("gps_latitude", u)
+                self.assertNotIn("gps_longitude", u)
+
+        update = ProgressUpdate.objects.get(pickup_id=self.pickup_id, free_text="at the drop-off point")
+        self.assertEqual(update.gps_latitude, 36.75)  # it WAS stored, just never publicly serialized
+
 
 @override_settings(GEOIP_DB_PATH="/nonexistent/GeoLite2-Country.mmdb")
 class GeoRestrictionTests(BaseAPITestCase):
@@ -784,6 +808,58 @@ class RateLimitTests(BaseAPITestCase):
         resp = self.client.post("/api/needs/", payload, format="json")
         self.assertEqual(resp.status_code, 429)
         self.assertIn("detail", resp.data)
+
+
+class ClientIPSpoofingTests(BaseAPITestCase):
+    """core.middleware.get_client_ip must not let a client dictate its own
+    IP for geo-restriction/rate-limiting purposes -- see DEPLOYMENT.md's
+    Nginx config (X-Real-IP always set fresh by Nginx; X-Forwarded-For only
+    ever appended to, so only the LAST entry is Nginx's own, trustworthy
+    value)."""
+
+    def setUp(self):
+        super().setUp()
+        self.campaign = make_campaign()
+        self.wilaya = self.campaign.authorized_wilayas.first()
+
+    def test_x_real_ip_is_trusted_over_x_forwarded_for(self):
+        from django.test import RequestFactory
+
+        from core.middleware import get_client_ip
+
+        request = RequestFactory().get("/", HTTP_X_REAL_IP="41.100.0.5", HTTP_X_FORWARDED_FOR="1.2.3.4")
+        self.assertEqual(get_client_ip(request), "41.100.0.5")
+
+    def test_x_forwarded_for_uses_last_entry_not_first(self):
+        from django.test import RequestFactory
+
+        from core.middleware import get_client_ip
+
+        # Simulates Nginx's $proxy_add_x_forwarded_for: whatever a client
+        # sent is kept as-is, with Nginx's own view of the real peer
+        # appended last -- only that last entry can be trusted.
+        request = RequestFactory().get("/", HTTP_X_FORWARDED_FOR="9.9.9.9, 41.100.0.5")
+        self.assertEqual(get_client_ip(request), "41.100.0.5")
+
+    def test_spoofed_first_hop_no_longer_bypasses_rate_limit(self):
+        from django.conf import settings
+
+        payload = dict(NEED_PAYLOAD, campaign=self.campaign.pk, wilaya=self.wilaya.pk)
+        limit = settings.RATE_LIMIT_CREATIONS_PER_HOUR
+        # A different fake first hop on every request (what a client fully
+        # controls), but the same real Nginx-appended last hop -- all
+        # requests must land in the same rate-limit bucket.
+        for i in range(limit):
+            resp = self.client.post(
+                "/api/needs/", payload, format="json",
+                HTTP_X_FORWARDED_FOR=f"{i}.{i}.{i}.{i}, 41.100.0.5",
+            )
+            self.assertEqual(resp.status_code, 201)
+        resp = self.client.post(
+            "/api/needs/", payload, format="json",
+            HTTP_X_FORWARDED_FOR="255.255.255.255, 41.100.0.5",
+        )
+        self.assertEqual(resp.status_code, 429)
 
 
 def make_test_image(name="photo.jpg"):

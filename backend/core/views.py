@@ -54,7 +54,7 @@ from core.serializers import (
     PickupListSerializer,
     PickupPublicSerializer,
     ProgressUpdateCreateSerializer,
-    ProgressUpdateSerializer,
+    ProgressUpdateWithGPSSerializer,
     SupportRequestSerializer,
     WilayaSerializer,
 )
@@ -456,7 +456,7 @@ class PickupViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retri
         serializer = ProgressUpdateCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         update = ProgressUpdate.objects.create(pickup=pickup, **serializer.validated_data)
-        return Response(ProgressUpdateSerializer(update).data, status=status.HTTP_201_CREATED)
+        return Response(ProgressUpdateWithGPSSerializer(update).data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=["post"], url_path="location-pings")
     def add_location_ping(self, request, pk=None):

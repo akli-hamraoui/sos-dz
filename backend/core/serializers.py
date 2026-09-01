@@ -93,6 +93,24 @@ class CampaignSerializer(serializers.ModelSerializer):
 
 
 class ProgressUpdateSerializer(serializers.ModelSerializer):
+    """Public: nested inside PickupPublicSerializer, which is itself
+    reachable with no authentication at all via the Need detail endpoint.
+    Deliberately excludes gps_latitude/gps_longitude -- exposing them here
+    would leak a responder's live position to anyone, bypassing the
+    access-controlled pickup-locations endpoint's privacy boundary (see
+    also LocationPing, the actual live-tracking model behind that
+    endpoint). GPS is only ever echoed back to the pickup's own token
+    holder right after they submit it, via
+    ProgressUpdateWithGPSSerializer below -- never in any publicly
+    readable response."""
+
+    class Meta:
+        model = ProgressUpdate
+        fields = ["id", "free_text", "timestamp"]
+        read_only_fields = ["id", "timestamp"]
+
+
+class ProgressUpdateWithGPSSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProgressUpdate
         fields = ["id", "free_text", "timestamp", "gps_latitude", "gps_longitude"]
