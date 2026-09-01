@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { useApp } from '../context/AppContext'
 import { api } from '../api'
 import { maskPhone, formatDate } from '../utils'
+import { IconTruck } from '../icons'
 
 const STATUSES = ['en_route', 'delivered', 'cancelled']
 
@@ -75,7 +76,9 @@ export default function Deliveries() {
         {pickups.map((p) => (
           <Link className="need-card" to={`/needs/${p.need}`} key={p.id}>
             <span className={`badge badge-status-${p.status}`}>{t(`status.${p.status}`)}</span>
-            <h3>{p.need_title}</h3>
+            <h3>
+              <IconTruck width={17} height={17} strokeWidth={1.9} className="truck-icon" /> {p.need_title}
+            </h3>
             <p>{p.need_wilaya_name}</p>
             {!p.is_anonymized && (
               <p className="status">

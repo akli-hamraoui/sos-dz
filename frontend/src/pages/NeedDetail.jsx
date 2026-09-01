@@ -106,7 +106,20 @@ export default function NeedDetail() {
       if (!trail.length) return
       const latlngs = trail.map((p) => [p.latitude, p.longitude])
       L.polyline(latlngs, { color: '#111' }).addTo(map)
-      const marker = L.marker(latlngs[latlngs.length - 1]).addTo(map)
+      // A truck pin (Uber-style: a small vehicle glyph on a white circle)
+      // instead of Leaflet's default blue map-pin icon, so a responder en
+      // route reads at a glance as "a delivery," distinct from the
+      // checkered-flag destination marker.
+      const truckIcon = L.divIcon({
+        className: 'pickup-marker-icon',
+        html:
+          '<span class="pickup-marker-pin"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="1.9" ' +
+          'stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 7.5h11v8h-11Z"/><path d="M13.5 11h4l3 2.8v1.7h-7Z"/>' +
+          '<circle cx="7" cy="18" r="1.7"/><circle cx="17" cy="18" r="1.7"/><path d="M2.5 16h2.8M15.5 16h.2M18.7 16H21"/></svg></span>',
+        iconSize: [30, 30],
+        iconAnchor: [15, 15],
+      })
+      const marker = L.marker(latlngs[latlngs.length - 1], { icon: truckIcon }).addTo(map)
       marker.bindPopup(
         `<strong>${entry.pickup.responder_name}</strong><br>Bringing: ${entry.pickup.content_brought}<br>Latest: ${entry.latest_progress_text || '—'}`
       )

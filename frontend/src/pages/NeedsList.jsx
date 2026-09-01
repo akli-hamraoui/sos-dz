@@ -274,10 +274,6 @@ export default function NeedsList() {
               {t('urgency.medium')}
             </span>
             <span className="legend-item">
-              <span className="legend-dot" style={{ background: urgencyColor('low') }} />
-              {t('urgency.low')}
-            </span>
-            <span className="legend-item">
               <IconBox width={14} height={14} strokeWidth={2} />
               {t('needsList.collectionPointLabel')}
             </span>

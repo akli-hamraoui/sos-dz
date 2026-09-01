@@ -28,7 +28,13 @@ export function haversineKm([lat1, lon1], [lat2, lon2]) {
 }
 
 export function urgencyColor(u) {
-  return { critical: '#d92626', medium: '#e08a1e', low: '#cbb400' }[u] || '#555'
+  // Only two visual tiers: critical (red) vs everything else (orange) --
+  // "low" is not reachable from the public create-need form (it only
+  // ever sets 'medium' or 'critical'; low is admin-only), and a distinct
+  // third color there just to represent that rare admin-set case caused
+  // more confusion ("is orange a separate, less urgent tier?") than it
+  // resolved. Kept as its own model/enum value, just no longer its own color.
+  return { critical: '#d92626', medium: '#e08a1e', low: '#e08a1e' }[u] || '#555'
 }
 
 // Same bounding box as the backend's ALGERIA_BOUNDING_BOX

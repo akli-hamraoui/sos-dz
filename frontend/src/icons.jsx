@@ -142,6 +142,18 @@ export function IconMenu(props) {
   )
 }
 
+export function IconTruck(props) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M2.5 7.5h11v8h-11Z" />
+      <path d="M13.5 11h4l3 2.8v1.7h-7Z" />
+      <circle cx="7" cy="18" r="1.7" />
+      <circle cx="17" cy="18" r="1.7" />
+      <path d="M2.5 16h2.8M15.5 16h.2M18.7 16H21" />
+    </svg>
+  )
+}
+
 export function IconClose(props) {
   return (
     <svg {...base} {...props}>

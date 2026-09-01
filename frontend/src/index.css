@@ -508,8 +508,8 @@ fieldset {
   background: var(--medium);
 }
 .urgency-low {
-  background: var(--low);
-  color: #222;
+  /* Same as .urgency-medium -- see utils.js urgencyColor for why. */
+  background: var(--medium);
 }
 .badge-status-en_route {
   background: var(--medium);
@@ -609,6 +609,21 @@ fieldset {
   text-shadow:
     0 0 2px #fff,
     0 0 2px #fff;
+}
+.truck-icon {
+  vertical-align: -3px;
+  flex-shrink: 0;
+}
+.pickup-marker-pin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid #111;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
 }
 
 .comment-thread {
