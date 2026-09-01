@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { Routes, Route, Link, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useApp } from './context/AppContext'
@@ -13,7 +14,7 @@ import CollectionPoints from './pages/CollectionPoints'
 import CreateCollectionPoint from './pages/CreateCollectionPoint'
 import CollectionPointDetail from './pages/CollectionPointDetail'
 import Deliveries from './pages/Deliveries'
-import { IconHome, IconNeeds, IconBox, IconHelp, IconPlus, IconWarning, IconWifiOff, IconCheckCircle } from './icons'
+import { IconHome, IconNeeds, IconBox, IconHelp, IconPlus, IconWarning, IconWifiOff, IconCheckCircle, IconMenu, IconClose } from './icons'
 
 function LanguageSwitcher() {
   const { i18n, t } = useTranslation()
@@ -64,6 +65,12 @@ function BottomNav() {
 export default function App() {
   const { t } = useTranslation()
   const { config, isOnline, syncMessage } = useApp()
+  const [navOpen, setNavOpen] = useState(false)
+  const location = useLocation()
+
+  useEffect(() => {
+    setNavOpen(false) // close the mobile menu on every navigation
+  }, [location.pathname])
 
   return (
     <>
@@ -87,7 +94,7 @@ export default function App() {
         <Link to="/" className="brand">
           {t('common.brand')}
         </Link>
-        <nav>
+        <nav className="topbar-nav-desktop">
           <Link to="/needs">{t('nav.needs')}</Link>
           <Link to="/collection-points">{t('nav.collectionPoints')}</Link>
           <Link to="/deliveries">{t('nav.deliveries')}</Link>
@@ -95,7 +102,26 @@ export default function App() {
           <Link to="/support">{t('nav.forgotDetails')}</Link>
           <LanguageSwitcher />
         </nav>
+        <button
+          type="button"
+          className="nav-toggle"
+          aria-label={t('nav.menu')}
+          aria-expanded={navOpen}
+          onClick={() => setNavOpen((v) => !v)}
+        >
+          {navOpen ? <IconClose /> : <IconMenu />}
+        </button>
       </header>
+      {navOpen && (
+        <nav className="topbar-nav-mobile">
+          <Link to="/needs">{t('nav.needs')}</Link>
+          <Link to="/collection-points">{t('nav.collectionPoints')}</Link>
+          <Link to="/deliveries">{t('nav.deliveries')}</Link>
+          <Link to="/create">{t('nav.iNeedHelp')}</Link>
+          <Link to="/support">{t('nav.forgotDetails')}</Link>
+          <LanguageSwitcher />
+        </nav>
+      )}
 
       <main>
         <Routes>

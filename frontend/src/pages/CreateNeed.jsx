@@ -44,6 +44,16 @@ export default function CreateNeed() {
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }))
 
+  const setMediaType = (e) => {
+    // blob/blobUrl are shared across media types (only one is recorded at a
+    // time), so switching type while a previous recording is still sitting
+    // there left the recorder stuck showing that old recording's
+    // playback/discard view instead of a fresh "start recording" button --
+    // discard it so the new type gets a clean recorder.
+    discardRecording()
+    set('media_type')(e)
+  }
+
   const useMyLocation = useCallback(() => {
     if (!navigator.geolocation) return
     navigator.geolocation.getCurrentPosition(async (pos) => {
@@ -208,15 +218,15 @@ export default function CreateNeed() {
           <legend>{t('createNeed.mediaSectionLegend')}</legend>
           <div className="media-choice">
             <label>
-              <input type="radio" name="mediaType" value="text" checked={form.media_type === 'text'} onChange={set('media_type')} />
+              <input type="radio" name="mediaType" value="text" checked={form.media_type === 'text'} onChange={setMediaType} />
               {t('createNeed.mediaTextOnly')}
             </label>
             <label>
-              <input type="radio" name="mediaType" value="audio" checked={form.media_type === 'audio'} onChange={set('media_type')} />
+              <input type="radio" name="mediaType" value="audio" checked={form.media_type === 'audio'} onChange={setMediaType} />
               {t('createNeed.mediaVoice')}
             </label>
             <label>
-              <input type="radio" name="mediaType" value="video" checked={form.media_type === 'video'} onChange={set('media_type')} />
+              <input type="radio" name="mediaType" value="video" checked={form.media_type === 'video'} onChange={setMediaType} />
               {t('createNeed.mediaVideo')}
             </label>
           </div>

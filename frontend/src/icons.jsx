@@ -98,3 +98,19 @@ export function IconMapPin(props) {
     </svg>
   )
 }
+
+export function IconMenu(props) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M4 6.5h16M4 12h16M4 17.5h16" />
+    </svg>
+  )
+}
+
+export function IconClose(props) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M5 5l14 14M19 5 5 19" />
+    </svg>
+  )
+}
