@@ -468,7 +468,7 @@ export default function NeedDetail() {
       <h3>{t('needDetail.liveTrackingMap')}</h3>
       {canSeeLiveMap ? (
         <>
-          <div id="need-detail-map" ref={mapElRef} style={{ height: 350 }} />
+          <div id="need-detail-map" ref={mapElRef} style={{ height: 420 }} />
           {routeInfo === 'unavailable' && <p className="hint">{t('needDetail.routeUnavailable')}</p>}
           {routeInfo && routeInfo !== 'unavailable' && (
             <p className="status">{t('needDetail.routeDistance', { km: routeInfo.distanceKm.toFixed(1), min: Math.round(routeInfo.durationMin) })}</p>
