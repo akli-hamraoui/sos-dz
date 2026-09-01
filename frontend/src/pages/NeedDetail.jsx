@@ -164,12 +164,11 @@ export default function NeedDetail() {
       mapRef.current = null
     }
     const map = L.map(mapElRef.current, { attributionControl: false })
-    // CartoDB Positron: flat, light basemap with city/road labels and no
-    // elevation/terrain shading -- see NeedsList.jsx for why.
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-      subdomains: 'abcd',
-      maxZoom: 20,
+    // Standard OpenStreetMap raster tiles -- see NeedsList.jsx for why
+    // (CartoDB's free tier now requires an API key).
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors',
+      maxZoom: 19,
     }).addTo(map)
     L.control.attribution({ prefix: false }).addTo(map)
     mapRef.current = map

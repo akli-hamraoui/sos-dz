@@ -118,14 +118,15 @@ export default function NeedsList() {
         if (!mapElRef.current) return
         if (!mapRef.current) {
           mapRef.current = L.map(mapElRef.current, { attributionControl: false })
-          // CartoDB Positron: flat, light basemap with city/road labels
-          // and no elevation/terrain shading -- colored pins (urgency
-          // circles, collection-point icon) need to read clearly against
-          // the background, which a relief-shaded map fights against.
-          L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-            attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-            subdomains: 'abcd',
-            maxZoom: 20,
+          // Standard OpenStreetMap raster tiles: free with no API key
+          // required (unlike CartoDB's basemaps.cartocdn.com, which
+          // started requiring one and showed an "API KEY REQUIRED"
+          // watermark in production). City/road labels, no elevation
+          // relief -- colored pins need to read clearly against the
+          // background, which a relief-shaded map fights against.
+          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors',
+            maxZoom: 19,
           }).addTo(mapRef.current)
           L.control.attribution({ prefix: false }).addTo(mapRef.current)
         }
