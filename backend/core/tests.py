@@ -3,7 +3,7 @@ from django.core.cache import cache
 from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
 
-from core.models import AppConfiguration, Campaign, DisasterType, Need, Pickup, ProgressUpdate, TranslationOverride, Wilaya
+from core.models import AdminContactPhone, AppConfiguration, Campaign, DisasterType, Need, Pickup, ProgressUpdate, TranslationOverride, Wilaya
 
 
 class BaseAPITestCase(TestCase):
@@ -1272,18 +1272,35 @@ class SupportRequestTests(BaseAPITestCase):
 class AppConfigurationEndpointTests(BaseAPITestCase):
     def test_admin_contact_fields_exposed_when_set(self):
         config = AppConfiguration.get_solo()
-        config.admin_contact_phone = "0555999999"
         config.admin_contact_email = "admin@example.com"
         config.save()
+        AdminContactPhone.objects.create(config=config, phone="0555999999", label="WhatsApp")
+        AdminContactPhone.objects.create(config=config, phone="0555888888")
         resp = self.client.get("/api/config/")
         self.assertEqual(resp.status_code, 200)
-        self.assertEqual(resp.data["admin_contact_phone"], "0555999999")
         self.assertEqual(resp.data["admin_contact_email"], "admin@example.com")
+        self.assertEqual(
+            resp.data["contact_phones"],
+            [{"phone": "0555999999", "label": "WhatsApp"}, {"phone": "0555888888", "label": ""}],
+        )
 
     def test_admin_contact_fields_blank_by_default(self):
         resp = self.client.get("/api/config/")
-        self.assertEqual(resp.data["admin_contact_phone"], "")
+        self.assertEqual(resp.data["contact_phones"], [])
         self.assertEqual(resp.data["admin_contact_email"], "")
+
+    def test_at_most_5_contact_phones_enforced_in_admin(self):
+        config = AppConfiguration.get_solo()
+        for i in range(5):
+            AdminContactPhone.objects.create(config=config, phone=f"055500000{i}")
+        from django.test import Client as DjangoClient
+
+        admin_user = get_user_model().objects.create_superuser("admin4", "a4@example.com", "pw123456!")
+        django_client = DjangoClient()
+        django_client.force_login(admin_user)
+        response = django_client.get(f"/admin/core/appconfiguration/{config.pk}/change/")
+        # max_num=5 with 5 existing rows leaves no empty "extra" form to add a 6th.
+        self.assertEqual(response.context["inline_admin_formsets"][0].formset.extra_forms, [])
 
 
 class TranslationOverridesTests(BaseAPITestCase):

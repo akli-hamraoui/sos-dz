@@ -11,21 +11,31 @@ export default function CreateCollectionPoint() {
   const navigate = useNavigate()
   const { activeCampaignWilayas } = useApp()
   const [form, setForm] = useState(DEFAULT_FORM)
+  const [gpsStatus, setGpsStatus] = useState(null) // null | 'locating' | 'error'
   const [error, setError] = useState('')
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }))
 
   const useMyLocation = () => {
-    if (!navigator.geolocation) return
-    navigator.geolocation.getCurrentPosition(async (pos) => {
-      setForm((f) => ({ ...f, latitude: pos.coords.latitude, longitude: pos.coords.longitude }))
-      try {
-        const suggestion = await api(`/wilayas/nearest/?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}`)
-        setForm((f) => (f.wilaya ? f : { ...f, wilaya: suggestion.id }))
-      } catch {
-        /* best-effort */
-      }
-    })
+    if (!navigator.geolocation) {
+      setGpsStatus('error')
+      return
+    }
+    setGpsStatus('locating')
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        setGpsStatus(null)
+        setForm((f) => ({ ...f, latitude: pos.coords.latitude, longitude: pos.coords.longitude }))
+        try {
+          const suggestion = await api(`/wilayas/nearest/?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}`)
+          setForm((f) => (f.wilaya ? f : { ...f, wilaya: suggestion.id }))
+        } catch {
+          /* best-effort */
+        }
+      },
+      () => setGpsStatus('error'),
+      { timeout: 8000 }
+    )
   }
 
   const submit = async (e) => {
@@ -72,9 +82,12 @@ export default function CreateCollectionPoint() {
         <label>
           {t('collectionPoints.hours')} <input type="text" value={form.hours} onChange={set('hours')} placeholder={t('collectionPoints.hoursPlaceholder')} />
         </label>
-        <button type="button" className="btn" onClick={useMyLocation}>
+        <button type="button" className="btn" onClick={useMyLocation} disabled={gpsStatus === 'locating'}>
           {t('createNeed.useMyLocation')}
         </button>
+        {gpsStatus === 'locating' && <p className="hint">{t('createNeed.gpsLocating')}</p>}
+        {gpsStatus === 'error' && <p className="error">{t('createNeed.gpsError')}</p>}
+        {form.latitude && !gpsStatus && <p>{t('createNeed.gpsCaptured', { lat: form.latitude, lon: form.longitude })}</p>}
         {error && <p className="error">{error}</p>}
         <button type="submit" className="btn btn-primary">
           {t('collectionPoints.publish')}

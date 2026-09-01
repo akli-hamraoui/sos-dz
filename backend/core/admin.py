@@ -3,6 +3,7 @@ from django.contrib import admin
 from django.utils import timezone
 
 from core.models import (
+    AdminContactPhone,
     AppConfiguration,
     AuditLog,
     Campaign,
@@ -145,9 +146,16 @@ class LocationPingAdmin(admin.ModelAdmin):
     list_display = ["pickup", "latitude", "longitude", "recorded_at"]
 
 
+class AdminContactPhoneInline(admin.TabularInline):
+    model = AdminContactPhone
+    extra = 1
+    max_num = 5
+
+
 @admin.register(AppConfiguration)
 class AppConfigurationAdmin(admin.ModelAdmin):
     list_display = ["mode", "media_moderation_active", "geo_restrict_writes_to_algeria"]
+    inlines = [AdminContactPhoneInline]
 
     def has_add_permission(self, request):
         return not AppConfiguration.objects.exists()

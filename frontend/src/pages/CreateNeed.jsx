@@ -26,6 +26,7 @@ export default function CreateNeed() {
   const navigate = useNavigate()
   const { campaigns, wilayasForCampaign, saveNeedToken, config } = useApp()
   const [form, setForm] = useState(DEFAULT_FORM)
+  const [gpsStatus, setGpsStatus] = useState(null) // null | 'locating' | 'error'
   const [error, setError] = useState('')
   const [uploadStatus, setUploadStatus] = useState('')
   const [damagePhotos, setDamagePhotos] = useState([])
@@ -61,16 +62,25 @@ export default function CreateNeed() {
   const setUrgent = (e) => setForm((f) => ({ ...f, urgency: e.target.checked ? 'critical' : 'medium' }))
 
   const useMyLocation = useCallback(() => {
-    if (!navigator.geolocation) return
-    navigator.geolocation.getCurrentPosition(async (pos) => {
-      setForm((f) => ({ ...f, latitude: pos.coords.latitude, longitude: pos.coords.longitude }))
-      try {
-        const suggestion = await api(`/wilayas/nearest/?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}`)
-        setForm((f) => (f.wilaya ? f : { ...f, wilaya: suggestion.id }))
-      } catch {
-        /* best-effort only */
-      }
-    })
+    if (!navigator.geolocation) {
+      setGpsStatus('error')
+      return
+    }
+    setGpsStatus('locating')
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        setGpsStatus(null)
+        setForm((f) => ({ ...f, latitude: pos.coords.latitude, longitude: pos.coords.longitude }))
+        try {
+          const suggestion = await api(`/wilayas/nearest/?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}`)
+          setForm((f) => (f.wilaya ? f : { ...f, wilaya: suggestion.id }))
+        } catch {
+          /* best-effort only */
+        }
+      },
+      () => setGpsStatus('error'),
+      { timeout: 8000 }
+    )
   }, [])
 
   const startRecording = async (kind) => {
@@ -231,10 +241,12 @@ export default function CreateNeed() {
           {t('createNeed.description')}
           <textarea value={form.location_description} onChange={set('location_description')} placeholder={t('createNeed.descriptionPlaceholder')} />
         </label>
-        <button type="button" className="btn btn-icon" onClick={useMyLocation}>
+        <button type="button" className="btn btn-icon" onClick={useMyLocation} disabled={gpsStatus === 'locating'}>
           <IconMapPin width={16} height={16} strokeWidth={2} /> {t('createNeed.useMyLocation')}
         </button>
-        {form.latitude && <p>{t('createNeed.gpsCaptured', { lat: form.latitude, lon: form.longitude })}</p>}
+        {gpsStatus === 'locating' && <p className="hint">{t('createNeed.gpsLocating')}</p>}
+        {gpsStatus === 'error' && <p className="error">{t('createNeed.gpsError')}</p>}
+        {form.latitude && !gpsStatus && <p>{t('createNeed.gpsCaptured', { lat: form.latitude, lon: form.longitude })}</p>}
 
         <fieldset>
           <legend>{t('createNeed.mediaSectionLegend')}</legend>

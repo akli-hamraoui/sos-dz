@@ -144,11 +144,19 @@ export default function App() {
       </main>
 
       <footer>
-        {(config.admin_contact_phone || config.admin_contact_email) && (
+        {(config.contact_phones.length > 0 || config.admin_contact_email) && (
           <p>
             {t('common.adminContact')}:{' '}
-            {config.admin_contact_phone && <a href={`tel:${config.admin_contact_phone}`}>{config.admin_contact_phone}</a>}
-            {config.admin_contact_phone && config.admin_contact_email && ' — '}
+            {config.contact_phones.map((p, i) => (
+              <span key={i}>
+                {i > 0 && ' — '}
+                <a href={`tel:${p.phone}`}>
+                  {p.phone}
+                  {p.label ? ` (${p.label})` : ''}
+                </a>
+              </span>
+            ))}
+            {config.contact_phones.length > 0 && config.admin_contact_email && ' — '}
             {config.admin_contact_email && <a href={`mailto:${config.admin_contact_email}`}>{config.admin_contact_email}</a>}
           </p>
         )}

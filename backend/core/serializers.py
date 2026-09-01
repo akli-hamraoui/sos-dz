@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from core.models import (
+    AdminContactPhone,
     AppConfiguration,
     Campaign,
     CollectionPoint,
@@ -404,10 +405,18 @@ class AnonymizeSerializer(serializers.Serializer):
     confirm = serializers.BooleanField(default=False)
 
 
+class AdminContactPhoneSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AdminContactPhone
+        fields = ["phone", "label"]
+
+
 class AppConfigurationPublicSerializer(serializers.ModelSerializer):
+    contact_phones = AdminContactPhoneSerializer(many=True, read_only=True)
+
     class Meta:
         model = AppConfiguration
-        fields = ["mode", "media_moderation_active", "admin_contact_phone", "admin_contact_email"]
+        fields = ["mode", "media_moderation_active", "contact_phones", "admin_contact_email"]
 
 
 class SupportRequestSerializer(serializers.ModelSerializer):

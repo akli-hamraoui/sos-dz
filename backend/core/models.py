@@ -87,9 +87,11 @@ class AppConfiguration(models.Model):
             "diaspora volunteers coordinating from abroad."
         ),
     )
-    admin_contact_phone = models.CharField(
-        max_length=30, blank=True, help_text="Shown site-wide (footer) when set. Leave blank to hide."
-    )
+    # Phone numbers are a related model (AdminContactPhone, up to 5 --
+    # enforced by AdminContactPhoneInline's max_num in admin.py) rather
+    # than a single field, so an admin can list more than one contact
+    # number from the ordinary Django Admin "add another row" UI. Email
+    # stays a single field since only phone needed this.
     admin_contact_email = models.EmailField(
         max_length=254, blank=True, help_text="Shown site-wide (footer) when set. Leave blank to hide."
     )
@@ -112,6 +114,22 @@ class AppConfiguration(models.Model):
 
     def __str__(self):
         return "App configuration"
+
+
+class AdminContactPhone(models.Model):
+    """Up to 5 per AppConfiguration (enforced in Django Admin, see
+    AdminContactPhoneInline) -- each shown as its own link in the site
+    footer."""
+
+    config = models.ForeignKey(AppConfiguration, on_delete=models.CASCADE, related_name="contact_phones")
+    phone = models.CharField(max_length=30)
+    label = models.CharField(max_length=50, blank=True, help_text='Optional, e.g. "WhatsApp" or a wilaya name')
+
+    class Meta:
+        ordering = ["id"]
+
+    def __str__(self):
+        return f"{self.phone} ({self.label})" if self.label else self.phone
 
 
 # ---------------------------------------------------------------------------

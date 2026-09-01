@@ -11,7 +11,7 @@ export function AppProvider({ children }) {
     media_moderation_active: true,
     turnstile_enabled: false,
     turnstile_site_key: '',
-    admin_contact_phone: '',
+    contact_phones: [],
     admin_contact_email: '',
   })
   const [wilayas, setWilayas] = useState([])

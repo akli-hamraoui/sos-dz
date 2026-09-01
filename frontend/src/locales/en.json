@@ -96,7 +96,9 @@
     "atLeastOneMediaHint": "At least one of the three: text, voice message, or video.",
     "atLeastOneMediaRequired": "Please provide at least one of the three: text description, voice message, or video.",
     "mediaPhoto": "Photo",
-    "fallbackTitle": "Need reported"
+    "fallbackTitle": "Need reported",
+    "gpsLocating": "Locating your position…",
+    "gpsError": "Couldn't get your GPS position. Check that location access is allowed for this site."
   },
   "needsList": {
     "filterByWilaya": "Filter by wilaya",
