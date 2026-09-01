@@ -434,7 +434,12 @@ fieldset {
 .toolbar {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  /* flex-end, not center: the wilaya/status <label> stacks its text above
+     the <select> (label { flex-direction: column }), but the search input
+     and the Liste/Carte toggle have no such label text -- centering the
+     row against the label's full text+select height left the toggle and
+     search input floating above the select instead of level with it. */
+  align-items: flex-end;
   margin-block-end: 16px;
   flex-wrap: wrap;
   gap: 10px;
