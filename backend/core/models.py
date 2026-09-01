@@ -78,7 +78,18 @@ class AppConfiguration(models.Model):
     MODE_CHOICES = [(MODE_NORMAL, "Normal"), (MODE_READ_ONLY, "Read-only")]
 
     mode = models.CharField(max_length=20, choices=MODE_CHOICES, default=MODE_NORMAL)
-    media_moderation_active = models.BooleanField(default=True)
+    media_moderation_active = models.BooleanField(
+        default=True,
+        help_text=(
+            "When enabled, uploaded photos/videos are auto-classified by the local NSFWJS "
+            "sidecar (photos) and ffmpeg + NSFWJS (video frames) before being shown publicly; "
+            "if either dependency isn't reachable/installed, the upload is queued as 'pending' "
+            "for manual review here rather than silently published or rejected -- it is never "
+            "fully automatic without both running (see README 'Moderation sidecar'). Turn this "
+            "off to skip moderation entirely and auto-approve every upload immediately, e.g. if "
+            "you don't want to run the sidecar/ffmpeg at all."
+        ),
+    )
     geo_restrict_writes_to_algeria = models.BooleanField(
         default=True,
         help_text=(

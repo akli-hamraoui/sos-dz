@@ -121,7 +121,7 @@ export default function NeedDetail() {
           .then((route) => {
             if (mapRef.current !== map) return // map was torn down/re-rendered since this fetch started
             L.polyline(route.coordinates, { color: '#2f6fed', weight: 4, dashArray: '1,10', lineCap: 'round' }).addTo(map)
-            map.fitBounds(L.latLngBounds([...allPoints, ...route.coordinates]).pad(0.3))
+            map.fitBounds(L.latLngBounds([...allPoints, ...route.coordinates]).pad(0.3), { maxZoom: 15 })
             setRouteInfo({ distanceKm: route.distanceKm, durationMin: route.durationMin })
           })
           .catch(() => setRouteInfo('unavailable'))
@@ -129,8 +129,25 @@ export default function NeedDetail() {
     })
     if (!routedAny) setRouteInfo(null)
 
-    if (allPoints.length) map.fitBounds(L.latLngBounds(allPoints).pad(0.3))
-    else map.setView([28.0, 2.6], 5)
+    if (allPoints.length > 1) {
+      // fitBounds on a zero/near-zero-area box (e.g. a single point, or two
+      // points right next to each other) zooms all the way to maxZoom
+      // (19, the raster tile layer's own cap) since there's no spread to
+      // fit -- capping it here keeps a tight cluster of points readable
+      // instead of showing a handful of solid-color tiles.
+      map.fitBounds(L.latLngBounds(allPoints).pad(0.3), { maxZoom: 15 })
+    } else if (allPoints.length === 1) {
+      // Common case: a need with no exact GPS falls back to its wilaya's
+      // centroid as the only point -- fitBounds() on a single point still
+      // zooms to maxZoom for the same reason as above, which is why this
+      // used to open on a handful of blank/pink tiles requiring several
+      // manual zoom-outs. A real exact position deserves a closer zoom
+      // than an approximate wilaya-centroid fallback.
+      const zoom = need.position_accuracy === 'exact' ? 15 : 11
+      map.setView(allPoints[0], zoom)
+    } else {
+      map.setView([28.0, 2.6], 5)
+    }
   }
 
   const editNeed = async (patch) => {

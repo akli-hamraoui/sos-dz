@@ -23,3 +23,30 @@ def validate_algeria_bounds(latitude, longitude):
             "These coordinates fall outside Algeria and were rejected. "
             "Please use the wilaya + description fields instead."
         )
+
+
+RECOVERY_CODE_MIN_LENGTH = 6
+
+
+def check_recovery_code_available(model, value):
+    """Validates an IdentityListingMixin.recovery_code at creation time: an
+    empty code always passes (it just means "no code set", the name+phone
+    fallback still works), but a chosen code must be long enough to resist
+    guessing and must not already be in use by another listing of the same
+    model -- two different people picking the same short code would
+    otherwise both be able to "recover" whichever one guesses right first.
+    Uniqueness is checked per model (Need vs Pickup) since recovery is
+    always looked up against one specific listing's id, never a bare code
+    alone, so only same-model collisions are meaningful."""
+    value = (value or "").strip()
+    if not value:
+        return value
+    if len(value) < RECOVERY_CODE_MIN_LENGTH:
+        raise serializers.ValidationError(
+            f"The recovery code must be at least {RECOVERY_CODE_MIN_LENGTH} characters long."
+        )
+    if model.objects.filter(recovery_code=value).exists():
+        raise serializers.ValidationError(
+            "This recovery code is already in use. Please choose a different one."
+        )
+    return value

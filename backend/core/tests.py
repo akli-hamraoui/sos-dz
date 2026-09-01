@@ -286,6 +286,61 @@ class PickupAndStatusTests(BaseAPITestCase):
         resp = self.client.post(f"/api/needs/{need_id}/recover-access/", {"code": "wrongPin"}, format="json")
         self.assertEqual(resp.status_code, 403)
 
+    def test_recovery_code_too_short_rejected(self):
+        resp = self.client.post(
+            "/api/needs/",
+            dict(NEED_PAYLOAD, campaign=self.campaign.pk, wilaya=self.wilaya.pk, recovery_code="abc12"),
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("recovery_code", resp.data)
+
+    def test_recovery_code_must_be_unique(self):
+        resp = self.client.post(
+            "/api/needs/",
+            dict(NEED_PAYLOAD, campaign=self.campaign.pk, wilaya=self.wilaya.pk, recovery_code="sharedCode1"),
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 201)
+        resp = self.client.post(
+            "/api/needs/",
+            dict(NEED_PAYLOAD, campaign=self.campaign.pk, wilaya=self.wilaya.pk, recovery_code="sharedCode1"),
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("recovery_code", resp.data)
+
+    def test_blank_recovery_code_never_collides(self):
+        resp1 = self.client.post("/api/needs/", dict(NEED_PAYLOAD, campaign=self.campaign.pk, wilaya=self.wilaya.pk), format="json")
+        resp2 = self.client.post("/api/needs/", dict(NEED_PAYLOAD, campaign=self.campaign.pk, wilaya=self.wilaya.pk), format="json")
+        self.assertEqual(resp1.status_code, 201)
+        self.assertEqual(resp2.status_code, 201)
+
+    def test_pickup_recovery_code_too_short_rejected(self):
+        resp = self.client.post("/api/pickups/", self._pickup_payload(recovery_code="abc12"), format="json")
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("recovery_code", resp.data)
+
+    def test_pickup_recovery_code_must_be_unique(self):
+        resp1 = self.client.post("/api/pickups/", self._pickup_payload(recovery_code="pickupCode1"), format="json")
+        self.assertEqual(resp1.status_code, 201)
+        resp2 = self.client.post("/api/pickups/", self._pickup_payload(recovery_code="pickupCode1"), format="json")
+        self.assertEqual(resp2.status_code, 400)
+        self.assertIn("recovery_code", resp2.data)
+
+    def test_need_and_pickup_recovery_codes_do_not_collide_across_models(self):
+        # Uniqueness is enforced within the same model (Need vs Pickup), not
+        # globally, since recovery is always looked up against one specific
+        # listing's id, never a bare code alone -- see check_recovery_code_available.
+        need_resp = self.client.post(
+            "/api/needs/",
+            dict(NEED_PAYLOAD, campaign=self.campaign.pk, wilaya=self.wilaya.pk, recovery_code="crossModel1"),
+            format="json",
+        )
+        self.assertEqual(need_resp.status_code, 201)
+        pickup_resp = self.client.post("/api/pickups/", self._pickup_payload(recovery_code="crossModel1"), format="json")
+        self.assertEqual(pickup_resp.status_code, 201)
+
     def test_to_verify_after_24h_without_update(self):
         r1 = self.client.post("/api/pickups/", self._pickup_payload(), format="json")
         pickup = Pickup.objects.get(pk=r1.data["id"])

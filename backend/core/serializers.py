@@ -19,7 +19,7 @@ from core.models import (
     Wilaya,
 )
 from core.media_validation import validate_video_duration
-from core.validators import validate_algeria_bounds
+from core.validators import check_recovery_code_available, validate_algeria_bounds
 
 
 class ModeratedPhotoMixin:
@@ -221,6 +221,9 @@ class PickupCreateSerializer(serializers.ModelSerializer):
             )
         return need
 
+    def validate_recovery_code(self, value):
+        return check_recovery_code_available(Pickup, value)
+
 
 class NeedPublicSerializer(serializers.ModelSerializer):
     pickups = PickupPublicSerializer(many=True, read_only=True)
@@ -353,6 +356,9 @@ class NeedCreateSerializer(serializers.ModelSerializer):
             "video_file",
             "recovery_code",
         ]
+
+    def validate_recovery_code(self, value):
+        return check_recovery_code_available(Need, value)
 
     def validate(self, attrs):
         campaign = attrs["campaign"]

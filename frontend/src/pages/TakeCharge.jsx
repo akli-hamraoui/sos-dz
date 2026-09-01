@@ -82,7 +82,7 @@ export default function TakeCharge() {
         </fieldset>
         <label>
           {t('createNeed.recoveryCode')}{' '}
-          <input type="text" value={form.recovery_code} onChange={set('recovery_code')} placeholder={t('createNeed.recoveryCodePlaceholder')} />
+          <input type="text" value={form.recovery_code} onChange={set('recovery_code')} placeholder={t('createNeed.recoveryCodePlaceholder')} minLength={6} />
           <span className="hint">{t('createNeed.recoveryCodeHint')}</span>
         </label>
         {config.turnstile_enabled && <div className="cf-turnstile" data-sitekey={config.turnstile_site_key} data-callback="onTurnstileToken" />}
