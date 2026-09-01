@@ -21,7 +21,8 @@
     "noExactGpsPosition": "sans position GPS exacte",
     "adminContact": "Contact admin",
     "searchPlaceholder": "Rechercher (nom, description...)",
-    "adminModeBadge": "Mode admin"
+    "adminModeBadge": "Mode admin",
+    "adminLogout": "se déconnecter"
   },
   "readOnly": {
     "banner": "L'application est actuellement en mode lecture seule. Les données existantes restent consultables."

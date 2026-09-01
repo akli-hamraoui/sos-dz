@@ -107,6 +107,10 @@ export default function CreateCollectionPoint() {
             as="textarea"
             value={form.location_description}
             onChange={(v) => setForm((f) => ({ ...f, location_description: v }))}
+            onSelectPlace={({ lat, lon }) => {
+              setGpsStatus(null)
+              setForm((f) => ({ ...f, latitude: lat, longitude: lon }))
+            }}
             required
           />
         </label>

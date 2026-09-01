@@ -21,7 +21,8 @@
     "noExactGpsPosition": "بدون موقع GPS دقيق",
     "adminContact": "التواصل مع الإدارة",
     "searchPlaceholder": "بحث (اسم، وصف...)",
-    "adminModeBadge": "وضع الإدارة"
+    "adminModeBadge": "وضع الإدارة",
+    "adminLogout": "تسجيل الخروج"
   },
   "readOnly": {
     "banner": "التطبيق حالياً في وضع القراءة فقط. تبقى البيانات الموجودة قابلة للعرض."

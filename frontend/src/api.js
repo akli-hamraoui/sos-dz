@@ -19,7 +19,7 @@ export function saveJSON(key, value) {
 // anonymous visitor there is no cookie, so this is a no-op -- but when it
 // is present it must be sent back or Django's CSRF middleware rejects the
 // request even though CORS/origin are otherwise fine.
-function getCsrfToken() {
+export function getCsrfToken() {
   const match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/)
   return match ? decodeURIComponent(match[1]) : null
 }

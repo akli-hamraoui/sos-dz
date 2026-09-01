@@ -49,12 +49,19 @@ export default defineConfig({
     proxy: {
       '/api': 'http://127.0.0.1:8000',
       '/media': 'http://127.0.0.1:8000',
+      // Not part of the deployed app's own routing (the built SPA never
+      // links here except the admin-mode logout link) -- proxied purely so
+      // that link works from the Vite dev server too, same as /api.
+      '/admin': 'http://127.0.0.1:8000',
+      '/static': 'http://127.0.0.1:8000',
     },
   },
   preview: {
     proxy: {
       '/api': 'http://127.0.0.1:8000',
       '/media': 'http://127.0.0.1:8000',
+      '/admin': 'http://127.0.0.1:8000',
+      '/static': 'http://127.0.0.1:8000',
     },
   },
 })

@@ -3,6 +3,7 @@ import { Routes, Route, Link, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useApp } from './context/AppContext'
 import { setLanguage, getStoredLanguage } from './i18n'
+import { getCsrfToken } from './api'
 import Home from './pages/Home'
 import CreateNeed from './pages/CreateNeed'
 import NeedsList from './pages/NeedsList'
@@ -33,6 +34,32 @@ function LanguageSwitcher() {
       </select>
     </span>
   )
+}
+
+// Maps a route to the translation key for a small, discreet page label
+// shown above its content -- most useful on pages with no heading of
+// their own (NeedsList, Deliveries). Detail pages that already show their
+// own contextual title (a need's own title, a collection point's name)
+// are deliberately left out, to avoid a redundant second label.
+const PAGE_TITLE_KEYS = {
+  '/': 'nav.home',
+  '/needs': 'nav.needs',
+  '/create': 'nav.iNeedHelp',
+  '/collection-points': 'nav.collectionPoints',
+  '/collection-points/create': 'collectionPoints.createTitle',
+  '/deliveries': 'nav.deliveries',
+  '/support': 'support.title',
+  '/report-bug': 'reportBug.title',
+  '/about': 'about.title',
+  '/recover': 'recover.title',
+}
+
+function PageTitle() {
+  const { t } = useTranslation()
+  const location = useLocation()
+  const key = PAGE_TITLE_KEYS[location.pathname]
+  if (!key) return null
+  return <p className="page-title">{t(key)}</p>
 }
 
 function BottomNav() {
@@ -96,7 +123,21 @@ export default function App() {
         <Link to="/" className="brand">
           {t('common.brand')}
         </Link>
-        {config.is_admin && <span className="admin-badge">{t('common.adminModeBadge')}</span>}
+        {config.is_admin && (
+          <span className="admin-badge">
+            {t('common.adminModeBadge')}
+            {' · '}
+            {/* Django 5's admin logout only accepts POST (a plain GET link
+                gets a 405), so this needs a real form + CSRF token rather
+                than a plain <a href>. */}
+            <form method="post" action="/admin/logout/?next=/" className="admin-badge-logout-form">
+              <input type="hidden" name="csrfmiddlewaretoken" value={getCsrfToken() || ''} />
+              <button type="submit" className="link admin-badge-logout">
+                {t('common.adminLogout')}
+              </button>
+            </form>
+          </span>
+        )}
         <nav className="topbar-nav-desktop">
           <Link to="/needs">{t('nav.needs')}</Link>
           <Link to="/collection-points">{t('nav.collectionPoints')}</Link>
@@ -127,6 +168,7 @@ export default function App() {
       )}
 
       <main>
+        <PageTitle />
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/create" element={<CreateNeed />} />

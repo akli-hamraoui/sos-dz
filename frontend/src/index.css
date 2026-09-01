@@ -105,6 +105,24 @@ a {
   padding: 3px 10px;
   white-space: nowrap;
 }
+.admin-badge-logout-form {
+  display: inline;
+}
+.admin-badge-logout {
+  color: inherit;
+  text-decoration: underline;
+  text-transform: none;
+  font-weight: 500;
+  letter-spacing: normal;
+  font-size: inherit;
+  font-family: inherit;
+}
+.page-title {
+  font-size: 12px;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+  margin-block: 0 10px;
+}
 .brand {
   font-weight: 700;
   font-size: clamp(15px, 4.5vw, 20px);
@@ -606,7 +624,6 @@ fieldset {
   color: var(--danger);
 }
 
-.cp-marker-icon,
 .dest-marker-icon {
   font-size: 16px;
   line-height: 16px;
@@ -619,7 +636,8 @@ fieldset {
   vertical-align: -3px;
   flex-shrink: 0;
 }
-.pickup-marker-pin {
+.pickup-marker-pin,
+.cp-marker-pin {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -727,10 +745,16 @@ fieldset {
   color: #555;
 }
 .bottom-nav a.active {
-  color: var(--accent);
+  /* Same solid pill treatment as the Liste/Carte toggle's .active state
+     (.view-toggle button.active) -- a clear "this is the one you clicked"
+     background, not just a color change on already-small 11px text. */
+  color: #fff;
+  background: var(--accent);
+  border-radius: 14px;
+  padding: 4px 12px;
 }
 .bottom-nav a.active .icon {
-  color: var(--accent);
+  color: #fff;
 }
 .bottom-nav .fab {
   background: var(--accent);

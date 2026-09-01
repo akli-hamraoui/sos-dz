@@ -256,6 +256,10 @@ export default function CreateNeed() {
           <PlaceAutocomplete
             value={form.commune}
             onChange={(v) => setForm((f) => ({ ...f, commune: v }))}
+            onSelectPlace={({ lat, lon }) => {
+              setGpsStatus(null)
+              setForm((f) => ({ ...f, latitude: lat, longitude: lon }))
+            }}
             placeholder={t('createNeed.placePlaceholder')}
           />
         </label>

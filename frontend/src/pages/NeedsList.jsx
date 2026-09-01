@@ -165,14 +165,26 @@ export default function NeedsList() {
         })
 
         const cpsWithPos = cpPins.filter((p) => p.display_latitude != null && p.display_longitude != null)
+        const boxIconSvg =
+          '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ' +
+          'stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M3.5 7.5 12 3l8.5 4.5v9L12 21l-8.5-4.5v-9Z"/>' +
+          '<path d="M3.5 7.5 12 12l8.5-4.5"/><path d="M12 12v9"/></svg>'
         cpsWithPos.forEach((p) => {
-          const icon = L.divIcon({ className: 'cp-marker-icon', html: '■', iconSize: [16, 16] })
+          // A box on a white pin, like a relay/drop-off point -- the same
+          // package icon already used for collection points everywhere
+          // else (legend, list cards, popups here), instead of a plain
+          // black square glyph.
+          const icon = L.divIcon({
+            className: 'cp-marker-icon',
+            html:
+              '<span class="cp-marker-pin"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="2" ' +
+              'stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 7.5 12 3l8.5 4.5v9L12 21l-8.5-4.5v-9Z"/>' +
+              '<path d="M3.5 7.5 12 12l8.5-4.5"/><path d="M12 12v9"/></svg></span>',
+            iconSize: [30, 30],
+            iconAnchor: [15, 15],
+          })
           const marker = L.marker([p.display_latitude, p.display_longitude], { icon }).addTo(map)
           const gpsNote = p.has_exact_position ? '' : `<br><em>${t('common.noExactGpsPosition')}</em>`
-          const boxIconSvg =
-            '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ' +
-            'stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M3.5 7.5 12 3l8.5 4.5v9L12 21l-8.5-4.5v-9Z"/>' +
-            '<path d="M3.5 7.5 12 12l8.5-4.5"/><path d="M12 12v9"/></svg>'
           marker.bindPopup(
             `<strong>${boxIconSvg} ${p.point_name}</strong><br>${p.contact_name}${p.organization ? '<br>' + p.organization : ''}` +
               `${p.hours ? '<br>' + p.hours : ''}<br>${p.wilaya_name}${gpsNote}<br><a href="/collection-points/${p.id}">${t('common.open')}</a>`

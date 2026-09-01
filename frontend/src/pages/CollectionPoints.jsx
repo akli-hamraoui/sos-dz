@@ -129,7 +129,18 @@ export default function CollectionPoints() {
 
         const cpsWithPos = cpPins.filter((p) => p.display_latitude != null && p.display_longitude != null)
         cpsWithPos.forEach((p) => {
-          const icon = L.divIcon({ className: 'cp-marker-icon', html: '■', iconSize: [16, 16] })
+          // See NeedsList.jsx: a box-on-a-pin marker (same package icon
+          // used for collection points everywhere else) instead of a
+          // plain black square glyph.
+          const icon = L.divIcon({
+            className: 'cp-marker-icon',
+            html:
+              '<span class="cp-marker-pin"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="2" ' +
+              'stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 7.5 12 3l8.5 4.5v9L12 21l-8.5-4.5v-9Z"/>' +
+              '<path d="M3.5 7.5 12 12l8.5-4.5"/><path d="M12 12v9"/></svg></span>',
+            iconSize: [30, 30],
+            iconAnchor: [15, 15],
+          })
           const marker = L.marker([p.display_latitude, p.display_longitude], { icon }).addTo(map)
           const gpsNote = p.has_exact_position ? '' : `<br><em>${t('common.noExactGpsPosition')}</em>`
           marker.bindPopup(
