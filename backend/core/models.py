@@ -197,6 +197,11 @@ class Need(IdentityListingMixin, models.Model):
     disaster_type = models.ForeignKey(DisasterType, null=True, blank=True, on_delete=models.SET_NULL)
 
     title = models.CharField(max_length=200)
+    # Deliberately free text ("about 50 families", "3 blankets and some water"),
+    # not a number: real-world need quantities are often informal/uncertain
+    # at creation time, and forcing a strict count would misrepresent that.
+    # This means it cannot be compared numerically against covered_quantity
+    # below -- see that field's help_text.
     estimated_quantity = models.CharField(max_length=200, blank=True)
     urgency = models.CharField(max_length=20, choices=URGENCY_CHOICES, default=URGENCY_MEDIUM)
 
@@ -231,7 +236,18 @@ class Need(IdentityListingMixin, models.Model):
     is_cancelled = models.BooleanField(default=False)
     cancellation_reason = models.CharField(max_length=500, blank=True)
 
-    covered_quantity = models.PositiveIntegerField(default=0, help_text="Count of active (en_route/delivered) pickups, an approximate visual indicator only.")
+    # NOT a coverage ratio against estimated_quantity above -- that field is
+    # free text (e.g. "about 50 families") and has no reliable numeric form,
+    # so no "X of Y covered" comparison is computable or attempted anywhere
+    # in this codebase. This is purely an internal counter (how many active
+    # pickups this Need has) used only to derive overall_status's 3-state
+    # label (open / partially_covered / covered, see recompute_status
+    # below) -- it is not itself surfaced to end users as a number or
+    # progress bar. If a real numeric coverage feature is wanted later, it
+    # needs estimated_quantity to become a real numeric field first (a
+    # product decision, since it would mean rejecting/reformatting informal
+    # quantity descriptions at creation time).
+    covered_quantity = models.PositiveIntegerField(default=0, help_text="Count of active (en_route/delivered) pickups. Internal counter for overall_status only -- not a ratio against estimated_quantity.")
     overall_status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_OPEN)
 
     location_viewer_share_token = models.CharField(max_length=32, unique=True, default=generate_token, editable=False)

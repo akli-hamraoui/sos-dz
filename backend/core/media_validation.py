@@ -1,16 +1,16 @@
 """Server-side media validation for Wave 2: max 3 photos per listing, and a
-best-effort video duration cap. Client-side compression (photos resized to
-~1280px/JPEG ~70%, video auto-stopped at 20s) is the primary control, per
-spec -- this is the server-side backstop.
+server-enforced video duration cap. Client-side compression (photos resized
+to ~1280px/JPEG ~70%, video auto-stopped at 20s) is the primary control, per
+spec -- this is the server-side backstop, and it must actually hold: a
+client can always send a longer video than its own recorder would produce.
 
-Video duration is checked "if duration metadata is available" (spec's own
-wording): it needs `ffprobe` on PATH, which isn't installed in this sandbox
-and isn't guaranteed on every deployment target either. When it's missing,
-the check is skipped rather than blocking uploads -- consistent with how
-this project treats every other optional external dependency (MaxMind R2,
-Turnstile): degrade gracefully, don't fail closed on an infra gap. Document
-installing ffmpeg on the IONOS VPS in DEPLOYMENT.md if stricter enforcement
-is wanted in production.
+Video duration requires `ffprobe` on PATH. Unlike the other optional
+external dependencies (MaxMind, R2, Turnstile), duration is not a
+graceful-degrade case: if it can't be determined, the video is rejected
+rather than silently accepted, since accepting it would mean the 20s cap
+is unenforced server-side. Install ffmpeg on the deployment target (see
+DEPLOYMENT.md) so video uploads work; without it, no video will be
+accepted.
 """
 
 import json
@@ -63,7 +63,12 @@ def get_video_duration_seconds(django_file):
 
 def validate_video_duration(django_file):
     duration = get_video_duration_seconds(django_file)
-    if duration is not None and duration > MAX_VIDEO_SECONDS:
+    if duration is None:
+        raise serializers.ValidationError(
+            "Video duration could not be verified server-side, so it can't be "
+            "accepted. Please try again, or contact support if this persists."
+        )
+    if duration > MAX_VIDEO_SECONDS:
         raise serializers.ValidationError(
             f"Video is {duration:.0f}s long, the maximum is {MAX_VIDEO_SECONDS}s."
         )

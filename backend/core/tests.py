@@ -804,6 +804,24 @@ class MediaUploadTests(BaseAPITestCase):
             )
         self.assertEqual(resp.status_code, 400)
 
+    def test_video_rejected_when_duration_undeterminable(self):
+        """Server-side duration check must fail closed: if it can't verify
+        the duration (no ffprobe on PATH -- true in this sandbox, so this
+        exercises the real code path, no mocking needed), the video is
+        rejected outright rather than silently accepted."""
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from core.media_validation import ffprobe_available
+
+        self.assertFalse(ffprobe_available(), "this test assumes ffprobe is not installed")
+        video = SimpleUploadedFile("clip.webm", b"fake-video-bytes", content_type="video/webm")
+        resp = self.client.post(
+            "/api/needs/",
+            self._multipart_payload(media_type="video", media_file=video),
+            format="multipart",
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(Need.objects.count(), 0)
+
     def test_delivery_photos_on_deliver(self):
         need_resp = self.client.post("/api/needs/", self._multipart_payload(), format="json")
         pickup_resp = self.client.post(
@@ -1306,3 +1324,57 @@ class CollectionPointRateLimitTest(BaseAPITestCase):
             "/api/collection-points/", dict(COLLECTION_POINT_PAYLOAD, wilaya=wilaya.pk), format="json"
         )
         self.assertEqual(resp.status_code, 429)
+
+
+class VideoDurationValidationTests(TestCase):
+    """Unit-level coverage of core/media_validation.py's fail-closed
+    behavior, requested in PR review: the 20s video cap must hold
+    server-side even when ffprobe is unavailable or errors, not just when
+    it successfully reports an over-long duration."""
+
+    def test_rejects_when_ffprobe_not_on_path(self):
+        from unittest.mock import patch
+        from rest_framework import serializers as drf_serializers
+        from core.media_validation import validate_video_duration
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        video = SimpleUploadedFile("clip.webm", b"fake-video-bytes", content_type="video/webm")
+        with patch("core.media_validation.ffprobe_available", return_value=False):
+            with self.assertRaises(drf_serializers.ValidationError):
+                validate_video_duration(video)
+
+    def test_rejects_when_ffprobe_available_but_errors(self):
+        """Distinct from ffprobe being missing entirely: here it's on PATH
+        but the subprocess call itself fails (corrupt file, timeout,
+        unexpected output) -- must still fail closed, not accept."""
+        from unittest.mock import patch
+        from rest_framework import serializers as drf_serializers
+        from core.media_validation import validate_video_duration
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        video = SimpleUploadedFile("clip.webm", b"fake-video-bytes", content_type="video/webm")
+        with patch("core.media_validation.ffprobe_available", return_value=True), \
+                patch("core.media_validation.subprocess.run", side_effect=OSError("boom")):
+            with self.assertRaises(drf_serializers.ValidationError):
+                validate_video_duration(video)
+
+    def test_rejects_when_duration_exceeds_cap(self):
+        from unittest.mock import patch
+        from rest_framework import serializers as drf_serializers
+        from core.media_validation import validate_video_duration
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        video = SimpleUploadedFile("clip.webm", b"fake-video-bytes", content_type="video/webm")
+        with patch("core.media_validation.get_video_duration_seconds", return_value=35.0):
+            with self.assertRaises(drf_serializers.ValidationError):
+                validate_video_duration(video)
+
+    def test_accepts_when_duration_within_cap(self):
+        from core.media_validation import validate_video_duration
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        video = SimpleUploadedFile("clip.webm", b"fake-video-bytes", content_type="video/webm")
+        from unittest.mock import patch
+
+        with patch("core.media_validation.get_video_duration_seconds", return_value=15.0):
+            validate_video_duration(video)  # should not raise
