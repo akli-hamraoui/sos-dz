@@ -407,14 +407,21 @@ class AnonymizeSerializer(serializers.Serializer):
 class AppConfigurationPublicSerializer(serializers.ModelSerializer):
     class Meta:
         model = AppConfiguration
-        fields = ["mode", "media_moderation_active"]
+        fields = ["mode", "media_moderation_active", "admin_contact_phone", "admin_contact_email"]
 
 
 class SupportRequestSerializer(serializers.ModelSerializer):
     class Meta:
         model = SupportRequest
-        fields = ["id", "requester_phone", "related_listing_description", "message", "created_at"]
+        fields = ["id", "category", "requester_phone", "requester_email", "related_listing_description", "message", "created_at"]
         read_only_fields = ["id", "created_at"]
+
+    def validate(self, attrs):
+        if not attrs.get("requester_phone") and not attrs.get("requester_email"):
+            raise serializers.ValidationError(
+                "Please provide at least one of: your phone number or your email, so the admin can follow up."
+            )
+        return attrs
 
 
 # ---------------------------------------------------------------------------

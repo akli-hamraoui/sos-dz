@@ -5,7 +5,14 @@ import { setupAutoSync } from '../offlineQueue'
 const AppContext = createContext(null)
 
 export function AppProvider({ children }) {
-  const [config, setConfig] = useState({ mode: 'normal', media_moderation_active: true, turnstile_enabled: false, turnstile_site_key: '' })
+  const [config, setConfig] = useState({
+    mode: 'normal',
+    media_moderation_active: true,
+    turnstile_enabled: false,
+    turnstile_site_key: '',
+    admin_contact_phone: '',
+    admin_contact_email: '',
+  })
   const [wilayas, setWilayas] = useState([])
   const [campaigns, setCampaigns] = useState([])
   const [needTokens, setNeedTokens] = useState(() => loadJSON('rassemble_need_tokens', {}))

@@ -38,7 +38,9 @@
     "forgotDetails": "Forgot my details?",
     "support": "Support",
     "deliveries": "Deliveries",
-    "menu": "Menu"
+    "menu": "Menu",
+    "reportBug": "Report a bug",
+    "about": "About us"
   },
   "home": {
     "tagline": "Wildfire relief coordination for Algeria.",
@@ -167,12 +169,15 @@
   },
   "support": {
     "title": "Forgot my details / contact admin",
-    "description": "Two ways to reach us: fill this form, or contact the admin directly by phone/WhatsApp (see footer).",
+    "description": "Two ways to reach us: fill this form, or contact the admin directly (details in the footer, if available).",
     "yourPhone": "Your phone",
     "relatedListing": "Related listing (optional)",
     "message": "Message",
     "send": "Send",
-    "thanks": "Thanks -- the admin will follow up by phone."
+    "thanks": "Thanks -- the admin will follow up with you.",
+    "yourEmail": "Your email",
+    "contactMethodRequired": "Please provide at least one way for us to reach you (phone or email).",
+    "reportBugLink": "Found a technical bug? Report it here."
   },
   "collectionPoints": {
     "title": "Collection points",
@@ -205,5 +210,20 @@
     "bringing": "Bringing",
     "responder": "Responder",
     "since": "since"
+  },
+  "reportBug": {
+    "title": "Report a bug",
+    "description": "Describe the problem you ran into on the site (which page, which device, what happened). Leave a phone number or email if you'd like an update.",
+    "message": "Bug description",
+    "messagePlaceholder": "e.g. the map stays blank on the \"Needs\" page on my Android phone",
+    "thanks": "Thanks, your report has been sent to the team.",
+    "contactAdminLink": "Need help instead? Contact the admin directly."
+  },
+  "about": {
+    "title": "About us",
+    "p1": "SOS DZ is a community-run, volunteer, open-source platform built to coordinate mutual aid around wildfires in Algeria: report a need, offer help, and track deliveries in real time.",
+    "p2": "The project isn't affiliated with any administration or official organization -- it's a free, ad-free citizen tool designed to stay usable even on a weak connection.",
+    "p3": "The source code is public; anyone can review how it works or contribute.",
+    "contactLink": "A question or a suggestion? Contact the admin."
   }
 }

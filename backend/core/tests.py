@@ -1242,6 +1242,50 @@ class DuplicateDetectionTests(BaseAPITestCase):
         self.assertTrue(dup_need.is_cancelled)
 
 
+class SupportRequestTests(BaseAPITestCase):
+    def test_phone_alone_is_enough(self):
+        resp = self.client.post("/api/support-requests/", {"requester_phone": "0555000001", "message": "help"}, format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+
+    def test_email_alone_is_enough(self):
+        resp = self.client.post("/api/support-requests/", {"requester_email": "a@example.com", "message": "help"}, format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+
+    def test_neither_phone_nor_email_rejected(self):
+        resp = self.client.post("/api/support-requests/", {"message": "help"}, format="json")
+        self.assertEqual(resp.status_code, 400)
+
+    def test_bug_report_category_stored(self):
+        resp = self.client.post(
+            "/api/support-requests/",
+            {"category": "bug", "requester_email": "a@example.com", "message": "the map is blank on Firefox"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 201, resp.content)
+        self.assertEqual(resp.data["category"], "bug")
+
+    def test_category_defaults_to_general(self):
+        resp = self.client.post("/api/support-requests/", {"requester_phone": "0555000001", "message": "help"}, format="json")
+        self.assertEqual(resp.data["category"], "general")
+
+
+class AppConfigurationEndpointTests(BaseAPITestCase):
+    def test_admin_contact_fields_exposed_when_set(self):
+        config = AppConfiguration.get_solo()
+        config.admin_contact_phone = "0555999999"
+        config.admin_contact_email = "admin@example.com"
+        config.save()
+        resp = self.client.get("/api/config/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data["admin_contact_phone"], "0555999999")
+        self.assertEqual(resp.data["admin_contact_email"], "admin@example.com")
+
+    def test_admin_contact_fields_blank_by_default(self):
+        resp = self.client.get("/api/config/")
+        self.assertEqual(resp.data["admin_contact_phone"], "")
+        self.assertEqual(resp.data["admin_contact_email"], "")
+
+
 class ReverseGeocodeTests(BaseAPITestCase):
     def test_nearest_wilaya_returned_for_coordinates(self):
         # Algiers coordinates -- should resolve to wilaya "Alger" (16).

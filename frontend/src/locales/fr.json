@@ -38,7 +38,9 @@
     "forgotDetails": "Coordonnées oubliées ?",
     "support": "Aide",
     "deliveries": "Livraisons",
-    "menu": "Menu"
+    "menu": "Menu",
+    "reportBug": "Signaler un bug",
+    "about": "Qui sommes-nous"
   },
   "home": {
     "tagline": "Coordination de l'aide pour les feux en Algérie.",
@@ -167,12 +169,15 @@
   },
   "support": {
     "title": "Coordonnées oubliées / contacter l'admin",
-    "description": "Deux façons de nous joindre : remplissez ce formulaire, ou contactez l'admin directement par téléphone/WhatsApp (voir le pied de page).",
+    "description": "Deux façons de nous joindre : remplissez ce formulaire, ou contactez l'admin directement (coordonnées en pied de page, si disponibles).",
     "yourPhone": "Votre téléphone",
     "relatedListing": "Annonce concernée (optionnel)",
     "message": "Message",
     "send": "Envoyer",
-    "thanks": "Merci -- l'admin vous recontactera par téléphone."
+    "thanks": "Merci -- l'admin vous recontactera.",
+    "yourEmail": "Votre email",
+    "contactMethodRequired": "Merci d'indiquer au moins un moyen de vous recontacter (téléphone ou email).",
+    "reportBugLink": "Vous avez trouvé un bug technique ? Signalez-le ici."
   },
   "collectionPoints": {
     "title": "Points de collecte",
@@ -205,5 +210,20 @@
     "bringing": "Apporte",
     "responder": "Livreur/livreuse",
     "since": "depuis"
+  },
+  "reportBug": {
+    "title": "Signaler un bug",
+    "description": "Décrivez le problème rencontré sur le site (page, appareil, ce qui s'est passé). Laissez un téléphone ou un email si vous voulez être tenu au courant.",
+    "message": "Description du bug",
+    "messagePlaceholder": "ex. la carte reste vide sur la page \"Besoins\" depuis mon téléphone Android",
+    "thanks": "Merci, le signalement a bien été transmis à l'équipe.",
+    "contactAdminLink": "Besoin d'aide plutôt ? Contactez l'admin directement."
+  },
+  "about": {
+    "title": "Qui sommes-nous",
+    "p1": "SOS DZ est une plateforme communautaire, bénévole et open-source, créée pour coordonner l'entraide autour des feux de forêt en Algérie : signaler un besoin, proposer de l'aide, et suivre les livraisons en temps réel.",
+    "p2": "Le projet n'est affilié à aucune administration ni organisation officielle -- c'est un outil citoyen, gratuit et sans publicité, pensé pour rester simple à utiliser même en connexion faible.",
+    "p3": "Le code source est public ; toute personne peut vérifier son fonctionnement ou contribuer.",
+    "contactLink": "Une question, une suggestion ? Contactez l'admin."
   }
 }

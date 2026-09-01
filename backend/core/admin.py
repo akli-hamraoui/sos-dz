@@ -151,8 +151,8 @@ class AppConfigurationAdmin(admin.ModelAdmin):
 
 @admin.register(SupportRequest)
 class SupportRequestAdmin(admin.ModelAdmin):
-    list_display = ["requester_phone", "status", "created_at"]
-    list_filter = ["status"]
+    list_display = ["category", "requester_phone", "requester_email", "status", "created_at"]
+    list_filter = ["category", "status"]
 
 
 @admin.register(AuditLog)

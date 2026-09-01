@@ -629,8 +629,12 @@ fieldset {
 footer {
   text-align: center;
   padding: 20px;
+  padding-block-end: 90px; /* clear the fixed bottom nav, like main */
   color: #777;
   font-size: 13px;
+}
+.footer-links a {
+  text-decoration: underline;
 }
 
 /* --- RTL: Arabic --- */

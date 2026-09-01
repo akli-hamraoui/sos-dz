@@ -10,6 +10,8 @@ import NeedDetail from './pages/NeedDetail'
 import TakeCharge from './pages/TakeCharge'
 import Recover from './pages/Recover'
 import Support from './pages/Support'
+import ReportBug from './pages/ReportBug'
+import About from './pages/About'
 import CollectionPoints from './pages/CollectionPoints'
 import CreateCollectionPoint from './pages/CreateCollectionPoint'
 import CollectionPointDetail from './pages/CollectionPointDetail'
@@ -132,6 +134,8 @@ export default function App() {
           <Route path="/needs/:id/take-charge" element={<TakeCharge />} />
           <Route path="/recover" element={<Recover />} />
           <Route path="/support" element={<Support />} />
+          <Route path="/report-bug" element={<ReportBug />} />
+          <Route path="/about" element={<About />} />
           <Route path="/collection-points" element={<CollectionPoints />} />
           <Route path="/collection-points/create" element={<CreateCollectionPoint />} />
           <Route path="/collection-points/:id" element={<CollectionPointDetail />} />
@@ -140,8 +144,20 @@ export default function App() {
       </main>
 
       <footer>
-        <p>
-          {t('common.adminContact')}: <a href="tel:+213000000000">+213 0 00 00 00 00</a> (phone/WhatsApp)
+        {(config.admin_contact_phone || config.admin_contact_email) && (
+          <p>
+            {t('common.adminContact')}:{' '}
+            {config.admin_contact_phone && <a href={`tel:${config.admin_contact_phone}`}>{config.admin_contact_phone}</a>}
+            {config.admin_contact_phone && config.admin_contact_email && ' — '}
+            {config.admin_contact_email && <a href={`mailto:${config.admin_contact_email}`}>{config.admin_contact_email}</a>}
+          </p>
+        )}
+        <p className="footer-links">
+          <Link to="/support">{t('nav.forgotDetails')}</Link>
+          {' · '}
+          <Link to="/report-bug">{t('nav.reportBug')}</Link>
+          {' · '}
+          <Link to="/about">{t('nav.about')}</Link>
         </p>
       </footer>
 

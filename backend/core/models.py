@@ -87,6 +87,12 @@ class AppConfiguration(models.Model):
             "diaspora volunteers coordinating from abroad."
         ),
     )
+    admin_contact_phone = models.CharField(
+        max_length=30, blank=True, help_text="Shown site-wide (footer) when set. Leave blank to hide."
+    )
+    admin_contact_email = models.EmailField(
+        max_length=254, blank=True, help_text="Shown site-wide (footer) when set. Leave blank to hide."
+    )
 
     class Meta:
         verbose_name = "App configuration"
@@ -480,7 +486,15 @@ class SupportRequest(models.Model):
     STATUS_PENDING, STATUS_PROCESSED = "pending", "processed"
     STATUS_CHOICES = [(STATUS_PENDING, "Pending"), (STATUS_PROCESSED, "Processed")]
 
-    requester_phone = models.CharField(max_length=30)
+    CATEGORY_GENERAL, CATEGORY_BUG = "general", "bug"
+    CATEGORY_CHOICES = [(CATEGORY_GENERAL, "General / contact"), (CATEGORY_BUG, "Bug report")]
+
+    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default=CATEGORY_GENERAL)
+    # Individually optional -- at least one is enforced in
+    # SupportRequestSerializer.validate() so the admin always has some way
+    # to follow up, without forcing a specific one of the two.
+    requester_phone = models.CharField(max_length=30, blank=True)
+    requester_email = models.EmailField(max_length=254, blank=True)
     related_listing_description = models.CharField(max_length=200, blank=True)
     message = models.TextField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
