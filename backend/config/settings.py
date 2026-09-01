@@ -18,7 +18,16 @@ load_dotenv(REPO_ROOT / ".env")
 
 
 def env(name, default=None, required=False):
-    value = os.environ.get(name, default)
+    # An env var present in .env but left blank (e.g. "DB_NAME=") still sets
+    # it in os.environ as an empty string, not absent -- os.environ.get's
+    # own default only kicks in when the key doesn't exist at all, so a
+    # blank line would otherwise silently produce "" instead of falling
+    # back to `default` (this broke local SQLite setup: DB_NAME shipped
+    # blank in .env.example, intending the sqlite path default below, but
+    # got "" instead, and Django's sqlite backend rejects an empty NAME).
+    value = os.environ.get(name)
+    if value is None or value == "":
+        value = default
     if required and (value is None or value == ""):
         raise RuntimeError(
             f"Required environment variable '{name}' is not set. "
