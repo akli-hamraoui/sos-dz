@@ -5,7 +5,7 @@ import { api } from '../api'
 import { maskPhone, formatDate } from '../utils'
 
 function CommentThread({ comments, targetId, onChanged }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [texts, setTexts] = useState({})
   const [author, setAuthor] = useState(() => {
     try {
@@ -59,7 +59,7 @@ function CommentThread({ comments, targetId, onChanged }) {
           <div className="comment">
             <p>{c.text}</p>
             <p className="comment-meta">
-              {c.author_name} — {formatDate(c.created_at)} ·{' '}
+              {c.author_name} — {formatDate(c.created_at, i18n.language)} ·{' '}
               <button className="link" onClick={() => confirmComment(c.id)}>
                 {t('comments.confirmCount', { count: c.confirmation_count })}
               </button>{' '}
@@ -76,7 +76,7 @@ function CommentThread({ comments, targetId, onChanged }) {
             <div className="comment reply" key={r.id}>
               <p>{r.text}</p>
               <p className="comment-meta">
-                {r.author_name} — {formatDate(r.created_at)} ·{' '}
+                {r.author_name} — {formatDate(r.created_at, i18n.language)} ·{' '}
                 <button className="link" onClick={() => confirmComment(r.id)}>
                   {t('comments.confirmCount', { count: r.confirmation_count })}
                 </button>{' '}

@@ -11,7 +11,7 @@ function statusLabel(t, s) {
 }
 
 function CommentThread({ comments, target, targetId, onChanged }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { commentAuthor, setCommentAuthor } = useApp()
   const [texts, setTexts] = useState({})
 
@@ -59,7 +59,7 @@ function CommentThread({ comments, target, targetId, onChanged }) {
           <div className="comment">
             <p>{c.text}</p>
             <p className="comment-meta">
-              {c.author_name} — {formatDate(c.created_at)}
+              {c.author_name} — {formatDate(c.created_at, i18n.language)}
               {c.category && ` · ${t(`comments.category.${c.category}`)}`} ·{' '}
               <button className="link" onClick={() => confirmComment(c.id)}>
                 {t('comments.confirmCount', { count: c.confirmation_count })}
@@ -77,7 +77,7 @@ function CommentThread({ comments, target, targetId, onChanged }) {
             <div className="comment reply" key={r.id}>
               <p>{r.text}</p>
               <p className="comment-meta">
-                {r.author_name} — {formatDate(r.created_at)} ·{' '}
+                {r.author_name} — {formatDate(r.created_at, i18n.language)} ·{' '}
                 <button className="link" onClick={() => confirmComment(r.id)}>
                   {t('comments.confirmCount', { count: r.confirmation_count })}
                 </button>{' '}

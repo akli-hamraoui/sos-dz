@@ -8,7 +8,14 @@ export function maskPhone(phone, revealed) {
 export function formatDate(iso, locale) {
   if (!iso) return ''
   const d = new Date(iso)
-  return d.toLocaleDateString(locale) + ' ' + d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
+  // Force Western/Latin digits (0123456789) even for Arabic: Algeria uses
+  // Western numerals in everyday use, not Eastern Arabic-Indic digits
+  // (٠١٢٣...) that "ar" would otherwise default to in most browsers.
+  return (
+    d.toLocaleDateString(locale, { numberingSystem: 'latn' }) +
+    ' ' +
+    d.toLocaleTimeString(locale, { numberingSystem: 'latn', hour: '2-digit', minute: '2-digit' })
+  )
 }
 
 export function haversineKm([lat1, lon1], [lat2, lon2]) {
