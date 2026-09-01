@@ -74,6 +74,10 @@ npm install
 npm start   # listens on http://127.0.0.1:8801, no model download needed -- it's bundled in the npm package
 ```
 
+### Logging
+
+The backend logs to both the console and a rotating file at `logs/django.log` (repo root by default, gitignored -- 5MB x 5 backups). Override the location or verbosity with `LOG_DIR`/`LOG_LEVEL` in `.env` if needed.
+
 ### Running tests
 
 ```bash

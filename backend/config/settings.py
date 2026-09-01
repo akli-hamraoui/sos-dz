@@ -231,3 +231,62 @@ NSFWJS_APPROVE_THRESHOLD = float(env("NSFWJS_APPROVE_THRESHOLD", default="0.4"))
 NSFWJS_REJECT_THRESHOLD = float(env("NSFWJS_REJECT_THRESHOLD", default="0.85"))
 
 RATE_LIMIT_CREATIONS_PER_HOUR = int(env("RATE_LIMIT_CREATIONS_PER_HOUR", default="20"))
+
+# --- Logging --------------------------------------------------------------
+
+# Console output alone (Django's default) is lost as soon as the process's
+# stdout isn't being captured somewhere -- a rotating file under REPO_ROOT
+# (gitignored, see .gitignore's `*.log`) survives independently of however
+# the process is run/supervised (systemd, `runserver`, ...) and can be
+# tailed/shipped without needing to know the deployment's log-capture setup.
+LOG_DIR = Path(env("LOG_DIR", default=str(REPO_ROOT / "logs")))
+LOG_DIR.mkdir(parents=True, exist_ok=True)
+LOG_LEVEL = env("LOG_LEVEL", default="INFO")
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "{asctime} {levelname} {name}: {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
+        "file": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": LOG_DIR / "django.log",
+            "maxBytes": 5 * 1024 * 1024,
+            "backupCount": 5,
+            "formatter": "verbose",
+        },
+    },
+    "root": {
+        "handlers": ["console", "file"],
+        "level": LOG_LEVEL,
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console", "file"],
+            "level": LOG_LEVEL,
+            "propagate": False,
+        },
+        "django.request": {
+            # Unhandled view exceptions -- always worth keeping regardless
+            # of LOG_LEVEL, since they're the errors an admin most needs to
+            # notice in the file after the fact.
+            "handlers": ["console", "file"],
+            "level": "ERROR",
+            "propagate": False,
+        },
+        "core": {
+            "handlers": ["console", "file"],
+            "level": LOG_LEVEL,
+            "propagate": False,
+        },
+    },
+}
