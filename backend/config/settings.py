@@ -55,6 +55,15 @@ _cors_origins = env("CORS_ALLOWED_ORIGINS", default="http://localhost:5173,http:
 CORS_ALLOWED_ORIGINS = [o.strip() for o in _cors_origins.split(",") if o.strip()]
 CORS_ALLOW_CREDENTIALS = True
 
+# Needed because the SPA (Vite dev server or its production origin) is a
+# different origin from this backend. Without this, any request carrying a
+# Django session cookie (e.g. an admin who is also browsing the public
+# site in the same browser) fails Django's CSRF origin check even though
+# CORS itself is configured, since CSRF_TRUSTED_ORIGINS is checked
+# independently.
+_csrf_trusted_origins = env("CSRF_TRUSTED_ORIGINS", default="http://localhost:5173,http://127.0.0.1:5173")
+CSRF_TRUSTED_ORIGINS = [o.strip() for o in _csrf_trusted_origins.split(",") if o.strip()]
+
 # The real, maintained frontend (React/Vite, deployed separately from this
 # backend -- see DEPLOYMENT.md). Used for Django Admin's "View site" link
 # and the backend's own "/" route, so neither ever points a visitor (staff

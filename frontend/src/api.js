@@ -14,10 +14,29 @@ export function saveJSON(key, value) {
   localStorage.setItem(key, JSON.stringify(value))
 }
 
+// Django only sets this cookie once a session exists (e.g. an admin who is
+// also browsing the public site in the same browser). For an ordinary
+// anonymous visitor there is no cookie, so this is a no-op -- but when it
+// is present it must be sent back or Django's CSRF middleware rejects the
+// request even though CORS/origin are otherwise fine.
+function getCsrfToken() {
+  const match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/)
+  return match ? decodeURIComponent(match[1]) : null
+}
+
+const UNSAFE_METHODS = ['POST', 'PUT', 'PATCH', 'DELETE']
+
+function withCsrfHeader(method, headers) {
+  const upperMethod = (method || 'GET').toUpperCase()
+  if (!UNSAFE_METHODS.includes(upperMethod)) return headers
+  const token = getCsrfToken()
+  return token ? { ...headers, 'X-CSRFToken': token } : headers
+}
+
 export async function api(path, options = {}) {
   const resp = await fetch(API + path, {
     ...options,
-    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+    headers: withCsrfHeader(options.method, { 'Content-Type': 'application/json', ...(options.headers || {}) }),
   })
   let data = null
   try {
@@ -51,7 +70,7 @@ async function uploadWithRetry(url, formData, method = 'POST', onStatus = () => 
       await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[attempt - 1]))
     }
     try {
-      const resp = await fetch(url, { method, body: formData })
+      const resp = await fetch(url, { method, body: formData, headers: withCsrfHeader(method, {}) })
       let data = null
       try {
         data = await resp.json()
