@@ -1,5 +1,5 @@
 /**
- * Rassemble moderation sidecar (Wave 3).
+ * SOS DZ moderation sidecar (Wave 3).
  *
  * Small local HTTP service wrapping NSFWJS (open-source, MIT-licensed,
  * free) so the Django backend can moderate photos before they are
@@ -75,7 +75,7 @@ app.post("/classify", upload.single("image"), async (req, res) => {
 });
 
 app.listen(PORT, HOST, () => {
-  console.log(`Rassemble moderation sidecar listening on http://${HOST}:${PORT}`);
+  console.log(`SOS DZ moderation sidecar listening on http://${HOST}:${PORT}`);
   getModel().then(
     () => console.log("NSFWJS model loaded."),
     (e) => console.error("Failed to preload NSFWJS model:", e)

@@ -1,5 +1,5 @@
 """
-Django settings for the Rassemble project.
+Django settings for the SOS DZ project.
 
 Configuration is driven by environment variables (see .env.example at the
 repo root). Nothing here should ever hold a real secret — only placeholders
@@ -186,7 +186,7 @@ REST_FRAMEWORK = {
     "EXCEPTION_HANDLER": "core.exceptions.rassemble_exception_handler",
 }
 
-# --- Rassemble-specific configuration ---------------------------------------
+# --- SOS DZ-specific configuration -------------------------------------------
 
 # Geo bounding box for Algeria (validation of submitted lat/long on Needs
 # and CollectionPoints -- see Wave 3 "geolocation restricted to Algeria").

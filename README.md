@@ -1,6 +1,6 @@
-# Rassemble
+# SOS DZ
 
-Open-source disaster relief coordination app for Algeria (wildfires, earthquakes, floods, etc.). Rassemble does **not** do disaster detection — it only coordinates humanitarian aid once a crisis has been declared by the relevant authorities.
+Open-source disaster relief coordination app for Algeria (wildfires, earthquakes, floods, etc.). SOS DZ does **not** do disaster detection — it only coordinates humanitarian aid once a crisis has been declared by the relevant authorities.
 
 Built for speed and simplicity in an emergency: creating a need or taking charge of one takes a handful of fields, no account, no SMS verification.
 

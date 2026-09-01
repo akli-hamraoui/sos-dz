@@ -18,9 +18,9 @@ sudo apt install -y python3-venv python3-pip nginx certbot python3-certbot-nginx
 ### 2. Clone and set up the app
 
 ```bash
-sudo mkdir -p /opt/rassemble && sudo chown $USER:$USER /opt/rassemble
-git clone https://github.com/akli-hamraoui/sos-dz.git /opt/rassemble
-cd /opt/rassemble
+sudo mkdir -p /opt/sos-dz && sudo chown $USER:$USER /opt/sos-dz
+git clone https://github.com/akli-hamraoui/sos-dz.git /opt/sos-dz
+cd /opt/sos-dz
 
 python3 -m venv backend-venv
 source backend-venv/bin/activate
@@ -41,21 +41,21 @@ python manage.py createsuperuser   # choose credentials interactively
 
 ### 3. Gunicorn systemd service
 
-`/etc/systemd/system/rassemble-gunicorn.service`:
+`/etc/systemd/system/sos-dz-gunicorn.service`:
 
 ```ini
 [Unit]
-Description=Rassemble Gunicorn daemon
+Description=SOS DZ Gunicorn daemon
 After=network.target
 
 [Service]
 User=www-data
 Group=www-data
-WorkingDirectory=/opt/rassemble/backend
-EnvironmentFile=/opt/rassemble/.env
-ExecStart=/opt/rassemble/backend-venv/bin/gunicorn \
+WorkingDirectory=/opt/sos-dz/backend
+EnvironmentFile=/opt/sos-dz/.env
+ExecStart=/opt/sos-dz/backend-venv/bin/gunicorn \
     --workers 3 \
-    --bind unix:/run/rassemble.sock \
+    --bind unix:/run/sos-dz.sock \
     config.wsgi:application
 Restart=on-failure
 
@@ -65,13 +65,13 @@ WantedBy=multi-user.target
 
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable --now rassemble-gunicorn
-sudo systemctl status rassemble-gunicorn
+sudo systemctl enable --now sos-dz-gunicorn
+sudo systemctl status sos-dz-gunicorn
 ```
 
 ### 4. Nginx reverse proxy
 
-`/etc/nginx/sites-available/rassemble`:
+`/etc/nginx/sites-available/sos-dz`:
 
 ```nginx
 server {
@@ -79,14 +79,14 @@ server {
     server_name your-domain.example;
 
     location /static/ {
-        alias /opt/rassemble/staticfiles/;
+        alias /opt/sos-dz/staticfiles/;
     }
     location /media/ {
-        alias /opt/rassemble/media/;
+        alias /opt/sos-dz/media/;
     }
 
     location / {
-        proxy_pass http://unix:/run/rassemble.sock;
+        proxy_pass http://unix:/run/sos-dz.sock;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -96,7 +96,7 @@ server {
 ```
 
 ```bash
-sudo ln -s /etc/nginx/sites-available/rassemble /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/sos-dz /etc/nginx/sites-enabled/
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
@@ -111,14 +111,14 @@ Certbot edits the Nginx config in place to add the SSL server block and sets up 
 ### 6. Redeploying on a new push
 
 ```bash
-cd /opt/rassemble
+cd /opt/sos-dz
 git pull
 source backend-venv/bin/activate
 pip install -r backend/requirements.txt
 cd backend
 python manage.py migrate
 python manage.py collectstatic --noinput
-sudo systemctl restart rassemble-gunicorn
+sudo systemctl restart sos-dz-gunicorn
 ```
 
 ### 6b. Cloudflare R2 (media storage, Wave 2)
@@ -130,21 +130,21 @@ Create an R2 bucket in the Cloudflare dashboard, generate an S3-compatible API t
 Small Node.js service (`moderation-sidecar/`) wrapping NSFWJS -- free, open-source, MIT-licensed, self-hosted, no API key or billing account. The classification model ships bundled inside the `nsfwjs` npm package itself, so this needs **no external network access at all** once `npm install` has run (confirmed in development: `nsfw.load()` loads the model entirely from local files).
 
 ```bash
-cd /opt/rassemble/moderation-sidecar
+cd /opt/sos-dz/moderation-sidecar
 npm install --production
 ```
 
-`/etc/systemd/system/rassemble-nsfwjs.service`:
+`/etc/systemd/system/sos-dz-nsfwjs.service`:
 
 ```ini
 [Unit]
-Description=Rassemble NSFWJS moderation sidecar
+Description=SOS DZ NSFWJS moderation sidecar
 After=network.target
 
 [Service]
 User=www-data
 Group=www-data
-WorkingDirectory=/opt/rassemble/moderation-sidecar
+WorkingDirectory=/opt/sos-dz/moderation-sidecar
 Environment=HOST=127.0.0.1
 Environment=PORT=8801
 ExecStart=/usr/bin/node server.js
@@ -156,7 +156,7 @@ WantedBy=multi-user.target
 
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable --now rassemble-nsfwjs
+sudo systemctl enable --now sos-dz-nsfwjs
 curl http://127.0.0.1:8801/health   # {"status":"ok","model_loaded":true}
 ```
 

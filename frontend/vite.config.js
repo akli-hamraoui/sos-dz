@@ -10,8 +10,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
       manifest: {
-        name: 'Rassemble',
-        short_name: 'Rassemble',
+        name: 'SOS DZ',
+        short_name: 'SOS DZ',
         description: 'Disaster relief coordination for Algeria',
         theme_color: '#111111',
         background_color: '#fafafa',

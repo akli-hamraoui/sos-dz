@@ -1,4 +1,4 @@
-# Rassemble frontend
+# SOS DZ frontend
 
 React + Vite PWA. See the [root README](../README.md#frontend-react--vite-pwa) for setup instructions (requires the Django backend from `../backend` running alongside it).
 

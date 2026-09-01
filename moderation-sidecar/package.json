@@ -1,7 +1,7 @@
 {
-  "name": "rassemble-moderation-sidecar",
+  "name": "sos-dz-moderation-sidecar",
   "version": "1.0.0",
-  "description": "Local NSFWJS moderation sidecar for Rassemble. Called by the Django backend over local HTTP only -- never exposed publicly. See ../DEPLOYMENT.md for how this runs as its own systemd service on the IONOS VPS.",
+  "description": "Local NSFWJS moderation sidecar for SOS DZ. Called by the Django backend over local HTTP only -- never exposed publicly. See ../DEPLOYMENT.md for how this runs as its own systemd service on the IONOS VPS.",
   "private": true,
   "main": "server.js",
   "scripts": {
