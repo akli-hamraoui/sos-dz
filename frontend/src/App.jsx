@@ -12,6 +12,7 @@ import Support from './pages/Support'
 import CollectionPoints from './pages/CollectionPoints'
 import CreateCollectionPoint from './pages/CreateCollectionPoint'
 import CollectionPointDetail from './pages/CollectionPointDetail'
+import { IconHome, IconNeeds, IconBox, IconHelp, IconPlus, IconWarning, IconWifiOff, IconCheckCircle } from './icons'
 
 function LanguageSwitcher() {
   const { i18n, t } = useTranslation()
@@ -37,22 +38,22 @@ function BottomNav() {
   return (
     <nav className="bottom-nav">
       <Link to="/" className={isActive('/') ? 'active' : ''}>
-        <span className="icon">🏠</span>
+        <span className="icon"><IconHome /></span>
         <span>{t('nav.home')}</span>
       </Link>
       <Link to="/needs" className={isActive('/needs') ? 'active' : ''}>
-        <span className="icon">🗺️</span>
+        <span className="icon"><IconNeeds /></span>
         <span>{t('nav.needs')}</span>
       </Link>
-      <Link to="/create" aria-label={t('nav.iNeedHelp')}>
-        <span className="fab">+</span>
+      <Link to="/create" className="fab" aria-label={t('nav.iNeedHelp')}>
+        <IconPlus width={26} height={26} strokeWidth={2} />
       </Link>
       <Link to="/collection-points" className={isActive('/collection-points') ? 'active' : ''}>
-        <span className="icon">📦</span>
+        <span className="icon"><IconBox /></span>
         <span>{t('nav.collectionPoints')}</span>
       </Link>
       <Link to="/support" className={isActive('/support') ? 'active' : ''}>
-        <span className="icon">❓</span>
+        <span className="icon"><IconHelp /></span>
         <span>{t('nav.support')}</span>
       </Link>
     </nav>
@@ -65,11 +66,19 @@ export default function App() {
 
   return (
     <>
-      {config.mode === 'read_only' && <div className="readonly-banner">⚠️ {t('readOnly.banner')}</div>}
-      {!isOnline && <div className="offline-banner">📴 {t('offline.youAreOffline')}</div>}
+      {config.mode === 'read_only' && (
+        <div className="readonly-banner">
+          <IconWarning width={17} height={17} /> {t('readOnly.banner')}
+        </div>
+      )}
+      {!isOnline && (
+        <div className="offline-banner">
+          <IconWifiOff width={17} height={17} /> {t('offline.youAreOffline')}
+        </div>
+      )}
       {syncMessage && (
         <div className="offline-banner">
-          ✅ {syncMessage === 'syncedOne' ? t('offline.syncedOne') : t('offline.syncedMany', { count: 1 })}
+          <IconCheckCircle width={17} height={17} /> {syncMessage === 'syncedOne' ? t('offline.syncedOne') : t('offline.syncedMany', { count: 1 })}
         </div>
       )}
 

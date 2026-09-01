@@ -72,7 +72,7 @@
     "estimatedQuantityPlaceholder": "e.g. about 50 families",
     "description": "Description (text)",
     "descriptionPlaceholder": "Describe the need and precise location",
-    "useMyLocation": "📍 Use my current GPS position",
+    "useMyLocation": "Use my current GPS position",
     "gpsCaptured": "GPS captured: {{lat}}, {{lon}}",
     "mediaSectionLegend": "Add more detail (optional): voice or video message",
     "mediaTextOnly": "Text only",
@@ -101,8 +101,9 @@
     "list": "List",
     "map": "Map",
     "noActiveNeeds": "No active needs right now.",
-    "legend": "🔴 critical   🟠 medium   🟡 low (needs)     ■ collection point   — pins without exact GPS sit at the wilaya's approximate centroid (\"no exact GPS position\")",
-    "pickupsCount": "{{count}} pickup(s)"
+    "pickupsCount": "{{count}} pickup(s)",
+    "collectionPointLabel": "Collection point",
+    "legendNote": "— pins without exact GPS sit at the wilaya's approximate centroid (\"no exact GPS position\")"
   },
   "needDetail": {
     "contact": "Contact",
@@ -124,7 +125,7 @@
     "progressUpdatePlaceholder": "Add a progress update (e.g. just passed Boumerdès)",
     "postUpdate": "Post update",
     "shareMyLiveLocation": "Share my live location",
-    "updatePositionNow": "📍 Update my position now",
+    "updatePositionNow": "Update my position now",
     "deliveryPhotosLabel": "Delivery photos (optional, up to 3, camera only)",
     "markAsDelivered": "Mark as delivered",
     "isThisYourPickup": "Is this your pickup? Recover access",

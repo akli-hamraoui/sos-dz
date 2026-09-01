@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { useApp } from '../context/AppContext'
 import { api, createOrQueue } from '../api'
 import { compressPhoto } from '../utils'
+import { IconMapPin } from '../icons'
 
 const DEFAULT_FORM = {
   campaign: '',
@@ -198,8 +199,8 @@ export default function CreateNeed() {
           {t('createNeed.description')} *
           <textarea value={form.location_description} onChange={set('location_description')} placeholder={t('createNeed.descriptionPlaceholder')} required />
         </label>
-        <button type="button" className="btn" onClick={useMyLocation}>
-          {t('createNeed.useMyLocation')}
+        <button type="button" className="btn btn-icon" onClick={useMyLocation}>
+          <IconMapPin width={16} height={16} strokeWidth={2} /> {t('createNeed.useMyLocation')}
         </button>
         {form.latitude && <p>{t('createNeed.gpsCaptured', { lat: form.latitude, lon: form.longitude })}</p>}
 

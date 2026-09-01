@@ -5,6 +5,7 @@ import L from 'leaflet'
 import { useApp } from '../context/AppContext'
 import { api, loadJSON, saveJSON } from '../api'
 import { urgencyColor, haversineKm } from '../utils'
+import { IconBox } from '../icons'
 
 function statusLabel(t, s) {
   return t(`status.${s}`, s)
@@ -105,8 +106,12 @@ export default function NeedsList() {
           const icon = L.divIcon({ className: 'cp-marker-icon', html: '■', iconSize: [16, 16] })
           const marker = L.marker([p.display_latitude, p.display_longitude], { icon }).addTo(map)
           const gpsNote = p.has_exact_position ? '' : `<br><em>${t('common.noExactGpsPosition')}</em>`
+          const boxIconSvg =
+            '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ' +
+            'stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M3.5 7.5 12 3l8.5 4.5v9L12 21l-8.5-4.5v-9Z"/>' +
+            '<path d="M3.5 7.5 12 12l8.5-4.5"/><path d="M12 12v9"/></svg>'
           marker.bindPopup(
-            `<strong>📦 ${p.point_name}</strong><br>${p.contact_name}${p.organization ? '<br>' + p.organization : ''}` +
+            `<strong>${boxIconSvg} ${p.point_name}</strong><br>${p.contact_name}${p.organization ? '<br>' + p.organization : ''}` +
               `${p.hours ? '<br>' + p.hours : ''}<br>${p.wilaya_name}${gpsNote}<br><a href="/collection-points/${p.id}">${t('common.open')}</a>`
           )
           markers.push(marker)
@@ -171,7 +176,27 @@ export default function NeedsList() {
         <div className="map-wrap">
           {mapHasNothing && <p className="hint">{t('needsList.noActiveNeeds')}</p>}
           {!mapHasNothing && <div id="main-map" ref={mapElRef} style={{ height: 500 }} />}
-          {!mapHasNothing && <p className="legend">{t('needsList.legend')}</p>}
+          {!mapHasNothing && (
+            <div className="legend">
+              <span className="legend-item">
+                <span className="legend-dot" style={{ background: urgencyColor('critical') }} />
+                {t('urgency.critical')}
+              </span>
+              <span className="legend-item">
+                <span className="legend-dot" style={{ background: urgencyColor('medium') }} />
+                {t('urgency.medium')}
+              </span>
+              <span className="legend-item">
+                <span className="legend-dot" style={{ background: urgencyColor('low') }} />
+                {t('urgency.low')}
+              </span>
+              <span className="legend-item">
+                <IconBox width={14} height={14} strokeWidth={2} />
+                {t('needsList.collectionPointLabel')}
+              </span>
+              <span className="legend-note">{t('needsList.legendNote')}</span>
+            </div>
+          )}
         </div>
       )}
     </section>

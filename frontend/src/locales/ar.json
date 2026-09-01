@@ -72,7 +72,7 @@
     "estimatedQuantityPlaceholder": "مثال: حوالي 50 عائلة",
     "description": "الوصف (نص)",
     "descriptionPlaceholder": "صف الاحتياج والموقع بدقة",
-    "useMyLocation": "📍 استخدام موقعي الحالي (GPS)",
+    "useMyLocation": "استخدام موقعي الحالي (GPS)",
     "gpsCaptured": "تم تحديد الموقع: {{lat}}, {{lon}}",
     "mediaSectionLegend": "إضافة تفاصيل أخرى (اختياري): رسالة صوتية أو فيديو",
     "mediaTextOnly": "نص فقط",
@@ -101,8 +101,9 @@
     "list": "قائمة",
     "map": "خريطة",
     "noActiveNeeds": "لا توجد احتياجات نشطة حالياً.",
-    "legend": "🔴 حرجة   🟠 متوسطة   🟡 منخفضة (احتياجات)     ■ نقطة تجميع   — النقاط بدون GPS دقيق توضع عند مركز الولاية التقريبي (\"بدون موقع GPS دقيق\")",
-    "pickupsCount": "{{count}} عملية استلام"
+    "pickupsCount": "{{count}} عملية استلام",
+    "collectionPointLabel": "نقطة تجميع",
+    "legendNote": "— النقاط بدون GPS دقيق توضع عند مركز الولاية التقريبي (\"بدون موقع GPS دقيق\")"
   },
   "needDetail": {
     "contact": "التواصل",
@@ -124,7 +125,7 @@
     "progressUpdatePlaceholder": "أضف تحديثاً (مثال: تجاوزت للتو بومرداس)",
     "postUpdate": "نشر التحديث",
     "shareMyLiveLocation": "مشاركة موقعي المباشر",
-    "updatePositionNow": "📍 تحديث موقعي الآن",
+    "updatePositionNow": "تحديث موقعي الآن",
     "deliveryPhotosLabel": "صور التسليم (اختياري، حتى 3 صور، بالكاميرا فقط)",
     "markAsDelivered": "تحديد كمُسلَّم",
     "isThisYourPickup": "هل هذه عملية الاستلام الخاصة بك؟ استرجاع الوصول",

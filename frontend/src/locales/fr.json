@@ -72,7 +72,7 @@
     "estimatedQuantityPlaceholder": "ex. environ 50 familles",
     "description": "Description (texte)",
     "descriptionPlaceholder": "Décrivez le besoin et le lieu précis",
-    "useMyLocation": "📍 Utiliser ma position GPS actuelle",
+    "useMyLocation": "Utiliser ma position GPS actuelle",
     "gpsCaptured": "GPS capturé : {{lat}}, {{lon}}",
     "mediaSectionLegend": "Ajouter plus de détails (optionnel) : message vocal ou vidéo",
     "mediaTextOnly": "Texte uniquement",
@@ -101,8 +101,9 @@
     "list": "Liste",
     "map": "Carte",
     "noActiveNeeds": "Aucun besoin actif pour le moment.",
-    "legend": "🔴 critique   🟠 moyenne   🟡 faible (besoins)     ■ point de collecte   — les points sans GPS exact sont placés au centre approximatif de la wilaya (« sans position GPS exacte »)",
-    "pickupsCount": "{{count}} prise(s) en charge"
+    "pickupsCount": "{{count}} prise(s) en charge",
+    "collectionPointLabel": "Point de collecte",
+    "legendNote": "— les points sans GPS exact sont placés au centre approximatif de la wilaya (« sans position GPS exacte »)"
   },
   "needDetail": {
     "contact": "Contact",
@@ -124,7 +125,7 @@
     "progressUpdatePlaceholder": "Ajouter une mise à jour (ex. vient de passer Boumerdès)",
     "postUpdate": "Publier la mise à jour",
     "shareMyLiveLocation": "Partager ma position en direct",
-    "updatePositionNow": "📍 Mettre à jour ma position maintenant",
+    "updatePositionNow": "Mettre à jour ma position maintenant",
     "deliveryPhotosLabel": "Photos de livraison (optionnel, jusqu'à 3, appareil photo uniquement)",
     "markAsDelivered": "Marquer comme livré",
     "isThisYourPickup": "C'est votre prise en charge ? Récupérer l'accès",

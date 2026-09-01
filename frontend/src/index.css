@@ -34,20 +34,33 @@ a {
 
 /* --- App shell --- */
 
-.readonly-banner {
-  background: #fff3cd;
-  color: #664d03;
+.readonly-banner,
+.offline-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   padding: 8px 16px;
   text-align: center;
   font-size: 14px;
 }
 
+.readonly-banner {
+  background: #fff3cd;
+  color: #664d03;
+}
+
+.readonly-banner svg {
+  flex-shrink: 0;
+}
+
 .offline-banner {
   background: #e7f1ff;
   color: #084298;
-  padding: 8px 16px;
-  text-align: center;
-  font-size: 14px;
+}
+
+.offline-banner svg {
+  flex-shrink: 0;
 }
 
 .topbar {
@@ -137,6 +150,14 @@ main {
   border-radius: 16px;
   font-size: 18px;
   font-weight: 600;
+}
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.btn-icon svg {
+  flex-shrink: 0;
 }
 .link {
   background: none;
@@ -374,8 +395,27 @@ fieldset {
 }
 
 .legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 14px;
   font-size: 13px;
   color: #555;
+}
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.legend-note {
+  flex-basis: 100%;
+  color: #888;
 }
 
 /* --- Bottom nav (mobile app style) --- */
@@ -407,7 +447,14 @@ fieldset {
   font-family: inherit;
 }
 .bottom-nav .icon {
-  font-size: 20px;
+  display: flex;
+  color: #555;
+}
+.bottom-nav a.active {
+  color: var(--accent);
+}
+.bottom-nav a.active .icon {
+  color: var(--accent);
 }
 .bottom-nav .fab {
   background: var(--accent);
@@ -418,7 +465,6 @@ fieldset {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 26px;
   margin-block-start: -24px;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
 }

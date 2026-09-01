@@ -5,6 +5,7 @@ import L from 'leaflet'
 import { useApp } from '../context/AppContext'
 import { api, apiUpload, createOrQueue } from '../api'
 import { maskPhone, formatDate, compressPhoto } from '../utils'
+import { IconMapPin } from '../icons'
 
 function statusLabel(t, s) {
   return t(`status.${s}`, s)
@@ -482,8 +483,8 @@ export default function NeedDetail() {
                   <input type="checkbox" checked={p.location_sharing_active} onChange={(e) => toggleLocationSharing(p, e.target.checked)} /> {t('needDetail.shareMyLiveLocation')}
                 </label>
                 {p.location_sharing_active && (
-                  <button className="btn" onClick={() => pingLocation(p.id)}>
-                    {t('needDetail.updatePositionNow')}
+                  <button className="btn btn-icon" onClick={() => pingLocation(p.id)}>
+                    <IconMapPin width={16} height={16} strokeWidth={2} /> {t('needDetail.updatePositionNow')}
                   </button>
                 )}
                 {p.status === 'en_route' && (
