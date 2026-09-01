@@ -306,6 +306,17 @@ LOGGING = {
             "level": "ERROR",
             "propagate": False,
         },
+        "django.server": {
+            # The per-request access log line ("GET /api/needs/ 200 ...")
+            # that `manage.py runserver` prints -- Django gives it its own
+            # logger with a console-only handler by default, so without
+            # this override those lines never reached the file at all
+            # (only warnings/errors from django/django.request/core did),
+            # even though the console clearly showed activity.
+            "handlers": ["console", "file"],
+            "level": "INFO",
+            "propagate": False,
+        },
         "core": {
             "handlers": ["console", "file"],
             "level": LOG_LEVEL,
