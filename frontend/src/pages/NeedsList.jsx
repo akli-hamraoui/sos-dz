@@ -16,7 +16,7 @@ export default function NeedsList() {
   const { wilayas } = useApp()
   const [filterWilaya, setFilterWilaya] = useState('')
   const [needs, setNeeds] = useState([])
-  const [viewMode, setViewMode] = useState(() => loadJSON('rassemble_view_mode', 'list'))
+  const [viewMode, setViewMode] = useState(() => loadJSON('rassemble_view_mode', 'map'))
   const [mapHasNothing, setMapHasNothing] = useState(false)
   const mapRef = useRef(null)
   const mapElRef = useRef(null)
@@ -37,7 +37,23 @@ export default function NeedsList() {
     saveJSON('rassemble_view_mode', mode)
   }
 
-  const smartZoom = (map, points) => {
+  const smartZoom = (map, points, wilayaId) => {
+    if (wilayaId) {
+      // A wilaya is selected: points already come pre-filtered to it by the
+      // API, so just frame them (or fall back to the wilaya's own centroid
+      // when it currently has no pins) instead of the geolocation logic below.
+      const selected = wilayas.find((w) => String(w.id) === String(wilayaId))
+      if (points.length === 0) {
+        if (selected && selected.centroid_latitude != null) {
+          map.setView([selected.centroid_latitude, selected.centroid_longitude], 10)
+        } else {
+          map.setView([28.0, 2.6], 5)
+        }
+        return
+      }
+      map.fitBounds(L.latLngBounds(points).pad(0.3), { maxZoom: 12 })
+      return
+    }
     if (points.length === 0) {
       map.setView([28.0, 2.6], 5)
       return
@@ -65,8 +81,9 @@ export default function NeedsList() {
 
     ;(async () => {
       let needPins, cpPins
+      const qs = filterWilaya ? `?wilaya=${filterWilaya}` : ''
       try {
-        ;[needPins, cpPins] = await Promise.all([api('/needs/locations/'), api('/collection-points/locations/').catch(() => [])])
+        ;[needPins, cpPins] = await Promise.all([api(`/needs/locations/${qs}`), api(`/collection-points/locations/${qs}`).catch(() => [])])
       } catch {
         return // offline/network failure -- offline banner already informs the user
       }
@@ -119,7 +136,7 @@ export default function NeedsList() {
 
         markersRef.current = markers
         const allPoints = needsWithPos.map((p) => [p.display_latitude, p.display_longitude]).concat(cpsWithPos.map((p) => [p.display_latitude, p.display_longitude]))
-        smartZoom(map, allPoints)
+        smartZoom(map, allPoints, filterWilaya)
       })
     })()
 
@@ -127,7 +144,7 @@ export default function NeedsList() {
       cancelled = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewMode])
+  }, [viewMode, filterWilaya])
 
   return (
     <section className="needs-page">
