@@ -96,7 +96,15 @@ export default function NeedsList() {
         if (!mapElRef.current) return
         if (!mapRef.current) {
           mapRef.current = L.map(mapElRef.current)
-          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' }).addTo(mapRef.current)
+          L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+            // OpenTopoMap: same city/street labels as standard OSM tiles,
+            // plus terrain relief (hillshading + contour lines) baked into
+            // the same layer -- useful landmarks in rural/mountainous
+            // wildfire-affected areas where a plain street map alone
+            // doesn't show valleys, elevation, or forest cover.
+            attribution: '&copy; OpenStreetMap contributors, SRTM | &copy; OpenTopoMap (CC-BY-SA)',
+            maxZoom: 17,
+          }).addTo(mapRef.current)
         }
         const map = mapRef.current
         markersRef.current.forEach((m) => map.removeLayer(m))

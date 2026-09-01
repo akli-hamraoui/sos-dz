@@ -164,7 +164,10 @@ export default function NeedDetail() {
       mapRef.current = null
     }
     const map = L.map(mapElRef.current)
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' }).addTo(map)
+    L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors, SRTM | &copy; OpenTopoMap (CC-BY-SA)',
+      maxZoom: 17,
+    }).addTo(map)
     mapRef.current = map
     const allPoints = []
     const dest = destinationPoint()
