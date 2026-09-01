@@ -166,6 +166,12 @@ It binds to `127.0.0.1` only (never exposed publicly) and is called by Django ov
 
 **Known accepted risk**: `npm audit` on `moderation-sidecar/` reports 4 vulnerabilities (3 high, 1 critical) in `@tensorflow/tfjs-node`'s own transitive *install-time* dependencies (`@mapbox/node-pre-gyp` -> `tar`/`adm-zip`, used only to fetch tfjs-node's native binary during `npm install`, not part of the running server's request-handling code). `npm audit fix --force` would downgrade `@tensorflow/tfjs-node` to 0.1.11, an unusably ancient version -- not a real fix. This is a common, currently-unresolved upstream situation for `@tensorflow/tfjs-node` consumers; re-check `npm audit` periodically for an upstream fix.
 
+### 8. Route tracing on the live delivery map (Wave 5+)
+
+The Need detail page's live tracking map draws a real road-following route (distance + ETA) from a responder's last known position to the need's destination, via OSRM (Open Source Routing Machine) -- the free/open routing engine behind most non-Google routing UIs, using OpenStreetMap's road data. See `frontend/src/routing.js`.
+
+By default it calls the public demo server (`https://router.project-osrm.org`), which needs **no setup, no API key** -- but it's explicitly a demo instance with no uptime/rate guarantees, not meant for real production traffic. Once usage justifies it, self-host OSRM (official Docker image, pre-built for several regions including Africa) and point the frontend at it via a `VITE_OSRM_BASE_URL` build-time env var. If the routing service is unreachable, the map still shows the responder's actual GPS trail (unaffected) and simply omits the projected route line/distance, rather than failing the page.
+
 ## Option B — temporary fallback (Railway/Render)
 
 If IONOS server setup is blocking progress, either Railway or Render can host the Django backend directly from the GitHub repo with minimal config:

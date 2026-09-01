@@ -134,7 +134,9 @@
     "pendingReview": "en attente de modération",
     "removedByModeration": "supprimé par la modération",
     "removed": "supprimé",
-    "reportContent": "Signaler ce contenu"
+    "reportContent": "Signaler ce contenu",
+    "routeDistance": "Itinéraire estimé : {{km}} km · {{min}} min",
+    "routeUnavailable": "Itinéraire indisponible pour l'instant (service de routage injoignable)."
   },
   "comments": {
     "title": "Commentaires",

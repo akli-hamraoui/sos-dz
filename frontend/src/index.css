@@ -367,7 +367,8 @@ fieldset {
   color: var(--danger);
 }
 
-.cp-marker-icon {
+.cp-marker-icon,
+.dest-marker-icon {
   font-size: 16px;
   line-height: 16px;
   color: #111;

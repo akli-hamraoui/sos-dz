@@ -134,7 +134,9 @@
     "pendingReview": "بانتظار المراجعة",
     "removedByModeration": "أُزيل بواسطة المراجعة",
     "removed": "أُزيل",
-    "reportContent": "الإبلاغ عن هذا المحتوى"
+    "reportContent": "الإبلاغ عن هذا المحتوى",
+    "routeDistance": "المسار المقدَّر: {{km}} كم · {{min}} دقيقة",
+    "routeUnavailable": "المسار غير متاح حاليًا (تعذّر الوصول إلى خدمة توجيه المسارات)."
   },
   "comments": {
     "title": "التعليقات",

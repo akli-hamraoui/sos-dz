@@ -134,7 +134,9 @@
     "pendingReview": "pending review",
     "removedByModeration": "removed by moderation",
     "removed": "removed",
-    "reportContent": "Report this content"
+    "reportContent": "Report this content",
+    "routeDistance": "Estimated route: {{km}} km · {{min}} min",
+    "routeUnavailable": "Route unavailable right now (routing service unreachable)."
   },
   "comments": {
     "title": "Comments",

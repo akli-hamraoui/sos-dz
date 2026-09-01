@@ -6,6 +6,7 @@ import { useApp } from '../context/AppContext'
 import { api, apiUpload, createOrQueue } from '../api'
 import { maskPhone, formatDate, compressPhoto } from '../utils'
 import { IconMapPin } from '../icons'
+import { fetchDrivingRoute } from '../routing'
 
 function statusLabel(t, s) {
   return t(`status.${s}`, s)
@@ -103,12 +104,13 @@ export default function NeedDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const { needTokens, saveNeedToken, pickupTokens, savePickupToken } = useApp()
+  const { needTokens, saveNeedToken, pickupTokens, savePickupToken, wilayas } = useApp()
   const [need, setNeed] = useState(null)
   const [showPhone, setShowPhone] = useState(false)
   const [revealedPickupPhones, setRevealedPickupPhones] = useState({})
   const [shareLink, setShareLink] = useState('')
   const [canSeeLiveMap, setCanSeeLiveMap] = useState(false)
+  const [routeInfo, setRouteInfo] = useState(null)
   const [progressText, setProgressText] = useState({})
   const [deliveryPhotos, setDeliveryPhotos] = useState({})
   const mapElRef = useRef(null)
@@ -142,11 +144,18 @@ export default function NeedDetail() {
       setCanSeeLiveMap(false)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, isNeedOwner, viewerToken])
+  }, [id, isNeedOwner, viewerToken, need, wilayas])
 
   useEffect(() => {
     if (need) checkLiveMapAccess()
   }, [need, checkLiveMapAccess])
+
+  const destinationPoint = () => {
+    if (!need) return null
+    if (need.latitude != null && need.longitude != null) return [need.latitude, need.longitude]
+    const wilaya = wilayas.find((w) => w.id === need.wilaya)
+    return wilaya ? [wilaya.centroid_latitude, wilaya.centroid_longitude] : null
+  }
 
   const renderDetailMap = (pickups) => {
     if (!mapElRef.current) return
@@ -158,6 +167,14 @@ export default function NeedDetail() {
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' }).addTo(map)
     mapRef.current = map
     const allPoints = []
+    const dest = destinationPoint()
+    if (dest) {
+      const destIcon = L.divIcon({ className: 'dest-marker-icon', html: '🏁', iconSize: [22, 22] })
+      L.marker(dest, { icon: destIcon }).addTo(map).bindPopup(`<strong>${need.title}</strong>`)
+      allPoints.push(dest)
+    }
+
+    let routedAny = false
     pickups.forEach((entry) => {
       const trail = entry.trail
       if (!trail.length) return
@@ -168,7 +185,25 @@ export default function NeedDetail() {
         `<strong>${entry.pickup.responder_last_name} ${entry.pickup.responder_first_name}</strong><br>Bringing: ${entry.pickup.content_brought}<br>Latest: ${entry.latest_progress_text || '—'}`
       )
       allPoints.push(...latlngs)
+
+      // Real road-following route from the responder's latest known
+      // position to the need's destination (like Google Maps' blue route
+      // line) -- distinct from the black trail above, which is the raw
+      // history of where they've actually been.
+      if (dest && entry.pickup.status === 'en_route') {
+        routedAny = true
+        fetchDrivingRoute(latlngs[latlngs.length - 1], dest)
+          .then((route) => {
+            if (mapRef.current !== map) return // map was torn down/re-rendered since this fetch started
+            L.polyline(route.coordinates, { color: '#2f6fed', weight: 4, dashArray: '1,10', lineCap: 'round' }).addTo(map)
+            map.fitBounds(L.latLngBounds([...allPoints, ...route.coordinates]).pad(0.3))
+            setRouteInfo({ distanceKm: route.distanceKm, durationMin: route.durationMin })
+          })
+          .catch(() => setRouteInfo('unavailable'))
+      }
     })
+    if (!routedAny) setRouteInfo(null)
+
     if (allPoints.length) map.fitBounds(L.latLngBounds(allPoints).pad(0.3))
     else map.setView([28.0, 2.6], 5)
   }
@@ -413,7 +448,17 @@ export default function NeedDetail() {
       </button>
 
       <h3>{t('needDetail.liveTrackingMap')}</h3>
-      {canSeeLiveMap ? <div id="need-detail-map" ref={mapElRef} style={{ height: 350 }} /> : <p className="hint">{t('needDetail.liveMapRestrictedHint')}</p>}
+      {canSeeLiveMap ? (
+        <>
+          <div id="need-detail-map" ref={mapElRef} style={{ height: 350 }} />
+          {routeInfo === 'unavailable' && <p className="hint">{t('needDetail.routeUnavailable')}</p>}
+          {routeInfo && routeInfo !== 'unavailable' && (
+            <p className="status">{t('needDetail.routeDistance', { km: routeInfo.distanceKm.toFixed(1), min: Math.round(routeInfo.durationMin) })}</p>
+          )}
+        </>
+      ) : (
+        <p className="hint">{t('needDetail.liveMapRestrictedHint')}</p>
+      )}
 
       <h3>{t('needDetail.pickupsTitle', { count: need.pickups.length })}</h3>
       <button className="btn btn-primary" onClick={() => navigate(`/needs/${id}/take-charge`)}>
