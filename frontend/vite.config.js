@@ -23,6 +23,15 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // Without this, the SW's default SPA navigateFallback ('index.html')
+        // catches EVERY full-page navigation not otherwise matched -- Django
+        // Admin isn't part of the React Router SPA, so a request for
+        // /admin/ was being served the cached React app shell instead of
+        // ever reaching the real Django page. Same for /static/ (Django's
+        // own static files) and /media/ (also excluded below via
+        // runtimeCaching, but a non-GET navigation there should still skip
+        // the SPA fallback too).
+        navigateFallbackDenylist: [/^\/admin\//, /^\/static\//, /^\/media\//],
         // Cache already-loaded data/app-shell for offline browsing; API
         // writes (POST/PATCH/DELETE) are handled separately by our own
         // IndexedDB queue (src/offlineQueue.js), not by the service worker.
