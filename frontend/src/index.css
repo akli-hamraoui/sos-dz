@@ -143,21 +143,15 @@ a {
   margin-block: 0 14px;
 }
 .brand {
-  /* Plain text next to the real logo mark (its own hands+flag icon
-     already carries the brand colors, so no extra tint/background is
-     needed behind the text -- see .brand-icon). */
+  /* The full designed lockup (icon + "SOS DZ" wordmark, as one image --
+     see logo-lockup.png) rather than a live-rendered icon+text pairing,
+     so the original logo's exact font/colors are preserved untouched. */
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  font-weight: 700;
-  font-size: clamp(15px, 4.5vw, 20px);
-  color: var(--accent);
-  text-decoration: none;
-  white-space: nowrap;
   flex-shrink: 0;
 }
-.brand-icon {
-  height: clamp(26px, 7vw, 34px);
+.brand-logo {
+  height: clamp(26px, 7vw, 36px);
   width: auto;
   flex-shrink: 0;
 }
