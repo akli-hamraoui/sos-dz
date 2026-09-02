@@ -116,11 +116,19 @@ After=network.target
 [Service]
 User=www-data
 Group=www-data
+# /run/ itself is root-owned (0755) -- www-data cannot create a new file
+# directly inside it, so binding straight to unix:/run/sos-dz.sock fails
+# with "Can't connect to /run/sos-dz.sock" and Gunicorn crash-loops
+# (confirmed the hard way: this is not hypothetical). RuntimeDirectory=
+# has systemd create /run/sos-dz/ owned by this service's User/Group
+# *before* starting it (and clean it up on stop), so the socket goes
+# inside that instead.
+RuntimeDirectory=sos-dz
 WorkingDirectory=/opt/sos-dz/backend
 EnvironmentFile=/opt/sos-dz/.env
 ExecStart=/opt/sos-dz/backend-venv/bin/gunicorn \
     --workers 3 \
-    --bind unix:/run/sos-dz.sock \
+    --bind unix:/run/sos-dz/sos-dz.sock \
     config.wsgi:application
 Restart=on-failure
 
@@ -159,7 +167,7 @@ server {
     # static files by the `location /` fallback below, since the React
     # app itself handles client-side routing for those paths.
     location ~ ^/(api|admin)/ {
-        proxy_pass http://unix:/run/sos-dz.sock;
+        proxy_pass http://unix:/run/sos-dz/sos-dz.sock;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
