@@ -127,6 +127,7 @@ export default function CreateCollectionPoint() {
             </button>
           )}
         </div>
+        {!config.is_admin && <p className="hint">{t('createNeed.gpsAlgeriaOnly')}</p>}
         {gpsStatus === 'locating' && <p className="hint">{t('createNeed.gpsLocating')}</p>}
         {gpsStatus === 'error' && <p className="error">{t('createNeed.gpsError')}</p>}
         {form.latitude && !gpsStatus && <p>{t('createNeed.gpsCaptured', { lat: form.latitude, lon: form.longitude })}</p>}

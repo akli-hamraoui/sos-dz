@@ -39,7 +39,7 @@
     "needs": "Needs",
     "collectionPoints": "Collection points",
     "iNeedHelp": "I need help",
-    "forgotDetails": "Forgot my details?",
+    "forgotDetails": "Find my listing or delivery",
     "support": "Support",
     "deliveries": "Deliveries",
     "menu": "Menu",
@@ -102,6 +102,7 @@
     "mediaPhoto": "Photo",
     "fallbackTitle": "Need reported",
     "gpsLocating": "Locating your position…",
+    "gpsAlgeriaOnly": "This feature is only intended for people located in Algeria.",
     "gpsError": "Couldn't get your GPS position. Check that location access is allowed for this site.",
     "recoveryCode": "Recovery code (optional)",
     "recoveryCodePlaceholder": "at least 6 characters, e.g. abc123",
@@ -151,7 +152,14 @@
     "removed": "removed",
     "reportContent": "Report this content",
     "routeDistance": "Estimated route: {{km}} km · {{min}} min",
-    "routeUnavailable": "Route unavailable right now (routing service unreachable)."
+    "routeUnavailable": "Route unavailable right now (routing service unreachable).",
+    "moderationBadge": {
+      "systemApproved": "Automatically approved",
+      "adminApproved": "Approved by admin",
+      "rejected": "Rejected",
+      "pending": "Pending review"
+    },
+    "closeLightbox": "Close"
   },
   "comments": {
     "title": "Comments",
@@ -185,7 +193,7 @@
     "noContextHint": "This page is meant to be opened from the \"Recover access\" button on a specific need or pickup's own page. If you lost that link, search for your listing in the needs list below."
   },
   "support": {
-    "title": "Forgot my details / contact admin",
+    "title": "Find my listing or delivery / contact admin",
     "description": "Two ways to reach us: fill this form, or contact the admin directly (details in the footer, if available).",
     "yourPhone": "Your phone",
     "relatedListing": "Related listing (optional)",
@@ -242,7 +250,8 @@
     "p2": "The project isn't affiliated with any administration or official organization -- it's a free, ad-free citizen tool designed to stay usable even on a weak connection.",
     "p3": "The source code is public; anyone can review how it works or contribute.",
     "contactLink": "A question or a suggestion? Contact the admin.",
-    "whatsappHeading": "Contact us on WhatsApp"
+    "whatsappHeading": "Contact us on WhatsApp",
+    "whatsappComingSoon": "WhatsApp: number coming soon."
   },
   "apiErrors": {
     "generic": "Something went wrong. Please try again, or contact the admin if this persists.",

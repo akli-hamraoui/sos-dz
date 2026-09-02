@@ -110,7 +110,7 @@ class PickupInline(admin.TabularInline):
 
 
 def approve_video(modeladmin, request, queryset):
-    count = queryset.update(video_moderation_status=Need.MODERATION_APPROVED)
+    count = queryset.update(video_moderation_status=Need.MODERATION_APPROVED, video_moderated_by=Need.MODERATED_BY_ADMIN)
     AuditLog.objects.create(admin_user=request.user, action="approved video", target_description=f"{count} need(s)")
     modeladmin.message_user(request, f"Approved video on {count} need(s).")
 
@@ -119,7 +119,7 @@ approve_video.short_description = "Approve video (pending review queue)"
 
 
 def reject_video(modeladmin, request, queryset):
-    count = queryset.update(video_moderation_status=Need.MODERATION_REJECTED)
+    count = queryset.update(video_moderation_status=Need.MODERATION_REJECTED, video_moderated_by=Need.MODERATED_BY_ADMIN)
     AuditLog.objects.create(admin_user=request.user, action="rejected video", target_description=f"{count} need(s)")
     modeladmin.message_user(request, f"Rejected video on {count} need(s).")
 
@@ -129,7 +129,7 @@ reject_video.short_description = "Reject video (pending review queue)"
 
 @admin.register(Need)
 class NeedAdmin(admin.ModelAdmin):
-    list_display = ["title", "wilaya", "urgency", "overall_status", "campaign", "video_moderation_status", "is_anonymized_display", "created_at"]
+    list_display = ["title", "wilaya", "urgency", "overall_status", "campaign", "video_moderation_status", "video_moderated_by", "is_anonymized_display", "created_at"]
     # video_moderation_status is filterable here specifically so "pending"
     # doubles as the video review queue -- filter to it, select the
     # need(s), then use the approve/reject actions below. Photos have
@@ -243,7 +243,7 @@ class AuditLogAdmin(admin.ModelAdmin):
 # ---------------------------------------------------------------------------
 
 def approve_media(modeladmin, request, queryset):
-    count = queryset.update(moderation_status=Need.MODERATION_APPROVED)
+    count = queryset.update(moderation_status=Need.MODERATION_APPROVED, moderated_by=Need.MODERATED_BY_ADMIN)
     AuditLog.objects.create(admin_user=request.user, action="approved media", target_description=f"{count} item(s)")
     modeladmin.message_user(request, f"Approved {count} item(s).")
 
@@ -252,7 +252,7 @@ approve_media.short_description = "Approve selected media"
 
 
 def reject_media(modeladmin, request, queryset):
-    count = queryset.update(moderation_status=Need.MODERATION_REJECTED)
+    count = queryset.update(moderation_status=Need.MODERATION_REJECTED, moderated_by=Need.MODERATED_BY_ADMIN)
     AuditLog.objects.create(admin_user=request.user, action="rejected media", target_description=f"{count} item(s)")
     modeladmin.message_user(request, f"Rejected {count} item(s).")
 
@@ -262,14 +262,14 @@ reject_media.short_description = "Reject selected media"
 
 @admin.register(DamagePhoto)
 class DamagePhotoAdmin(admin.ModelAdmin):
-    list_display = ["id", "need", "moderation_status", "created_at"]
+    list_display = ["id", "need", "moderation_status", "moderated_by", "created_at"]
     list_filter = ["moderation_status"]  # filter to "pending" for the review queue
     actions = [approve_media, reject_media]
 
 
 @admin.register(DeliveryPhoto)
 class DeliveryPhotoAdmin(admin.ModelAdmin):
-    list_display = ["id", "pickup", "moderation_status", "created_at"]
+    list_display = ["id", "pickup", "moderation_status", "moderated_by", "created_at"]
     list_filter = ["moderation_status"]
     actions = [approve_media, reject_media]
 
@@ -316,8 +316,10 @@ def restore_content(modeladmin, request, queryset):
         media_obj = report.get_media_object()
         if media_obj is not None:
             field = "video_moderation_status" if isinstance(media_obj, Need) else "moderation_status"
+            by_field = "video_moderated_by" if isinstance(media_obj, Need) else "moderated_by"
             setattr(media_obj, field, Need.MODERATION_APPROVED)
-            media_obj.save(update_fields=[field])
+            setattr(media_obj, by_field, Need.MODERATED_BY_ADMIN)
+            media_obj.save(update_fields=[field, by_field])
         report.status = ContentReport.STATUS_PROCESSED
         report.save(update_fields=["status"])
         count += 1
@@ -334,8 +336,10 @@ def confirm_content_rejection(modeladmin, request, queryset):
         media_obj = report.get_media_object()
         if media_obj is not None:
             field = "video_moderation_status" if isinstance(media_obj, Need) else "moderation_status"
+            by_field = "video_moderated_by" if isinstance(media_obj, Need) else "moderated_by"
             setattr(media_obj, field, Need.MODERATION_REJECTED)
-            media_obj.save(update_fields=[field])
+            setattr(media_obj, by_field, Need.MODERATED_BY_ADMIN)
+            media_obj.save(update_fields=[field, by_field])
         report.status = ContentReport.STATUS_PROCESSED
         report.save(update_fields=["status"])
         count += 1

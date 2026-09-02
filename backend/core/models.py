@@ -295,6 +295,17 @@ class Need(IdentityListingMixin, models.Model):
     # actually moderated -- there's no equivalent moderation field for voice.
     video_moderation_status = models.CharField(max_length=10, choices=MODERATION_CHOICES, default=MODERATION_APPROVED)
 
+    MODERATED_BY_SYSTEM, MODERATED_BY_ADMIN = "system", "admin"
+    MODERATED_BY_CHOICES = [
+        (MODERATED_BY_SYSTEM, "System"),
+        (MODERATED_BY_ADMIN, "Admin"),
+    ]
+    # Blank until a decision has actually been made (i.e. moderation is off,
+    # or the item is still pending) -- lets the frontend badge distinguish
+    # "auto-approved by NSFWJS" from "approved by a human admin" instead of
+    # collapsing both into a single "approved" label.
+    video_moderated_by = models.CharField(max_length=10, choices=MODERATED_BY_CHOICES, blank=True)
+
     is_cancelled = models.BooleanField(default=False)
     cancellation_reason = models.CharField(max_length=500, blank=True)
 
@@ -370,6 +381,7 @@ class DamagePhoto(models.Model):
     need = models.ForeignKey(Need, on_delete=models.CASCADE, related_name="damage_photos")
     image = models.ImageField(upload_to="damage_photos/")
     moderation_status = models.CharField(max_length=10, choices=Need.MODERATION_CHOICES, default=Need.MODERATION_PENDING)
+    moderated_by = models.CharField(max_length=10, choices=Need.MODERATED_BY_CHOICES, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
 
@@ -457,6 +469,7 @@ class DeliveryPhoto(models.Model):
     pickup = models.ForeignKey(Pickup, on_delete=models.CASCADE, related_name="delivery_photos")
     image = models.ImageField(upload_to="delivery_photos/")
     moderation_status = models.CharField(max_length=10, choices=Need.MODERATION_CHOICES, default=Need.MODERATION_PENDING)
+    moderated_by = models.CharField(max_length=10, choices=Need.MODERATED_BY_CHOICES, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
 

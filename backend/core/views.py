@@ -11,7 +11,7 @@ from core.access import authorized_for_write, get_presented_token, is_admin_requ
 from core.captcha import verify_turnstile
 from core.duplicates import find_similar_needs
 from core.media_validation import validate_photo_count, validate_photo_size
-from core.moderation import moderate_image_field, moderate_video_field
+from core.moderation import moderate_image_field, moderate_video_field, moderation_active
 from core.models import (
     AppConfiguration,
     AuditLog,
@@ -210,13 +210,15 @@ class NeedViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retriev
 
         if need.video_file:
             need.video_moderation_status = moderate_video_field(need.video_file)
-            need.save(update_fields=["video_moderation_status"])
+            need.video_moderated_by = Need.MODERATED_BY_SYSTEM if moderation_active() else ""
+            need.save(update_fields=["video_moderation_status", "video_moderated_by"])
         # Voice has no visual content for NSFWJS to score; no moderation
         # field or step exists for it.
 
         for photo in damage_photos:
             dp = DamagePhoto(need=need, image=photo)
             dp.moderation_status = moderate_image_field(photo)
+            dp.moderated_by = Need.MODERATED_BY_SYSTEM if moderation_active() else ""
             dp.save()
 
         out = NeedPublicSerializer(need).data
@@ -486,6 +488,7 @@ class PickupViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retri
         for photo in delivery_photos:
             dp = DeliveryPhoto(pickup=pickup, image=photo)
             dp.moderation_status = moderate_image_field(photo)
+            dp.moderated_by = Need.MODERATED_BY_SYSTEM if moderation_active() else ""
             dp.save()
         if delivery_photos and hasattr(pickup, "_prefetched_objects_cache"):
             pickup._prefetched_objects_cache.pop("delivery_photos", None)  # was cached empty by get_object()

@@ -15,6 +15,13 @@ function statusLabel(t, s) {
   return t(`status.${s}`, s)
 }
 
+function ModerationBadge({ t, status, moderatedBy }) {
+  let key = 'pending'
+  if (status === 'approved') key = moderatedBy === 'admin' ? 'adminApproved' : 'systemApproved'
+  else if (status === 'rejected') key = 'rejected'
+  return <span className={`moderation-badge moderation-badge-${status === 'rejected' ? 'rejected' : status === 'approved' ? 'approved' : 'pending'}`}>{t(`needDetail.moderationBadge.${key}`)}</span>
+}
+
 export default function NeedDetail() {
   const { t, i18n } = useTranslation()
   const { id } = useParams()
@@ -30,6 +37,7 @@ export default function NeedDetail() {
   const [routeInfo, setRouteInfo] = useState(null)
   const [progressText, setProgressText] = useState({})
   const [deliveryPhotos, setDeliveryPhotos] = useState({})
+  const [lightbox, setLightbox] = useState(null) // { src } for a full-size image preview
   const mapElRef = useRef(null)
   const mapRef = useRef(null)
 
@@ -326,6 +334,7 @@ export default function NeedDetail() {
 
       {(need.video_file || need.video_moderation_status !== 'approved') && (
         <div>
+          <ModerationBadge t={t} status={need.video_moderation_status} moderatedBy={need.video_moderated_by} />
           {!need.video_file && (
             <p className="hint">
               {t('needDetail.recordedMessage', {
@@ -335,7 +344,7 @@ export default function NeedDetail() {
           )}
           {need.video_file && (
             <div>
-              <video src={need.video_file} controls style={{ maxWidth: '100%' }} />
+              <video className="media-player" src={need.video_file} controls playsInline />
               <br />
               <button className="link" onClick={() => reportContent('need_media_file', need.id)}>
                 {t('needDetail.reportContent')}
@@ -350,14 +359,15 @@ export default function NeedDetail() {
           {need.damage_photos.map((photo) => (
             <div className="photo-thumb" key={photo.id}>
               {photo.image ? (
-                <a href={photo.image} target="_blank" rel="noreferrer">
+                <button type="button" className="gallery-thumb-btn" onClick={() => setLightbox({ src: photo.image })}>
                   <img className="gallery-thumb" src={photo.image} alt="" />
-                </a>
+                </button>
               ) : (
-                <span className="hint">{photo.moderation_status === 'rejected' ? t('needDetail.removed') : t('needDetail.pendingReview')}</span>
+                <ModerationBadge t={t} status={photo.moderation_status} moderatedBy={photo.moderated_by} />
               )}
               {photo.image && (
                 <>
+                  <ModerationBadge t={t} status={photo.moderation_status} moderatedBy={photo.moderated_by} />
                   <br />
                   <button className="link" onClick={() => reportContent('damage_photo', photo.id)}>
                     {t('needDetail.reportContent')}
@@ -418,7 +428,9 @@ export default function NeedDetail() {
       <h3>{t('needDetail.liveTrackingMap')}</h3>
       {canSeeLiveMap ? (
         <>
-          <div id="need-detail-map" ref={mapElRef} style={{ height: 420 }} />
+          <div className="map-wrap">
+            <div id="need-detail-map" ref={mapElRef} style={{ height: 420 }} />
+          </div>
           {routeInfo === 'unavailable' && <p className="hint">{t('needDetail.routeUnavailable')}</p>}
           {routeInfo && routeInfo !== 'unavailable' && (
             <p className="status">{t('needDetail.routeDistance', { km: routeInfo.distanceKm.toFixed(1), min: Math.round(routeInfo.durationMin) })}</p>
@@ -466,14 +478,15 @@ export default function NeedDetail() {
                 {p.delivery_photos.map((photo) => (
                   <div className="photo-thumb" key={photo.id}>
                     {photo.image ? (
-                      <a href={photo.image} target="_blank" rel="noreferrer">
+                      <button type="button" className="gallery-thumb-btn" onClick={() => setLightbox({ src: photo.image })}>
                         <img className="gallery-thumb" src={photo.image} alt="" />
-                      </a>
+                      </button>
                     ) : (
-                      <span className="hint">{photo.moderation_status === 'rejected' ? t('needDetail.removed') : t('needDetail.pendingReview')}</span>
+                      <ModerationBadge t={t} status={photo.moderation_status} moderatedBy={photo.moderated_by} />
                     )}
                     {photo.image && (
                       <>
+                        <ModerationBadge t={t} status={photo.moderation_status} moderatedBy={photo.moderated_by} />
                         <br />
                         <button className="link" onClick={() => reportContent('delivery_photo', photo.id)}>
                           {t('needDetail.reportContent')}
@@ -540,6 +553,15 @@ export default function NeedDetail() {
       })}
 
       <CommentThread comments={need.comments || []} target="need" targetId={need.id} onChanged={load} />
+
+      {lightbox && (
+        <div className="lightbox-overlay" onClick={() => setLightbox(null)}>
+          <button type="button" className="lightbox-close" onClick={() => setLightbox(null)} aria-label={t('needDetail.closeLightbox')}>
+            ×
+          </button>
+          <img src={lightbox.src} alt="" onClick={(e) => e.stopPropagation()} />
+        </div>
+      )}
     </section>
   )
 }

@@ -292,6 +292,7 @@ export default function CreateNeed() {
             </button>
           )}
         </div>
+        {!config.is_admin && <p className="hint">{t('createNeed.gpsAlgeriaOnly')}</p>}
         {gpsStatus === 'locating' && <p className="hint">{t('createNeed.gpsLocating')}</p>}
         {gpsStatus === 'error' && <p className="error">{t('createNeed.gpsError')}</p>}
         {form.latitude && !gpsStatus && <p>{t('createNeed.gpsCaptured', { lat: form.latitude, lon: form.longitude })}</p>}
@@ -337,7 +338,7 @@ export default function CreateNeed() {
               )}
               {videoBlobUrl && recordingKind !== 'video' && (
                 <>
-                  <video src={videoBlobUrl} controls style={{ maxWidth: '100%' }} />
+                  <video className="media-player" src={videoBlobUrl} controls playsInline />
                   <button type="button" className="btn btn-icon" onClick={() => discardRecording('video')}>
                     <IconTrash width={16} height={16} strokeWidth={2} /> {t('createNeed.discardRerecord')}
                   </button>

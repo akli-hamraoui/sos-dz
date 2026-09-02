@@ -12,9 +12,14 @@ export default function About() {
       <p>{t('about.p1')}</p>
       <p>{t('about.p2')}</p>
       <p>{t('about.p3')}</p>
-      {config.contact_phones.length > 0 && (
-        <div className="whatsapp-contacts">
-          <h3>{t('about.whatsappHeading')}</h3>
+      {/* Always shown, even with nothing configured yet -- an admin who
+          hasn't set up AdminContactPhone entries in Django Admin should
+          still see that WhatsApp exists as a channel (with a "coming
+          soon" placeholder) rather than the whole section silently
+          vanishing, which read as "WhatsApp isn't a thing this app has". */}
+      <div className="whatsapp-contacts">
+        <h3>{t('about.whatsappHeading')}</h3>
+        {config.contact_phones.length > 0 ? (
           <ul>
             {config.contact_phones.map((p, i) => (
               <li key={i}>
@@ -25,8 +30,10 @@ export default function About() {
               </li>
             ))}
           </ul>
-        </div>
-      )}
+        ) : (
+          <p className="hint">{t('about.whatsappComingSoon')}</p>
+        )}
+      </div>
       <p>
         <Link className="link" to="/support">
           {t('about.contactLink')}

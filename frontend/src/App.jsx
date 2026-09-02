@@ -232,11 +232,11 @@ export default function App() {
             {config.admin_contact_email && <a href={`mailto:${config.admin_contact_email}`}>{config.admin_contact_email}</a>}
           </p>
         )}
+        {/* "Coordonnées oubliées" and "Signaler un bug" already live in the
+            main nav (TopNavLinks) -- repeating them here just duplicated
+            the same link twice on one page. Only "Qui sommes-nous" has no
+            other entry point. */}
         <p className="footer-links">
-          <Link to="/support">{t('nav.forgotDetails')}</Link>
-          {' · '}
-          <Link to="/report-bug">{t('nav.reportBug')}</Link>
-          {' · '}
           <Link to="/about">{t('nav.about')}</Link>
         </p>
       </footer>

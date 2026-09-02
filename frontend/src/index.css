@@ -118,10 +118,15 @@ a {
   font-family: inherit;
 }
 .page-title {
-  font-size: 12px;
-  color: var(--text-muted);
+  display: inline-block;
+  background: #111;
+  color: #fff;
+  font-size: clamp(12px, 3.5vw, 14px);
+  font-weight: 600;
   letter-spacing: 0.02em;
-  margin-block: 0 10px;
+  padding: 6px 20px;
+  border-radius: 999px; /* pill -- a half-circle at each end */
+  margin-block: 0 14px;
 }
 .brand {
   font-weight: 700;
@@ -474,7 +479,15 @@ fieldset {
   line-height: 0;
 }
 .record-btn {
-  border-radius: 999px;
+  /* Not a full pill (999px): on a narrow 3-column mobile layout, the
+     French label wraps to two lines, and a stadium-shaped curve on a
+     multi-line button crowds the text against the curve at the top/
+     bottom, reading as if the text pokes past the button's edge. */
+  border-radius: 10px;
+  font-size: 11px;
+  line-height: 1.3;
+  white-space: normal;
+  overflow-wrap: break-word;
 }
 
 /* --- Lists / toolbar --- */
@@ -646,12 +659,80 @@ fieldset {
   border-radius: 10px;
   border: 1px solid var(--border);
 }
+.gallery-thumb-btn {
+  display: block;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  line-height: 0;
+}
 .upload-status {
   font-size: 13px;
   color: #555;
 }
 .upload-status.error {
   color: var(--danger);
+}
+
+.moderation-badge {
+  display: inline-block;
+  margin-block-start: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.moderation-badge-approved {
+  background: #e3f3e3;
+  color: #2e7d32;
+}
+.moderation-badge-rejected {
+  background: #fbe4e4;
+  color: var(--danger);
+}
+.moderation-badge-pending {
+  background: #fdf1de;
+  color: #e08a1e;
+}
+
+.media-player {
+  display: block;
+  width: 100%;
+  max-height: 70vh;
+  background: #000;
+  border-radius: 10px;
+}
+
+.lightbox-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 1000;
+}
+.lightbox-overlay img,
+.lightbox-overlay video {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 6px;
+}
+.lightbox-close {
+  position: absolute;
+  top: 16px;
+  inset-inline-end: 16px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: #fff;
+  color: #111;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
 }
 
 .dest-marker-icon {
@@ -704,6 +785,21 @@ fieldset {
 .comment-form input[type='text'] {
   flex: 1;
   min-width: 180px;
+}
+
+.map-wrap {
+  /* Leaflet grabs touch-drag gestures to pan the map -- when the map runs
+     edge-to-edge, a finger trying to scroll the *page* down over the map
+     area gets captured into panning it instead. A visible side gutter
+     (touchable page background, not map canvas) on mobile leaves room to
+     scroll past the map without fighting it; ~10% narrower overall,
+     split evenly. Full width restored once there's room to spare. */
+  margin-inline: 5%;
+}
+@media (min-width: 700px) {
+  .map-wrap {
+    margin-inline: 0;
+  }
 }
 
 .legend {
@@ -762,7 +858,15 @@ fieldset {
   align-items: center;
   justify-self: center;
   gap: 2px;
-  font-size: 11px;
+  /* "Points de collecte" is the longest label here -- at 11px it wrapped
+     to two uneven lines on a narrow phone, which then looked off-center
+     once the active-state pill background (padding: 4px 12px) hugged
+     only the wrapped shape instead of a clean centered box. Small enough
+     + nowrap keeps every label (including this one) on a single,
+     properly centered line. */
+  font-size: 10px;
+  white-space: nowrap;
+  text-align: center;
   color: #555;
   text-decoration: none;
   background: none;

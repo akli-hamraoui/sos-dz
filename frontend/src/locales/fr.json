@@ -39,7 +39,7 @@
     "needs": "Besoins",
     "collectionPoints": "Points de collecte",
     "iNeedHelp": "J'ai besoin d'aide",
-    "forgotDetails": "Coordonnées oubliées ?",
+    "forgotDetails": "Retrouver mon annonce ou livraison",
     "support": "Aide",
     "deliveries": "Livraisons",
     "menu": "Menu",
@@ -102,6 +102,7 @@
     "mediaPhoto": "Photo",
     "fallbackTitle": "Besoin signalé",
     "gpsLocating": "Recherche de votre position…",
+    "gpsAlgeriaOnly": "Cette fonctionnalité est réservée aux personnes se trouvant en Algérie.",
     "gpsError": "Impossible d'obtenir votre position GPS. Vérifiez que la localisation est autorisée pour ce site.",
     "recoveryCode": "Code de récupération (optionnel)",
     "recoveryCodePlaceholder": "au moins 6 caractères, ex : abc123",
@@ -151,7 +152,14 @@
     "removed": "supprimé",
     "reportContent": "Signaler ce contenu",
     "routeDistance": "Itinéraire estimé : {{km}} km · {{min}} min",
-    "routeUnavailable": "Itinéraire indisponible pour l'instant (service de routage injoignable)."
+    "routeUnavailable": "Itinéraire indisponible pour l'instant (service de routage injoignable).",
+    "moderationBadge": {
+      "systemApproved": "Validé automatiquement",
+      "adminApproved": "Validé par l'admin",
+      "rejected": "Rejeté",
+      "pending": "En attente de validation"
+    },
+    "closeLightbox": "Fermer"
   },
   "comments": {
     "title": "Commentaires",
@@ -185,7 +193,7 @@
     "noContextHint": "Cette page s'utilise depuis le bouton « Récupérer l'accès » sur la page d'un besoin ou d'une prise en charge précis. Si vous ne retrouvez plus ce lien, cherchez votre annonce dans la liste des besoins ci-dessous."
   },
   "support": {
-    "title": "Coordonnées oubliées / contacter l'admin",
+    "title": "Retrouver mon annonce ou livraison / contacter l'admin",
     "description": "Deux façons de nous joindre : remplissez ce formulaire, ou contactez l'admin directement (coordonnées en pied de page, si disponibles).",
     "yourPhone": "Votre téléphone",
     "relatedListing": "Annonce concernée (optionnel)",
@@ -242,7 +250,8 @@
     "p2": "Le projet n'est affilié à aucune administration ni organisation officielle -- c'est un outil citoyen, gratuit et sans publicité, pensé pour rester simple à utiliser même en connexion faible.",
     "p3": "Le code source est public ; toute personne peut vérifier son fonctionnement ou contribuer.",
     "contactLink": "Une question, une suggestion ? Contactez l'admin.",
-    "whatsappHeading": "Nous contacter sur WhatsApp"
+    "whatsappHeading": "Nous contacter sur WhatsApp",
+    "whatsappComingSoon": "WhatsApp : numéro à venir."
   },
   "apiErrors": {
     "generic": "Une erreur est survenue. Veuillez réessayer, ou contacter l'admin si le problème persiste.",

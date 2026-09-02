@@ -41,7 +41,7 @@ class DamagePhotoSerializer(ModeratedPhotoMixin, serializers.ModelSerializer):
 
     class Meta:
         model = DamagePhoto
-        fields = ["id", "image", "moderation_status"]
+        fields = ["id", "image", "moderation_status", "moderated_by"]
 
 
 class DeliveryPhotoSerializer(ModeratedPhotoMixin, serializers.ModelSerializer):
@@ -49,7 +49,7 @@ class DeliveryPhotoSerializer(ModeratedPhotoMixin, serializers.ModelSerializer):
 
     class Meta:
         model = DeliveryPhoto
-        fields = ["id", "image", "moderation_status"]
+        fields = ["id", "image", "moderation_status", "moderated_by"]
 
 
 class DuplicateReportCreateSerializer(serializers.ModelSerializer):
@@ -279,6 +279,7 @@ class NeedPublicSerializer(serializers.ModelSerializer):
             "voice_file",
             "video_file",
             "video_moderation_status",
+            "video_moderated_by",
             "damage_photos",
             "overall_status",
             "covered_quantity",
