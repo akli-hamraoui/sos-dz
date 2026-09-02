@@ -350,7 +350,7 @@ export default function NeedDetail() {
           )}
           {need.video_file && (
             <div>
-              <video className="media-player" src={need.video_file} controls playsInline />
+              <video className="media-player" src={need.video_file} controls playsInline preload="auto" />
               <br />
               <button className="link" onClick={() => reportContent('need_media_file', need.id)}>
                 {t('needDetail.reportContent')}

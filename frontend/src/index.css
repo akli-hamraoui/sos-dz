@@ -712,9 +712,8 @@ fieldset {
 }
 
 .moderation-badge {
-  display: block;
+  display: inline-block;
   width: fit-content;
-  max-width: 84px;
   margin-block-start: 4px;
   padding: 2px 8px;
   border-radius: 999px;
@@ -722,6 +721,16 @@ fieldset {
   font-size: 10px;
   line-height: 1.3;
   font-weight: 700;
+  white-space: nowrap;
+}
+/* Only inside a photo thumbnail does the badge need to stay narrow
+   enough to sit under an 84px thumb -- there it wraps to 2 lines. The
+   video badge (not inside a .photo-thumb) has no such constraint and
+   would otherwise wrap "Validé automatiquement" onto two lines inside a
+   fully-rounded pill, spilling text past the rounded ends. */
+.photo-thumb .moderation-badge {
+  display: block;
+  max-width: 84px;
   white-space: normal;
 }
 .moderation-badge-approved {

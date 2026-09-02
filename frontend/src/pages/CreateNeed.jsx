@@ -338,7 +338,7 @@ export default function CreateNeed() {
               )}
               {videoBlobUrl && recordingKind !== 'video' && (
                 <>
-                  <video className="media-player" src={videoBlobUrl} controls playsInline />
+                  <video className="media-player" src={videoBlobUrl} controls playsInline preload="auto" />
                   <button type="button" className="btn btn-icon" onClick={() => discardRecording('video')}>
                     <IconTrash width={16} height={16} strokeWidth={2} /> {t('createNeed.discardRerecord')}
                   </button>
