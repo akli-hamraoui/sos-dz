@@ -1666,6 +1666,77 @@ class CollectionPointSocialLinksTests(BaseAPITestCase):
         self.assertEqual(resp.data["instagram_url"], "")
 
 
+class CollectionPointDonationsAndOtherPhonesTests(BaseAPITestCase):
+    def setUp(self):
+        super().setUp()
+        self.wilaya = Wilaya.objects.first()
+
+    def _payload(self, **overrides):
+        data = dict(COLLECTION_POINT_PAYLOAD, wilaya=self.wilaya.pk)
+        data.update(overrides)
+        return data
+
+    def test_create_without_donations_or_other_phones(self):
+        resp = self.client.post("/api/collection-points/", self._payload(), format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+        self.assertEqual(resp.data["accepted_donations"], "")
+        self.assertEqual(resp.data["other_phones"], "")
+
+    def test_create_with_accepted_donations_free_text(self):
+        resp = self.client.post(
+            "/api/collection-points/",
+            self._payload(accepted_donations="Couvertures, eau, conserves"),
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 201, resp.content)
+        self.assertEqual(resp.data["accepted_donations"], "Couvertures, eau, conserves")
+
+    def test_create_with_multiple_other_phones_with_line_breaks(self):
+        numbers = "0555111111\n0555222222\n0555333333"
+        resp = self.client.post("/api/collection-points/", self._payload(other_phones=numbers), format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+        self.assertEqual(resp.data["other_phones"], numbers)
+
+    def test_other_phones_does_not_affect_close_identity_match(self):
+        """other_phones is purely informational -- matches_creator (used by
+        the self-service close endpoint) must keep matching on contact_phone
+        alone, regardless of what's in other_phones."""
+        create_resp = self.client.post(
+            "/api/collection-points/", self._payload(other_phones="0555999999"), format="json"
+        )
+        resp = self.client.post(
+            f"/api/collection-points/{create_resp.data['id']}/close/",
+            {"contact_name": COLLECTION_POINT_PAYLOAD["contact_name"], "contact_phone": COLLECTION_POINT_PAYLOAD["contact_phone"]},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data["status"], "closed")
+
+    def test_returned_in_detail(self):
+        create_resp = self.client.post(
+            "/api/collection-points/",
+            self._payload(accepted_donations="Vêtements chauds", other_phones="0555444444\n0555555555"),
+            format="json",
+        )
+        resp = self.client.get(f"/api/collection-points/{create_resp.data['id']}/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data["accepted_donations"], "Vêtements chauds")
+        self.assertEqual(resp.data["other_phones"], "0555444444\n0555555555")
+
+    def test_existing_collection_point_without_these_fields_still_readable(self):
+        point = CollectionPoint.objects.create(
+            wilaya=self.wilaya,
+            point_name="Old point",
+            contact_name="Yacine",
+            contact_phone="0555222222",
+            location_description="Somewhere",
+        )
+        resp = self.client.get(f"/api/collection-points/{point.id}/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data["accepted_donations"], "")
+        self.assertEqual(resp.data["other_phones"], "")
+
+
 class SearchFilterTests(BaseAPITestCase):
     def setUp(self):
         super().setUp()

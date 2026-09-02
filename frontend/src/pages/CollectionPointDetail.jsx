@@ -57,12 +57,25 @@ export default function CollectionPointDetail() {
       {cp.latitude == null && <p className="hint">{t('common.noExactGpsPosition')}</p>}
       {cp.organization && <p>{cp.organization}</p>}
       {cp.hours && <p>{t('collectionPoints.hours')}: {cp.hours}</p>}
+      {cp.accepted_donations && (
+        <p className="multiline-text">
+          {t('collectionPoints.acceptedDonationsLabel')}: {cp.accepted_donations}
+        </p>
+      )}
       <p>
         {t('needDetail.contact')}: {cp.contact_name} — {maskPhone(cp.contact_phone, showPhone)}{' '}
         <button className="link" onClick={() => setShowPhone(!showPhone)}>
           {showPhone ? t('common.hideNumber') : t('common.showFullNumber')}
         </button>
       </p>
+      {/* other_phones is more personal contact info, same as contact_phone
+          above -- kept behind the same reveal toggle instead of shown by
+          default, rather than a separate always-visible field. */}
+      {cp.other_phones && showPhone && (
+        <p className="multiline-text">
+          {t('collectionPoints.otherPhonesLabel')}: {cp.other_phones}
+        </p>
+      )}
       {cp.status === 'active' && (
         <button className="btn" onClick={closePoint}>
           {t('collectionPoints.markAsClosed')}

@@ -499,8 +499,8 @@ class CollectionPointSerializer(serializers.ModelSerializer):
         model = CollectionPoint
         fields = [
             "id", "wilaya", "wilaya_name", "point_name", "contact_name", "contact_phone",
-            "organization", "location_description", "latitude", "longitude", "hours",
-            "status", "created_at", "comments",
+            "other_phones", "organization", "location_description", "latitude", "longitude", "hours",
+            "accepted_donations", "status", "created_at", "comments",
             "facebook_url", "tiktok_url", "instagram_url",
         ]
 
@@ -513,9 +513,9 @@ class CollectionPointCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = CollectionPoint
         fields = [
-            "wilaya", "point_name", "contact_name", "contact_phone",
+            "wilaya", "point_name", "contact_name", "contact_phone", "other_phones",
             "organization", "location_description", "latitude", "longitude", "hours",
-            "facebook_url", "tiktok_url", "instagram_url",
+            "accepted_donations", "facebook_url", "tiktok_url", "instagram_url",
         ]
 
     def validate_facebook_url(self, value):

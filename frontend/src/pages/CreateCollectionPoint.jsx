@@ -13,9 +13,11 @@ const DEFAULT_FORM = {
   point_name: '',
   contact_name: '',
   contact_phone: '',
+  other_phones: '',
   organization: '',
   location_description: '',
   hours: '',
+  accepted_donations: '',
   facebook_url: '',
   tiktok_url: '',
   instagram_url: '',
@@ -111,6 +113,10 @@ export default function CreateCollectionPoint() {
           {t('collectionPoints.contactPhone')} * <input type="tel" value={form.contact_phone} onChange={set('contact_phone')} required />
         </label>
         <label>
+          {t('collectionPoints.otherPhones')}
+          <textarea rows={3} value={form.other_phones} onChange={set('other_phones')} placeholder={t('collectionPoints.otherPhonesPlaceholder')} />
+        </label>
+        <label>
           {t('collectionPoints.organization')} <input type="text" value={form.organization} onChange={set('organization')} />
         </label>
         <label>
@@ -128,6 +134,10 @@ export default function CreateCollectionPoint() {
         </label>
         <label>
           {t('collectionPoints.hours')} <input type="text" value={form.hours} onChange={set('hours')} placeholder={t('collectionPoints.hoursPlaceholder')} />
+        </label>
+        <label>
+          {t('collectionPoints.acceptedDonations')}
+          <textarea rows={3} value={form.accepted_donations} onChange={set('accepted_donations')} placeholder={t('collectionPoints.acceptedDonationsPlaceholder')} />
         </label>
         <label>
           <span className="field-label-icon">

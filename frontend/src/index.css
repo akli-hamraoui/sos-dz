@@ -416,6 +416,12 @@ label {
   align-items: center;
   gap: 6px;
 }
+.multiline-text {
+  /* Preserves user-entered line breaks (accepted_donations, other_phones)
+     without needing dangerouslySetInnerHTML -- React already escapes the
+     text node, this just stops the browser from collapsing the \n's. */
+  white-space: pre-line;
+}
 .field-label-icon svg {
   flex-shrink: 0;
   color: var(--text-muted);

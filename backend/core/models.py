@@ -602,11 +602,16 @@ class CollectionPoint(models.Model):
     point_name = models.CharField(max_length=200)
     contact_name = models.CharField(max_length=200)
     contact_phone = models.CharField(max_length=30)
+    # Free text, e.g. several extra numbers separated by line breaks --
+    # unlike contact_phone, never used for identity matching (matches_creator
+    # below), so no format constraint beyond "optional text".
+    other_phones = models.TextField(blank=True)
     organization = models.CharField(max_length=200, blank=True)
     location_description = models.TextField()
     latitude = models.FloatField(null=True, blank=True)
     longitude = models.FloatField(null=True, blank=True)
     hours = models.CharField(max_length=200, blank=True)
+    accepted_donations = models.TextField(blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_ACTIVE)
     # All three optional -- http(s)-only enforcement lives in
     # CollectionPointCreateSerializer (validate_social_url), not here; see
