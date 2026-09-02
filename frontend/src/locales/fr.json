@@ -306,7 +306,7 @@
     "photoTooLarge": "Cette photo dépasse la taille maximale de {{max}} Mo.",
     "videoTooLarge": "Cette vidéo dépasse la taille maximale de {{max}} Mo.",
     "payloadTooLarge": "Le fichier envoyé est trop volumineux. Réduisez sa taille et réessayez.",
-    "invalidSocialUrl": "Merci d'indiquer un lien valide commençant par http:// ou https://",
+    "invalidSocialUrlField": "Merci d'indiquer un lien {{network}} valide, commençant par http:// ou https://",
     "genericFieldError": "Merci de vérifier les champs du formulaire et réessayer."
   }
 }

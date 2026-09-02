@@ -6,6 +6,15 @@
 // a regex for messages with a dynamic value embedded (a duration, a
 // throttle wait time...); anything unmatched falls back to a clean
 // generic translated message -- never raw text.
+// Brand names, not translated (kept in Latin script in every language,
+// consistent with CollectionPointDetail.jsx's SOCIAL_NETWORKS and the
+// locales' collectionPoints.facebook/tiktok/instagram labels).
+const SOCIAL_FIELD_NAMES = {
+  facebook_url: 'Facebook',
+  tiktok_url: 'TikTok',
+  instagram_url: 'Instagram',
+}
+
 const MATCHERS = [
   { match: 'This need has been cancelled.', key: 'needCancelled' },
   { match: 'This campaign is not accepting new pickups right now.', key: 'campaignNotAcceptingPickups' },
@@ -57,19 +66,26 @@ const MATCHERS = [
     params: (m) => ({ minutes: m[1] }),
   },
   { match: /^Video is (\d+)s long, the maximum is (\d+)s\.$/, key: 'videoTooLong', params: (m) => ({ duration: m[1], max: m[2] }) },
-  { match: 'Enter a valid http:// or https:// URL.', key: 'invalidSocialUrl' },
+  {
+    match: 'Enter a valid http:// or https:// URL.',
+    key: 'invalidSocialUrlField',
+    // Field-aware: the backend raises the same message for facebook_url,
+    // tiktok_url and instagram_url alike, so name the actual field in the
+    // translated message instead of a one-size-fits-all "invalid link".
+    params: (_, field) => ({ network: SOCIAL_FIELD_NAMES[field] || field }),
+  },
   { match: 'This field is required.', key: 'genericFieldError' },
   { match: 'This field may not be blank.', key: 'genericFieldError' },
   { match: 'This field may not be null.', key: 'genericFieldError' },
 ]
 
-function translateOneMessage(raw, t) {
+function translateOneMessage(raw, t, field) {
   for (const m of MATCHERS) {
     if (typeof m.match === 'string') {
-      if (raw === m.match) return t(`apiErrors.${m.key}`)
+      if (raw === m.match) return t(`apiErrors.${m.key}`, m.params ? m.params(null, field) : undefined)
     } else {
       const result = m.match.exec(raw)
-      if (result) return t(`apiErrors.${m.key}`, m.params ? m.params(result) : undefined)
+      if (result) return t(`apiErrors.${m.key}`, m.params ? m.params(result, field) : undefined)
     }
   }
   return null
@@ -89,19 +105,26 @@ export function translateApiError(err, t) {
   // translated explanation rather than the generic fallback.
   if (err.status === 413) return t('apiErrors.payloadTooLarge')
   const data = err.data
+  // Each entry keeps the DRF field name (null for a bare {"detail": ...})
+  // alongside its message, so a matcher can name the actual field that
+  // was wrong instead of a one-size-fits-all message -- see
+  // SOCIAL_FIELD_NAMES/invalidSocialUrlField above.
   const rawMessages = []
   if (data && typeof data === 'object') {
     if (typeof data.detail === 'string') {
-      rawMessages.push(data.detail)
+      rawMessages.push({ field: null, message: data.detail })
     } else {
-      for (const value of Object.values(data)) {
-        if (Array.isArray(value)) rawMessages.push(...value.filter((v) => typeof v === 'string'))
-        else if (typeof value === 'string') rawMessages.push(value)
+      for (const [field, value] of Object.entries(data)) {
+        if (Array.isArray(value)) {
+          for (const v of value) if (typeof v === 'string') rawMessages.push({ field, message: v })
+        } else if (typeof value === 'string') {
+          rawMessages.push({ field, message: value })
+        }
       }
     }
   }
   if (!rawMessages.length) return t('apiErrors.generic')
-  const translated = rawMessages.map((raw) => translateOneMessage(raw, t) || t('apiErrors.generic'))
+  const translated = rawMessages.map(({ field, message }) => translateOneMessage(message, t, field) || t('apiErrors.generic'))
   // De-duplicate so several unmapped field errors don't repeat the same
   // generic sentence back to back.
   return [...new Set(translated)].join(' ')

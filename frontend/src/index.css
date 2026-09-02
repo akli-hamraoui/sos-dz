@@ -132,15 +132,17 @@ a {
   font-family: inherit;
 }
 .page-title {
-  display: inline-block;
-  background: #111;
-  color: #fff;
-  font-size: clamp(12px, 3.5vw, 14px);
+  /* Plain small label, not a pill/button -- a solid background + full
+     border-radius on a short piece of text reads as a tappable chip,
+     which this isn't. Kept as quiet as a section eyebrow: no background,
+     muted color, small caps-style type. */
+  display: block;
+  color: #6b6b6b;
+  font-size: clamp(11px, 3vw, 13px);
   font-weight: 600;
-  letter-spacing: 0.02em;
-  padding: 6px 20px;
-  border-radius: 999px; /* pill -- a half-circle at each end */
-  margin-block: 0 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-block: 0 10px;
 }
 .brand {
   /* The full designed lockup (icon + "SOS DZ" wordmark, as one image --
