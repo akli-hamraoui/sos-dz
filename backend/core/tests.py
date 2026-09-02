@@ -1448,6 +1448,20 @@ class AppConfigurationEndpointTests(BaseAPITestCase):
         resp = self.client.get("/api/config/")
         self.assertEqual(resp.data["collection_points_active_count"], 2)
 
+    def test_deliveries_en_route_count_excludes_delivered_and_cancelled(self):
+        campaign = make_campaign()
+        wilaya = campaign.authorized_wilayas.first()
+        need = Need.objects.create(
+            title="Blankets", contact_name="A", contact_phone="0555000000", wilaya=wilaya, campaign=campaign
+        )
+        common = dict(need=need, responder_type=Pickup.RESPONDER_INDIVIDUAL, responder_name="B", responder_phone="0555111111")
+        Pickup.objects.create(status=Pickup.STATUS_EN_ROUTE, **common)
+        Pickup.objects.create(status=Pickup.STATUS_EN_ROUTE, **common)
+        Pickup.objects.create(status=Pickup.STATUS_DELIVERED, **common)
+        Pickup.objects.create(status=Pickup.STATUS_CANCELLED, **common)
+        resp = self.client.get("/api/config/")
+        self.assertEqual(resp.data["deliveries_en_route_count"], 2)
+
     def test_at_most_5_contact_phones_enforced_in_admin(self):
         config = AppConfiguration.get_solo()
         for i in range(5):

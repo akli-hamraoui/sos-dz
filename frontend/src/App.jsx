@@ -18,7 +18,7 @@ import CollectionPoints from './pages/CollectionPoints'
 import CreateCollectionPoint from './pages/CreateCollectionPoint'
 import CollectionPointDetail from './pages/CollectionPointDetail'
 import Deliveries from './pages/Deliveries'
-import { IconHome, IconNeeds, IconBox, IconHelp, IconPlus, IconWarning, IconWifiOff, IconCheckCircle, IconMenu, IconClose } from './icons'
+import { IconHome, IconNeeds, IconBox, IconTruck, IconPlus, IconWarning, IconWifiOff, IconCheckCircle, IconMenu, IconClose } from './icons'
 
 function LanguageSwitcher() {
   const { i18n, t } = useTranslation()
@@ -131,9 +131,12 @@ function BottomNav() {
         </span>
         <span>{t('nav.collectionPoints')}</span>
       </Link>
-      <Link to="/support" className={isActive('/support') ? 'active' : ''}>
-        <span className="icon"><IconHelp /></span>
-        <span>{t('nav.support')}</span>
+      <Link to="/deliveries" className={isActive('/deliveries') ? 'active' : ''}>
+        <span className="icon">
+          <IconTruck />
+          {!!config.deliveries_en_route_count && <span className="nav-badge">{formatBadgeCount(config.deliveries_en_route_count)}</span>}
+        </span>
+        <span>{t('nav.deliveries')}</span>
       </Link>
     </nav>
   )

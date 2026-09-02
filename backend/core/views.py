@@ -141,6 +141,7 @@ class AppConfigurationView(APIView):
         data["collection_points_active_count"] = CollectionPoint.objects.filter(
             status=CollectionPoint.STATUS_ACTIVE
         ).count()
+        data["deliveries_en_route_count"] = Pickup.objects.filter(status=Pickup.STATUS_EN_ROUTE).count()
         return Response(data)
 
 
