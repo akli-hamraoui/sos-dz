@@ -18,8 +18,35 @@
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background: var(--bg);
   color: var(--text);
+  /* Site-wide watermark background (a very light Algerian-flag/helping-hands
+     illustration) -- fixed so it doesn't scroll with page content, and
+     swapped per viewport size below since the source images are cropped
+     differently for landscape/desktop vs. portrait/mobile framing. `--bg`
+     stays underneath as the solid fallback color while the image loads. */
+  background-color: var(--bg);
+  background-image: url('/backgrounds/bg-mobile-tall.jpg');
+  background-repeat: no-repeat;
+  background-position: top center;
+  background-size: cover;
+  background-attachment: scroll; /* fixed background-attachment is unreliable on mobile Safari/Chrome */
+}
+@media (min-width: 480px) {
+  body {
+    background-image: url('/backgrounds/bg-mobile.jpg');
+  }
+}
+@media (min-width: 900px) {
+  body {
+    background-image: url('/backgrounds/bg-tablet.jpg');
+    background-attachment: fixed;
+  }
+}
+@media (min-width: 1280px) {
+  body {
+    background-image: url('/backgrounds/bg-desktop.jpg');
+    background-position: top center;
+  }
 }
 
 #root {
