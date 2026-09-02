@@ -10,7 +10,7 @@ from rest_framework.views import APIView
 from core.access import authorized_for_write, get_presented_token, is_admin_request, owner_authorized
 from core.captcha import verify_turnstile
 from core.duplicates import find_similar_needs
-from core.media_validation import validate_photo_count
+from core.media_validation import validate_photo_count, validate_photo_size
 from core.moderation import moderate_image_field, moderate_video_field
 from core.models import (
     AppConfiguration,
@@ -201,6 +201,7 @@ class NeedViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retriev
         damage_photos = request.FILES.getlist("damage_photos")
         try:
             validate_photo_count(damage_photos)
+            validate_photo_size(damage_photos)
         except Exception as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         serializer = self.get_serializer(data=request.data)
@@ -479,6 +480,7 @@ class PickupViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retri
         delivery_photos = request.FILES.getlist("delivery_photos")
         try:
             validate_photo_count(delivery_photos)
+            validate_photo_size(delivery_photos)
         except Exception as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         for photo in delivery_photos:

@@ -48,6 +48,8 @@ const MATCHERS = [
     key: 'videoDurationUnverifiable',
   },
   { match: 'Maximum 3 photos allowed.', key: 'tooManyPhotos' },
+  { match: /^Photo exceeds the maximum size of (\d+)MB\.$/, key: 'photoTooLarge', params: (m) => ({ max: m[1] }) },
+  { match: /^Video exceeds the maximum size of (\d+)MB\.$/, key: 'videoTooLarge', params: (m) => ({ max: m[1] }) },
   { match: 'Too many submissions from this connection. Please try again later.', key: 'rateLimitedGeneric' },
   {
     match: /^Too many submissions from this connection\. Please wait about (\d+) minute\(s\) and try again\.$/,
@@ -78,6 +80,13 @@ function translateOneMessage(raw, t) {
 // English or a JSON dump.
 export function translateApiError(err, t) {
   if (!err) return t('apiErrors.generic')
+  // A request rejected purely for its size (Nginx's client_max_body_size,
+  // or Django's DATA_UPLOAD_MAX_MEMORY_SIZE) never reaches this app's own
+  // validation, so there's no JSON body/known message to match against --
+  // just Nginx's or gunicorn's own plain HTML error page. Handle it by
+  // status code instead of by message so it still gets an explicit,
+  // translated explanation rather than the generic fallback.
+  if (err.status === 413) return t('apiErrors.payloadTooLarge')
   const data = err.data
   const rawMessages = []
   if (data && typeof data === 'object') {

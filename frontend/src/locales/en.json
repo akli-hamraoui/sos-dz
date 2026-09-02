@@ -280,6 +280,9 @@
     "rateLimitedGeneric": "Too many submissions from this connection. Please try again later.",
     "rateLimitedWithWait": "Too many submissions from this connection. Please wait about {{minutes}} minute(s) and try again.",
     "videoTooLong": "Video is {{duration}}s long, the maximum is {{max}}s.",
+    "photoTooLarge": "This photo exceeds the maximum size of {{max}}MB.",
+    "videoTooLarge": "This video exceeds the maximum size of {{max}}MB.",
+    "payloadTooLarge": "The file you sent is too large. Reduce its size and try again.",
     "genericFieldError": "Please check the form fields and try again."
   }
 }

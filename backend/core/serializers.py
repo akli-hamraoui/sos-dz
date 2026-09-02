@@ -18,7 +18,7 @@ from core.models import (
     SupportRequest,
     Wilaya,
 )
-from core.media_validation import validate_video_duration
+from core.media_validation import validate_video_duration, validate_video_size
 from core.validators import check_recovery_code_available, validate_algeria_bounds
 
 
@@ -382,6 +382,7 @@ class NeedCreateSerializer(serializers.ModelSerializer):
                 "Please provide at least one of: a text description, a voice message, or a video."
             )
         if video_file:
+            validate_video_size(video_file)
             validate_video_duration(video_file)
         return attrs
 

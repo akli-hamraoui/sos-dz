@@ -30,11 +30,30 @@ logger = logging.getLogger(__name__)
 
 MAX_PHOTOS = 3
 MAX_VIDEO_SECONDS = 20
+# Voice deliberately has no size cap here -- short spoken messages are
+# small regardless, and the shared 30MB request-body ceiling
+# (config.settings.DATA_UPLOAD_MAX_MEMORY_SIZE, matched by Nginx's
+# client_max_body_size) is the only limit that applies to it.
+MAX_PHOTO_SIZE_MB = 10
+MAX_VIDEO_SIZE_MB = 10
+MAX_PHOTO_SIZE_BYTES = MAX_PHOTO_SIZE_MB * 1024 * 1024
+MAX_VIDEO_SIZE_BYTES = MAX_VIDEO_SIZE_MB * 1024 * 1024
 
 
 def validate_photo_count(files):
     if len(files) > MAX_PHOTOS:
         raise serializers.ValidationError(f"Maximum {MAX_PHOTOS} photos allowed.")
+
+
+def validate_photo_size(files):
+    for f in files:
+        if f.size > MAX_PHOTO_SIZE_BYTES:
+            raise serializers.ValidationError(f"Photo exceeds the maximum size of {MAX_PHOTO_SIZE_MB}MB.")
+
+
+def validate_video_size(django_file):
+    if django_file.size > MAX_VIDEO_SIZE_BYTES:
+        raise serializers.ValidationError(f"Video exceeds the maximum size of {MAX_VIDEO_SIZE_MB}MB.")
 
 
 def ffprobe_available():

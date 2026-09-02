@@ -987,6 +987,19 @@ class MediaUploadTests(BaseAPITestCase):
         self.assertEqual(resp.status_code, 400)
         self.assertEqual(Need.objects.count(), 0)
 
+    def test_damage_photo_rejected_when_oversized(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from core.media_validation import MAX_PHOTO_SIZE_BYTES
+
+        oversized = SimpleUploadedFile("big.jpg", b"x" * (MAX_PHOTO_SIZE_BYTES + 1), content_type="image/jpeg")
+        resp = self.client.post(
+            "/api/needs/",
+            self._multipart_payload(damage_photos=[oversized]),
+            format="multipart",
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(Need.objects.count(), 0)
+
     def test_at_least_one_of_description_voice_video_required(self):
         resp = self.client.post(
             "/api/needs/",
@@ -1053,6 +1066,22 @@ class MediaUploadTests(BaseAPITestCase):
                 format="multipart",
             )
         self.assertEqual(resp.status_code, 400)
+
+    def test_video_rejected_when_oversized(self):
+        """The 10MB video size cap is unconditional, unlike the
+        opt-in duration check -- confirmed by not touching
+        enforce_video_duration_check here at all."""
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from core.media_validation import MAX_VIDEO_SIZE_BYTES
+
+        oversized = SimpleUploadedFile("big.webm", b"x" * (MAX_VIDEO_SIZE_BYTES + 1), content_type="video/webm")
+        resp = self.client.post(
+            "/api/needs/",
+            self._multipart_payload(video_file=oversized),
+            format="multipart",
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(Need.objects.count(), 0)
 
     def test_video_accepted_by_default_even_when_duration_undeterminable(self):
         """Server-side duration verification is opt-in, off by default (see
