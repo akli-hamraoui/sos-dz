@@ -6,6 +6,7 @@ from core.models import (
     AdminContactPhone,
     AppConfiguration,
     AuditLog,
+    BugReportProxy,
     Campaign,
     CollectionPoint,
     Comment,
@@ -18,6 +19,7 @@ from core.models import (
     Need,
     Pickup,
     ProgressUpdate,
+    RecoveryRequestProxy,
     SupportRequest,
     TranslationOverride,
     Wilaya,
@@ -107,13 +109,35 @@ class PickupInline(admin.TabularInline):
     show_change_link = True
 
 
+def approve_video(modeladmin, request, queryset):
+    count = queryset.update(video_moderation_status=Need.MODERATION_APPROVED)
+    AuditLog.objects.create(admin_user=request.user, action="approved video", target_description=f"{count} need(s)")
+    modeladmin.message_user(request, f"Approved video on {count} need(s).")
+
+
+approve_video.short_description = "Approve video (pending review queue)"
+
+
+def reject_video(modeladmin, request, queryset):
+    count = queryset.update(video_moderation_status=Need.MODERATION_REJECTED)
+    AuditLog.objects.create(admin_user=request.user, action="rejected video", target_description=f"{count} need(s)")
+    modeladmin.message_user(request, f"Rejected video on {count} need(s).")
+
+
+reject_video.short_description = "Reject video (pending review queue)"
+
+
 @admin.register(Need)
 class NeedAdmin(admin.ModelAdmin):
-    list_display = ["title", "wilaya", "urgency", "overall_status", "campaign", "is_anonymized_display", "created_at"]
+    list_display = ["title", "wilaya", "urgency", "overall_status", "campaign", "video_moderation_status", "is_anonymized_display", "created_at"]
+    # video_moderation_status is filterable here specifically so "pending"
+    # doubles as the video review queue -- filter to it, select the
+    # need(s), then use the approve/reject actions below. Photos have
+    # their own equivalent queue on DamagePhotoAdmin/DeliveryPhotoAdmin.
     list_filter = ["urgency", "overall_status", "wilaya", "campaign", "video_moderation_status"]
     search_fields = ["title", "contact_name", "contact_phone"]
     readonly_fields = ["access_token", "location_viewer_share_token", "covered_quantity", "overall_status", "edit_history", "pii_obfuscated_at", "obfuscated_by"]
-    actions = [anonymize_selected]
+    actions = [anonymize_selected, approve_video, reject_video]
     inlines = [PickupInline]
 
     def is_anonymized_display(self, obj):
@@ -164,10 +188,34 @@ class AppConfigurationAdmin(admin.ModelAdmin):
         return False
 
 
-@admin.register(SupportRequest)
-class SupportRequestAdmin(admin.ModelAdmin):
-    list_display = ["category", "requester_phone", "requester_email", "status", "created_at"]
-    list_filter = ["category", "status"]
+class SupportRequestQueueAdmin(admin.ModelAdmin):
+    """Shared behavior for the two category-filtered proxy admins below --
+    each is a queue of SupportRequest rows, pre-scoped to one category, so
+    an admin doesn't have to remember to apply that filter by hand. Rows
+    are never created here (the public /support and /report-bug forms are
+    the only intended source), but status can be edited (e.g. marking one
+    as processed after following up) and the change form doubles as the
+    "details" view."""
+
+    list_display = ["requester_phone", "requester_email", "related_listing_description", "status", "created_at"]
+    list_filter = ["status"]
+    search_fields = ["message", "requester_phone", "requester_email", "related_listing_description"]
+    readonly_fields = ["category", "requester_phone", "requester_email", "related_listing_description", "message", "created_at"]
+
+    def has_add_permission(self, request):
+        return False
+
+
+@admin.register(BugReportProxy)
+class BugReportAdmin(SupportRequestQueueAdmin):
+    def get_queryset(self, request):
+        return super().get_queryset(request).filter(category=SupportRequest.CATEGORY_BUG)
+
+
+@admin.register(RecoveryRequestProxy)
+class RecoveryRequestAdmin(SupportRequestQueueAdmin):
+    def get_queryset(self, request):
+        return super().get_queryset(request).filter(category=SupportRequest.CATEGORY_GENERAL)
 
 
 @admin.register(TranslationOverride)

@@ -5,7 +5,6 @@ import L from 'leaflet'
 import { useApp } from '../context/AppContext'
 import { api } from '../api'
 import { urgencyColor, haversineKm, isInAlgeria } from '../utils'
-import { IconBox } from '../icons'
 
 function statusLabel(t, s) {
   return t(`status.${s}`, s)
@@ -111,22 +110,22 @@ export default function NeedsList() {
     let cancelled = false
 
     ;(async () => {
-      let needPins, cpPins
+      let needPins
       const params = new URLSearchParams()
       if (filterWilaya) params.set('wilaya', filterWilaya)
       if (search) params.set('search', search)
       const qs = params.toString() ? `?${params.toString()}` : ''
       try {
-        ;[needPins, cpPins] = await Promise.all([api(`/needs/locations/${qs}`), api(`/collection-points/locations/${qs}`).catch(() => [])])
+        needPins = await api(`/needs/locations/${qs}`)
       } catch {
         return // offline/network failure -- offline banner already informs the user
       }
       if (cancelled) return
       // The map itself is always shown (see below) -- this only controls
       // whether a supplementary "nothing yet" hint is shown alongside it,
-      // e.g. right after a campaign starts before any need/collection
-      // point has been reported yet.
-      setMapHasNothing(needPins.length === 0 && cpPins.length === 0)
+      // e.g. right after a campaign starts before any need has been
+      // reported yet.
+      setMapHasNothing(needPins.length === 0)
 
       requestAnimationFrame(() => {
         if (!mapElRef.current) return
@@ -164,36 +163,8 @@ export default function NeedsList() {
           markers.push(marker)
         })
 
-        const cpsWithPos = cpPins.filter((p) => p.display_latitude != null && p.display_longitude != null)
-        const boxIconSvg =
-          '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ' +
-          'stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M3.5 7.5 12 3l8.5 4.5v9L12 21l-8.5-4.5v-9Z"/>' +
-          '<path d="M3.5 7.5 12 12l8.5-4.5"/><path d="M12 12v9"/></svg>'
-        cpsWithPos.forEach((p) => {
-          // A box on a white pin, like a relay/drop-off point -- the same
-          // package icon already used for collection points everywhere
-          // else (legend, list cards, popups here), instead of a plain
-          // black square glyph.
-          const icon = L.divIcon({
-            className: 'cp-marker-icon',
-            html:
-              '<span class="cp-marker-pin"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="2" ' +
-              'stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 7.5 12 3l8.5 4.5v9L12 21l-8.5-4.5v-9Z"/>' +
-              '<path d="M3.5 7.5 12 12l8.5-4.5"/><path d="M12 12v9"/></svg></span>',
-            iconSize: [30, 30],
-            iconAnchor: [15, 15],
-          })
-          const marker = L.marker([p.display_latitude, p.display_longitude], { icon }).addTo(map)
-          const gpsNote = p.has_exact_position ? '' : `<br><em>${t('common.noExactGpsPosition')}</em>`
-          marker.bindPopup(
-            `<strong>${boxIconSvg} ${p.point_name}</strong><br>${p.contact_name}${p.organization ? '<br>' + p.organization : ''}` +
-              `${p.hours ? '<br>' + p.hours : ''}<br>${p.wilaya_name}${gpsNote}<br><a href="/collection-points/${p.id}">${t('common.open')}</a>`
-          )
-          markers.push(marker)
-        })
-
         markersRef.current = markers
-        const allPoints = needsWithPos.map((p) => [p.display_latitude, p.display_longitude]).concat(cpsWithPos.map((p) => [p.display_latitude, p.display_longitude]))
+        const allPoints = needsWithPos.map((p) => [p.display_latitude, p.display_longitude])
         smartZoom(map, allPoints, filterWilaya)
       })
     })()
@@ -284,10 +255,6 @@ export default function NeedsList() {
             <span className="legend-item">
               <span className="legend-dot" style={{ background: urgencyColor('medium') }} />
               {t('urgency.medium')}
-            </span>
-            <span className="legend-item">
-              <IconBox width={14} height={14} strokeWidth={2} />
-              {t('needsList.collectionPointLabel')}
             </span>
             <span className="legend-note">{t('needsList.legendNote')}</span>
           </div>

@@ -1,3 +1,15 @@
+// Builds a wa.me link from a phone number as an admin would naturally type
+// it (local Algerian format, e.g. "0555 12 34 56") -- wa.me needs bare
+// digits in international format with no leading 0, so a local-format
+// leading 0 is swapped for Algeria's country code (213). A number already
+// entered with a country code (213... or +213...) passes through as-is.
+export function whatsappLink(phone) {
+  const digits = (phone || '').replace(/\D/g, '')
+  if (!digits) return null
+  const intl = digits.startsWith('213') ? digits : digits.startsWith('0') ? '213' + digits.slice(1) : digits
+  return `https://wa.me/${intl}`
+}
+
 export function maskPhone(phone, revealed) {
   if (!phone) return ''
   if (revealed) return phone

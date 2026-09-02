@@ -44,7 +44,8 @@
     "deliveries": "Deliveries",
     "menu": "Menu",
     "reportBug": "Report a bug",
-    "about": "About us"
+    "about": "About us",
+    "djangoAdmin": "Administration"
   },
   "home": {
     "tagline": "Wildfire relief coordination for Algeria.",
@@ -240,7 +241,8 @@
     "p1": "SOS DZ is a community-run, volunteer, open-source platform built to coordinate mutual aid around wildfires in Algeria: report a need, offer help, and track deliveries in real time.",
     "p2": "The project isn't affiliated with any administration or official organization -- it's a free, ad-free citizen tool designed to stay usable even on a weak connection.",
     "p3": "The source code is public; anyone can review how it works or contribute.",
-    "contactLink": "A question or a suggestion? Contact the admin."
+    "contactLink": "A question or a suggestion? Contact the admin.",
+    "whatsappHeading": "Contact us on WhatsApp"
   },
   "apiErrors": {
     "generic": "Something went wrong. Please try again, or contact the admin if this persists.",

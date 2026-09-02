@@ -554,6 +554,29 @@ class SupportRequest(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
 
+class BugReportProxy(SupportRequest):
+    """Proxy model, no schema of its own -- gives 'Signaler un bug'
+    submissions (SupportRequest.category == 'bug') their own admin
+    sidebar entry with a pre-filtered queryset, instead of one shared
+    'Support requests' list an admin has to remember to filter by
+    category. See core/admin.py's BugReportAdmin."""
+
+    class Meta:
+        proxy = True
+        verbose_name = "Bug report"
+        verbose_name_plural = "Bug reports"
+
+
+class RecoveryRequestProxy(SupportRequest):
+    """Same idea as BugReportProxy, for 'coordonnées oubliées' submissions
+    (SupportRequest.category == 'general')."""
+
+    class Meta:
+        proxy = True
+        verbose_name = "Recovery request (coordonnées oubliées)"
+        verbose_name_plural = "Recovery requests (coordonnées oubliées)"
+
+
 # ---------------------------------------------------------------------------
 # Community: collection points and comments (Wave 4)
 # ---------------------------------------------------------------------------

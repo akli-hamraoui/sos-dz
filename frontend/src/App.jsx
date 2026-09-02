@@ -62,6 +62,44 @@ function PageTitle() {
   return <p className="page-title">{t(key)}</p>
 }
 
+// Shared between the desktop and mobile topbar nav -- previously these
+// links had no active-state styling at all (unlike BottomNav, which
+// already highlighted the current tab), and "Signaler un bug" only
+// existed in the footer. `isAdmin` adds a direct link to Django Admin
+// itself, since being told "you're in admin mode" (the badge) without a
+// way to reach the admin UI from the menu wasn't actually useful.
+function TopNavLinks({ isActive, isAdmin }) {
+  const { t } = useTranslation()
+  return (
+    <>
+      <Link to="/needs" className={isActive('/needs') ? 'active' : ''}>
+        {t('nav.needs')}
+      </Link>
+      <Link to="/collection-points" className={isActive('/collection-points') ? 'active' : ''}>
+        {t('nav.collectionPoints')}
+      </Link>
+      <Link to="/deliveries" className={isActive('/deliveries') ? 'active' : ''}>
+        {t('nav.deliveries')}
+      </Link>
+      <Link to="/create" className={isActive('/create') ? 'active' : ''}>
+        {t('nav.iNeedHelp')}
+      </Link>
+      <Link to="/support" className={isActive('/support') ? 'active' : ''}>
+        {t('nav.forgotDetails')}
+      </Link>
+      <Link to="/report-bug" className={isActive('/report-bug') ? 'active' : ''}>
+        {t('nav.reportBug')}
+      </Link>
+      {isAdmin && (
+        <a href="/admin/" className="nav-admin-link">
+          {t('nav.djangoAdmin')}
+        </a>
+      )}
+      <LanguageSwitcher />
+    </>
+  )
+}
+
 function BottomNav() {
   const { t } = useTranslation()
   const location = useLocation()
@@ -96,6 +134,7 @@ export default function App() {
   const { config, isOnline, syncMessage } = useApp()
   const [navOpen, setNavOpen] = useState(false)
   const location = useLocation()
+  const isActive = (path) => location.pathname === path
 
   useEffect(() => {
     setNavOpen(false) // close the mobile menu on every navigation
@@ -139,12 +178,7 @@ export default function App() {
           </span>
         )}
         <nav className="topbar-nav-desktop">
-          <Link to="/needs">{t('nav.needs')}</Link>
-          <Link to="/collection-points">{t('nav.collectionPoints')}</Link>
-          <Link to="/deliveries">{t('nav.deliveries')}</Link>
-          <Link to="/create">{t('nav.iNeedHelp')}</Link>
-          <Link to="/support">{t('nav.forgotDetails')}</Link>
-          <LanguageSwitcher />
+          <TopNavLinks isActive={isActive} isAdmin={config.is_admin} />
         </nav>
         <button
           type="button"
@@ -158,12 +192,7 @@ export default function App() {
       </header>
       {navOpen && (
         <nav className="topbar-nav-mobile">
-          <Link to="/needs">{t('nav.needs')}</Link>
-          <Link to="/collection-points">{t('nav.collectionPoints')}</Link>
-          <Link to="/deliveries">{t('nav.deliveries')}</Link>
-          <Link to="/create">{t('nav.iNeedHelp')}</Link>
-          <Link to="/support">{t('nav.forgotDetails')}</Link>
-          <LanguageSwitcher />
+          <TopNavLinks isActive={isActive} isAdmin={config.is_admin} />
         </nav>
       )}
 

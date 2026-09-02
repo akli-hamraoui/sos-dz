@@ -44,7 +44,8 @@
     "deliveries": "Livraisons",
     "menu": "Menu",
     "reportBug": "Signaler un bug",
-    "about": "Qui sommes-nous"
+    "about": "Qui sommes-nous",
+    "djangoAdmin": "Administration"
   },
   "home": {
     "tagline": "Coordination de l'aide pour les feux en Algérie.",
@@ -240,7 +241,8 @@
     "p1": "SOS DZ est une plateforme communautaire, bénévole et open-source, créée pour coordonner l'entraide autour des feux de forêt en Algérie : signaler un besoin, proposer de l'aide, et suivre les livraisons en temps réel.",
     "p2": "Le projet n'est affilié à aucune administration ni organisation officielle -- c'est un outil citoyen, gratuit et sans publicité, pensé pour rester simple à utiliser même en connexion faible.",
     "p3": "Le code source est public ; toute personne peut vérifier son fonctionnement ou contribuer.",
-    "contactLink": "Une question, une suggestion ? Contactez l'admin."
+    "contactLink": "Une question, une suggestion ? Contactez l'admin.",
+    "whatsappHeading": "Nous contacter sur WhatsApp"
   },
   "apiErrors": {
     "generic": "Une erreur est survenue. Veuillez réessayer, ou contacter l'admin si le problème persiste.",
