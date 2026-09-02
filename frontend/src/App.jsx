@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { useApp } from './context/AppContext'
 import { setLanguage, getStoredLanguage } from './i18n'
 import { getCsrfToken } from './api'
+import { formatBadgeCount } from './utils'
 import Home from './pages/Home'
 import CreateNeed from './pages/CreateNeed'
 import NeedsList from './pages/NeedsList'
@@ -103,6 +104,7 @@ function TopNavLinks({ isActive, isAdmin }) {
 function BottomNav() {
   const { t } = useTranslation()
   const location = useLocation()
+  const { config } = useApp()
   const isActive = (path) => location.pathname === path
   return (
     <nav className="bottom-nav">
@@ -111,14 +113,22 @@ function BottomNav() {
         <span>{t('nav.home')}</span>
       </Link>
       <Link to="/needs" className={isActive('/needs') ? 'active' : ''}>
-        <span className="icon"><IconNeeds /></span>
+        <span className="icon">
+          <IconNeeds />
+          {!!config.needs_open_count && <span className="nav-badge">{formatBadgeCount(config.needs_open_count)}</span>}
+        </span>
         <span>{t('nav.needs')}</span>
       </Link>
       <Link to="/create" className="fab" aria-label={t('nav.iNeedHelp')}>
         <IconPlus width={26} height={26} strokeWidth={2} />
       </Link>
       <Link to="/collection-points" className={isActive('/collection-points') ? 'active' : ''}>
-        <span className="icon"><IconBox /></span>
+        <span className="icon">
+          <IconBox />
+          {!!config.collection_points_active_count && (
+            <span className="nav-badge">{formatBadgeCount(config.collection_points_active_count)}</span>
+          )}
+        </span>
         <span>{t('nav.collectionPoints')}</span>
       </Link>
       <Link to="/support" className={isActive('/support') ? 'active' : ''}>

@@ -17,6 +17,21 @@ export function googleMapsUrl(lat, lon) {
   return `https://www.google.com/maps/search/?api=1&query=${lat},${lon}`
 }
 
+// Bottom-nav notification badge text: exact under 100, rounded down to the
+// nearest hundred with a "+" once it's not already a round number (223 ->
+// "200+", 200 -> "200"), then the same idea in thousands past 999 (1500 ->
+// "1k+", 2000 -> "2k") -- keeps the badge readable at a glance instead of
+// squeezing an arbitrarily long exact number into a tiny pill.
+export function formatBadgeCount(n) {
+  if (n < 100) return String(n)
+  if (n < 1000) {
+    const rounded = Math.floor(n / 100) * 100
+    return rounded === n ? String(rounded) : `${rounded}+`
+  }
+  const thousands = Math.floor(n / 1000)
+  return n % 1000 === 0 ? `${thousands}k` : `${thousands}k+`
+}
+
 export function maskPhone(phone, revealed) {
   if (!phone) return ''
   if (revealed) return phone

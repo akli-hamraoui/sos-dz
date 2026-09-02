@@ -979,6 +979,23 @@ fieldset {
 .bottom-nav .icon {
   display: flex;
   color: #555;
+  position: relative; /* anchors .nav-badge */
+}
+.nav-badge {
+  position: absolute;
+  top: -6px;
+  inset-inline-end: -10px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 2px 5px;
+  border-radius: 999px;
+  min-width: 14px;
+  box-sizing: border-box;
+  text-align: center;
+  border: 1.5px solid var(--card); /* separates the badge from the icon behind it */
 }
 .bottom-nav a.active {
   /* Same solid pill treatment as the Liste/Carte toggle's .active state

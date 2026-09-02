@@ -131,6 +131,16 @@ class AppConfigurationView(APIView):
         # otherwise be rejected) -- never a security boundary itself,
         # every actual write still re-checks is_admin_request server-side.
         data["is_admin"] = is_admin_request(request)
+        # Bottom-nav notification badges (frontend rounds/formats the
+        # number) -- "active" on purpose, not a lifetime total: reflects
+        # what there actually is to look at right now, not a count that
+        # only ever grows.
+        data["needs_open_count"] = Need.objects.filter(
+            overall_status__in=[Need.STATUS_OPEN, Need.STATUS_PARTIALLY_COVERED]
+        ).count()
+        data["collection_points_active_count"] = CollectionPoint.objects.filter(
+            status=CollectionPoint.STATUS_ACTIVE
+        ).count()
         return Response(data)
 
 

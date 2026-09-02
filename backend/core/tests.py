@@ -1428,6 +1428,26 @@ class AppConfigurationEndpointTests(BaseAPITestCase):
         resp = self.client.get("/api/config/")
         self.assertTrue(resp.data["is_admin"])
 
+    def test_needs_open_count_excludes_covered_and_cancelled(self):
+        campaign = make_campaign()
+        wilaya = campaign.authorized_wilayas.first()
+        common = dict(contact_name="A", contact_phone="0555000000", wilaya=wilaya, campaign=campaign)
+        Need.objects.create(title="Open one", overall_status=Need.STATUS_OPEN, **common)
+        Need.objects.create(title="Partially covered", overall_status=Need.STATUS_PARTIALLY_COVERED, **common)
+        Need.objects.create(title="Covered", overall_status=Need.STATUS_COVERED, **common)
+        Need.objects.create(title="Cancelled", overall_status=Need.STATUS_CANCELLED, **common)
+        resp = self.client.get("/api/config/")
+        self.assertEqual(resp.data["needs_open_count"], 2)
+
+    def test_collection_points_active_count_excludes_closed(self):
+        wilaya = Wilaya.objects.first()
+        common = dict(point_name="P", contact_name="A", contact_phone="0555000000", wilaya=wilaya, location_description="Somewhere")
+        CollectionPoint.objects.create(status=CollectionPoint.STATUS_ACTIVE, **common)
+        CollectionPoint.objects.create(status=CollectionPoint.STATUS_ACTIVE, **common)
+        CollectionPoint.objects.create(status=CollectionPoint.STATUS_CLOSED, **common)
+        resp = self.client.get("/api/config/")
+        self.assertEqual(resp.data["collection_points_active_count"], 2)
+
     def test_at_most_5_contact_phones_enforced_in_admin(self):
         config = AppConfiguration.get_solo()
         for i in range(5):
