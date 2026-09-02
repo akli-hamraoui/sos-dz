@@ -260,15 +260,6 @@ main {
   padding: 60px 20px;
   position: relative;
   overflow: hidden;
-  /* A very subtle Algerian crescent-and-star watermark in the bottom-right
-     corner -- previously paired with a radial-gradient green "wash" near
-     the top-left, but that gradient rendered as a visible hard-edged
-     rectangle in real browsers (its low-alpha fade was too abrupt to read
-     as ambient light), so it was dropped rather than tuned further. */
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Ccircle cx='100' cy='100' r='55' fill='rgba(210,16,52,0.1)'/%3E%3Ccircle cx='120' cy='100' r='48' fill='%23fafafa'/%3E%3Cpolygon points='128,82 132.11,94.34 145.12,94.44 134.66,102.16 138.58,114.56 128,107 117.42,114.56 121.34,102.16 110.88,94.44 123.89,94.34' fill='rgba(210,16,52,0.1)'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: 100% 100%;
-  background-size: 300px 300px;
 }
 .home-actions {
   display: flex;
