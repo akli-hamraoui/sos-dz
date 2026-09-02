@@ -24,7 +24,10 @@ export default function Deliveries() {
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
   const [pickups, setPickups] = useState([])
-  const [viewMode, setViewMode] = useState('list')
+  // Map first -- seeing where couriers currently are is the more useful
+  // default than a text list, same reasoning as NeedsList's own map-first
+  // default.
+  const [viewMode, setViewMode] = useState('map')
   const [mapHasNothing, setMapHasNothing] = useState(false)
   const mapRef = useRef(null)
   const mapElRef = useRef(null)
