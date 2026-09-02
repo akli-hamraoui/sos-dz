@@ -5,7 +5,7 @@ import L from 'leaflet'
 import { useApp } from '../context/AppContext'
 import { useDialog } from '../context/DialogContext'
 import { api, apiUpload, createOrQueue } from '../api'
-import { maskPhone, formatDate, compressPhoto } from '../utils'
+import { maskPhone, formatDate, compressPhoto, googleMapsUrl } from '../utils'
 import { translateApiError } from '../apiErrors'
 import { IconMapPin } from '../icons'
 import { fetchDrivingRoute } from '../routing'
@@ -326,7 +326,15 @@ export default function NeedDetail() {
         {need.commune ? ' — ' + need.commune : ''}
       </p>
       {need.location_description && <p>{need.location_description}</p>}
-      {need.position_accuracy !== 'exact' && <p className="hint">{t('common.noExactGpsPosition')}</p>}
+      {need.position_accuracy === 'exact' && need.latitude != null && need.longitude != null ? (
+        <p>
+          <a className="link field-label-icon" href={googleMapsUrl(need.latitude, need.longitude)} target="_blank" rel="noopener noreferrer">
+            <IconMapPin width={16} height={16} strokeWidth={2} /> {t('common.openInMaps')}
+          </a>
+        </p>
+      ) : (
+        <p className="hint">{t('common.noExactGpsPosition')}</p>
+      )}
 
       {need.voice_file && (
         <div>

@@ -3,10 +3,10 @@ import { useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useDialog } from '../context/DialogContext'
 import { api } from '../api'
-import { maskPhone } from '../utils'
+import { maskPhone, googleMapsUrl } from '../utils'
 import { translateApiError } from '../apiErrors'
 import CommentThread from '../components/CommentThread'
-import { IconFacebook, IconTikTok, IconInstagram } from '../icons'
+import { IconFacebook, IconTikTok, IconInstagram, IconMapPin } from '../icons'
 
 // Belt-and-suspenders on top of the server-side validation (which already
 // only ever accepts/stores http(s) URLs, see core/validators.py): never
@@ -54,7 +54,15 @@ export default function CollectionPointDetail() {
       <span className="status">{t(`status.${cp.status}`)}</span>
       <p>{cp.wilaya_name}</p>
       <p>{cp.location_description}</p>
-      {cp.latitude == null && <p className="hint">{t('common.noExactGpsPosition')}</p>}
+      {cp.latitude != null && cp.longitude != null ? (
+        <p>
+          <a className="link field-label-icon" href={googleMapsUrl(cp.latitude, cp.longitude)} target="_blank" rel="noopener noreferrer">
+            <IconMapPin width={16} height={16} strokeWidth={2} /> {t('common.openInMaps')}
+          </a>
+        </p>
+      ) : (
+        <p className="hint">{t('common.noExactGpsPosition')}</p>
+      )}
       {cp.organization && <p>{cp.organization}</p>}
       {cp.hours && <p>{t('collectionPoints.hours')}: {cp.hours}</p>}
       {cp.accepted_donations && (

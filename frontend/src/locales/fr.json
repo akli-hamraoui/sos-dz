@@ -19,6 +19,7 @@
     "showFullNumber": "afficher le numéro complet",
     "hideNumber": "masquer le numéro",
     "noExactGpsPosition": "sans position GPS exacte",
+    "openInMaps": "Voir sur Google Maps",
     "adminContact": "Contact admin",
     "searchPlaceholder": "Rechercher (nom, description...)",
     "adminModeBadge": "Mode admin",

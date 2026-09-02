@@ -19,6 +19,7 @@
     "showFullNumber": "show full number",
     "hideNumber": "hide number",
     "noExactGpsPosition": "no exact GPS position",
+    "openInMaps": "View on Google Maps",
     "adminContact": "Admin contact",
     "searchPlaceholder": "Search (name, description...)",
     "adminModeBadge": "Admin mode",

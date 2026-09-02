@@ -10,6 +10,13 @@ export function whatsappLink(phone) {
   return `https://wa.me/${intl}`
 }
 
+// Google's documented "always works" link format -- opens the Google Maps
+// app if installed (iOS/Android), else the web version. No API key needed
+// since this is a plain search deep-link, not the JS/embed API.
+export function googleMapsUrl(lat, lon) {
+  return `https://www.google.com/maps/search/?api=1&query=${lat},${lon}`
+}
+
 export function maskPhone(phone, revealed) {
   if (!phone) return ''
   if (revealed) return phone
