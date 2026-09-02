@@ -792,20 +792,11 @@ fieldset {
   min-width: 180px;
 }
 
-.map-wrap {
-  /* Leaflet grabs touch-drag gestures to pan the map -- when the map runs
-     edge-to-edge, a finger trying to scroll the *page* down over the map
-     area gets captured into panning it instead. A visible side gutter
-     (touchable page background, not map canvas) on mobile leaves room to
-     scroll past the map without fighting it; ~10% narrower overall,
-     split evenly. Full width restored once there's room to spare. */
-  margin-inline: 5%;
-}
-@media (min-width: 700px) {
-  .map-wrap {
-    margin-inline: 0;
-  }
-}
+/* .map-wrap previously got a narrowed side margin on mobile so a
+   page-scroll swipe had a touchable gutter next to the map (Leaflet grabs
+   single-finger touch-drag to pan). Superseded by the gestureHandling map
+   option (see main.jsx): a single finger now scrolls the page even
+   directly over the map, so the map can stay full width. */
 
 .legend {
   display: flex;

@@ -130,7 +130,7 @@ export default function NeedsList() {
       requestAnimationFrame(() => {
         if (!mapElRef.current) return
         if (!mapRef.current) {
-          mapRef.current = L.map(mapElRef.current, { attributionControl: false })
+          mapRef.current = L.map(mapElRef.current, { attributionControl: false, gestureHandling: true })
           // Standard OpenStreetMap raster tiles: free with no API key
           // required (unlike CartoDB's basemaps.cartocdn.com, which
           // started requiring one and showed an "API KEY REQUIRED"

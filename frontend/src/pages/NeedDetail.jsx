@@ -91,7 +91,7 @@ export default function NeedDetail() {
       mapRef.current.remove()
       mapRef.current = null
     }
-    const map = L.map(mapElRef.current, { attributionControl: false })
+    const map = L.map(mapElRef.current, { attributionControl: false, gestureHandling: true })
     // Standard OpenStreetMap raster tiles -- see NeedsList.jsx for why
     // (CartoDB's free tier now requires an API key).
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {

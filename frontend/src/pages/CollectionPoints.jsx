@@ -114,7 +114,7 @@ export default function CollectionPoints() {
       requestAnimationFrame(() => {
         if (!mapElRef.current) return
         if (!mapRef.current) {
-          mapRef.current = L.map(mapElRef.current, { attributionControl: false })
+          mapRef.current = L.map(mapElRef.current, { attributionControl: false, gestureHandling: true })
           // Standard OpenStreetMap raster tiles -- see NeedsList.jsx for why
           // (CartoDB's free tier now requires an API key).
           L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
