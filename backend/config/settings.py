@@ -211,6 +211,17 @@ else:
         "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
     }
 
+# Django's own default (2.5MB) rejects a create-need submission outright
+# (RequestDataTooBig -> 413) once photos/voice/video are attached, well
+# before it reaches any of this app's own validation -- confirmed live on
+# the real deploy. Raised to comfortably cover the realistic worst case:
+# up to 3 client-compressed photos (~3MB each, see compressPhoto() in
+# frontend/src/utils.js) plus a ~20s voice or video recording. Nginx's own
+# client_max_body_size must be raised to match (see DEPLOYMENT.md step 4)
+# -- whichever of the two is smaller is the one that actually applies.
+DATA_UPLOAD_MAX_MEMORY_SIZE = 30 * 1024 * 1024
+FILE_UPLOAD_MAX_MEMORY_SIZE = 30 * 1024 * 1024
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # --- DRF --------------------------------------------------------------------

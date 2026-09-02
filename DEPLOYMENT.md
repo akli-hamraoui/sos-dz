@@ -159,6 +159,14 @@ server {
     listen 80;
     server_name sosdz.org www.sosdz.org;
 
+    # Nginx's own default (1MB) rejects a create-need submission with a
+    # generic 413 the instant a photo/voice/video is attached -- confirmed
+    # live on the real deploy, and the frontend has no specific message for
+    # a raw 413 (it's not a Django response at all), so it just shows the
+    # generic "something went wrong" error with no clue why. Match
+    # Django's own DATA_UPLOAD_MAX_MEMORY_SIZE (config/settings.py).
+    client_max_body_size 30M;
+
     root /opt/sos-dz/frontend/dist;
 
     location /static/ {
