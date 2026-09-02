@@ -23,6 +23,12 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // Lets a newly-installed service worker activate and take control
+        // of already-open tabs on its very next background update check,
+        // instead of only after every open tab is closed and reopened --
+        // so future deploys need one page load to take effect, not two.
+        skipWaiting: true,
+        clientsClaim: true,
         // Without this, the SW's default SPA navigateFallback ('index.html')
         // catches EVERY full-page navigation not otherwise matched -- Django
         // Admin isn't part of the React Router SPA, so a request for
@@ -30,8 +36,11 @@ export default defineConfig({
         // ever reaching the real Django page. Same for /static/ (Django's
         // own static files) and /media/ (also excluded below via
         // runtimeCaching, but a non-GET navigation there should still skip
-        // the SPA fallback too).
-        navigateFallbackDenylist: [/^\/admin\//, /^\/static\//, /^\/media\//],
+        // the SPA fallback too). Matches both the bare path ("/admin") and
+        // anything under it ("/admin/...") -- a trailing-slash-only regex
+        // let "/admin" (no slash) fall through to the app shell instead of
+        // reaching Django's own slash-redirect.
+        navigateFallbackDenylist: [/^\/admin($|\/)/, /^\/static($|\/)/, /^\/media($|\/)/],
         // Cache already-loaded data/app-shell for offline browsing; API
         // writes (POST/PATCH/DELETE) are handled separately by our own
         // IndexedDB queue (src/offlineQueue.js), not by the service worker.
