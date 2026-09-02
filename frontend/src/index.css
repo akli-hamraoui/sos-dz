@@ -831,11 +831,21 @@ fieldset {
   min-width: 180px;
 }
 
-/* .map-wrap previously got a narrowed side margin on mobile so a
-   page-scroll swipe had a touchable gutter next to the map (Leaflet grabs
-   single-finger touch-drag to pan). Superseded by the gestureHandling map
-   option (see main.jsx): a single finger now scrolls the page even
-   directly over the map, so the map can stay full width. */
+/* Belt-and-suspenders on top of the gestureHandling map option (see
+   main.jsx, which already lets a single finger scroll the page even
+   directly over the map): a physical thumb-width gutter (~1.5cm, an
+   average thumb pad) on each side on mobile, so there's always a strip
+   of plain page background to swipe through even if gesture handling
+   doesn't engage in some browser/edge case. Full width once there's
+   room to spare -- this is about a reachable edge, not decoration. */
+.map-wrap {
+  margin-inline: 1.5cm;
+}
+@media (min-width: 700px) {
+  .map-wrap {
+    margin-inline: 0;
+  }
+}
 
 .legend {
   display: flex;
