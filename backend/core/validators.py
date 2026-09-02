@@ -6,6 +6,8 @@ from. Both apply independently.
 """
 
 from django.conf import settings
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.validators import URLValidator
 from rest_framework import serializers
 
 
@@ -23,6 +25,28 @@ def validate_algeria_bounds(latitude, longitude):
             "These coordinates fall outside Algeria and were rejected. "
             "Please use the wilaya + description fields instead."
         )
+
+
+MAX_SOCIAL_URL_LENGTH = 300
+_social_url_validator = URLValidator(schemes=["http", "https"])
+
+
+def validate_social_url(value):
+    """A CollectionPoint's optional Facebook/TikTok/Instagram link. Empty is
+    always fine (the field is optional) -- only a non-empty value must be a
+    well-formed http(s) URL. Explicitly scheme-restricted (rather than
+    Django's URLField default, which also allows ftp/ftps) so something
+    like "javascript:alert(1)" or "data:text/html,..." can never be stored,
+    since these render as plain <a href> links with no further sanitization
+    downstream."""
+    value = (value or "").strip()
+    if not value:
+        return value
+    try:
+        _social_url_validator(value)
+    except DjangoValidationError:
+        raise serializers.ValidationError("Enter a valid http:// or https:// URL.")
+    return value
 
 
 RECOVERY_CODE_MIN_LENGTH = 6

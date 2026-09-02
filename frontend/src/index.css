@@ -279,7 +279,9 @@ main {
   align-items: stretch;
   justify-content: center;
   gap: 16px;
-  margin-block-start: 32px;
+  /* Slightly lower than before (was 32px) so the two buttons sit better
+     centered in the action area below the logo -- logo/.home untouched. */
+  margin-block-start: 48px;
   max-width: 620px;
   margin-inline: auto;
 }
@@ -391,6 +393,40 @@ label {
   flex-direction: column;
   gap: 4px;
   font-size: 14px;
+}
+.field-label-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.field-label-icon svg {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.social-links-section h3 {
+  margin-block-end: 8px;
+}
+.social-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.social-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  color: #111;
+  background: #fff;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+.social-link:hover {
+  background: var(--bg);
 }
 .checkbox-label {
   flex-direction: row;

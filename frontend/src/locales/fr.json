@@ -226,7 +226,15 @@
     "publish": "Publier ce point de collecte",
     "markAsClosed": "Marquer comme fermé",
     "closePromptName": "Votre nom (tel que saisi à la création) :",
-    "closePromptPhone": "Votre téléphone :"
+    "closePromptPhone": "Votre téléphone :",
+    "facebook": "Facebook (optionnel)",
+    "tiktok": "TikTok (optionnel)",
+    "instagram": "Instagram (optionnel)",
+    "facebookPlaceholder": "https://facebook.com/...",
+    "tiktokPlaceholder": "https://tiktok.com/@...",
+    "instagramPlaceholder": "https://instagram.com/...",
+    "socialLinks": "Réseaux sociaux",
+    "visitSocial": "Voir sur {{network}}"
   },
   "language": {
     "label": "Langue",

@@ -19,7 +19,7 @@ from core.models import (
     Wilaya,
 )
 from core.media_validation import validate_video_duration, validate_video_size
-from core.validators import check_recovery_code_available, validate_algeria_bounds
+from core.validators import check_recovery_code_available, validate_algeria_bounds, validate_social_url
 
 
 class ModeratedPhotoMixin:
@@ -501,6 +501,7 @@ class CollectionPointSerializer(serializers.ModelSerializer):
             "id", "wilaya", "wilaya_name", "point_name", "contact_name", "contact_phone",
             "organization", "location_description", "latitude", "longitude", "hours",
             "status", "created_at", "comments",
+            "facebook_url", "tiktok_url", "instagram_url",
         ]
 
     def get_comments(self, obj):
@@ -514,7 +515,17 @@ class CollectionPointCreateSerializer(serializers.ModelSerializer):
         fields = [
             "wilaya", "point_name", "contact_name", "contact_phone",
             "organization", "location_description", "latitude", "longitude", "hours",
+            "facebook_url", "tiktok_url", "instagram_url",
         ]
+
+    def validate_facebook_url(self, value):
+        return validate_social_url(value)
+
+    def validate_tiktok_url(self, value):
+        return validate_social_url(value)
+
+    def validate_instagram_url(self, value):
+        return validate_social_url(value)
 
     def validate(self, attrs):
         lat, lon = attrs.get("latitude"), attrs.get("longitude")

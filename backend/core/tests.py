@@ -3,7 +3,7 @@ from django.core.cache import cache
 from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
 
-from core.models import AdminContactPhone, AppConfiguration, Campaign, DisasterType, Need, Pickup, ProgressUpdate, TranslationOverride, Wilaya
+from core.models import AdminContactPhone, AppConfiguration, Campaign, CollectionPoint, DisasterType, Need, Pickup, ProgressUpdate, TranslationOverride, Wilaya
 
 
 class BaseAPITestCase(TestCase):
@@ -1582,6 +1582,88 @@ class CollectionPointTests(BaseAPITestCase):
             format="json",
         )
         self.assertEqual(resp.status_code, 403)
+
+
+class CollectionPointSocialLinksTests(BaseAPITestCase):
+    def setUp(self):
+        super().setUp()
+        self.wilaya = Wilaya.objects.first()
+
+    def _payload(self, **overrides):
+        data = dict(COLLECTION_POINT_PAYLOAD, wilaya=self.wilaya.pk)
+        data.update(overrides)
+        return data
+
+    def test_create_without_any_social_link(self):
+        resp = self.client.post("/api/collection-points/", self._payload(), format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+        self.assertEqual(resp.data["facebook_url"], "")
+        self.assertEqual(resp.data["tiktok_url"], "")
+        self.assertEqual(resp.data["instagram_url"], "")
+
+    def test_create_with_facebook_only(self):
+        resp = self.client.post(
+            "/api/collection-points/", self._payload(facebook_url="https://facebook.com/example"), format="json"
+        )
+        self.assertEqual(resp.status_code, 201, resp.content)
+        self.assertEqual(resp.data["facebook_url"], "https://facebook.com/example")
+        self.assertEqual(resp.data["tiktok_url"], "")
+        self.assertEqual(resp.data["instagram_url"], "")
+
+    def test_create_with_all_three_social_links(self):
+        resp = self.client.post(
+            "/api/collection-points/",
+            self._payload(
+                facebook_url="https://facebook.com/example",
+                tiktok_url="https://tiktok.com/@example",
+                instagram_url="https://instagram.com/example",
+            ),
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 201, resp.content)
+        self.assertEqual(resp.data["facebook_url"], "https://facebook.com/example")
+        self.assertEqual(resp.data["tiktok_url"], "https://tiktok.com/@example")
+        self.assertEqual(resp.data["instagram_url"], "https://instagram.com/example")
+
+    def test_non_http_scheme_rejected(self):
+        for field in ["facebook_url", "tiktok_url", "instagram_url"]:
+            resp = self.client.post(
+                "/api/collection-points/", self._payload(**{field: "javascript:alert(1)"}), format="json"
+            )
+            self.assertEqual(resp.status_code, 400, resp.content)
+            self.assertIn(field, resp.data)
+
+    def test_ftp_scheme_rejected(self):
+        resp = self.client.post(
+            "/api/collection-points/", self._payload(facebook_url="ftp://example.com/page"), format="json"
+        )
+        self.assertEqual(resp.status_code, 400, resp.content)
+
+    def test_social_links_returned_in_detail(self):
+        create_resp = self.client.post(
+            "/api/collection-points/", self._payload(instagram_url="https://instagram.com/example"), format="json"
+        )
+        resp = self.client.get(f"/api/collection-points/{create_resp.data['id']}/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data["instagram_url"], "https://instagram.com/example")
+        self.assertEqual(resp.data["facebook_url"], "")
+
+    def test_existing_collection_point_without_social_links_still_readable(self):
+        """A CollectionPoint created (or migrated) before these fields
+        existed must remain fully readable -- backward compatibility, not
+        just "new writes work"."""
+        point = CollectionPoint.objects.create(
+            wilaya=self.wilaya,
+            point_name="Old point",
+            contact_name="Yacine",
+            contact_phone="0555222222",
+            location_description="Somewhere",
+        )
+        resp = self.client.get(f"/api/collection-points/{point.id}/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data["facebook_url"], "")
+        self.assertEqual(resp.data["tiktok_url"], "")
+        self.assertEqual(resp.data["instagram_url"], "")
 
 
 class SearchFilterTests(BaseAPITestCase):

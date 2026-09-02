@@ -226,7 +226,15 @@
     "publish": "نشر نقطة التجميع",
     "markAsClosed": "تحديد كمغلقة",
     "closePromptName": "اسمك (كما أدخلته عند الإنشاء):",
-    "closePromptPhone": "هاتفك:"
+    "closePromptPhone": "هاتفك:",
+    "facebook": "Facebook (اختياري)",
+    "tiktok": "TikTok (اختياري)",
+    "instagram": "Instagram (اختياري)",
+    "facebookPlaceholder": "https://facebook.com/...",
+    "tiktokPlaceholder": "https://tiktok.com/@...",
+    "instagramPlaceholder": "https://instagram.com/...",
+    "socialLinks": "وسائل التواصل الاجتماعي",
+    "visitSocial": "عرض على {{network}}"
   },
   "language": {
     "label": "اللغة",

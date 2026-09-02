@@ -226,7 +226,15 @@
     "publish": "Publish this collection point",
     "markAsClosed": "Mark as closed",
     "closePromptName": "Your name (as entered when creating this point):",
-    "closePromptPhone": "Your phone:"
+    "closePromptPhone": "Your phone:",
+    "facebook": "Facebook (optional)",
+    "tiktok": "TikTok (optional)",
+    "instagram": "Instagram (optional)",
+    "facebookPlaceholder": "https://facebook.com/...",
+    "tiktokPlaceholder": "https://tiktok.com/@...",
+    "instagramPlaceholder": "https://instagram.com/...",
+    "socialLinks": "Social media",
+    "visitSocial": "View on {{network}}"
   },
   "language": {
     "label": "Language",

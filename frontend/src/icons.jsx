@@ -161,3 +161,31 @@ export function IconClose(props) {
     </svg>
   )
 }
+
+export function IconFacebook(props) {
+  return (
+    <svg {...base} {...props}>
+      <rect x="3" y="3" width="18" height="18" rx="5" />
+      <path d="M13.5 20v-7.2h2.2l.35-2.6h-2.55V8.5c0-.75.2-1.25 1.28-1.25h1.37V5c-.24-.03-1.05-.1-2-.1-1.98 0-3.33 1.2-3.33 3.42v1.98H8.5v2.6H10.7V20" />
+    </svg>
+  )
+}
+
+export function IconTikTok(props) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M13.8 3v10.8a3.4 3.4 0 1 1-3.4-3.4c.28 0 .56.03.83.09" />
+      <path d="M13.8 3c.28 2.1 1.9 3.75 4 4.05v2.7c-1.48-.05-2.87-.53-4-1.35" />
+    </svg>
+  )
+}
+
+export function IconInstagram(props) {
+  return (
+    <svg {...base} {...props}>
+      <rect x="3" y="3" width="18" height="18" rx="5" />
+      <circle cx="12" cy="12" r="4.2" />
+      <circle cx="17.2" cy="6.8" r="0.6" fill="currentColor" stroke="none" />
+    </svg>
+  )
+}

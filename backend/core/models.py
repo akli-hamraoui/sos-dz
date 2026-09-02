@@ -608,6 +608,12 @@ class CollectionPoint(models.Model):
     longitude = models.FloatField(null=True, blank=True)
     hours = models.CharField(max_length=200, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_ACTIVE)
+    # All three optional -- http(s)-only enforcement lives in
+    # CollectionPointCreateSerializer (validate_social_url), not here; see
+    # core/validators.py for why.
+    facebook_url = models.URLField(max_length=300, blank=True)
+    tiktok_url = models.URLField(max_length=300, blank=True)
+    instagram_url = models.URLField(max_length=300, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
