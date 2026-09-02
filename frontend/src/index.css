@@ -151,7 +151,7 @@ a {
   flex-shrink: 0;
 }
 .brand-logo {
-  height: clamp(26px, 7vw, 36px);
+  height: clamp(20px, 5vw, 26px);
   width: auto;
   flex-shrink: 0;
 }
@@ -261,24 +261,50 @@ main {
 /* --- Home --- */
 
 .home {
-  text-align: center;
-  padding: 60px 20px;
+  padding: 20px 20px 60px;
   position: relative;
   overflow: hidden;
+  text-align: center;
+}
+.home-logo {
+  display: block;
+  width: clamp(260px, 45vw, 480px);
+  max-width: 100%;
+  height: auto;
+  margin-inline: auto;
 }
 .home-actions {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   align-items: stretch;
+  justify-content: center;
   gap: 16px;
   margin-block-start: 32px;
-  max-width: 420px;
+  max-width: 620px;
   margin-inline: auto;
 }
 .home-actions .btn {
-  width: 100%;
   box-sizing: border-box;
   text-align: center;
+  justify-content: center;
+  flex: 1 1 220px;
+}
+@media (max-width: 480px) {
+  .home-actions .btn {
+    flex-basis: 100%;
+  }
+}
+.btn.home-btn-primary {
+  background: var(--accent);
+  color: #fff;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+}
+.btn.home-btn-outline {
+  background: #fff;
+  color: var(--accent);
+  border: 1.5px solid var(--accent);
+  border-radius: 999px;
 }
 
 /* --- Buttons --- */
