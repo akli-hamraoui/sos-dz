@@ -34,14 +34,20 @@ frame-by-frame video moderation (which does degrade gracefully, queuing
 "pending" instead) works either way.
 
 The moderation sidecar (step 7) also needs Node.js, which Ubuntu's own `apt`
-package is usually too old for (`@tensorflow/tfjs-node` needs a reasonably
-recent Node). Install a current LTS via NodeSource here too, so it's ready
-by step 7:
+package is usually too old for. Install it via NodeSource here too, so it's
+ready by step 7 -- **pin the 20.x line specifically, not `setup_lts.x`**.
+Confirmed the hard way: `setup_lts.x` installs whatever NodeSource currently
+calls "latest LTS", which by now is new enough that `@tensorflow/tfjs-node@4.22.0`
+(the sidecar's actual dependency, see `moderation-sidecar/package.json`) fails
+at runtime with `TypeError: (0 , util_1.isNullOrUndefined) is not a function`
+-- a legacy Node builtin tfjs-node's compiled code still calls, which newer
+Node releases have since removed. Node 20.x predates that removal and is what
+this generation of `tfjs-node` actually targets:
 
 ```bash
-curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
 sudo apt install -y nodejs
-node -v   # sanity check -- should print a v20+ (or later LTS) version
+node -v   # sanity check -- should print v20.x
 ```
 
 ### 2. Clone and set up the app
@@ -242,6 +248,21 @@ Small Node.js service (`moderation-sidecar/`) wrapping NSFWJS -- free, open-sour
 ```bash
 cd /opt/sos-dz/moderation-sidecar
 npm install --production
+```
+
+A recent `npm` blocks dependency install scripts by default as a security
+measure -- `@tensorflow/tfjs-node` needs its own install script to run
+(`node-gyp rebuild`, which compiles/downloads its native bindings) or it
+won't work at all. If `npm install` warns `N packages have install scripts
+not yet covered by allowScripts`, approve the two that need it (both are
+legitimate, expected, and already covered by the accepted-risk note below)
+and rebuild:
+
+```bash
+npm install-scripts approve @tensorflow/tfjs-node
+npm install-scripts approve core-js
+npm rebuild @tensorflow/tfjs-node
+npm rebuild core-js
 ```
 
 `/etc/systemd/system/sos-dz-nsfwjs.service`:
