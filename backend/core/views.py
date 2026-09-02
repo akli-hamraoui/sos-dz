@@ -1,21 +1,34 @@
+from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from core.access import authorized_for_write, get_presented_token, is_admin_request, owner_authorized
+from core.captcha import verify_turnstile
+from core.duplicates import find_similar_needs
+from core.media_validation import validate_photo_count, validate_photo_size
+from core.moderation import moderate_image_field, moderate_video_field, moderation_active
 from core.models import (
     AppConfiguration,
     AuditLog,
     Campaign,
+    CollectionPoint,
+    Comment,
+    ContentReport,
+    DamagePhoto,
+    DeliveryPhoto,
     DisasterType,
+    DuplicateReport,
     LocationPing,
     Need,
     Pickup,
     ProgressUpdate,
     SupportRequest,
+    TranslationOverride,
     Wilaya,
 )
 from core.permissions import write_guard
@@ -23,7 +36,15 @@ from core.serializers import (
     AnonymizeSerializer,
     AppConfigurationPublicSerializer,
     CampaignSerializer,
+    CollectionPointCloseSerializer,
+    CollectionPointCreateSerializer,
+    CollectionPointMapPinSerializer,
+    CollectionPointSerializer,
+    CommentCreateSerializer,
+    CommentSerializer,
+    ContentReportSerializer,
     DisasterTypeSerializer,
+    DuplicateReportCreateSerializer,
     IdentityRecoverySerializer,
     LocationPingSerializer,
     NeedCreateSerializer,
@@ -31,9 +52,10 @@ from core.serializers import (
     NeedPublicSerializer,
     NeedUpdateGPSSerializer,
     PickupCreateSerializer,
+    PickupListSerializer,
     PickupPublicSerializer,
     ProgressUpdateCreateSerializer,
-    ProgressUpdateSerializer,
+    ProgressUpdateWithGPSSerializer,
     SupportRequestSerializer,
     WilayaSerializer,
 )
@@ -50,6 +72,26 @@ class WilayaViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.G
     serializer_class = WilayaSerializer
     permission_classes = [AllowAny]
     pagination_class = None
+
+    @action(detail=False, methods=["get"], url_path="nearest")
+    def nearest(self, request):
+        """Local reverse-geocoding convenience (Wave 3): suggests a wilaya
+        from lat/long by nearest centroid -- the wilaya field itself stays
+        the authoritative, user-confirmable value, this is just a prefill."""
+        try:
+            lat = float(request.query_params["lat"])
+            lon = float(request.query_params["lon"])
+        except (KeyError, ValueError):
+            return Response({"detail": "lat and lon query params are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        best, best_dist = None, None
+        for wilaya in Wilaya.objects.exclude(centroid_latitude=None):
+            dist = (wilaya.centroid_latitude - lat) ** 2 + (wilaya.centroid_longitude - lon) ** 2
+            if best_dist is None or dist < best_dist:
+                best, best_dist = wilaya, dist
+        if best is None:
+            return Response({"detail": "No wilaya reference data available."}, status=status.HTTP_404_NOT_FOUND)
+        return Response(WilayaSerializer(best).data)
 
 
 class DisasterTypeViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
@@ -78,12 +120,46 @@ class AppConfigurationView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
-        return Response(AppConfigurationPublicSerializer(AppConfiguration.get_solo()).data)
+        from django.conf import settings
+
+        data = AppConfigurationPublicSerializer(AppConfiguration.get_solo()).data
+        data["turnstile_site_key"] = settings.TURNSTILE_SITE_KEY
+        data["turnstile_enabled"] = settings.TURNSTILE_ENABLED
+        # Lets the frontend show an "admin mode" badge and apply
+        # admin-only conveniences (e.g. defaulting to Algiers instead of
+        # erroring when a GPS position outside Algeria bounds would
+        # otherwise be rejected) -- never a security boundary itself,
+        # every actual write still re-checks is_admin_request server-side.
+        data["is_admin"] = is_admin_request(request)
+        return Response(data)
+
+
+class TranslationOverridesView(APIView):
+    """Public: admin-entered text corrections, one nested tree per locale
+    (e.g. {"fr": {"home": {"tagline": "..."}}}) -- the frontend merges
+    this over its static locale JSON bundles at startup so an admin can
+    fix a piece of UI text without a deploy. A key with no override is
+    simply absent here; the static bundle's value is used as-is."""
+
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        result = {locale: {} for locale, _ in TranslationOverride.LOCALE_CHOICES}
+        for override in TranslationOverride.objects.all():
+            node = result.setdefault(override.locale, {})
+            parts = override.key.split(".")
+            for part in parts[:-1]:
+                node = node.setdefault(part, {})
+            node[parts[-1]] = override.value
+        return Response(result)
 
 
 class NeedViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.RetrieveModelMixin):
-    queryset = Need.objects.select_related("wilaya", "campaign", "disaster_type").prefetch_related("pickups__progress_updates")
+    queryset = Need.objects.select_related("wilaya", "campaign", "disaster_type").prefetch_related(
+        "pickups__progress_updates", "pickups__delivery_photos", "damage_photos", "comments__replies"
+    )
     permission_classes = [AllowAny]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get_serializer_class(self):
         if self.action == "create":
@@ -99,23 +175,82 @@ class NeedViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retriev
         qs = super().get_queryset()
         wilaya = self.request.query_params.get("wilaya")
         campaign = self.request.query_params.get("campaign")
+        search = self.request.query_params.get("search")
         if wilaya:
             qs = qs.filter(wilaya_id=wilaya)
         if campaign:
             qs = qs.filter(campaign_id=campaign)
+        if search:
+            qs = qs.filter(
+                Q(title__icontains=search)
+                | Q(location_description__icontains=search)
+                | Q(commune__icontains=search)
+                | Q(wilaya__name__icontains=search)
+                | Q(organization_or_person_name__icontains=search)
+                | Q(contact_name__icontains=search)
+            )
         return qs
 
     def create(self, request, *args, **kwargs):
         block_reason = write_guard(request)
         if block_reason:
             return Response({"detail": block_reason}, status=status.HTTP_403_FORBIDDEN)
+        captcha_ok, captcha_error = verify_turnstile(request.data.get("turnstile_token"), getattr(request, "client_ip", None))
+        if not captcha_ok:
+            return Response({"detail": captcha_error}, status=status.HTTP_400_BAD_REQUEST)
+        damage_photos = request.FILES.getlist("damage_photos")
+        try:
+            validate_photo_count(damage_photos)
+            validate_photo_size(damage_photos)
+        except Exception as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         need = serializer.save()
+
+        if need.video_file:
+            need.video_moderation_status = moderate_video_field(need.video_file)
+            need.video_moderated_by = Need.MODERATED_BY_SYSTEM if moderation_active() else ""
+            need.save(update_fields=["video_moderation_status", "video_moderated_by"])
+        # Voice has no visual content for NSFWJS to score; no moderation
+        # field or step exists for it.
+
+        for photo in damage_photos:
+            dp = DamagePhoto(need=need, image=photo)
+            dp.moderation_status = moderate_image_field(photo)
+            dp.moderated_by = Need.MODERATED_BY_SYSTEM if moderation_active() else ""
+            dp.save()
+
         out = NeedPublicSerializer(need).data
         out["access_token"] = need.access_token
         out["location_viewer_share_token"] = need.location_viewer_share_token
+        out["duplicate_suggestions"] = NeedPublicSerializer(
+            find_similar_needs(need.wilaya_id, f"{need.title} {need.location_description}", exclude_id=need.pk)[:3],
+            many=True,
+        ).data
         return Response(out, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=["get"], url_path="check-duplicates")
+    def check_duplicates(self, request):
+        """Non-blocking pre-submit suggestion: "a similar need already
+        exists nearby, would you like to view it instead?" -- the frontend
+        calls this before the user finishes publishing; it never blocks
+        creation, per spec."""
+        wilaya = request.query_params.get("wilaya")
+        if not wilaya:
+            return Response([])
+        text = f"{request.query_params.get('title', '')} {request.query_params.get('description', '')}"
+        matches = find_similar_needs(wilaya, text)
+        return Response(NeedPublicSerializer(matches[:3], many=True).data)
+
+    @action(detail=True, methods=["post"], url_path="report-duplicate")
+    def report_duplicate(self, request, pk=None):
+        need = self.get_object()
+        reference = get_object_or_404(Need, pk=request.data.get("reference_need_id"))
+        serializer = DuplicateReportCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        DuplicateReport.objects.create(reported_need=need, reference_need=reference, **serializer.validated_data)
+        return Response(status=status.HTTP_201_CREATED)
 
     def partial_update(self, request, *args, **kwargs):
         need = self.get_object()
@@ -202,7 +337,8 @@ class NeedViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retriev
         serializer = IdentityRecoverySerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         d = serializer.validated_data
-        if not need.matches_identity(d["last_name"], d["first_name"], d["phone"], d["date_of_birth"]):
+        matched = need.matches_code(d.get("code")) if d.get("code") else need.matches_identity(d.get("name"), d.get("phone"))
+        if not matched:
             return Response(
                 {"detail": "No match. If this keeps happening, use the support/contact-admin form."},
                 status=status.HTTP_403_FORBIDDEN,
@@ -262,13 +398,35 @@ class NeedViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retriev
 
 
 class PickupViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.RetrieveModelMixin):
-    queryset = Pickup.objects.select_related("need").prefetch_related("progress_updates")
+    queryset = Pickup.objects.select_related("need", "need__wilaya").prefetch_related("progress_updates", "delivery_photos")
     permission_classes = [AllowAny]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get_serializer_class(self):
         if self.action == "create":
             return PickupCreateSerializer
+        if self.action == "list":
+            return PickupListSerializer
         return PickupPublicSerializer
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        wilaya = self.request.query_params.get("wilaya")
+        status_param = self.request.query_params.get("status")
+        search = self.request.query_params.get("search")
+        if wilaya:
+            qs = qs.filter(need__wilaya_id=wilaya)
+        if status_param:
+            qs = qs.filter(status=status_param)
+        if search:
+            qs = qs.filter(
+                Q(responder_name__icontains=search)
+                | Q(content_brought__icontains=search)
+                | Q(organization_or_person_name__icontains=search)
+                | Q(need__title__icontains=search)
+                | Q(need__wilaya__name__icontains=search)
+            )
+        return qs
 
     def get_throttles(self):
         if self.action == "create":
@@ -279,6 +437,9 @@ class PickupViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retri
         block_reason = write_guard(request)
         if block_reason:
             return Response({"detail": block_reason}, status=status.HTTP_403_FORBIDDEN)
+        captcha_ok, captcha_error = verify_turnstile(request.data.get("turnstile_token"), getattr(request, "client_ip", None))
+        if not captcha_ok:
+            return Response({"detail": captcha_error}, status=status.HTTP_400_BAD_REQUEST)
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         pickup = serializer.save()
@@ -318,6 +479,19 @@ class PickupViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retri
             return Response({"detail": block_reason}, status=status.HTTP_403_FORBIDDEN)
         if not authorized_for_write(request, pickup):
             return Response({"detail": "Not authorized."}, status=status.HTTP_403_FORBIDDEN)
+        delivery_photos = request.FILES.getlist("delivery_photos")
+        try:
+            validate_photo_count(delivery_photos)
+            validate_photo_size(delivery_photos)
+        except Exception as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        for photo in delivery_photos:
+            dp = DeliveryPhoto(pickup=pickup, image=photo)
+            dp.moderation_status = moderate_image_field(photo)
+            dp.moderated_by = Need.MODERATED_BY_SYSTEM if moderation_active() else ""
+            dp.save()
+        if delivery_photos and hasattr(pickup, "_prefetched_objects_cache"):
+            pickup._prefetched_objects_cache.pop("delivery_photos", None)  # was cached empty by get_object()
         pickup.mark_delivered()
         return Response(PickupPublicSerializer(pickup).data)
 
@@ -334,7 +508,7 @@ class PickupViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retri
         serializer = ProgressUpdateCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         update = ProgressUpdate.objects.create(pickup=pickup, **serializer.validated_data)
-        return Response(ProgressUpdateSerializer(update).data, status=status.HTTP_201_CREATED)
+        return Response(ProgressUpdateWithGPSSerializer(update).data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=["post"], url_path="location-pings")
     def add_location_ping(self, request, pk=None):
@@ -361,7 +535,8 @@ class PickupViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retri
         serializer = IdentityRecoverySerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         d = serializer.validated_data
-        if not pickup.matches_identity(d["last_name"], d["first_name"], d["phone"], d["date_of_birth"]):
+        matched = pickup.matches_code(d.get("code")) if d.get("code") else pickup.matches_identity(d.get("name"), d.get("phone"))
+        if not matched:
             return Response(
                 {"detail": "No match. If this keeps happening, use the support/contact-admin form."},
                 status=status.HTTP_403_FORBIDDEN,
@@ -405,3 +580,131 @@ class SupportRequestViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
     queryset = SupportRequest.objects.all()
     serializer_class = SupportRequestSerializer
     permission_classes = [AllowAny]
+
+
+class ContentReportViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
+    """'Report this content' -- public, no auth beyond name+phone. Reporting
+    immediately hides the content (sets its moderation_status back to
+    pending, independent of the media_moderation_active toggle) and queues
+    it for admin review."""
+
+    queryset = ContentReport.objects.all()
+    serializer_class = ContentReportSerializer
+    permission_classes = [AllowAny]
+    throttle_classes = [CreationRateThrottle]
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        report = serializer.save()
+        media_obj = report.get_media_object()
+        if media_obj is not None:
+            field = "media_moderation_status" if isinstance(media_obj, Need) else "moderation_status"
+            setattr(media_obj, field, Need.MODERATION_PENDING)
+            media_obj.save(update_fields=[field])
+        return Response(self.get_serializer(report).data, status=status.HTTP_201_CREATED)
+
+
+class CollectionPointViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.RetrieveModelMixin):
+    queryset = CollectionPoint.objects.select_related("wilaya").prefetch_related("comments__replies")
+    permission_classes = [AllowAny]
+
+    def get_serializer_class(self):
+        if self.action == "create":
+            return CollectionPointCreateSerializer
+        return CollectionPointSerializer
+
+    def get_throttles(self):
+        return [CreationRateThrottle()] if self.action == "create" else []
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        wilaya = self.request.query_params.get("wilaya")
+        search = self.request.query_params.get("search")
+        if wilaya:
+            qs = qs.filter(wilaya_id=wilaya)
+        if search:
+            qs = qs.filter(
+                Q(point_name__icontains=search)
+                | Q(contact_name__icontains=search)
+                | Q(organization__icontains=search)
+                | Q(location_description__icontains=search)
+                | Q(hours__icontains=search)
+                | Q(wilaya__name__icontains=search)
+            )
+        return qs
+
+    def create(self, request, *args, **kwargs):
+        block_reason = write_guard(request)
+        if block_reason:
+            return Response({"detail": block_reason}, status=status.HTTP_403_FORBIDDEN)
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        point = serializer.save()
+        return Response(CollectionPointSerializer(point, context={"request": request}).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=["get"], url_path="locations")
+    def locations(self, request):
+        """Public: pins for the SAME main map as Need pins (Wave 1) -- a
+        visually distinct icon, same public/no-auth visibility as Needs."""
+        qs = self.get_queryset().exclude(status=CollectionPoint.STATUS_CLOSED)
+        return Response(CollectionPointMapPinSerializer(qs, many=True).data)
+
+    @action(detail=True, methods=["post"], url_path="close")
+    def close(self, request, pk=None):
+        point = self.get_object()
+        block_reason = write_guard(request)
+        if block_reason:
+            return Response({"detail": block_reason}, status=status.HTTP_403_FORBIDDEN)
+        if is_admin_request(request):
+            pass  # admin override, no identity match needed
+        else:
+            serializer = CollectionPointCloseSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            if not point.matches_creator(serializer.validated_data["contact_name"], serializer.validated_data["contact_phone"]):
+                return Response({"detail": "Name/phone don't match this collection point's contact."}, status=status.HTTP_403_FORBIDDEN)
+        point.status = CollectionPoint.STATUS_CLOSED
+        point.save(update_fields=["status"])
+        log_admin_action(request, "closed collection point", point)
+        return Response(CollectionPointSerializer(point, context={"request": request}).data)
+
+
+class CommentViewSet(mixins.CreateModelMixin, mixins.DestroyModelMixin, viewsets.GenericViewSet):
+    queryset = Comment.objects.all()
+    permission_classes = [AllowAny]
+
+    def get_serializer_class(self):
+        return CommentCreateSerializer if self.action == "create" else CommentSerializer
+
+    def get_throttles(self):
+        return [CreationRateThrottle()] if self.action == "create" else []
+
+    def create(self, request, *args, **kwargs):
+        block_reason = write_guard(request)
+        if block_reason:
+            return Response({"detail": block_reason}, status=status.HTTP_403_FORBIDDEN)
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        comment = serializer.save()
+        out = CommentSerializer(comment, context={"request": request}).data
+        out["owner_token"] = comment.owner_token
+        return Response(out, status=status.HTTP_201_CREATED)
+
+    def destroy(self, request, *args, **kwargs):
+        comment = self.get_object()
+        if is_admin_request(request):
+            log_admin_action(request, "deleted comment", comment)
+            comment.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        token = request.headers.get("X-Owner-Token") or request.data.get("owner_token")
+        if not comment.matches_owner_token(token):
+            return Response({"detail": "Not authorized to delete this comment."}, status=status.HTTP_403_FORBIDDEN)
+        comment.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=["post"], url_path="confirm")
+    def confirm(self, request, pk=None):
+        comment = self.get_object()
+        comment.confirmation_count = comment.confirmation_count + 1
+        comment.save(update_fields=["confirmation_count"])
+        return Response(CommentSerializer(comment, context={"request": request}).data)

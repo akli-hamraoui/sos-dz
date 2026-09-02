@@ -1,5 +1,5 @@
 """
-Django settings for the Rassemble project.
+Django settings for the SOS DZ project.
 
 Configuration is driven by environment variables (see .env.example at the
 repo root). Nothing here should ever hold a real secret — only placeholders
@@ -18,7 +18,16 @@ load_dotenv(REPO_ROOT / ".env")
 
 
 def env(name, default=None, required=False):
-    value = os.environ.get(name, default)
+    # An env var present in .env but left blank (e.g. "DB_NAME=") still sets
+    # it in os.environ as an empty string, not absent -- os.environ.get's
+    # own default only kicks in when the key doesn't exist at all, so a
+    # blank line would otherwise silently produce "" instead of falling
+    # back to `default` (this broke local SQLite setup: DB_NAME shipped
+    # blank in .env.example, intending the sqlite path default below, but
+    # got "" instead, and Django's sqlite backend rejects an empty NAME).
+    value = os.environ.get(name)
+    if value is None or value == "":
+        value = default
     if required and (value is None or value == ""):
         raise RuntimeError(
             f"Required environment variable '{name}' is not set. "
@@ -46,6 +55,22 @@ _cors_origins = env("CORS_ALLOWED_ORIGINS", default="http://localhost:5173,http:
 CORS_ALLOWED_ORIGINS = [o.strip() for o in _cors_origins.split(",") if o.strip()]
 CORS_ALLOW_CREDENTIALS = True
 
+# Needed because the SPA (Vite dev server or its production origin) is a
+# different origin from this backend. Without this, any request carrying a
+# Django session cookie (e.g. an admin who is also browsing the public
+# site in the same browser) fails Django's CSRF origin check even though
+# CORS itself is configured, since CSRF_TRUSTED_ORIGINS is checked
+# independently.
+_csrf_trusted_origins = env("CSRF_TRUSTED_ORIGINS", default="http://localhost:5173,http://127.0.0.1:5173")
+CSRF_TRUSTED_ORIGINS = [o.strip() for o in _csrf_trusted_origins.split(",") if o.strip()]
+
+# The real, maintained frontend (React/Vite, deployed separately from this
+# backend -- see DEPLOYMENT.md). Used for Django Admin's "View site" link
+# and the backend's own "/" route, so neither ever points a visitor (staff
+# or public) at the stale, English-only Wave 1-4 Alpine.js page still kept
+# under templates/index.html purely for history/reference.
+FRONTEND_URL = env("FRONTEND_URL", default="http://localhost:5173")
+
 # --- Applications ---------------------------------------------------------
 
 INSTALLED_APPS = [
@@ -64,6 +89,11 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    # Must come after SessionMiddleware and before CommonMiddleware (Django
+    # requirement) -- lets the admin's language switcher (see
+    # templates/admin/base_site.html) actually take effect per-session,
+    # instead of the whole admin being permanently stuck on LANGUAGE_CODE.
+    "django.middleware.locale.LocaleMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -133,6 +163,17 @@ TIME_ZONE = env("TIME_ZONE", default="Africa/Algiers")
 USE_I18N = True
 USE_TZ = True
 
+# Restricts Django's admin language switcher (see
+# templates/admin/base_site.html) to the app's actual 3 supported
+# languages -- Django ships built-in admin-chrome translations (Add,
+# Change, Save, date pickers, etc.) for all of these -- instead of
+# Django's full built-in list of 100+ unrelated languages.
+LANGUAGES = [
+    ("fr", "Français"),
+    ("en", "English"),
+    ("ar", "العربية"),
+]
+
 # --- Static / media ---------------------------------------------------------
 
 STATIC_URL = "static/"
@@ -170,6 +211,17 @@ else:
         "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
     }
 
+# Django's own default (2.5MB) rejects a create-need submission outright
+# (RequestDataTooBig -> 413) once photos/voice/video are attached, well
+# before it reaches any of this app's own validation -- confirmed live on
+# the real deploy. Raised to comfortably cover the realistic worst case:
+# up to 3 client-compressed photos (~3MB each, see compressPhoto() in
+# frontend/src/utils.js) plus a ~20s voice or video recording. Nginx's own
+# client_max_body_size must be raised to match (see DEPLOYMENT.md step 4)
+# -- whichever of the two is smaller is the one that actually applies.
+DATA_UPLOAD_MAX_MEMORY_SIZE = 30 * 1024 * 1024
+FILE_UPLOAD_MAX_MEMORY_SIZE = 30 * 1024 * 1024
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # --- DRF --------------------------------------------------------------------
@@ -186,7 +238,7 @@ REST_FRAMEWORK = {
     "EXCEPTION_HANDLER": "core.exceptions.rassemble_exception_handler",
 }
 
-# --- Rassemble-specific configuration ---------------------------------------
+# --- SOS DZ-specific configuration -------------------------------------------
 
 # Geo bounding box for Algeria (validation of submitted lat/long on Needs
 # and CollectionPoints -- see Wave 3 "geolocation restricted to Algeria").
@@ -213,5 +265,82 @@ TURNSTILE_ENABLED = bool(TURNSTILE_SECRET_KEY)
 
 # NSFWJS moderation sidecar (Wave 3).
 NSFWJS_SIDECAR_URL = env("NSFWJS_SIDECAR_URL", default="http://127.0.0.1:8801")
+# Combined score (sum of Hentai+Porn+Sexy probabilities, 0-1) below which
+# media is auto-approved, and above which it's auto-rejected. Between the
+# two: queued for human review. Tuned conservatively (wide "pending" band)
+# since community reporting is the documented safety net for anything this
+# free, self-hosted model gets wrong either way.
+NSFWJS_APPROVE_THRESHOLD = float(env("NSFWJS_APPROVE_THRESHOLD", default="0.4"))
+NSFWJS_REJECT_THRESHOLD = float(env("NSFWJS_REJECT_THRESHOLD", default="0.85"))
 
 RATE_LIMIT_CREATIONS_PER_HOUR = int(env("RATE_LIMIT_CREATIONS_PER_HOUR", default="20"))
+
+# --- Logging --------------------------------------------------------------
+
+# Console output alone (Django's default) is lost as soon as the process's
+# stdout isn't being captured somewhere -- a rotating file under REPO_ROOT
+# (gitignored, see .gitignore's `*.log`) survives independently of however
+# the process is run/supervised (systemd, `runserver`, ...) and can be
+# tailed/shipped without needing to know the deployment's log-capture setup.
+LOG_DIR = Path(env("LOG_DIR", default=str(REPO_ROOT / "logs")))
+LOG_DIR.mkdir(parents=True, exist_ok=True)
+LOG_LEVEL = env("LOG_LEVEL", default="INFO")
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "{asctime} {levelname} {name}: {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
+        "file": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": LOG_DIR / "django.log",
+            "maxBytes": 5 * 1024 * 1024,
+            "backupCount": 5,
+            "formatter": "verbose",
+        },
+    },
+    "root": {
+        "handlers": ["console", "file"],
+        "level": LOG_LEVEL,
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console", "file"],
+            "level": LOG_LEVEL,
+            "propagate": False,
+        },
+        "django.request": {
+            # Unhandled view exceptions -- always worth keeping regardless
+            # of LOG_LEVEL, since they're the errors an admin most needs to
+            # notice in the file after the fact.
+            "handlers": ["console", "file"],
+            "level": "ERROR",
+            "propagate": False,
+        },
+        "django.server": {
+            # The per-request access log line ("GET /api/needs/ 200 ...")
+            # that `manage.py runserver` prints -- Django gives it its own
+            # logger with a console-only handler by default, so without
+            # this override those lines never reached the file at all
+            # (only warnings/errors from django/django.request/core did),
+            # even though the console clearly showed activity.
+            "handlers": ["console", "file"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "core": {
+            "handlers": ["console", "file"],
+            "level": LOG_LEVEL,
+            "propagate": False,
+        },
+    },
+}

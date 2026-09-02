@@ -28,6 +28,45 @@ async function api(path, options = {}) {
   return data;
 }
 
+const RETRY_DELAYS_MS = [1000, 3000, 6000];
+
+// Upload retry for weak/rural connections (spec Wave 2: "automatic retry on
+// upload failure, 3 attempts with increasing delay"). Only retries on
+// network failure or a 5xx -- a 4xx (validation error, rejected content) is
+// never retried, since retrying it would just fail again. FormData bodies
+// are never JSON-encoded: the browser sets its own multipart boundary.
+async function apiUpload(path, formData, method = "POST", onStatus = () => {}) {
+  let lastError = null;
+  for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
+    if (attempt > 0) {
+      onStatus(`Upload failed, retrying (${attempt}/${RETRY_DELAYS_MS.length})...`);
+      await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[attempt - 1]));
+    }
+    try {
+      const resp = await fetch(API + path, { method, body: formData });
+      let data = null;
+      try { data = await resp.json(); } catch (e) { /* no body */ }
+      if (resp.ok) {
+        onStatus("");
+        return data;
+      }
+      if (resp.status < 500) {
+        // Validation/permission error -- retrying would not help.
+        const err = new Error((data && data.detail) || "Request failed");
+        err.status = resp.status;
+        err.data = data;
+        throw err;
+      }
+      lastError = new Error((data && data.detail) || `Server error (${resp.status})`);
+    } catch (e) {
+      if (e.status && e.status < 500) throw e; // non-retryable, re-throw immediately
+      lastError = e;
+    }
+  }
+  onStatus("Upload failed after several attempts. Your entry was kept on this screen -- check your connection and try again.");
+  throw lastError;
+}
+
 function app() {
   return {
     route: "home",
@@ -42,11 +81,17 @@ function app() {
     needTokens: loadJSON("rassemble_need_tokens", {}),
     pickupTokens: loadJSON("rassemble_pickup_tokens", {}),
     showPhone: false,
+    revealedPickupPhones: {},
     shareLink: "",
     canSeeLiveMap: false,
+    mapHasNoNeedsAtAll: false,
     progressText: {},
     createForm: this_defaultCreateForm(),
     createError: "",
+    createUploadStatus: "",
+    damagePhotos: [],
+    deliveryPhotos: {},
+    recorder: { recording: false, seconds: 0, blob: null, blobUrl: null, mediaRecorder: null, stream: null, timer: null },
     pickupForm: this_defaultPickupForm(),
     pickupError: "",
     recoverForm: { last_name: "", first_name: "", phone: "", date_of_birth: "" },
@@ -54,13 +99,30 @@ function app() {
     recoverContext: null,
     supportForm: { requester_phone: "", related_listing_description: "", message: "" },
     supportSent: false,
+    collectionPoints: [],
+    currentCollectionPoint: null,
+    cpFilterWilaya: "",
+    cpForm: this_defaultCPForm(),
+    cpError: "",
+    commentText: {},
+    commentAuthor: loadJSON("rassemble_comment_author", { name: "", phone: "" }),
     _mainMap: null,
     _detailMap: null,
 
     async init() {
       window.addEventListener("hashchange", () => this.onRouteChange());
       this.onRouteChange();
-      try { this.config = await api("/config/"); } catch (e) { /* ignore */ }
+      try {
+        this.config = await api("/config/");
+        if (this.config.turnstile_enabled && !document.getElementById("turnstile-script")) {
+          const s = document.createElement("script");
+          s.id = "turnstile-script";
+          s.src = "https://challenges.cloudflare.com/turnstile/v0/api.js";
+          s.async = true;
+          s.defer = true;
+          document.head.appendChild(s);
+        }
+      } catch (e) { /* ignore */ }
       try {
         const w = await api("/wilayas/");
         this.wilayas = w.results || w;
@@ -78,11 +140,20 @@ function app() {
         this.route = "home";
       } else if (parts[0] === "needs" && parts[1]) {
         this.route = "detail";
-        await this.loadNeedDetail(parts[1]);
+        const needId = parts[1].split("?")[0];
+        await this.loadNeedDetail(needId);
       } else if (parts[0] === "needs") {
         this.route = "needs";
         await this.loadNeeds();
         this.$nextTick(() => this.renderCurrentView());
+      } else if (parts[0] === "collection-points" && parts[1] === "create") {
+        this.route = "create-collection-point";
+      } else if (parts[0] === "collection-points" && parts[1]) {
+        this.route = "collection-point-detail";
+        await this.loadCollectionPointDetail(parts[1].split("?")[0]);
+      } else if (parts[0] === "collection-points") {
+        this.route = "collection-points";
+        await this.loadCollectionPoints();
       } else {
         this.route = parts[0];
       }
@@ -122,9 +193,17 @@ function app() {
 
     async useMyLocation(formKey) {
       if (!navigator.geolocation) return;
-      navigator.geolocation.getCurrentPosition((pos) => {
+      navigator.geolocation.getCurrentPosition(async (pos) => {
         this[formKey].latitude = pos.coords.latitude;
         this[formKey].longitude = pos.coords.longitude;
+        // Reverse-geocode convenience prefill -- the wilaya field stays
+        // user-confirmable/overridable, this is only a suggestion.
+        if (!this[formKey].wilaya) {
+          try {
+            const suggestion = await api(`/wilayas/nearest/?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}`);
+            this[formKey].wilaya = suggestion.id;
+          } catch (e) { /* best-effort only */ }
+        }
       });
     },
 
@@ -136,16 +215,106 @@ function app() {
       if (this.viewMode === "map") this.$nextTick(() => this.renderMainMap());
     },
 
-    async submitNeed() {
+    async submitNeed(skipDuplicateCheck) {
       this.createError = "";
       try {
-        const need = await api("/needs/", { method: "POST", body: JSON.stringify(this.createForm) });
+        if (!skipDuplicateCheck && this.createForm.wilaya) {
+          const dupes = await api(
+            `/needs/check-duplicates/?wilaya=${this.createForm.wilaya}` +
+              `&title=${encodeURIComponent(this.createForm.title)}` +
+              `&description=${encodeURIComponent(this.createForm.location_description)}`
+          ).catch(() => []);
+          if (dupes && dupes.length) {
+            const proceed = confirm(
+              `A similar need already exists nearby: "${dupes[0].title}" (${dupes[0].wilaya_name}).\n\n` +
+              `Click OK to publish yours anyway, or Cancel to view the existing one instead.`
+            );
+            if (!proceed) {
+              window.location.hash = `#/needs/${dupes[0].id}`;
+              return;
+            }
+          }
+        }
+        const formData = new FormData();
+        for (const [k, v] of Object.entries(this.createForm)) {
+          if (v !== null && v !== "") formData.append(k, v);
+        }
+        formData.append("turnstile_token", window.__turnstileToken || "");
+        if (this.createForm.media_type !== "text" && this.recorder.blob) {
+          const ext = this.createForm.media_type === "audio" ? "webm" : "webm";
+          formData.append("media_file", this.recorder.blob, `recording.${ext}`);
+        }
+        this.damagePhotos.forEach((p) => formData.append("damage_photos", p.file, p.file.name));
+
+        const need = await apiUpload("/needs/", formData, "POST", (s) => (this.createUploadStatus = s));
         this.needTokens[need.id] = { access_token: need.access_token, location_viewer_share_token: need.location_viewer_share_token };
         saveJSON("rassemble_need_tokens", this.needTokens);
+        this.discardRecording();
+        this.damagePhotos = [];
         window.location.hash = `#/needs/${need.id}`;
       } catch (e) {
         this.createError = (e.data && JSON.stringify(e.data)) || e.message;
       }
+    },
+
+    // ---- Media capture (Wave 2) ----
+    async startRecording(kind) {
+      const constraints = kind === "video" ? { video: { facingMode: "environment" }, audio: true } : { audio: true };
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      const mediaRecorder = new MediaRecorder(stream);
+      const chunks = [];
+      mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(chunks, { type: mediaRecorder.mimeType || (kind === "video" ? "video/webm" : "audio/webm") });
+        this.recorder.blob = blob;
+        this.recorder.blobUrl = URL.createObjectURL(blob);
+        stream.getTracks().forEach((t) => t.stop());
+      };
+      this.recorder.mediaRecorder = mediaRecorder;
+      this.recorder.stream = stream;
+      this.recorder.seconds = 0;
+      this.recorder.recording = true;
+      mediaRecorder.start();
+      this.recorder.timer = setInterval(() => {
+        this.recorder.seconds += 1;
+        if (kind === "video" && this.recorder.seconds >= 20) this.stopRecording(); // hard cap, spec Wave 2
+      }, 1000);
+    },
+    stopRecording() {
+      if (this.recorder.timer) clearInterval(this.recorder.timer);
+      this.recorder.recording = false;
+      if (this.recorder.mediaRecorder && this.recorder.mediaRecorder.state !== "inactive") {
+        this.recorder.mediaRecorder.stop();
+      }
+    },
+    discardRecording() {
+      if (this.recorder.timer) clearInterval(this.recorder.timer);
+      if (this.recorder.stream) this.recorder.stream.getTracks().forEach((t) => t.stop());
+      if (this.recorder.blobUrl) URL.revokeObjectURL(this.recorder.blobUrl);
+      this.recorder = { recording: false, seconds: 0, blob: null, blobUrl: null, mediaRecorder: null, stream: null, timer: null };
+    },
+    async compressPhoto(file) {
+      if (typeof imageCompression === "undefined") return file; // vendored lib failed to load -- upload uncompressed rather than block
+      try {
+        return await imageCompression(file, { maxWidthOrHeight: 1280, initialQuality: 0.7, useWebWorker: true, fileType: "image/jpeg" });
+      } catch (e) {
+        return file;
+      }
+    },
+    async addDamagePhoto(event) {
+      const file = event.target.files[0];
+      event.target.value = ""; // allow re-selecting/re-capturing the same shot
+      if (!file || this.damagePhotos.length >= 3) return;
+      const compressed = await this.compressPhoto(file);
+      this.damagePhotos.push({ file: compressed, previewUrl: URL.createObjectURL(compressed) });
+    },
+    async addDeliveryPhoto(event, pickupId) {
+      const file = event.target.files[0];
+      event.target.value = "";
+      if (!this.deliveryPhotos[pickupId]) this.deliveryPhotos[pickupId] = [];
+      if (!file || this.deliveryPhotos[pickupId].length >= 3) return;
+      const compressed = await this.compressPhoto(file);
+      this.deliveryPhotos[pickupId].push({ file: compressed, previewUrl: URL.createObjectURL(compressed) });
     },
 
     isNeedOwner(id) {
@@ -250,12 +419,13 @@ function app() {
       try {
         const pickup = await api("/pickups/", {
           method: "POST",
-          body: JSON.stringify({ ...this.pickupForm, need: this.currentNeed.id }),
+          body: JSON.stringify({ ...this.pickupForm, need: this.currentNeed.id, turnstile_token: window.__turnstileToken || "" }),
         });
         this.pickupTokens[pickup.id] = pickup.access_token;
         saveJSON("rassemble_pickup_tokens", this.pickupTokens);
         window.location.hash = `#/needs/${this.currentNeed.id}`;
         await this.loadNeedDetail(this.currentNeed.id);
+        this.route = "detail"; // hash may be unchanged (see "Also take charge" below), so hashchange won't fire
       } catch (e) {
         this.pickupError = (e.data && JSON.stringify(e.data)) || e.message;
       }
@@ -292,7 +462,11 @@ function app() {
     },
     async markDelivered(pickupId) {
       const token = this.pickupTokens[pickupId];
-      await api(`/pickups/${pickupId}/deliver/`, { method: "POST", body: JSON.stringify({ access_token: token }) });
+      const formData = new FormData();
+      formData.append("access_token", token);
+      (this.deliveryPhotos[pickupId] || []).forEach((p) => formData.append("delivery_photos", p.file, p.file.name));
+      await apiUpload(`/pickups/${pickupId}/deliver/`, formData);
+      delete this.deliveryPhotos[pickupId];
       await this.loadNeedDetail(this.currentNeed.id);
     },
     async anonymizePickup(pickupId) {
@@ -335,12 +509,118 @@ function app() {
       this.supportSent = true;
     },
 
+    // ---- Reporting (Wave 3) ----
+    async reportContent(mediaType, mediaId) {
+      const reason = prompt("Why are you reporting this content?");
+      if (!reason) return;
+      const reporter_name = prompt("Your name:") || "";
+      const reporter_phone = prompt("Your phone:") || "";
+      await api("/content-reports/", {
+        method: "POST",
+        body: JSON.stringify({ media_type: mediaType, media_id: mediaId, reporter_name, reporter_phone, reason }),
+      });
+      alert("Thanks -- this content is now hidden pending admin review.");
+      if (this.currentNeed) await this.loadNeedDetail(this.currentNeed.id);
+    },
+    async reportDuplicateOfCurrentNeed() {
+      const referenceId = prompt("ID of the need this duplicates (open it in another tab to check its number):");
+      if (!referenceId) return;
+      const reporter_name = prompt("Your name:") || "";
+      const reporter_phone = prompt("Your phone:") || "";
+      await api(`/needs/${this.currentNeed.id}/report-duplicate/`, {
+        method: "POST",
+        body: JSON.stringify({ reference_need_id: referenceId, reporter_name, reporter_phone }),
+      });
+      alert("Thanks -- an admin will review this.");
+    },
+
+    // ---- Collection points (Wave 4) ----
+    async loadCollectionPoints() {
+      const qs = this.cpFilterWilaya ? `?wilaya=${this.cpFilterWilaya}` : "";
+      const data = await api(`/collection-points/${qs}`);
+      this.collectionPoints = data.results || data;
+    },
+    async loadCollectionPointDetail(id) {
+      this.currentCollectionPoint = await api(`/collection-points/${id}/`);
+    },
+    async submitCollectionPoint() {
+      this.cpError = "";
+      try {
+        const point = await api("/collection-points/", { method: "POST", body: JSON.stringify(this.cpForm) });
+        saveJSON("rassemble_comment_author", { name: this.cpForm.contact_name, phone: this.cpForm.contact_phone });
+        window.location.hash = `#/collection-points/${point.id}`;
+      } catch (e) {
+        this.cpError = (e.data && JSON.stringify(e.data)) || e.message;
+      }
+    },
+    async closeCollectionPoint() {
+      const contact_name = prompt("Your name (as entered when creating this point):");
+      if (!contact_name) return;
+      const contact_phone = prompt("Your phone:");
+      try {
+        this.currentCollectionPoint = await api(`/collection-points/${this.currentCollectionPoint.id}/close/`, {
+          method: "POST",
+          body: JSON.stringify({ contact_name, contact_phone }),
+        });
+      } catch (e) {
+        alert(e.message);
+      }
+    },
+
+    // ---- Comments (Wave 4) ----
+    async submitComment(target, targetId, parentId) {
+      const key = parentId ? `reply-${parentId}` : `root-${target}-${targetId}`;
+      const text = this.commentText[key];
+      if (!text) return;
+      if (!this.commentAuthor.name || !this.commentAuthor.phone) {
+        this.commentAuthor.name = prompt("Your name:") || "";
+        this.commentAuthor.phone = prompt("Your phone (kept private, only used if you delete your own comment):") || "";
+        saveJSON("rassemble_comment_author", this.commentAuthor);
+      }
+      const payload = {
+        author_name: this.commentAuthor.name,
+        author_phone: this.commentAuthor.phone,
+        text,
+      };
+      payload[target] = targetId;
+      if (parentId) payload.parent_comment = parentId;
+      await api("/comments/", { method: "POST", body: JSON.stringify(payload) });
+      this.commentText[key] = "";
+      if (target === "need") await this.loadNeedDetail(targetId);
+      else await this.loadCollectionPointDetail(targetId);
+    },
+    async confirmComment(commentId, target, targetId) {
+      await api(`/comments/${commentId}/confirm/`, { method: "POST" });
+      if (target === "need") await this.loadNeedDetail(targetId);
+      else await this.loadCollectionPointDetail(targetId);
+    },
+    async deleteComment(commentId, target, targetId) {
+      if (!confirm("Delete this comment?")) return;
+      try {
+        await fetch(`${API}/comments/${commentId}/`, {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ author_name: this.commentAuthor.name, author_phone: this.commentAuthor.phone }),
+        });
+      } finally {
+        if (target === "need") await this.loadNeedDetail(targetId);
+        else await this.loadCollectionPointDetail(targetId);
+      }
+    },
+
     // ---- Maps ----
     urgencyColor(u) {
       return { critical: "#d92626", medium: "#e08a1e", low: "#cbb400" }[u] || "#555";
     },
 
     async renderMainMap() {
+      const [needPins, cpPins] = await Promise.all([
+        api("/needs/locations/"),
+        api("/collection-points/locations/").catch(() => []),
+      ]);
+      this.mapHasNoNeedsAtAll = needPins.length === 0 && cpPins.length === 0;
+      if (this.mapHasNoNeedsAtAll) return; // truly zero listings anywhere -- show the message instead of a map
+      await this.$nextTick();
       const el = document.getElementById("main-map");
       if (!el || typeof L === "undefined") return;
       if (!this._mainMap) {
@@ -348,12 +628,12 @@ function app() {
         L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution: "&copy; OpenStreetMap" }).addTo(this._mainMap);
       }
       const map = this._mainMap;
-      map.eachLayer((layer) => { if (layer instanceof L.Marker) map.removeLayer(layer); });
-
-      const pins = await api("/needs/locations/");
-      const withPos = pins.filter((p) => p.display_latitude != null && p.display_longitude != null);
+      (this._mainMapMarkers || []).forEach((m) => map.removeLayer(m));
       const markers = [];
-      withPos.forEach((p) => {
+      this._mainMapMarkers = markers;
+
+      const needsWithPos = needPins.filter((p) => p.display_latitude != null && p.display_longitude != null);
+      needsWithPos.forEach((p) => {
         const marker = L.circleMarker([p.display_latitude, p.display_longitude], {
           radius: 9, color: this.urgencyColor(p.urgency), fillColor: this.urgencyColor(p.urgency), fillOpacity: 0.85,
         }).addTo(map);
@@ -365,7 +645,23 @@ function app() {
         markers.push(marker);
       });
 
-      this.smartZoom(map, withPos.map((p) => [p.display_latitude, p.display_longitude]));
+      const cpsWithPos = cpPins.filter((p) => p.display_latitude != null && p.display_longitude != null);
+      cpsWithPos.forEach((p) => {
+        // Visually distinct from Need pins: a black square marker vs. colored circles.
+        const icon = L.divIcon({ className: "cp-marker-icon", html: "■", iconSize: [16, 16] });
+        const marker = L.marker([p.display_latitude, p.display_longitude], { icon }).addTo(map);
+        const gpsNote = p.has_exact_position ? "" : "<br><em>no exact GPS position</em>";
+        marker.bindPopup(
+          `<strong>📦 ${p.point_name}</strong><br>${p.contact_name} — ${this.maskPhone(p.contact_phone, false)}` +
+          `${p.organization ? "<br>" + p.organization : ""}${p.hours ? "<br>Hours: " + p.hours : ""}` +
+          `<br>${p.wilaya_name}${gpsNote}<br><a href="#/collection-points/${p.id}">Open</a>`
+        );
+        markers.push(marker);
+      });
+
+      const allPoints = needsWithPos.map((p) => [p.display_latitude, p.display_longitude])
+        .concat(cpsWithPos.map((p) => [p.display_latitude, p.display_longitude]));
+      this.smartZoom(map, allPoints);
     },
 
     smartZoom(map, points) {
@@ -434,7 +730,7 @@ function this_defaultCreateForm() {
     campaign: "", wilaya: "", commune: "", title: "", urgency: "medium",
     estimated_quantity: "", location_description: "", latitude: null, longitude: null,
     contact_last_name: "", contact_first_name: "", contact_phone: "", contact_date_of_birth: "",
-    contact_email: "", organization_or_person_name: "",
+    contact_email: "", organization_or_person_name: "", media_type: "text",
   };
 }
 function this_defaultPickupForm() {
@@ -443,4 +739,7 @@ function this_defaultPickupForm() {
     responder_last_name: "", responder_first_name: "", responder_phone: "", responder_date_of_birth: "",
     responder_email: "", organization_or_person_name: "",
   };
+}
+function this_defaultCPForm() {
+  return { wilaya: "", point_name: "", contact_name: "", contact_phone: "", organization: "", location_description: "", hours: "" };
 }

@@ -1,0 +1,1084 @@
+:root {
+  --accent: #111;
+  --bg: #fafafa;
+  --card: #fff;
+  --border: #e4e4e4;
+  --danger: #c0392b;
+  --critical: #d92626;
+  --medium: #e08a1e;
+  --low: #cbb400;
+  --text: #111;
+  --text-muted: #6b6b6b;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: var(--text);
+  /* Site-wide watermark background (a very light Algerian-flag/helping-hands
+     illustration) -- fixed so it doesn't scroll with page content, and
+     swapped per viewport size below since the source images are cropped
+     differently for landscape/desktop vs. portrait/mobile framing. `--bg`
+     stays underneath as the solid fallback color while the image loads. */
+  background-color: var(--bg);
+  /* A translucent white wash layered over the photo (rather than editing
+     the source images) keeps it a watermark instead of a full-strength
+     photo competing with page content -- easy to re-tune the opacity.
+     0.82 (first attempt) was too strong a wash -- barely distinguishable
+     from the plain background -- so this dials back to a middle ground. */
+  background-image: linear-gradient(rgba(250, 250, 250, 0.55), rgba(250, 250, 250, 0.55)), url('/backgrounds/bg-mobile-tall.jpg');
+  background-repeat: no-repeat;
+  background-position: top center;
+  background-size: cover;
+  background-attachment: scroll; /* fixed background-attachment is unreliable on mobile Safari/Chrome */
+}
+@media (min-width: 480px) {
+  body {
+    background-image: linear-gradient(rgba(250, 250, 250, 0.55), rgba(250, 250, 250, 0.55)), url('/backgrounds/bg-mobile.jpg');
+  }
+}
+@media (min-width: 900px) {
+  body {
+    background-image: linear-gradient(rgba(250, 250, 250, 0.55), rgba(250, 250, 250, 0.55)), url('/backgrounds/bg-tablet.jpg');
+    background-attachment: fixed;
+  }
+}
+@media (min-width: 1280px) {
+  body {
+    background-image: linear-gradient(rgba(250, 250, 250, 0.55), rgba(250, 250, 250, 0.55)), url('/backgrounds/bg-desktop.jpg');
+    background-position: top center;
+  }
+}
+
+#root {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+}
+
+a {
+  color: inherit;
+}
+
+/* --- App shell --- */
+
+.readonly-banner,
+.offline-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 16px;
+  text-align: center;
+  font-size: 14px;
+}
+
+.readonly-banner {
+  background: #fff3cd;
+  color: #664d03;
+}
+
+.readonly-banner svg {
+  flex-shrink: 0;
+}
+
+.offline-banner {
+  background: #e7f1ff;
+  color: #084298;
+}
+
+.offline-banner svg {
+  flex-shrink: 0;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  background: var(--card);
+  border-block-end: 1px solid var(--border);
+  position: relative;
+}
+.admin-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #0f7a4a;
+  background: #e3f1e7;
+  border: 1px solid #bfe0cb;
+  border-radius: 999px;
+  padding: 3px 10px;
+  white-space: nowrap;
+}
+.admin-badge-logout-form {
+  display: inline;
+}
+.admin-badge-logout {
+  color: inherit;
+  text-decoration: underline;
+  text-transform: none;
+  font-weight: 500;
+  letter-spacing: normal;
+  font-size: inherit;
+  font-family: inherit;
+}
+.page-title {
+  /* Plain small label, not a pill/button -- a solid background + full
+     border-radius on a short piece of text reads as a tappable chip,
+     which this isn't. Kept as quiet as a section eyebrow: no background,
+     muted color, small caps-style type. */
+  display: block;
+  color: #6b6b6b;
+  font-size: clamp(11px, 3vw, 13px);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-block: 0 10px;
+}
+.brand {
+  /* The full designed lockup (icon + "SOS DZ" wordmark, as one image --
+     see logo-lockup.png) rather than a live-rendered icon+text pairing,
+     so the original logo's exact font/colors are preserved untouched. */
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+.brand-logo {
+  height: clamp(20px, 5vw, 26px);
+  width: auto;
+  flex-shrink: 0;
+}
+.topbar-nav-desktop,
+.topbar-nav-mobile {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.topbar-nav-desktop a,
+.topbar-nav-desktop button,
+.topbar-nav-mobile a,
+.topbar-nav-mobile button {
+  margin-inline-start: 8px;
+  text-decoration: none;
+  color: #333;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  font: inherit;
+  cursor: pointer;
+  padding: 6px 8px;
+  white-space: nowrap;
+}
+/* Same solid pill treatment as the bottom nav's active tab and the
+   Liste/Carte toggle -- previously these links had no active-state
+   styling at all. */
+.topbar-nav-desktop a.active,
+.topbar-nav-mobile a.active {
+  background: var(--accent);
+  color: #fff;
+}
+.nav-admin-link {
+  font-weight: 600;
+}
+
+.nav-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: #111;
+  cursor: pointer;
+  padding: 4px;
+  flex-shrink: 0;
+}
+
+.topbar-nav-mobile {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  padding: 8px 20px 16px;
+  background: var(--card);
+  border-block-end: 1px solid var(--border);
+}
+.topbar-nav-mobile a,
+.topbar-nav-mobile button {
+  margin-inline-start: 0;
+  padding: 12px 4px;
+  text-align: start;
+  border-block-end: 1px solid var(--border);
+}
+.topbar-nav-mobile .lang-switcher {
+  padding-block-start: 12px;
+}
+
+/* Below this width the inline nav (brand + 5 links + language switcher,
+   ~900px at natural size) no longer has room -- collapse it into a
+   toggleable menu instead of letting it overflow or wrap mid-word. */
+@media (max-width: 960px) {
+  .topbar-nav-desktop {
+    display: none;
+  }
+  .nav-toggle {
+    display: flex;
+  }
+}
+@media (min-width: 961px) {
+  .topbar-nav-mobile {
+    display: none;
+  }
+}
+
+.lang-switcher select {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 4px 6px;
+  font-size: 13px;
+}
+
+main {
+  /* Wide enough that list/map pages actually use a normal desktop
+     screen's width instead of sitting as a narrow column with huge
+     empty margins on both sides -- purely a max-width cap, so nothing
+     changes below 1100px viewport width and phone/tablet layouts (and
+     the 960px nav breakpoint, which is unrelated to this) are
+     unaffected. */
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 20px;
+  padding-block-end: 90px; /* clear the fixed bottom nav */
+  width: 100%;
+  flex: 1;
+}
+
+/* --- Home --- */
+
+.home {
+  /* Extra top space scales with viewport height so the logo+buttons sit
+     nearer the vertical middle of the screen instead of right under the
+     header, on both short and tall phones -- a fixed px value would be
+     too little on a tall screen and too much on a short one. Capped so
+     it doesn't push content off-screen on very tall/desktop viewports. */
+  padding: clamp(20px, 12svh, 140px) 20px 60px;
+  position: relative;
+  overflow: hidden;
+  text-align: center;
+}
+.home-logo {
+  display: block;
+  width: clamp(260px, 45vw, 480px);
+  max-width: 100%;
+  height: auto;
+  margin-inline: auto;
+}
+.home-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  justify-content: center;
+  gap: 16px;
+  /* Slightly lower than before (was 32px) so the two buttons sit better
+     centered in the action area below the logo -- logo/.home untouched. */
+  margin-block-start: 48px;
+  max-width: 620px;
+  margin-inline: auto;
+}
+.home-actions .btn {
+  box-sizing: border-box;
+  text-align: center;
+  justify-content: center;
+  flex: 1 1 220px;
+}
+@media (max-width: 480px) {
+  .home-actions .btn {
+    flex-basis: 100%;
+  }
+}
+.btn.home-btn-primary {
+  background: var(--accent);
+  color: #fff;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+}
+.btn.home-btn-outline {
+  background: #fff;
+  color: var(--accent);
+  border: 1.5px solid var(--accent);
+  border-radius: 999px;
+}
+.home-about-link {
+  /* Sits over the background photo, so it needs real contrast -- the
+     footer's own muted #777 all but disappears there. */
+  display: inline-block;
+  margin-block-start: 28px;
+  color: var(--text);
+  font-weight: 600;
+  font-size: 14px;
+  text-decoration: underline;
+}
+
+/* --- Buttons --- */
+
+.btn {
+  display: inline-block;
+  padding: 10px 18px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: #fff;
+  cursor: pointer;
+  font-size: 15px;
+  text-decoration: none;
+  color: #111;
+}
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.btn-danger {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+.btn-huge {
+  padding: 22px;
+  border-radius: 16px;
+  font-size: 18px;
+  font-weight: 600;
+}
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.btn-icon svg {
+  flex-shrink: 0;
+}
+.link {
+  background: none;
+  border: none;
+  color: #555;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+  font-size: 13px;
+}
+
+/* --- Forms --- */
+
+.form-page {
+  /* Forms stay a comfortable reading/filling width even though main is
+     now wider -- a form's inputs/labels spread thin and look wrong
+     stretched across a full wide desktop screen the way a map or list
+     legitimately benefits from. */
+  max-width: 640px;
+  margin-inline: auto;
+}
+.form-page form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.whatsapp-contacts ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.whatsapp-btn {
+  display: inline-block;
+  background: #25d366;
+  color: #fff;
+  text-decoration: none;
+  width: fit-content;
+}
+.whatsapp-btn:hover {
+  background: #1ebe57;
+}
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 14px;
+}
+.field-label-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.field-label-icon svg {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.social-links-section h3 {
+  margin-block-end: 8px;
+}
+.social-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.social-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  color: #111;
+  background: #fff;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+.social-link:hover {
+  background: var(--bg);
+}
+.checkbox-label {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+.checkbox-label input[type='checkbox'] {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+input,
+select,
+textarea {
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  font-size: 15px;
+  font-family: inherit;
+}
+
+.gps-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* --- Place autocomplete (Nominatim/OpenStreetMap suggestions) --- */
+.place-autocomplete {
+  position: relative;
+}
+.place-autocomplete input,
+.place-autocomplete textarea {
+  width: 100%;
+}
+.place-suggestions {
+  position: absolute;
+  z-index: 20;
+  inset-inline: 0;
+  top: calc(100% + 4px);
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
+  max-height: 220px;
+  overflow-y: auto;
+}
+.place-suggestions li {
+  padding: 8px 10px;
+  border-radius: 7px;
+  font-size: 13.5px;
+  line-height: 1.35;
+  cursor: pointer;
+}
+.place-suggestions li:hover {
+  background: var(--bg);
+}
+fieldset {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.media-capture-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.media-capture-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+  padding: 12px 6px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: #fff;
+  min-width: 0;
+}
+.media-capture-card span {
+  font-size: 12px;
+  font-weight: 600;
+}
+.media-capture-card .btn {
+  font-size: 12px;
+  padding: 8px 6px;
+  width: 100%;
+  box-sizing: border-box;
+}
+.media-capture-card audio {
+  width: 100%;
+}
+.photo-add-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  text-align: center;
+}
+.media-capture-card .photo-thumbs {
+  justify-content: center;
+}
+.media-capture-card .photo-thumb img {
+  width: 48px;
+  height: 48px;
+}
+.media-capture-card .photo-thumb .link {
+  position: absolute;
+  top: -6px;
+  inset-inline-end: -6px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  padding: 2px;
+  line-height: 0;
+}
+.record-btn {
+  /* Not a full pill (999px): on a narrow 3-column mobile layout, the
+     French label wraps to two lines, and a stadium-shaped curve on a
+     multi-line button crowds the text against the curve at the top/
+     bottom, reading as if the text pokes past the button's edge. */
+  border-radius: 10px;
+  font-size: 11px;
+  line-height: 1.3;
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
+/* --- Lists / toolbar --- */
+
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  /* flex-end, not center: the wilaya/status <label> stacks its text above
+     the <select> (label { flex-direction: column }), but the search input
+     and the Liste/Carte toggle have no such label text -- centering the
+     row against the label's full text+select height left the toggle and
+     search input floating above the select instead of level with it. */
+  align-items: flex-end;
+  margin-block-end: 16px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.search-input {
+  flex: 1 1 220px;
+  min-width: 160px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  font-size: 15px;
+}
+.view-toggle button {
+  /* Matches the wilaya <select> (input, select, textarea { padding: 10px;
+     font-size: 15px }) so the toolbar's two controls read as the same
+     height/weight instead of the toggle looking visually smaller. */
+  border: 1px solid var(--border);
+  background: #fff;
+  padding: 10px 16px;
+  font-size: 15px;
+  font-family: inherit;
+  cursor: pointer;
+}
+.view-toggle button.active {
+  background: var(--accent);
+  color: #fff;
+}
+.view-toggle button:first-child {
+  border-start-start-radius: 10px;
+  border-end-start-radius: 10px;
+}
+.view-toggle button:last-child {
+  border-start-end-radius: 10px;
+  border-end-end-radius: 10px;
+}
+
+.need-card {
+  display: block;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+  margin-block-end: 12px;
+  text-decoration: none;
+  color: #111;
+}
+.need-card-description {
+  font-size: 13px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  color: #fff;
+  text-transform: capitalize;
+}
+.badge-warn {
+  background: #e08a1e;
+}
+.urgency-critical {
+  background: var(--critical);
+}
+.urgency-medium {
+  background: var(--medium);
+}
+.urgency-low {
+  /* Same as .urgency-medium -- see utils.js urgencyColor for why. */
+  background: var(--medium);
+}
+.badge-status-en_route {
+  background: var(--medium);
+}
+.badge-status-delivered {
+  background: #2e7d32;
+}
+.badge-status-cancelled {
+  background: #888;
+}
+
+.status {
+  font-size: 13px;
+  color: #555;
+}
+.hint {
+  font-size: 13px;
+  color: #777;
+  font-style: italic;
+}
+.error {
+  color: var(--danger);
+}
+
+.pickup-card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  margin: 10px 0;
+}
+.timeline {
+  margin-inline-start: 10px;
+  border-inline-start: 2px solid var(--border);
+  padding-inline-start: 12px;
+}
+.timeline-item {
+  position: relative;
+  padding: 4px 0;
+  font-size: 13px;
+}
+.timeline-item .dot {
+  position: absolute;
+  inset-inline-start: -17px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  top: 8px;
+}
+
+.owner-actions,
+.pickup-owner-actions {
+  background: #f2f2f2;
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 10px 0;
+}
+.share-link {
+  width: 100%;
+  font-size: 13px;
+}
+
+.photo-thumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-block-start: 8px;
+}
+.photo-thumb {
+  position: relative;
+}
+.photo-thumb img,
+.gallery-thumb {
+  width: 84px;
+  height: 84px;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+}
+.gallery-thumb-btn {
+  display: block;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  line-height: 0;
+}
+.upload-status {
+  font-size: 13px;
+  color: #555;
+}
+.upload-status.error {
+  color: var(--danger);
+}
+
+.moderation-badge {
+  display: inline-block;
+  width: fit-content;
+  margin-block-start: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 10px;
+  line-height: 1.3;
+  font-weight: 700;
+  white-space: nowrap;
+}
+/* Only inside a photo thumbnail does the badge need to stay narrow
+   enough to sit under an 84px thumb -- there it wraps to 2 lines. The
+   video badge (not inside a .photo-thumb) has no such constraint and
+   would otherwise wrap "Validé automatiquement" onto two lines inside a
+   fully-rounded pill, spilling text past the rounded ends. */
+.photo-thumb .moderation-badge {
+  display: block;
+  max-width: 84px;
+  white-space: normal;
+}
+.moderation-badge-approved {
+  background: #e3f3e3;
+  border-color: #a9dab0;
+  color: #216b2c;
+}
+.moderation-badge-rejected {
+  background: #fbe4e4;
+  border-color: #f0b3b3;
+  color: var(--danger);
+}
+.moderation-badge-pending {
+  background: #fdf1de;
+  border-color: #f3ce97;
+  color: #a35f0e;
+}
+
+.media-player {
+  display: block;
+  width: 100%;
+  max-height: 70vh;
+  background: #000;
+  border-radius: 10px;
+}
+
+.lightbox-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 1000;
+}
+.lightbox-overlay img,
+.lightbox-overlay video {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 6px;
+}
+.lightbox-close {
+  position: absolute;
+  top: 16px;
+  inset-inline-end: 16px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: #fff;
+  color: #111;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.dest-marker-icon {
+  font-size: 16px;
+  line-height: 16px;
+  color: #111;
+  text-shadow:
+    0 0 2px #fff,
+    0 0 2px #fff;
+}
+.truck-icon {
+  vertical-align: -3px;
+  flex-shrink: 0;
+}
+.pickup-marker-pin,
+.cp-marker-pin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid #111;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.comment-thread {
+  margin-block-start: 16px;
+}
+.comment {
+  border-inline-start: 2px solid var(--border);
+  padding-inline-start: 10px;
+  margin-block-end: 12px;
+}
+.comment.reply {
+  margin-inline-start: 24px;
+  margin-block-start: 8px;
+}
+.comment-meta {
+  font-size: 12px;
+  color: #777;
+}
+.comment-form {
+  display: flex;
+  gap: 8px;
+  margin-block-start: 8px;
+  flex-wrap: wrap;
+}
+.comment-form input[type='text'] {
+  flex: 1;
+  min-width: 180px;
+}
+
+/* .map-wrap: no side margin needed -- the gestureHandling map option
+   (see main.jsx and each map's gestureHandlingOptions) confirmed working
+   on its own: a single finger scrolls the page even directly over the
+   map, and panning the map itself needs two fingers. Full width. */
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 14px;
+  font-size: 13px;
+  color: #555;
+}
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.legend-note {
+  flex-basis: 100%;
+  color: #888;
+}
+
+/* --- Bottom nav (mobile app style) --- */
+
+.bottom-nav {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  background: var(--card);
+  border-block-start: 1px solid var(--border);
+  /* Grid, not flex: two symmetric 1fr columns on each side of the FAB's
+     own (auto-sized) middle column keeps it exactly centered regardless
+     of how much wider one label ("Points de collecte") is than another
+     ("Aide") -- flex's space-around distributed free space per item's
+     own width instead, which visibly pushed the FAB off-center. */
+  display: grid;
+  grid-template-columns: 1fr 1fr auto 1fr 1fr;
+  align-items: center;
+  padding: 8px 0 max(8px, env(safe-area-inset-bottom));
+  /* Leaflet's own zoom/attribution controls default to z-index: 1000 in
+     its stylesheet -- since the map container doesn't establish its own
+     stacking context, that z-index competes directly with this bar's, so
+     the nav must sit above it or the map's own bottom-right corner
+     (zoom control, attribution) paints over the fixed footer and FAB
+     whenever they visually overlap on scroll. */
+  z-index: 1100;
+}
+.bottom-nav a,
+.bottom-nav button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-self: center;
+  gap: 2px;
+  /* "Points de collecte" is the longest label here -- at 11px it wrapped
+     to two uneven lines on a narrow phone, which then looked off-center
+     once the active-state pill background (padding: 4px 12px) hugged
+     only the wrapped shape instead of a clean centered box. Small enough
+     + nowrap keeps every label (including this one) on a single,
+     properly centered line. */
+  font-size: 10px;
+  white-space: nowrap;
+  text-align: center;
+  color: #555;
+  text-decoration: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+.bottom-nav .icon {
+  display: flex;
+  color: #555;
+}
+.bottom-nav a.active {
+  /* Same solid pill treatment as the Liste/Carte toggle's .active state
+     (.view-toggle button.active) -- a clear "this is the one you clicked"
+     background, not just a color change on already-small 11px text. */
+  color: #fff;
+  background: var(--accent);
+  border-radius: 14px;
+  padding: 4px 12px;
+}
+.bottom-nav a.active .icon {
+  color: #fff;
+}
+.bottom-nav .fab {
+  background: var(--accent);
+  color: #fff;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-block-start: -24px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+}
+
+footer {
+  text-align: center;
+  padding: 20px;
+  padding-block-end: 90px; /* clear the fixed bottom nav, like main */
+  color: #777;
+  font-size: 13px;
+}
+.footer-links a {
+  text-decoration: underline;
+}
+
+/* --- Dialog (replaces window.alert/confirm/prompt) --- */
+/* A bottom sheet on narrow screens (Uber-style: slides up from the edge
+   closest to the thumb), a centered card on wider ones. Above the bottom
+   nav's z-index: 1100 (itself raised above Leaflet's default 1000, see
+   .bottom-nav). */
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 1200;
+  animation: dialog-fade-in 0.15s ease-out;
+}
+.dialog-sheet {
+  background: var(--card);
+  border-radius: 18px 18px 0 0;
+  padding: 24px 20px max(20px, env(safe-area-inset-bottom));
+  width: 100%;
+  max-width: 420px;
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.2);
+  animation: dialog-slide-up 0.2s ease-out;
+}
+.dialog-message {
+  margin: 0 0 16px;
+  font-size: 16px;
+  white-space: pre-wrap;
+}
+.dialog-input {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  font-size: 15px;
+  margin-block-end: 16px;
+}
+.dialog-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+.dialog-actions .btn {
+  flex: 1;
+  text-align: center;
+  padding: 12px 18px;
+}
+@keyframes dialog-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes dialog-slide-up {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+}
+@media (min-width: 640px) {
+  .dialog-backdrop {
+    align-items: center;
+  }
+  .dialog-sheet {
+    border-radius: 18px;
+  }
+}
+
+/* --- RTL: Arabic --- */
+:root[dir='rtl'] .badge,
+:root[dir='rtl'] .status {
+  direction: rtl;
+}

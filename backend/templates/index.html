@@ -4,8 +4,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Rassemble</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <title>SOS DZ</title>
+  <link rel="stylesheet" href="{% static 'vendor/leaflet/leaflet.css' %}" />
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
 </head>
 <body x-data="app()" x-init="init()">
@@ -15,9 +15,10 @@
   </div>
 
   <header class="topbar">
-    <a href="#/" class="brand">Rassemble</a>
+    <a href="#/" class="brand">SOS DZ</a>
     <nav>
       <a href="#/needs">Needs</a>
+      <a href="#/collection-points">Collection points</a>
       <a href="#/create">I need help</a>
       <a href="#/support">Forgot my details?</a>
     </nav>
@@ -26,7 +27,7 @@
   <main>
     <!-- HOME -->
     <section x-show="route === 'home'" class="home">
-      <h1>Rassemble</h1>
+      <h1>SOS DZ</h1>
       <p>Disaster relief coordination for Algeria.</p>
       <div class="home-actions">
         <a href="#/create" class="btn btn-primary btn-huge">I need help</a>
@@ -77,6 +78,42 @@
         <p x-show="createForm.latitude" x-text="'GPS captured: ' + createForm.latitude + ', ' + createForm.longitude"></p>
 
         <fieldset>
+          <legend>Add more detail (optional): voice or video message</legend>
+          <div class="media-choice">
+            <label><input type="radio" name="mediaType" value="text" x-model="createForm.media_type"> Text only</label>
+            <label><input type="radio" name="mediaType" value="audio" x-model="createForm.media_type"> Voice message</label>
+            <label><input type="radio" name="mediaType" value="video" x-model="createForm.media_type"> Video (max 20s)</label>
+          </div>
+          <div x-show="createForm.media_type !== 'text'" class="recorder">
+            <p x-show="!recorder.blobUrl && !recorder.recording">
+              <button type="button" class="btn record-btn" @click="startRecording(createForm.media_type)">⏺ Start recording</button>
+            </p>
+            <p x-show="recorder.recording">
+              <button type="button" class="btn btn-danger record-btn" @click="stopRecording()">⏹ Stop (<span x-text="recorder.seconds"></span>s / 20s)</button>
+            </p>
+            <div x-show="recorder.blobUrl && !recorder.recording">
+              <audio x-show="createForm.media_type === 'audio'" :src="recorder.blobUrl" controls></audio>
+              <video x-show="createForm.media_type === 'video'" :src="recorder.blobUrl" controls style="max-width:100%"></video>
+              <br>
+              <button type="button" class="btn" @click="discardRecording()">Discard &amp; re-record</button>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Damage photos (optional, up to 3, camera only)</legend>
+          <input type="file" accept="image/*" capture="environment" @change="addDamagePhoto($event)" x-show="damagePhotos.length < 3">
+          <div class="photo-thumbs">
+            <template x-for="(p, idx) in damagePhotos" :key="idx">
+              <div class="photo-thumb">
+                <img :src="p.previewUrl">
+                <button type="button" class="link" @click="damagePhotos.splice(idx, 1)">remove</button>
+              </div>
+            </template>
+          </div>
+        </fieldset>
+
+        <fieldset>
           <legend>Your contact details (needed to edit/cancel later)</legend>
           <label>Last name * <input type="text" x-model="createForm.contact_last_name" required></label>
           <label>First name * <input type="text" x-model="createForm.contact_first_name" required></label>
@@ -86,7 +123,9 @@
           <label>Organization or person name (optional) <input type="text" x-model="createForm.organization_or_person_name"></label>
         </fieldset>
 
+        <div x-show="config.turnstile_enabled" class="cf-turnstile" :data-sitekey="config.turnstile_site_key" data-callback="onTurnstileToken"></div>
         <p class="error" x-show="createError" x-text="createError"></p>
+        <p class="upload-status" x-show="createUploadStatus" x-text="createUploadStatus"></p>
         <button type="submit" class="btn btn-primary">Publish this need</button>
       </form>
     </section>
@@ -121,8 +160,9 @@
       </div>
 
       <div x-show="viewMode === 'map'" class="map-wrap">
-        <div id="main-map" style="height: 500px;"></div>
-        <p class="legend">🔴 critical &nbsp; 🟠 medium &nbsp; 🟡 low &nbsp; — pins without exact GPS sit at the wilaya's approximate centroid ("no exact GPS position")</p>
+        <p x-show="mapHasNoNeedsAtAll" class="hint">No active needs right now.</p>
+        <div id="main-map" style="height: 500px;" x-show="!mapHasNoNeedsAtAll"></div>
+        <p class="legend" x-show="!mapHasNoNeedsAtAll">🔴 critical &nbsp; 🟠 medium &nbsp; 🟡 low (needs) &nbsp;&nbsp; ■ collection point &nbsp;&nbsp;— pins without exact GPS sit at the wilaya's approximate centroid ("no exact GPS position")</p>
       </div>
     </section>
 
@@ -136,6 +176,26 @@
           <p x-text="currentNeed.wilaya_name + (currentNeed.commune ? ' — ' + currentNeed.commune : '')"></p>
           <p x-text="currentNeed.location_description"></p>
           <p x-show="currentNeed.position_accuracy !== 'exact'" class="hint">no exact GPS position</p>
+
+          <div x-show="currentNeed.media_type !== 'text'">
+            <p x-show="!currentNeed.media_file" class="hint" x-text="'Recorded ' + currentNeed.media_type + ' message: ' + (currentNeed.media_moderation_status === 'rejected' ? 'removed by moderation' : 'pending review')"></p>
+            <template x-if="currentNeed.media_file">
+              <div>
+                <audio x-show="currentNeed.media_type === 'audio'" :src="currentNeed.media_file" controls></audio>
+                <video x-show="currentNeed.media_type === 'video'" :src="currentNeed.media_file" controls style="max-width:100%"></video>
+                <br><button class="link" @click="reportContent('need_media_file', currentNeed.id)">Report this content</button>
+              </div>
+            </template>
+          </div>
+          <div class="photo-thumbs" x-show="currentNeed.damage_photos && currentNeed.damage_photos.length">
+            <template x-for="photo in currentNeed.damage_photos" :key="photo.id">
+              <div class="photo-thumb">
+                <template x-if="photo.image"><a :href="photo.image" target="_blank"><img class="gallery-thumb" :src="photo.image"></a></template>
+                <span x-show="!photo.image" class="hint" x-text="photo.moderation_status === 'rejected' ? 'removed' : 'pending review'"></span>
+                <br x-show="photo.image"><button x-show="photo.image" class="link" @click="reportContent('damage_photo', photo.id)">Report</button>
+              </div>
+            </template>
+          </div>
           <p>Contact: <span x-text="currentNeed.contact_last_name + ' ' + currentNeed.contact_first_name"></span> —
             <span x-text="maskPhone(currentNeed.contact_phone, showPhone)"></span>
             <button class="link" @click="showPhone = !showPhone" x-text="showPhone ? 'hide number' : 'show full number'"></button>
@@ -159,6 +219,7 @@
           <div x-show="!isNeedOwner(currentNeed.id)">
             <a class="link" href="#/recover" @click="recoverContext = {type: 'need', id: currentNeed.id}">Is this your need? Recover access</a>
           </div>
+          <button class="link" @click="reportDuplicateOfCurrentNeed()">Report as duplicate</button>
 
           <h3>Live tracking map</h3>
           <div x-show="canSeeLiveMap" >
@@ -174,6 +235,10 @@
               <p><strong x-text="p.responder_last_name + ' ' + p.responder_first_name"></strong>
                  <span class="status" x-text="p.status"></span>
                  <span x-show="p.needs_verification" class="badge badge-warn">to verify</span></p>
+              <p x-show="p.responder_phone">
+                <span x-text="maskPhone(p.responder_phone, revealedPickupPhones[p.id])"></span>
+                <button class="link" @click="revealedPickupPhones[p.id] = !revealedPickupPhones[p.id]" x-text="revealedPickupPhones[p.id] ? 'hide number' : 'show full number'"></button>
+              </p>
               <p x-text="'Bringing: ' + p.content_brought"></p>
               <div class="timeline">
                 <template x-for="u in p.progress_updates" :key="u.id">
@@ -183,12 +248,34 @@
                   </div>
                 </template>
               </div>
+              <div class="photo-thumbs" x-show="p.delivery_photos && p.delivery_photos.length">
+                <template x-for="photo in p.delivery_photos" :key="photo.id">
+                  <div class="photo-thumb">
+                    <template x-if="photo.image"><a :href="photo.image" target="_blank"><img class="gallery-thumb" :src="photo.image"></a></template>
+                    <span x-show="!photo.image" class="hint" x-text="photo.moderation_status === 'rejected' ? 'removed' : 'pending review'"></span>
+                    <br x-show="photo.image"><button x-show="photo.image" class="link" @click="reportContent('delivery_photo', photo.id)">Report</button>
+                  </div>
+                </template>
+              </div>
               <div x-show="isPickupOwner(p.id)" class="pickup-owner-actions">
                 <input type="text" x-model="progressText[p.id]" placeholder="Add a progress update (e.g. just passed Boumerdès)">
                 <button class="btn" @click="addProgressUpdate(p.id)">Post update</button>
                 <label><input type="checkbox" :checked="p.location_sharing_active" @change="toggleLocationSharing(p, $event.target.checked)"> Share my live location</label>
                 <button class="btn" x-show="p.location_sharing_active" @click="pingLocation(p.id)">📍 Update my position now</button>
-                <button class="btn btn-primary" x-show="p.status === 'en_route'" @click="markDelivered(p.id)">Mark as delivered</button>
+                <div x-show="p.status === 'en_route'">
+                  <label>Delivery photos (optional, up to 3, camera only)
+                    <input type="file" accept="image/*" capture="environment" @change="addDeliveryPhoto($event, p.id)" x-show="(deliveryPhotos[p.id] || []).length < 3">
+                  </label>
+                  <div class="photo-thumbs">
+                    <template x-for="(ph, idx) in (deliveryPhotos[p.id] || [])" :key="idx">
+                      <div class="photo-thumb">
+                        <img :src="ph.previewUrl">
+                        <button type="button" class="link" @click="deliveryPhotos[p.id].splice(idx, 1)">remove</button>
+                      </div>
+                    </template>
+                  </div>
+                  <button class="btn btn-primary" @click="markDelivered(p.id)">Mark as delivered</button>
+                </div>
                 <button class="btn btn-danger" @click="anonymizePickup(p.id)">Anonymize my information</button>
               </div>
               <div x-show="!isPickupOwner(p.id)">
@@ -196,6 +283,41 @@
               </div>
             </div>
           </template>
+
+          <h3>Comments</h3>
+          <div class="comment-thread">
+            <template x-for="c in currentNeed.comments" :key="c.id">
+              <div>
+                <div class="comment">
+                  <p x-text="c.text"></p>
+                  <p class="comment-meta">
+                    <span x-text="c.author_name"></span> — <span x-text="formatDate(c.created_at)"></span>
+                    <span x-show="c.category" x-text="' · ' + c.category"></span>
+                    · <button class="link" @click="confirmComment(c.id, 'need', currentNeed.id)" x-text="'confirm (' + c.confirmation_count + ')'"></button>
+                    · <button class="link" @click="deleteComment(c.id, 'need', currentNeed.id)">delete</button>
+                  </p>
+                  <div class="comment-form">
+                    <input type="text" x-model="commentText['reply-' + c.id]" placeholder="Reply...">
+                    <button class="btn" @click="submitComment('need', currentNeed.id, c.id)">Reply</button>
+                  </div>
+                </div>
+                <template x-for="r in c.replies" :key="r.id">
+                  <div class="comment reply">
+                    <p x-text="r.text"></p>
+                    <p class="comment-meta">
+                      <span x-text="r.author_name"></span> — <span x-text="formatDate(r.created_at)"></span>
+                      · <button class="link" @click="confirmComment(r.id, 'need', currentNeed.id)" x-text="'confirm (' + r.confirmation_count + ')'"></button>
+                      · <button class="link" @click="deleteComment(r.id, 'need', currentNeed.id)">delete</button>
+                    </p>
+                  </div>
+                </template>
+              </div>
+            </template>
+            <div class="comment-form">
+              <input type="text" x-model="commentText['root-need-' + currentNeed.id]" placeholder="Add a comment (field info, contact info, confirmation...)">
+              <button class="btn btn-primary" @click="submitComment('need', currentNeed.id, null)">Post</button>
+            </div>
+          </div>
         </div>
       </template>
     </section>
@@ -223,9 +345,113 @@
           <label>Email (optional) <input type="email" x-model="pickupForm.responder_email"></label>
           <label>Organization/person name <input type="text" x-model="pickupForm.organization_or_person_name"></label>
         </fieldset>
+        <div x-show="config.turnstile_enabled" class="cf-turnstile" :data-sitekey="config.turnstile_site_key" data-callback="onTurnstileToken"></div>
         <p class="error" x-show="pickupError" x-text="pickupError"></p>
         <button type="submit" class="btn btn-primary">Confirm — I'm taking charge</button>
       </form>
+    </section>
+
+    <!-- COLLECTION POINTS LIST -->
+    <section x-show="route === 'collection-points'" class="needs-page">
+      <div class="toolbar">
+        <label>Filter by wilaya
+          <select x-model="cpFilterWilaya" @change="loadCollectionPoints()">
+            <option value="">All</option>
+            <template x-for="w in wilayas" :key="w.id">
+              <option :value="w.id" x-text="w.name"></option>
+            </template>
+          </select>
+        </label>
+        <a class="btn btn-primary" href="#/collection-points/create">+ Add a collection point</a>
+      </div>
+      <p x-show="collectionPoints.length === 0">No collection points listed for this wilaya yet.</p>
+      <div class="needs-list">
+        <template x-for="cp in collectionPoints" :key="cp.id">
+          <a class="need-card" :href="'#/collection-points/' + cp.id">
+            <h3 x-text="cp.point_name"></h3>
+            <p x-text="cp.wilaya_name + (cp.organization ? ' — ' + cp.organization : '')"></p>
+            <p class="status" x-text="cp.status === 'closed' ? 'closed' : (cp.hours || 'hours not specified')"></p>
+          </a>
+        </template>
+      </div>
+    </section>
+
+    <!-- CREATE COLLECTION POINT -->
+    <section x-show="route === 'create-collection-point'" class="form-page">
+      <h2>Add a collection point</h2>
+      <form @submit.prevent="submitCollectionPoint()">
+        <label>Wilaya *
+          <select x-model="cpForm.wilaya" required>
+            <option value="">-- select --</option>
+            <template x-for="w in wilayas" :key="w.id">
+              <option :value="w.id" x-text="w.name"></option>
+            </template>
+          </select>
+        </label>
+        <label>Point name * <input type="text" x-model="cpForm.point_name" required></label>
+        <label>Contact name * <input type="text" x-model="cpForm.contact_name" required></label>
+        <label>Contact phone * <input type="tel" x-model="cpForm.contact_phone" required></label>
+        <label>Organization (optional) <input type="text" x-model="cpForm.organization"></label>
+        <label>Location description * <textarea x-model="cpForm.location_description" required></textarea></label>
+        <label>Hours <input type="text" x-model="cpForm.hours" placeholder="e.g. 8am-6pm daily"></label>
+        <button type="button" class="btn" @click="useMyLocation('cpForm')">📍 Use my current GPS position</button>
+        <p class="error" x-show="cpError" x-text="cpError"></p>
+        <button type="submit" class="btn btn-primary">Publish this collection point</button>
+      </form>
+    </section>
+
+    <!-- COLLECTION POINT DETAIL -->
+    <section x-show="route === 'collection-point-detail' && currentCollectionPoint" class="detail-page">
+      <template x-if="currentCollectionPoint">
+        <div>
+          <h2 x-text="currentCollectionPoint.point_name"></h2>
+          <span class="status" x-text="currentCollectionPoint.status"></span>
+          <p x-text="currentCollectionPoint.wilaya_name"></p>
+          <p x-text="currentCollectionPoint.location_description"></p>
+          <p x-show="currentCollectionPoint.latitude == null" class="hint">no exact GPS position</p>
+          <p x-show="currentCollectionPoint.organization" x-text="currentCollectionPoint.organization"></p>
+          <p x-show="currentCollectionPoint.hours" x-text="'Hours: ' + currentCollectionPoint.hours"></p>
+          <p>Contact: <span x-text="currentCollectionPoint.contact_name"></span> —
+            <span x-text="maskPhone(currentCollectionPoint.contact_phone, showPhone)"></span>
+            <button class="link" @click="showPhone = !showPhone" x-text="showPhone ? 'hide number' : 'show full number'"></button>
+          </p>
+          <button class="btn" x-show="currentCollectionPoint.status === 'active'" @click="closeCollectionPoint()">Mark as closed</button>
+
+          <h3>Comments</h3>
+          <div class="comment-thread">
+            <template x-for="c in currentCollectionPoint.comments" :key="c.id">
+              <div>
+                <div class="comment">
+                  <p x-text="c.text"></p>
+                  <p class="comment-meta">
+                    <span x-text="c.author_name"></span> — <span x-text="formatDate(c.created_at)"></span>
+                    · <button class="link" @click="confirmComment(c.id, 'collection_point', currentCollectionPoint.id)" x-text="'confirm (' + c.confirmation_count + ')'"></button>
+                    · <button class="link" @click="deleteComment(c.id, 'collection_point', currentCollectionPoint.id)">delete</button>
+                  </p>
+                  <div class="comment-form">
+                    <input type="text" x-model="commentText['reply-' + c.id]" placeholder="Reply...">
+                    <button class="btn" @click="submitComment('collection_point', currentCollectionPoint.id, c.id)">Reply</button>
+                  </div>
+                </div>
+                <template x-for="r in c.replies" :key="r.id">
+                  <div class="comment reply">
+                    <p x-text="r.text"></p>
+                    <p class="comment-meta">
+                      <span x-text="r.author_name"></span> — <span x-text="formatDate(r.created_at)"></span>
+                      · <button class="link" @click="confirmComment(r.id, 'collection_point', currentCollectionPoint.id)" x-text="'confirm (' + r.confirmation_count + ')'"></button>
+                      · <button class="link" @click="deleteComment(r.id, 'collection_point', currentCollectionPoint.id)">delete</button>
+                    </p>
+                  </div>
+                </template>
+              </div>
+            </template>
+            <div class="comment-form">
+              <input type="text" x-model="commentText['root-collection_point-' + currentCollectionPoint.id]" placeholder="Add a comment">
+              <button class="btn btn-primary" @click="submitComment('collection_point', currentCollectionPoint.id, null)">Post</button>
+            </div>
+          </div>
+        </div>
+      </template>
     </section>
 
     <!-- RECOVER ACCESS -->
@@ -261,8 +487,10 @@
     <p>Admin contact: <a href="tel:+213000000000">+213 0 00 00 00 00</a> (phone/WhatsApp)</p>
   </footer>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script defer src="https://unpkg.com/alpinejs@3.14.1/dist/cdn.min.js"></script>
+  <script src="{% static 'vendor/leaflet/leaflet.js' %}"></script>
+  <script src="{% static 'vendor/browser-image-compression/browser-image-compression.js' %}"></script>
+  <script>function onTurnstileToken(token) { window.__turnstileToken = token; }</script>
+  <script defer src="{% static 'vendor/alpinejs/alpine.min.js' %}"></script>
   <script src="{% static 'js/app.js' %}"></script>
 </body>
 </html>

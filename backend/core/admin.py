@@ -1,18 +1,34 @@
+from django.conf import settings
 from django.contrib import admin
 from django.utils import timezone
 
 from core.models import (
+    AdminContactPhone,
     AppConfiguration,
     AuditLog,
+    BugReportProxy,
     Campaign,
+    CollectionPoint,
+    Comment,
+    ContentReport,
+    DamagePhoto,
+    DeliveryPhoto,
     DisasterType,
+    DuplicateReport,
     LocationPing,
     Need,
     Pickup,
     ProgressUpdate,
+    RecoveryRequestProxy,
     SupportRequest,
+    TranslationOverride,
     Wilaya,
 )
+
+# "View site" (top-right of every admin page) must open the real,
+# maintained, fr/en/ar React frontend -- not this backend's own "/"
+# (there is none worth visiting; see config/urls.py).
+admin.site.site_url = settings.FRONTEND_URL
 
 
 @admin.register(Wilaya)
@@ -88,18 +104,40 @@ anonymize_selected.short_description = "Anonymize this listing"
 class PickupInline(admin.TabularInline):
     model = Pickup
     extra = 0
-    fields = ["responder_type", "responder_last_name", "status", "created_at"]
+    fields = ["responder_type", "responder_name", "status", "created_at"]
     readonly_fields = ["created_at"]
     show_change_link = True
 
 
+def approve_video(modeladmin, request, queryset):
+    count = queryset.update(video_moderation_status=Need.MODERATION_APPROVED, video_moderated_by=Need.MODERATED_BY_ADMIN)
+    AuditLog.objects.create(admin_user=request.user, action="approved video", target_description=f"{count} need(s)")
+    modeladmin.message_user(request, f"Approved video on {count} need(s).")
+
+
+approve_video.short_description = "Approve video (pending review queue)"
+
+
+def reject_video(modeladmin, request, queryset):
+    count = queryset.update(video_moderation_status=Need.MODERATION_REJECTED, video_moderated_by=Need.MODERATED_BY_ADMIN)
+    AuditLog.objects.create(admin_user=request.user, action="rejected video", target_description=f"{count} need(s)")
+    modeladmin.message_user(request, f"Rejected video on {count} need(s).")
+
+
+reject_video.short_description = "Reject video (pending review queue)"
+
+
 @admin.register(Need)
 class NeedAdmin(admin.ModelAdmin):
-    list_display = ["title", "wilaya", "urgency", "overall_status", "campaign", "is_anonymized_display", "created_at"]
-    list_filter = ["urgency", "overall_status", "wilaya", "campaign", "media_moderation_status"]
-    search_fields = ["title", "contact_last_name", "contact_phone"]
+    list_display = ["title", "wilaya", "urgency", "overall_status", "campaign", "video_moderation_status", "video_moderated_by", "is_anonymized_display", "created_at"]
+    # video_moderation_status is filterable here specifically so "pending"
+    # doubles as the video review queue -- filter to it, select the
+    # need(s), then use the approve/reject actions below. Photos have
+    # their own equivalent queue on DamagePhotoAdmin/DeliveryPhotoAdmin.
+    list_filter = ["urgency", "overall_status", "wilaya", "campaign", "video_moderation_status"]
+    search_fields = ["title", "contact_name", "contact_phone"]
     readonly_fields = ["access_token", "location_viewer_share_token", "covered_quantity", "overall_status", "edit_history", "pii_obfuscated_at", "obfuscated_by"]
-    actions = [anonymize_selected]
+    actions = [anonymize_selected, approve_video, reject_video]
     inlines = [PickupInline]
 
     def is_anonymized_display(self, obj):
@@ -110,9 +148,9 @@ class NeedAdmin(admin.ModelAdmin):
 
 @admin.register(Pickup)
 class PickupAdmin(admin.ModelAdmin):
-    list_display = ["id", "need", "responder_type", "responder_last_name", "status", "is_anonymized_display", "created_at"]
+    list_display = ["id", "need", "responder_type", "responder_name", "status", "is_anonymized_display", "created_at"]
     list_filter = ["status", "responder_type"]
-    search_fields = ["responder_last_name", "responder_phone"]
+    search_fields = ["responder_name", "responder_phone"]
     readonly_fields = ["access_token", "pii_obfuscated_at", "obfuscated_by"]
     actions = [anonymize_selected]
 
@@ -132,9 +170,16 @@ class LocationPingAdmin(admin.ModelAdmin):
     list_display = ["pickup", "latitude", "longitude", "recorded_at"]
 
 
+class AdminContactPhoneInline(admin.TabularInline):
+    model = AdminContactPhone
+    extra = 1
+    max_num = 5
+
+
 @admin.register(AppConfiguration)
 class AppConfigurationAdmin(admin.ModelAdmin):
-    list_display = ["mode", "media_moderation_active", "geo_restrict_writes_to_algeria"]
+    list_display = ["mode", "media_moderation_active", "geo_restrict_writes_to_algeria", "enforce_video_duration_check"]
+    inlines = [AdminContactPhoneInline]
 
     def has_add_permission(self, request):
         return not AppConfiguration.objects.exists()
@@ -143,10 +188,41 @@ class AppConfigurationAdmin(admin.ModelAdmin):
         return False
 
 
-@admin.register(SupportRequest)
-class SupportRequestAdmin(admin.ModelAdmin):
-    list_display = ["requester_phone", "status", "created_at"]
+class SupportRequestQueueAdmin(admin.ModelAdmin):
+    """Shared behavior for the two category-filtered proxy admins below --
+    each is a queue of SupportRequest rows, pre-scoped to one category, so
+    an admin doesn't have to remember to apply that filter by hand. Rows
+    are never created here (the public /support and /report-bug forms are
+    the only intended source), but status can be edited (e.g. marking one
+    as processed after following up) and the change form doubles as the
+    "details" view."""
+
+    list_display = ["requester_phone", "requester_email", "related_listing_description", "status", "created_at"]
     list_filter = ["status"]
+    search_fields = ["message", "requester_phone", "requester_email", "related_listing_description"]
+    readonly_fields = ["category", "requester_phone", "requester_email", "related_listing_description", "message", "created_at"]
+
+    def has_add_permission(self, request):
+        return False
+
+
+@admin.register(BugReportProxy)
+class BugReportAdmin(SupportRequestQueueAdmin):
+    def get_queryset(self, request):
+        return super().get_queryset(request).filter(category=SupportRequest.CATEGORY_BUG)
+
+
+@admin.register(RecoveryRequestProxy)
+class RecoveryRequestAdmin(SupportRequestQueueAdmin):
+    def get_queryset(self, request):
+        return super().get_queryset(request).filter(category=SupportRequest.CATEGORY_GENERAL)
+
+
+@admin.register(TranslationOverride)
+class TranslationOverrideAdmin(admin.ModelAdmin):
+    list_display = ["key", "locale", "value"]
+    list_filter = ["locale"]
+    search_fields = ["key", "value"]
 
 
 @admin.register(AuditLog)
@@ -160,3 +236,148 @@ class AuditLogAdmin(admin.ModelAdmin):
 
     def has_change_permission(self, request, obj=None):
         return False
+
+
+# ---------------------------------------------------------------------------
+# Moderation and report queues (Wave 3)
+# ---------------------------------------------------------------------------
+
+def approve_media(modeladmin, request, queryset):
+    count = queryset.update(moderation_status=Need.MODERATION_APPROVED, moderated_by=Need.MODERATED_BY_ADMIN)
+    AuditLog.objects.create(admin_user=request.user, action="approved media", target_description=f"{count} item(s)")
+    modeladmin.message_user(request, f"Approved {count} item(s).")
+
+
+approve_media.short_description = "Approve selected media"
+
+
+def reject_media(modeladmin, request, queryset):
+    count = queryset.update(moderation_status=Need.MODERATION_REJECTED, moderated_by=Need.MODERATED_BY_ADMIN)
+    AuditLog.objects.create(admin_user=request.user, action="rejected media", target_description=f"{count} item(s)")
+    modeladmin.message_user(request, f"Rejected {count} item(s).")
+
+
+reject_media.short_description = "Reject selected media"
+
+
+@admin.register(DamagePhoto)
+class DamagePhotoAdmin(admin.ModelAdmin):
+    list_display = ["id", "need", "moderation_status", "moderated_by", "created_at"]
+    list_filter = ["moderation_status"]  # filter to "pending" for the review queue
+    actions = [approve_media, reject_media]
+
+
+@admin.register(DeliveryPhoto)
+class DeliveryPhotoAdmin(admin.ModelAdmin):
+    list_display = ["id", "pickup", "moderation_status", "moderated_by", "created_at"]
+    list_filter = ["moderation_status"]
+    actions = [approve_media, reject_media]
+
+
+def process_duplicate_merge(modeladmin, request, queryset):
+    """Admin decides the reported need was indeed a duplicate: cancel it,
+    pointing people to the reference need instead."""
+    count = 0
+    for report in queryset.filter(status=DuplicateReport.STATUS_PENDING):
+        need = report.reported_need
+        need.is_cancelled = True
+        need.cancellation_reason = f"Merged as duplicate of Need #{report.reference_need_id}"
+        need.save()
+        need.recompute_status()
+        report.status = DuplicateReport.STATUS_PROCESSED
+        report.save(update_fields=["status"])
+        count += 1
+    AuditLog.objects.create(admin_user=request.user, action="processed duplicate report (merged)", target_description=f"{count} report(s)")
+    modeladmin.message_user(request, f"Merged/cancelled {count} reported need(s).")
+
+
+process_duplicate_merge.short_description = "Merge: cancel the reported need as a duplicate"
+
+
+def dismiss_duplicate_report(modeladmin, request, queryset):
+    count = queryset.update(status=DuplicateReport.STATUS_PROCESSED)
+    AuditLog.objects.create(admin_user=request.user, action="dismissed duplicate report", target_description=f"{count} report(s)")
+    modeladmin.message_user(request, f"Dismissed {count} report(s).")
+
+
+dismiss_duplicate_report.short_description = "Dismiss (not a duplicate)"
+
+
+@admin.register(DuplicateReport)
+class DuplicateReportAdmin(admin.ModelAdmin):
+    list_display = ["id", "reported_need", "reference_need", "status", "reported_at"]
+    list_filter = ["status"]
+    actions = [process_duplicate_merge, dismiss_duplicate_report]
+
+
+def restore_content(modeladmin, request, queryset):
+    count = 0
+    for report in queryset.filter(status=ContentReport.STATUS_PENDING):
+        media_obj = report.get_media_object()
+        if media_obj is not None:
+            field = "video_moderation_status" if isinstance(media_obj, Need) else "moderation_status"
+            by_field = "video_moderated_by" if isinstance(media_obj, Need) else "moderated_by"
+            setattr(media_obj, field, Need.MODERATION_APPROVED)
+            setattr(media_obj, by_field, Need.MODERATED_BY_ADMIN)
+            media_obj.save(update_fields=[field, by_field])
+        report.status = ContentReport.STATUS_PROCESSED
+        report.save(update_fields=["status"])
+        count += 1
+    AuditLog.objects.create(admin_user=request.user, action="restored reported content", target_description=f"{count} report(s)")
+    modeladmin.message_user(request, f"Restored {count} item(s).")
+
+
+restore_content.short_description = "Restore (report was unfounded)"
+
+
+def confirm_content_rejection(modeladmin, request, queryset):
+    count = 0
+    for report in queryset.filter(status=ContentReport.STATUS_PENDING):
+        media_obj = report.get_media_object()
+        if media_obj is not None:
+            field = "video_moderation_status" if isinstance(media_obj, Need) else "moderation_status"
+            by_field = "video_moderated_by" if isinstance(media_obj, Need) else "moderated_by"
+            setattr(media_obj, field, Need.MODERATION_REJECTED)
+            setattr(media_obj, by_field, Need.MODERATED_BY_ADMIN)
+            media_obj.save(update_fields=[field, by_field])
+        report.status = ContentReport.STATUS_PROCESSED
+        report.save(update_fields=["status"])
+        count += 1
+    AuditLog.objects.create(admin_user=request.user, action="confirmed content report rejection", target_description=f"{count} report(s)")
+    modeladmin.message_user(request, f"Kept {count} item(s) rejected.")
+
+
+confirm_content_rejection.short_description = "Confirm rejection (report was valid)"
+
+
+@admin.register(ContentReport)
+class ContentReportAdmin(admin.ModelAdmin):
+    list_display = ["id", "media_type", "media_id", "reason", "status", "reported_at"]
+    list_filter = ["status", "media_type"]
+    actions = [restore_content, confirm_content_rejection]
+
+
+# ---------------------------------------------------------------------------
+# Community: collection points and comments (Wave 4)
+# ---------------------------------------------------------------------------
+
+@admin.register(CollectionPoint)
+class CollectionPointAdmin(admin.ModelAdmin):
+    list_display = ["point_name", "wilaya", "contact_name", "status", "created_at"]
+    list_filter = ["status", "wilaya"]
+    search_fields = ["point_name", "contact_name", "contact_phone"]
+
+
+@admin.register(Comment)
+class CommentAdmin(admin.ModelAdmin):
+    list_display = ["id", "author_name", "need", "collection_point", "parent_comment", "confirmation_count", "created_at"]
+    list_filter = ["category"]
+    search_fields = ["author_name", "text"]
+
+    def delete_model(self, request, obj):
+        AuditLog.objects.create(admin_user=request.user, action="deleted comment", target_description=str(obj))
+        super().delete_model(request, obj)
+
+    def delete_queryset(self, request, queryset):
+        AuditLog.objects.create(admin_user=request.user, action="deleted comment (bulk)", target_description=f"{queryset.count()} comment(s)")
+        super().delete_queryset(request, queryset)
