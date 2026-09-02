@@ -160,6 +160,7 @@ export default function App() {
 
       <header className="topbar">
         <Link to="/" className="brand">
+          <img src="/logo-icon.png" alt="" className="brand-icon" />
           {t('common.brand')}
         </Link>
         {config.is_admin && (
