@@ -263,7 +263,12 @@ main {
 /* --- Home --- */
 
 .home {
-  padding: 20px 20px 60px;
+  /* Extra top space scales with viewport height so the logo+buttons sit
+     nearer the vertical middle of the screen instead of right under the
+     header, on both short and tall phones -- a fixed px value would be
+     too little on a tall screen and too much on a short one. Capped so
+     it doesn't push content off-screen on very tall/desktop viewports. */
+  padding: clamp(20px, 12svh, 140px) 20px 60px;
   position: relative;
   overflow: hidden;
   text-align: center;
