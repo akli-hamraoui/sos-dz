@@ -5,7 +5,6 @@ export default function Home() {
   const { t } = useTranslation()
   return (
     <section className="home">
-      <h1>{t('common.brand')}</h1>
       <p>{t('home.tagline')}</p>
       <div className="home-actions">
         <Link to="/create" className="btn btn-primary btn-huge">
