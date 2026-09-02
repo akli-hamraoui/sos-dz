@@ -26,6 +26,15 @@ export default function Home() {
           <IconNeeds width={22} height={22} strokeWidth={2} /> {t('home.iWantToHelp')}
         </Link>
       </div>
+      {/* The footer also carries this link (it's the only entry point to
+          /about from every other page), but there it sits far below the
+          fold on Home specifically -- shown again here, right under the
+          actions, so it's actually visible instead of buried at the very
+          bottom of the screen. Hidden from the footer on this one route
+          (see App.jsx) so it isn't shown twice. */}
+      <Link to="/about" className="home-about-link">
+        {t('nav.about')}
+      </Link>
     </section>
   )
 }

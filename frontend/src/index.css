@@ -315,6 +315,16 @@ main {
   border: 1.5px solid var(--accent);
   border-radius: 999px;
 }
+.home-about-link {
+  /* Sits over the background photo, so it needs real contrast -- the
+     footer's own muted #777 all but disappears there. */
+  display: inline-block;
+  margin-block-start: 28px;
+  color: var(--text);
+  font-weight: 600;
+  font-size: 14px;
+  text-decoration: underline;
+}
 
 /* --- Buttons --- */
 

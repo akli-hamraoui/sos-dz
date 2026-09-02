@@ -235,10 +235,15 @@ export default function App() {
         {/* "Coordonnées oubliées" and "Signaler un bug" already live in the
             main nav (TopNavLinks) -- repeating them here just duplicated
             the same link twice on one page. Only "Qui sommes-nous" has no
-            other entry point. */}
-        <p className="footer-links">
-          <Link to="/about">{t('nav.about')}</Link>
-        </p>
+            other entry point -- except on Home itself, which shows its own
+            copy right under the action buttons (far more visible there
+            than this footer, which sits at the very bottom of the
+            screen); skip it here on that one route to avoid a duplicate. */}
+        {location.pathname !== '/' && (
+          <p className="footer-links">
+            <Link to="/about">{t('nav.about')}</Link>
+          </p>
+        )}
       </footer>
 
       <BottomNav />
