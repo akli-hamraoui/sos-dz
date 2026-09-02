@@ -180,7 +180,11 @@ server {
     # (the SPA's own routes: /, /needs, /needs/123, etc.) is served as
     # static files by the `location /` fallback below, since the React
     # app itself handles client-side routing for those paths.
-    location ~ ^/(api|admin)/ {
+    # `(/|$)` (not just a trailing `/`) so bare "/admin" (no slash) also
+    # matches -- otherwise it fell through to the SPA fallback below,
+    # which served the React app shell instead of ever reaching Django,
+    # which would otherwise have 301-redirected it to "/admin/" itself.
+    location ~ ^/(api|admin)(/|$) {
         proxy_pass http://unix:/run/sos-dz/sos-dz.sock;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
