@@ -105,24 +105,6 @@ a {
   border-block-end: 1px solid var(--border);
   position: relative;
 }
-/* A very light Algerian-flag-color touch on the top and bottom nav bars --
-   a thin gradient hairline, not a bold band, so it reads as a subtle brand
-   accent rather than decoration competing with the content. */
-.topbar::after,
-.bottom-nav::before {
-  content: '';
-  position: absolute;
-  inset-inline: 0;
-  height: 3px;
-  background: linear-gradient(90deg, #006233 0%, #ffffff 50%, #d21034 100%);
-  opacity: 0.5;
-}
-.topbar::after {
-  bottom: -1px;
-}
-.bottom-nav::before {
-  top: -1px;
-}
 .admin-badge {
   display: inline-flex;
   align-items: center;
@@ -933,14 +915,6 @@ fieldset {
   justify-content: center;
   margin-block-start: -24px;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
-  /* The raised FAB pokes up above the bar's own top edge, where the
-     green-white-red gradient hairline (.bottom-nav::before, an
-     absolutely-positioned pseudo-element) lives. Absolutely-positioned
-     elements paint after normal-flow siblings regardless of DOM order,
-     so without this the hairline visibly cut across the button; an
-     explicit stacking context + z-index puts the button back on top. */
-  position: relative;
-  z-index: 1;
 }
 
 footer {
