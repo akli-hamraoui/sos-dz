@@ -114,7 +114,13 @@ export default function CollectionPoints() {
       requestAnimationFrame(() => {
         if (!mapElRef.current) return
         if (!mapRef.current) {
-          mapRef.current = L.map(mapElRef.current, { attributionControl: false, gestureHandling: true })
+          mapRef.current = L.map(mapElRef.current, {
+            attributionControl: false,
+            gestureHandling: true,
+            gestureHandlingOptions: {
+              text: { touch: t('map.gestureTouch'), scroll: t('map.gestureScroll'), scrollMac: t('map.gestureScrollMac') },
+            },
+          })
           // Standard OpenStreetMap raster tiles -- see NeedsList.jsx for why
           // (CartoDB's free tier now requires an API key).
           L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {

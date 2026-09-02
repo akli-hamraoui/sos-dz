@@ -24,6 +24,11 @@
     "adminModeBadge": "Admin mode",
     "adminLogout": "log out"
   },
+  "map": {
+    "gestureTouch": "Use two fingers to move the map",
+    "gestureScroll": "Use ctrl + scroll to zoom the map",
+    "gestureScrollMac": "Use ⌘ + scroll to zoom the map"
+  },
   "readOnly": {
     "banner": "The app is currently in read-only mode. Existing data remains viewable."
   },

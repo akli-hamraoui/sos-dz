@@ -24,6 +24,11 @@
     "adminModeBadge": "Mode admin",
     "adminLogout": "se déconnecter"
   },
+  "map": {
+    "gestureTouch": "Utilisez deux doigts pour déplacer la carte",
+    "gestureScroll": "Utilisez Ctrl + molette pour zoomer sur la carte",
+    "gestureScrollMac": "Utilisez ⌘ + molette pour zoomer sur la carte"
+  },
   "readOnly": {
     "banner": "L'application est actuellement en mode lecture seule. Les données existantes restent consultables."
   },
