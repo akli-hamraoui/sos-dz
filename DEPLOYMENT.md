@@ -230,6 +230,31 @@ curl -sS https://sosdz.org/api/config/   # expect a JSON config response, not an
 
 And update `.env`'s `ALLOWED_HOSTS`/`CORS_ALLOWED_ORIGINS`/`CSRF_TRUSTED_ORIGINS`/`FRONTEND_URL` to the `https://` versions if you'd filled them in as `http://` earlier, then `sudo systemctl restart sos-dz-gunicorn`.
 
+**Known Certbot gotcha (confirmed on the live deploy):** with two `-d` domains, the Nginx plugin's redirect sometimes only checks the *first* one it happens to key off (here `www.sosdz.org`), generating:
+
+```nginx
+server {
+    listen 80;
+    server_name sosdz.org www.sosdz.org;
+    if ($host = www.sosdz.org) {
+        return 301 https://$host$request_uri;
+    }
+    return 404;
+}
+```
+
+`https://sosdz.org` then works fine (the 443 block covers both names), but plain `http://sosdz.org` (bare domain, no `www`) hits the `if`, fails the check, and 404s instead of redirecting. Fix by replacing that whole port-80 block with an unconditional redirect (correct either way, since this port-80 block only ever serves these two domains):
+
+```nginx
+server {
+    listen 80;
+    server_name sosdz.org www.sosdz.org;
+    return 301 https://$host$request_uri;
+}
+```
+
+Then `sudo nginx -t && sudo systemctl reload nginx`, and confirm with `curl -I http://sosdz.org` (expect `301` + `Location: https://sosdz.org/`).
+
 ### 6. Redeploying on a new push
 
 ```bash
