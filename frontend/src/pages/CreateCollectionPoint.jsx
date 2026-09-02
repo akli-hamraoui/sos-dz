@@ -84,7 +84,14 @@ export default function CreateCollectionPoint() {
       const point = await api('/collection-points/', { method: 'POST', body: JSON.stringify(form) })
       navigate(`/collection-points/${point.id}`)
     } catch (err) {
-      setError(translateApiError(err, t))
+      // Temporary diagnostic: a raw client-side failure (thrown before/
+      // instead of a proper API error -- network down, an unhandled JS
+      // exception, etc.) has no translated message and falls back to the
+      // generic apology, which hides the actual cause. Admins get the raw
+      // status/message appended so a bug can be diagnosed from a phone
+      // with no access to browser devtools.
+      const friendly = translateApiError(err, t)
+      setError(config.is_admin ? `${friendly} [debug: status=${err.status ?? 'none'} message="${err.message}"]` : friendly)
     }
   }
 
