@@ -144,6 +144,7 @@
     "pickupsTitle": "Prises en charge ({{count}})",
     "alsoTakeCharge": "Prendre en charge aussi",
     "bringing": "Apporte : {{content}}",
+    "latestUpdate": "Dernière mise à jour : {{text}}",
     "progressUpdatePlaceholder": "Ajouter une mise à jour (ex. vient de passer Boumerdès)",
     "postUpdate": "Publier la mise à jour",
     "shareMyLiveLocation": "Partager ma position en direct",

@@ -144,6 +144,7 @@
     "pickupsTitle": "عمليات الاستلام ({{count}})",
     "alsoTakeCharge": "المساهمة أيضاً",
     "bringing": "سيُحضر: {{content}}",
+    "latestUpdate": "آخر تحديث: {{text}}",
     "progressUpdatePlaceholder": "أضف تحديثاً (مثال: تجاوزت للتو بومرداس)",
     "postUpdate": "نشر التحديث",
     "shareMyLiveLocation": "مشاركة موقعي المباشر",

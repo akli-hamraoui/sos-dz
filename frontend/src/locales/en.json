@@ -144,6 +144,7 @@
     "pickupsTitle": "Pickups ({{count}})",
     "alsoTakeCharge": "Also take charge",
     "bringing": "Bringing: {{content}}",
+    "latestUpdate": "Latest: {{text}}",
     "progressUpdatePlaceholder": "Add a progress update (e.g. just passed Boumerdès)",
     "postUpdate": "Post update",
     "shareMyLiveLocation": "Share my live location",

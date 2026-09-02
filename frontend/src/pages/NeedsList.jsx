@@ -163,7 +163,7 @@ export default function NeedsList() {
           }).addTo(map)
           const gpsNote = p.has_exact_position ? '' : `<br><em>${t('common.noExactGpsPosition')}</em>`
           marker.bindPopup(
-            `<strong>${p.title}</strong><br>${p.urgency} — ${p.wilaya_name}<br>${(p.location_description || '').slice(0, 80)}` +
+            `<strong>${p.title}</strong><br>${t(`urgency.${p.urgency}`)} — ${p.wilaya_name}<br>${(p.location_description || '').slice(0, 80)}` +
               `<br>${statusLabel(t, p.overall_status)}${gpsNote}<br><a href="/needs/${p.id}">${t('common.open')}</a>`
           )
           markers.push(marker)

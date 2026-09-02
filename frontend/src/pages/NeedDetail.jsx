@@ -135,7 +135,7 @@ export default function NeedDetail() {
       })
       const marker = L.marker(latlngs[latlngs.length - 1], { icon: truckIcon }).addTo(map)
       marker.bindPopup(
-        `<strong>${entry.pickup.responder_name}</strong><br>Bringing: ${entry.pickup.content_brought}<br>Latest: ${entry.latest_progress_text || '—'}`
+        `<strong>${entry.pickup.responder_name}</strong><br>${t('needDetail.bringing', { content: entry.pickup.content_brought })}<br>${t('needDetail.latestUpdate', { text: entry.latest_progress_text || '—' })}`
       )
       allPoints.push(...latlngs)
 
