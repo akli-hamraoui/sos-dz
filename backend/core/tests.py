@@ -1771,6 +1771,99 @@ class CollectionPointDonationsAndOtherPhonesTests(BaseAPITestCase):
         self.assertEqual(resp.data["other_phones"], "")
 
 
+class PickupLiveLocationsTests(BaseAPITestCase):
+    """The aggregate, public "all couriers en route" map -- distinct from
+    (and deliberately less restricted than) MapAndLocationPrivacyTests'
+    access-controlled per-need pickup-locations endpoint. See
+    LocationPing's docstring for the product decision behind this."""
+
+    def setUp(self):
+        super().setUp()
+        self.campaign = make_campaign()
+        self.wilaya = self.campaign.authorized_wilayas.first()
+        resp = self.client.post(
+            "/api/needs/",
+            dict(NEED_PAYLOAD, campaign=self.campaign.pk, wilaya=self.wilaya.pk),
+            format="json",
+        )
+        self.need_id = resp.data["id"]
+
+    def _make_pickup(self, status=None, sharing=True, ping=True):
+        pickup_resp = self.client.post(
+            "/api/pickups/",
+            {
+                "need": self.need_id,
+                "responder_type": "individual_volunteer",
+                "responder_name": "Sara Amrani",
+                "responder_phone": "0666000002",
+                "content_brought": "30 blankets",
+            },
+            format="json",
+        )
+        pickup_id = pickup_resp.data["id"]
+        token = pickup_resp.data["access_token"]
+        if ping:
+            # Submitting a ping always flips location_sharing_active on as
+            # a side effect (see add_location_ping) -- so to test the
+            # "sharing later turned off, stale ping still on record" case,
+            # the opt-out PATCH has to come after the ping, not before.
+            self.client.post(
+                f"/api/pickups/{pickup_id}/location-pings/",
+                {"latitude": 36.75, "longitude": 3.04, "access_token": token},
+                format="json",
+            )
+        if not sharing:
+            self.client.patch(
+                f"/api/pickups/{pickup_id}/",
+                {"location_sharing_active": False, "access_token": token},
+                format="json",
+            )
+        if status is not None:
+            pickup = Pickup.objects.get(pk=pickup_id)
+            pickup.status = status
+            pickup.save(update_fields=["status"])
+        return pickup_id, token
+
+    def test_visible_to_anonymous_visitor_no_auth_needed(self):
+        self._make_pickup()
+        resp = self.client.get("/api/pickups/live-locations/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(len(resp.data), 1)
+        self.assertEqual(resp.data[0]["latitude"], 36.75)
+        self.assertEqual(resp.data[0]["need_id"], self.need_id)
+
+    def test_excludes_pickup_with_sharing_off(self):
+        self._make_pickup(sharing=False)
+        resp = self.client.get("/api/pickups/live-locations/")
+        self.assertEqual(resp.data, [])
+
+    def test_excludes_delivered_pickup(self):
+        self._make_pickup(status=Pickup.STATUS_DELIVERED)
+        resp = self.client.get("/api/pickups/live-locations/")
+        self.assertEqual(resp.data, [])
+
+    def test_excludes_cancelled_pickup(self):
+        self._make_pickup(status=Pickup.STATUS_CANCELLED)
+        resp = self.client.get("/api/pickups/live-locations/")
+        self.assertEqual(resp.data, [])
+
+    def test_excludes_pickup_with_no_ping_yet(self):
+        self._make_pickup(ping=False)
+        resp = self.client.get("/api/pickups/live-locations/")
+        self.assertEqual(resp.data, [])
+
+    def test_returns_latest_ping_not_oldest(self):
+        pickup_id, token = self._make_pickup()
+        self.client.post(
+            f"/api/pickups/{pickup_id}/location-pings/",
+            {"latitude": 37.0, "longitude": 3.5, "access_token": token},
+            format="json",
+        )
+        resp = self.client.get("/api/pickups/live-locations/")
+        self.assertEqual(len(resp.data), 1)
+        self.assertEqual(resp.data[0]["latitude"], 37.0)
+
+
 class SearchFilterTests(BaseAPITestCase):
     def setUp(self):
         super().setUp()

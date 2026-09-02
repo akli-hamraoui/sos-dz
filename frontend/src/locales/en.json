@@ -255,7 +255,9 @@
     "noDeliveries": "No deliveries right now.",
     "bringing": "Bringing",
     "responder": "Responder",
-    "since": "since"
+    "since": "since",
+    "noLiveLocations": "No courier is currently sharing their live position.",
+    "liveMapNote": "Positions volunteered by couriers, updated automatically."
   },
   "reportBug": {
     "title": "Report a bug",

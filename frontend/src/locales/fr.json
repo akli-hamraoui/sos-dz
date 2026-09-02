@@ -255,7 +255,9 @@
     "noDeliveries": "Aucune livraison pour le moment.",
     "bringing": "Apporte",
     "responder": "Livreur/livreuse",
-    "since": "depuis"
+    "since": "depuis",
+    "noLiveLocations": "Aucun livreur ne partage sa position en direct pour le moment.",
+    "liveMapNote": "Positions partagées volontairement par les livreurs, mises à jour automatiquement."
   },
   "reportBug": {
     "title": "Signaler un bug",

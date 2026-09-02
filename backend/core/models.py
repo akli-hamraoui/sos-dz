@@ -487,8 +487,13 @@ class ProgressUpdate(models.Model):
 
 
 class LocationPing(models.Model):
-    """Access-restricted live position trail for a Pickup. See spec MAP VIEW:
-    visible only to the Need's creator, a valid share-link holder, or admin."""
+    """Live position trail for a Pickup. The full per-need trail (this
+    model's own history) stays access-restricted to that Need's creator, a
+    valid share-link holder, or admin (NeedViewSet.pickup_locations) -- but
+    each pickup's single latest ping is also surfaced on the public,
+    aggregate "all couriers en route" map (PickupViewSet.live_locations),
+    gated only on that pickup's own location_sharing_active consent flag,
+    by product decision."""
 
     pickup = models.ForeignKey(Pickup, on_delete=models.CASCADE, related_name="location_pings")
     latitude = models.FloatField()

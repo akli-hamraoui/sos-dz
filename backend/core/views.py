@@ -1,4 +1,4 @@
-from django.db.models import Q
+from django.db.models import Prefetch, Q
 from django.shortcuts import get_object_or_404
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
@@ -443,6 +443,39 @@ class PickupViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retri
         if self.action == "create":
             return [CreationRateThrottle()]
         return []
+
+    @action(detail=False, methods=["get"], url_path="live-locations")
+    def live_locations(self, request):
+        """Public aggregate map of every courier currently en route -- by
+        product decision, unlike NeedViewSet.pickup_locations (which is
+        access-restricted to that one need's owner/share-link/admin), this
+        one is visible to anyone. Still respects the volunteer's own
+        location_sharing_active consent toggle (never shows a position for
+        a pickup where that's off), and only ever exposes each pickup's
+        latest known position, not its full trail."""
+        pickups = (
+            Pickup.objects.filter(status=Pickup.STATUS_EN_ROUTE, location_sharing_active=True)
+            .select_related("need", "need__wilaya")
+            .prefetch_related(Prefetch("location_pings", queryset=LocationPing.objects.order_by("-recorded_at")))
+        )
+        result = []
+        for pickup in pickups:
+            pings = list(pickup.location_pings.all())
+            if not pings:
+                continue
+            latest = pings[0]
+            result.append({
+                "pickup_id": pickup.id,
+                "need_id": pickup.need_id,
+                "need_title": pickup.need.title,
+                "need_wilaya_name": pickup.need.wilaya.name,
+                "responder_name": pickup.organization_or_person_name or pickup.responder_name,
+                "content_brought": pickup.content_brought,
+                "latitude": latest.latitude,
+                "longitude": latest.longitude,
+                "recorded_at": latest.recorded_at,
+            })
+        return Response(result)
 
     def create(self, request, *args, **kwargs):
         block_reason = write_guard(request)

@@ -85,6 +85,14 @@ function TopNavLinks({ isActive, isAdmin }) {
       <Link to="/create" className={isActive('/create') ? 'active' : ''}>
         {t('nav.iNeedHelp')}
       </Link>
+      {/* Mirrors the Home page's two CTAs (J'ai besoin d'aide / Je veux
+          aider) so the same pair of entry points is reachable from every
+          page, not just the homepage -- same destination as "Besoins"
+          above, just the "I want to help" framing for someone who doesn't
+          think of it as browsing a list. */}
+      <Link to="/needs" className={isActive('/needs') ? 'active' : ''}>
+        {t('home.iWantToHelp')}
+      </Link>
       <Link to="/support" className={isActive('/support') ? 'active' : ''}>
         {t('nav.forgotDetails')}
       </Link>
