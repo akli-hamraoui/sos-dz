@@ -143,31 +143,20 @@ a {
   margin-block: 0 14px;
 }
 .brand {
+  /* Plain text logo, not a button -- a soft flag-colored tint sits behind
+     the letters (not a solid fill) as a discreet nod to the flag, distinct
+     from the black pill treatment used for .page-title/nav links. */
   display: inline-flex;
   align-items: center;
   font-weight: 700;
-  font-size: clamp(13px, 4vw, 17px);
-  color: #fff;
-  background: #111;
+  font-size: clamp(15px, 4.5vw, 20px);
+  color: var(--accent);
   text-decoration: none;
   white-space: nowrap;
   flex-shrink: 0;
-  padding: 7px 16px;
-  border-radius: 999px;
-  position: relative;
-  overflow: hidden;
-}
-/* A very discreet Algerian-flag touch, confined to a thin strip inside
-   the pill itself (not spanning the header, unlike the old hairline this
-   replaced) -- low-opacity so it reads as a faint brand accent. */
-.brand::after {
-  content: '';
-  position: absolute;
-  inset-inline: 0;
-  bottom: 0;
-  height: 3px;
-  background: linear-gradient(90deg, #006233 0%, #ffffff 50%, #d21034 100%);
-  opacity: 0.4;
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, rgba(0, 98, 51, 0.1) 0%, rgba(0, 0, 0, 0) 50%, rgba(210, 16, 52, 0.1) 100%);
 }
 .topbar-nav-desktop,
 .topbar-nav-mobile {
