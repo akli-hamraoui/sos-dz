@@ -57,6 +57,7 @@ const MATCHERS = [
     params: (m) => ({ minutes: m[1] }),
   },
   { match: /^Video is (\d+)s long, the maximum is (\d+)s\.$/, key: 'videoTooLong', params: (m) => ({ duration: m[1], max: m[2] }) },
+  { match: 'Enter a valid http:// or https:// URL.', key: 'invalidSocialUrl' },
   { match: 'This field is required.', key: 'genericFieldError' },
   { match: 'This field may not be blank.', key: 'genericFieldError' },
   { match: 'This field may not be null.', key: 'genericFieldError' },
