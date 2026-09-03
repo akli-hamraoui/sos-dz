@@ -1073,15 +1073,13 @@ fieldset {
   bottom: 0;
   background: var(--card);
   border-block-start: 1px solid var(--border);
-  /* Grid, not flex: 5 equal-width columns keeps the FAB exactly centered
-     regardless of how much wider one label ("Points de collecte") is than
-     another ("Livraisons") -- flex's space-around distributed free space
-     per item's own width instead, which visibly pushed the FAB
-     off-center. Equal columns (not auto-sizing the FAB's own column
-     narrower, as before) also means equal center-to-center spacing
-     between every icon, not just a tighter gap around the FAB. */
+  /* Grid, not flex: equal-width columns give every item the same
+     center-to-center spacing regardless of how much wider one label
+     ("Points de collecte") is than another ("Livraisons") -- flex's
+     space-around distributes free space per item's own width instead,
+     which visibly uneven-spaces items with different label lengths. */
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   align-items: center;
   padding: 8px 0 max(8px, env(safe-area-inset-bottom));
   /* Leaflet's own zoom/attribution controls default to z-index: 1000 in
@@ -1173,53 +1171,6 @@ fieldset {
 .bottom-nav a.active .icon {
   color: #fff;
 }
-/* Two raised "+" actions side by side (need vs. collection point) instead
-   of one -- same footprint/column as the single FAB this replaced, but
-   each smaller so the pair doesn't outgrow it. Icon + label below (like
-   every other nav item) plus a distinct color on the collection-point one
-   is the "how do I tell them apart" cue -- a bare "+" alone wouldn't be. */
-.fab-group {
-  display: flex;
-  justify-self: center;
-  gap: 22px;
-}
-.fab-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  text-decoration: none;
-}
-.fab {
-  color: #fff;
-  width: 54px;
-  height: 54px;
-  border-radius: 50%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  /* The "+" and the type icon are centered as one block by default, which
-     puts the "+" above the circle's actual center -- this padding nudges
-     the whole block down just enough that the "+" itself lands in the
-     middle of the circle instead. */
-  padding-block-start: 15px;
-  gap: 2px;
-  margin-block-start: -24px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
-}
-.fab-need {
-  background: var(--accent);
-}
-.fab-collection {
-  background: var(--collection-accent);
-}
-.fab-label {
-  font-size: 9px;
-  white-space: nowrap;
-  color: #555;
-}
-
 footer {
   text-align: center;
   padding: 20px;

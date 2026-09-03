@@ -20,7 +20,7 @@ import CreateCollectionPoint from './pages/CreateCollectionPoint'
 import CollectionPointDetail from './pages/CollectionPointDetail'
 import Deliveries from './pages/Deliveries'
 import BackButton from './components/BackButton'
-import { IconHome, IconNeeds, IconBox, IconTruck, IconPlus, IconWarning, IconWifiOff, IconCheckCircle, IconMenu, IconClose } from './icons'
+import { IconHome, IconNeeds, IconBox, IconTruck, IconWarning, IconWifiOff, IconCheckCircle, IconMenu, IconClose } from './icons'
 
 // Small "this opens a map" cue on a bottom-nav icon -- Besoins/Points de
 // collecte/Livraisons all default to their map view (see each page's own
@@ -149,29 +149,6 @@ function BottomNav() {
         </span>
         <span>{t('nav.needs')}</span>
       </Link>
-      <div className="fab-group">
-        <Link to="/create" className="fab-item" aria-label={t('nav.iNeedHelp')}>
-          {/* "+" centered on top, a small type icon underneath it (same
-              icon as the matching nav tab) -- both inside the circle, so
-              the two FABs read as "add a need" / "add a collection point"
-              rather than two identical plain "+" buttons. */}
-          <span className="fab fab-need">
-            <IconPlus width={16} height={16} strokeWidth={3} />
-            {/* Same SOS mark used for need pins on the map (NeedsList.jsx),
-                not the heart icon -- that's the icon the user already
-                associates with "need" elsewhere in the app. */}
-            <img src="/icons/need-marker-sos.png" width={15} height={15} alt="" style={{ filter: 'invert(1)' }} />
-          </span>
-          <span className="fab-label">{t('nav.fabNeed')}</span>
-        </Link>
-        <Link to="/collection-points/create" className="fab-item" aria-label={t('collectionPoints.addButton')}>
-          <span className="fab fab-collection">
-            <IconPlus width={16} height={16} strokeWidth={3} />
-            <IconBox width={15} height={15} strokeWidth={2} />
-          </span>
-          <span className="fab-label">{t('nav.fabCollectionPoint')}</span>
-        </Link>
-      </div>
       <Link to="/collection-points" className={isActive('/collection-points') ? 'active' : ''}>
         <span className="icon">
           <IconBox />
