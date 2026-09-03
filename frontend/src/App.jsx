@@ -127,9 +127,31 @@ function BottomNav() {
         </span>
         <span>{t('nav.needs')}</span>
       </Link>
-      <Link to="/create" className="fab" aria-label={t('nav.iNeedHelp')}>
-        <IconPlus width={26} height={26} strokeWidth={2} />
-      </Link>
+      <div className="fab-group">
+        <Link to="/create" className="fab-item" aria-label={t('nav.iNeedHelp')}>
+          {/* "+" centered on top, a small type icon underneath it (same
+              icon as the matching nav tab) -- both inside the circle, so
+              the two FABs read as "add a need" / "add a collection point"
+              rather than two identical plain "+" buttons. */}
+          <span className="fab fab-need">
+            <IconPlus width={13} height={13} strokeWidth={2.5} />
+            {/* Same SOS mark used for need pins on the map (NeedsList.jsx),
+                not the heart icon -- that's the icon the user already
+                associates with "need" elsewhere in the app. Bigger than the
+                "+" above it -- it's the one that has to actually be read,
+                not just recognized as a shape. */}
+            <img src="/icons/need-marker-sos.png" width={16} height={16} alt="" style={{ filter: 'invert(1)' }} />
+          </span>
+          <span className="fab-label">{t('nav.fabNeed')}</span>
+        </Link>
+        <Link to="/collection-points/create" className="fab-item" aria-label={t('collectionPoints.addButton')}>
+          <span className="fab fab-collection">
+            <IconPlus width={13} height={13} strokeWidth={2.5} />
+            <IconBox width={16} height={16} strokeWidth={2} />
+          </span>
+          <span className="fab-label">{t('nav.fabCollectionPoint')}</span>
+        </Link>
+      </div>
       <Link to="/collection-points" className={isActive('/collection-points') ? 'active' : ''}>
         <span className="icon">
           <IconBox />
@@ -137,7 +159,11 @@ function BottomNav() {
             <span className="nav-badge">{formatBadgeCount(config.collection_points_active_count)}</span>
           )}
         </span>
-        <span>{t('nav.collectionPoints')}</span>
+        {/* Shorter than nav.collectionPoints (used elsewhere: topbar link,
+            the needs-map type filter) -- this tab is squeezed next to the
+            new two-FAB group and "Points de collecte" no longer fits on
+            one line at the same font-size. */}
+        <span>{t('nav.collectionPointsShort')}</span>
       </Link>
       <Link to="/deliveries" className={isActive('/deliveries') ? 'active' : ''}>
         <span className="icon">

@@ -1,5 +1,9 @@
 :root {
   --accent: #111;
+  /* Only other color the bottom-nav FABs use, so the "add a need" vs. "add
+     a collection point" action reads apart from across the room, not just
+     on close reading of the label underneath. */
+  --collection-accent: #2f6b52;
   --bg: #fafafa;
   --card: #fff;
   --border: #e4e4e4;
@@ -1012,17 +1016,46 @@ fieldset {
 .bottom-nav a.active .icon {
   color: #fff;
 }
-.bottom-nav .fab {
-  background: var(--accent);
+/* Two raised "+" actions side by side (need vs. collection point) instead
+   of one -- same footprint/column as the single FAB this replaced, but
+   each smaller so the pair doesn't outgrow it. Icon + label below (like
+   every other nav item) plus a distinct color on the collection-point one
+   is the "how do I tell them apart" cue -- a bare "+" alone wouldn't be. */
+.fab-group {
+  display: flex;
+  justify-self: center;
+  gap: 14px;
+}
+.fab-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  text-decoration: none;
+}
+.fab {
   color: #fff;
-  width: 52px;
-  height: 52px;
+  width: 50px;
+  height: 50px;
   border-radius: 50%;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  margin-block-start: -24px;
+  gap: 1px;
+  margin-block-start: -22px;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+}
+.fab-need {
+  background: var(--accent);
+}
+.fab-collection {
+  background: var(--collection-accent);
+}
+.fab-label {
+  font-size: 9px;
+  white-space: nowrap;
+  color: #555;
 }
 
 footer {
