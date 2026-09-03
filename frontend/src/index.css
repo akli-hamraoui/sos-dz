@@ -345,6 +345,16 @@ main {
   height: auto;
   margin-inline: auto;
 }
+.home-tagline {
+  /* Sits over the background photo, same contrast need as
+     .home-about-link below. */
+  margin-block: 14px 0;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 500;
+  max-width: 420px;
+  margin-inline: auto;
+}
 .home-actions {
   display: flex;
   flex-wrap: wrap;
