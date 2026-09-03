@@ -276,7 +276,7 @@ class NeedViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retriev
         data = request.data
         editable_fields = [
             "title", "estimated_quantity", "urgency", "commune", "location_description",
-            "organization_or_person_name", "contact_email",
+            "organization_or_person_name", "contact_email", "other_phones",
         ]
         changed = False
         for f in editable_fields:

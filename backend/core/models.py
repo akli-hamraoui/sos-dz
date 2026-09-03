@@ -274,6 +274,11 @@ class Need(IdentityListingMixin, models.Model):
 
     contact_name = models.CharField(max_length=200)
     contact_phone = models.CharField(max_length=30)
+    # Free text, e.g. several extra numbers separated by line breaks --
+    # unlike contact_phone, never used for identity matching (matches_creator
+    # below), so no format constraint beyond "optional text". Same field as
+    # CollectionPoint.other_phones.
+    other_phones = models.TextField(blank=True)
     contact_email = models.EmailField(blank=True)
     organization_or_person_name = models.CharField(max_length=200, blank=True)
 
@@ -344,6 +349,7 @@ class Need(IdentityListingMixin, models.Model):
     def anonymize_identity_fields(self):
         self.contact_name = "Anonymized"
         self.contact_phone = ""
+        self.other_phones = ""
         self.contact_email = ""
         self.organization_or_person_name = ""
 

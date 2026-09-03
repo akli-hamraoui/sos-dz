@@ -20,6 +20,7 @@ const DEFAULT_FORM = {
   longitude: null,
   contact_name: '',
   contact_phone: '',
+  other_phones: '',
   contact_email: '',
   organization_or_person_name: '',
   recovery_code: '',
@@ -437,6 +438,10 @@ export default function CreateNeed() {
           </label>
           <label>
             {t('createNeed.phone')} * <input type="tel" value={form.contact_phone} onChange={set('contact_phone')} required />
+          </label>
+          <label>
+            {t('collectionPoints.otherPhones')}
+            <textarea rows={3} value={form.other_phones} onChange={set('other_phones')} placeholder={t('collectionPoints.otherPhonesPlaceholder')} />
           </label>
           <label>
             {t('createNeed.email')} <input type="email" value={form.contact_email} onChange={set('contact_email')} />

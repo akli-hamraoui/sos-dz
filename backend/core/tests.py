@@ -146,6 +146,25 @@ class NeedCreationTests(BaseAPITestCase):
         need = Need.objects.get(pk=resp.data["id"])
         self.assertEqual(need.position_accuracy, Need.POSITION_EXACT)
 
+    def test_other_phones_is_optional_freetext(self):
+        resp = self.client.post("/api/needs/", self._payload(), format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+        self.assertEqual(resp.data["other_phones"], "")
+
+    def test_other_phones_saved_and_returned(self):
+        resp = self.client.post("/api/needs/", self._payload(other_phones="0555000002\n0555000003"), format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+        self.assertEqual(resp.data["other_phones"], "0555000002\n0555000003")
+
+    def test_other_phones_editable_after_creation(self):
+        create_resp = self.client.post("/api/needs/", self._payload(), format="json")
+        need_id, token = create_resp.data["id"], create_resp.data["access_token"]
+        patch_resp = self.client.patch(
+            f"/api/needs/{need_id}/", {"other_phones": "0555999999", "access_token": token}, format="json"
+        )
+        self.assertEqual(patch_resp.status_code, 200, patch_resp.content)
+        self.assertEqual(patch_resp.data["other_phones"], "0555999999")
+
 
 class PickupAndStatusTests(BaseAPITestCase):
     def setUp(self):
@@ -628,11 +647,22 @@ class AnonymizationTests(BaseAPITestCase):
         self.wilaya = self.campaign.authorized_wilayas.first()
         resp = self.client.post(
             "/api/needs/",
-            dict(NEED_PAYLOAD, campaign=self.campaign.pk, wilaya=self.wilaya.pk),
+            dict(NEED_PAYLOAD, campaign=self.campaign.pk, wilaya=self.wilaya.pk, other_phones="0555000002"),
             format="json",
         )
         self.need_id = resp.data["id"]
         self.token = resp.data["access_token"]
+
+    def test_anonymize_clears_other_phones_too(self):
+        self.client.post(f"/api/needs/{self.need_id}/anonymize/", {"access_token": self.token}, format="json")
+        resp = self.client.post(
+            f"/api/needs/{self.need_id}/anonymize/",
+            {"access_token": self.token, "confirm": True},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 200)
+        need = Need.objects.get(pk=self.need_id)
+        self.assertEqual(need.other_phones, "")
 
     def test_self_service_anonymize_requires_confirmation_when_active(self):
         resp = self.client.post(

@@ -399,6 +399,14 @@ export default function NeedDetail() {
           {showPhone ? t('common.hideNumber') : t('common.showFullNumber')}
         </button>
       </p>
+      {/* other_phones is more personal contact info, same as contact_phone
+          above -- kept behind the same reveal toggle instead of shown by
+          default, same as CollectionPointDetail. */}
+      {need.other_phones && showPhone && (
+        <p className="multiline-text">
+          {t('collectionPoints.otherPhonesLabel')}: {need.other_phones}
+        </p>
+      )}
       {need.edit_history && need.edit_history.length > 0 && <p>{t('needDetail.editedOn', { date: formatDate(need.edit_history[need.edit_history.length - 1], i18n.language) })}</p>}
 
       {isNeedOwner ? (
