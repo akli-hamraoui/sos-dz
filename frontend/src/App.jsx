@@ -20,7 +20,7 @@ import CreateCollectionPoint from './pages/CreateCollectionPoint'
 import CollectionPointDetail from './pages/CollectionPointDetail'
 import Deliveries from './pages/Deliveries'
 import BackButton from './components/BackButton'
-import { IconHome, IconNeeds, IconBox, IconTruck, IconWarning, IconWifiOff, IconCheckCircle, IconMenu, IconClose } from './icons'
+import { IconHome, IconBox, IconTruck, IconWarning, IconWifiOff, IconCheckCircle, IconMenu, IconClose } from './icons'
 
 // Small "this opens a map" cue on a bottom-nav icon -- Besoins/Points de
 // collecte/Livraisons all default to their map view (see each page's own
@@ -143,7 +143,12 @@ function BottomNav() {
       </Link>
       <Link to="/needs" className={isActive('/needs') ? 'active' : ''}>
         <span className="icon">
-          <IconNeeds />
+          {/* Same SOS mark used for need pins/the Home & Besoins "J'ai
+              besoin d'aide" buttons elsewhere -- inverted to white only in
+              the active state, where the pill background goes dark (the
+              other tabs' stroke-based icons get that for free via
+              currentColor; a raster image needs the filter toggled by hand). */}
+          <img src="/icons/need-marker-sos.png" width={22} height={22} alt="" style={isActive('/needs') ? { filter: 'invert(1)' } : undefined} />
           <MapIndicator />
           {!!config.needs_open_count && <span className="nav-badge">{formatBadgeCount(config.needs_open_count)}</span>}
         </span>
