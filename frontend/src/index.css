@@ -1024,7 +1024,7 @@ fieldset {
 .fab-group {
   display: flex;
   justify-self: center;
-  gap: 14px;
+  gap: 22px;
 }
 .fab-item {
   display: flex;
