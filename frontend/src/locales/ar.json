@@ -53,8 +53,8 @@
   "nav": {
     "home": "الرئيسية",
     "needs": "الاحتياجات",
+    "needsShort": "SOS",
     "collectionPoints": "نقاط التجميع",
-    "collectionPointsShort": "التجميع",
     "iNeedHelp": "أحتاج مساعدة",
     "forgotDetails": "استرجاع إعلاني أو توصيلتي",
     "support": "المساعدة",

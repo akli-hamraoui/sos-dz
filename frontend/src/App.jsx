@@ -152,7 +152,7 @@ function BottomNav() {
           <MapIndicator />
           {!!config.needs_open_count && <span className="nav-badge">{formatBadgeCount(config.needs_open_count)}</span>}
         </span>
-        <span>{t('nav.needs')}</span>
+        <span>{t('nav.needsShort')}</span>
       </Link>
       <Link to="/collection-points" className={isActive('/collection-points') ? 'active' : ''}>
         <span className="icon">
@@ -162,11 +162,7 @@ function BottomNav() {
             <span className="nav-badge">{formatBadgeCount(config.collection_points_active_count)}</span>
           )}
         </span>
-        {/* Shorter than nav.collectionPoints (used elsewhere: topbar link,
-            the needs-map type filter) -- this tab is squeezed next to the
-            new two-FAB group and "Points de collecte" no longer fits on
-            one line at the same font-size. */}
-        <span>{t('nav.collectionPointsShort')}</span>
+        <span>{t('nav.collectionPoints')}</span>
       </Link>
       <Link to="/deliveries" className={isActive('/deliveries') ? 'active' : ''}>
         <span className="icon">

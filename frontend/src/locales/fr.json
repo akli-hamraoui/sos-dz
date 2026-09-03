@@ -53,8 +53,8 @@
   "nav": {
     "home": "Accueil",
     "needs": "Besoins",
+    "needsShort": "SOS",
     "collectionPoints": "Points de collecte",
-    "collectionPointsShort": "Collecte",
     "iNeedHelp": "J'ai besoin d'aide",
     "forgotDetails": "Retrouver mon annonce ou livraison",
     "support": "Aide",
