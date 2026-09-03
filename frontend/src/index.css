@@ -1008,6 +1008,57 @@ fieldset {
   border: 2px dashed #888;
   opacity: 0.85;
 }
+/* Overlay chip on the deliveries map (see .map-wrap below) for couriers
+   with neither a live ping nor a declared departure position -- one
+   greyed-out truck bubble with a count badge, not N individually
+   invented markers (never plot a position we don't actually have). */
+.unknown-position-chip {
+  position: absolute;
+  bottom: 12px;
+  inset-inline-start: 12px;
+  z-index: 1200; /* above Leaflet's own zoom/attribution controls (1000) */
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 6px 14px 6px 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+.unknown-position-pin {
+  position: relative;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #e3e3e3;
+  border: 2px dashed #999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #888;
+}
+.unknown-position-count {
+  position: absolute;
+  top: -6px;
+  inset-inline-end: -8px;
+  background: #777;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 2px 5px;
+  border-radius: 999px;
+  min-width: 15px;
+  box-sizing: border-box;
+  text-align: center;
+  border: 1.5px solid var(--card);
+}
+.unknown-position-label {
+  font-size: 12px;
+  color: #555;
+}
 
 .comment-thread {
   margin-block-start: 16px;
@@ -1040,6 +1091,13 @@ fieldset {
    (see main.jsx and each map's gestureHandlingOptions) confirmed working
    on its own: a single finger scrolls the page even directly over the
    map, and panning the map itself needs two fingers. Full width. */
+/* Tight wrapper around just the map div (not the surrounding hint/legend
+   text also inside .map-wrap) -- position: relative anchors
+   .unknown-position-chip to the map's own bottom-left corner instead of
+   the bottom of the whole section. */
+.map-frame {
+  position: relative;
+}
 
 .legend {
   display: flex;
@@ -1112,6 +1170,14 @@ fieldset {
   border: none;
   cursor: pointer;
   font-family: inherit;
+}
+/* Collecte/Livreurs' MapIndicator badge sits at the icon's bottom edge
+   (see .map-indicator/.map-indicator-shift) and the default 2px gap above
+   put the label almost flush against it -- a touch more clearance just
+   for these two labels, without moving Accueil's (which has no such
+   badge to clear). */
+.nav-label-offset {
+  margin-block-start: 3px;
 }
 .bottom-nav .icon {
   display: flex;

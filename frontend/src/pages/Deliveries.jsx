@@ -34,6 +34,12 @@ export default function Deliveries() {
   // neither and so are never on the map at all (never "position
   // unavailable" purely by omission -- see the .noPosition list below).
   const [locatedPickupIds, setLocatedPickupIds] = useState(() => new Set())
+  // How many of the currently-filtered en_route deliveries have neither a
+  // live ping nor a declared departure position -- shown as one grey
+  // "count" bubble on the map (never as individual invented markers, see
+  // renderLiveLocations below) so a courier count isn't silently missing
+  // from the map with no indication they exist at all.
+  const unknownPositionCount = pickups.filter((p) => p.status === 'en_route' && !locatedPickupIds.has(p.id)).length
   const mapRef = useRef(null)
   const mapElRef = useRef(null)
   const markersRef = useRef([])
@@ -286,7 +292,18 @@ export default function Deliveries() {
               </p>
             </div>
           )}
-          <div id="deliveries-map" ref={mapElRef} style={{ height: 600 }} />
+          <div className="map-frame">
+            <div id="deliveries-map" ref={mapElRef} style={{ height: 600 }} />
+            {unknownPositionCount > 0 && (
+              <div className="unknown-position-chip">
+                <span className="unknown-position-pin">
+                  <IconTruck width={16} height={16} strokeWidth={1.9} />
+                  <span className="unknown-position-count">{unknownPositionCount}</span>
+                </span>
+                <span className="unknown-position-label">{t('deliveries.unknownPosition')}</span>
+              </div>
+            )}
+          </div>
           <p className="legend-note">{t('deliveries.liveMapNote')}</p>
         </div>
       )}

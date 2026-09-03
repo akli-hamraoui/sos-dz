@@ -316,7 +316,8 @@
     "deliverToCollectionPoint": "Livrer vers un point de collecte",
     "liveMarkerLabel": "Position en direct",
     "departureMarkerLabel": "Position de départ déclarée",
-    "positionUnavailable": "Position indisponible"
+    "positionUnavailable": "Position indisponible",
+    "unknownPosition": "Position inconnue"
   },
   "reportBug": {
     "title": "Signaler un bug",

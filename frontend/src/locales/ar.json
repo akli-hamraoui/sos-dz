@@ -316,7 +316,8 @@
     "deliverToCollectionPoint": "توصيل إلى نقطة تجميع",
     "liveMarkerLabel": "موقع مباشر",
     "departureMarkerLabel": "موقع انطلاق مُعلَن",
-    "positionUnavailable": "الموقع غير متوفر"
+    "positionUnavailable": "الموقع غير متوفر",
+    "unknownPosition": "موقع غير معروف"
   },
   "reportBug": {
     "title": "الإبلاغ عن خلل",

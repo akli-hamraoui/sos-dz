@@ -316,7 +316,8 @@
     "deliverToCollectionPoint": "Deliver to a collection point",
     "liveMarkerLabel": "Live position",
     "departureMarkerLabel": "Declared departure position",
-    "positionUnavailable": "Position unavailable"
+    "positionUnavailable": "Position unavailable",
+    "unknownPosition": "Unknown position"
   },
   "reportBug": {
     "title": "Report a bug",

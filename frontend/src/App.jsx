@@ -163,7 +163,7 @@ function BottomNav() {
             <span className="nav-badge">{formatBadgeCount(config.collection_points_active_count)}</span>
           )}
         </span>
-        <span>{t('nav.collectionPointsShort')}</span>
+        <span className="nav-label-offset">{t('nav.collectionPointsShort')}</span>
       </Link>
       <Link to="/deliveries" className={isActive('/deliveries') ? 'active' : ''}>
         <span className="icon">
@@ -171,7 +171,7 @@ function BottomNav() {
           <MapIndicator shiftRight />
           {!!config.deliveries_en_route_count && <span className="nav-badge">{formatBadgeCount(config.deliveries_en_route_count)}</span>}
         </span>
-        <span>{t('nav.deliveriesShort')}</span>
+        <span className="nav-label-offset">{t('nav.deliveriesShort')}</span>
       </Link>
     </nav>
   )
