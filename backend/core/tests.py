@@ -166,6 +166,114 @@ class NeedCreationTests(BaseAPITestCase):
         self.assertEqual(patch_resp.data["other_phones"], "0555999999")
 
 
+class OptionalContactFieldsTests(BaseAPITestCase):
+    """contact_name/contact_phone became optional on both Need and
+    CollectionPoint -- as long as at least one recovery path (name+phone
+    together, or a recovery_code) is present. See NeedCreateSerializer/
+    CollectionPointCreateSerializer.validate() and each model's own
+    matches_creator's blank-vs-blank guard."""
+
+    def setUp(self):
+        super().setUp()
+        self.campaign = make_campaign()
+        self.wilaya = self.campaign.authorized_wilayas.first()
+
+    def _need_payload(self, **overrides):
+        data = dict(NEED_PAYLOAD, campaign=self.campaign.pk, wilaya=self.wilaya.pk)
+        data.update(overrides)
+        return data
+
+    def test_need_name_and_phone_together_still_works(self):
+        resp = self.client.post("/api/needs/", self._need_payload(), format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+
+    def test_need_without_name_but_with_code_works(self):
+        payload = self._need_payload(recovery_code="secret123")
+        del payload["contact_name"]
+        resp = self.client.post("/api/needs/", payload, format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+
+    def test_need_without_phone_but_with_code_works(self):
+        payload = self._need_payload(recovery_code="secret124")
+        del payload["contact_phone"]
+        resp = self.client.post("/api/needs/", payload, format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+
+    def test_need_without_name_or_phone_but_with_code_works(self):
+        payload = self._need_payload(recovery_code="secret125")
+        del payload["contact_name"]
+        del payload["contact_phone"]
+        resp = self.client.post("/api/needs/", payload, format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+        need = Need.objects.get(pk=resp.data["id"])
+        self.assertEqual(need.contact_name, "")
+        self.assertEqual(need.contact_phone, "")
+
+    def test_need_without_name_phone_or_code_is_rejected(self):
+        payload = self._need_payload()
+        del payload["contact_name"]
+        del payload["contact_phone"]
+        resp = self.client.post("/api/needs/", payload, format="json")
+        self.assertEqual(resp.status_code, 400)
+
+    def test_need_with_only_name_no_phone_no_code_is_rejected(self):
+        # Half of the name+phone pair doesn't count -- matches_identity
+        # needs both.
+        payload = self._need_payload()
+        del payload["contact_phone"]
+        resp = self.client.post("/api/needs/", payload, format="json")
+        self.assertEqual(resp.status_code, 400)
+
+    def _cp_payload(self, **overrides):
+        data = dict(COLLECTION_POINT_PAYLOAD, wilaya=self.wilaya.pk)
+        data.update(overrides)
+        return data
+
+    def test_cp_name_and_phone_together_still_works(self):
+        resp = self.client.post("/api/collection-points/", self._cp_payload(), format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+
+    def test_cp_without_name_or_phone_but_with_code_works(self):
+        payload = self._cp_payload(recovery_code="cpsecret1")
+        del payload["contact_name"]
+        del payload["contact_phone"]
+        resp = self.client.post("/api/collection-points/", payload, format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+
+    def test_cp_without_name_phone_or_code_is_rejected(self):
+        payload = self._cp_payload()
+        del payload["contact_name"]
+        del payload["contact_phone"]
+        resp = self.client.post("/api/collection-points/", payload, format="json")
+        self.assertEqual(resp.status_code, 400)
+
+    def test_cp_close_with_recovery_code_when_no_name_phone_set(self):
+        create_resp = self.client.post(
+            "/api/collection-points/", self._cp_payload(recovery_code="cpsecret2", contact_name="", contact_phone=""), format="json"
+        )
+        self.assertEqual(create_resp.status_code, 201, create_resp.content)
+        point_id = create_resp.data["id"]
+        resp = self.client.post(f"/api/collection-points/{point_id}/close/", {"code": "cpsecret2"}, format="json")
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.assertEqual(resp.data["status"], "closed")
+
+    def test_cp_close_blank_name_phone_never_matches_blank(self):
+        # The exact regression the "optional fields must not remove
+        # security" requirement warns about: a point created without
+        # name/phone (using a code instead) must never be closeable by
+        # someone submitting blank name+phone themselves.
+        create_resp = self.client.post(
+            "/api/collection-points/", self._cp_payload(recovery_code="cpsecret3", contact_name="", contact_phone=""), format="json"
+        )
+        point_id = create_resp.data["id"]
+        resp = self.client.post(
+            f"/api/collection-points/{point_id}/close/", {"contact_name": "", "contact_phone": ""}, format="json"
+        )
+        self.assertEqual(resp.status_code, 403)
+        point = CollectionPoint.objects.get(pk=point_id)
+        self.assertEqual(point.status, "active")
+
+
 class PickupAndStatusTests(BaseAPITestCase):
     def setUp(self):
         super().setUp()

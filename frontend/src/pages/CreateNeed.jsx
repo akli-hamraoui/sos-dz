@@ -475,11 +475,12 @@ export default function CreateNeed() {
 
         <fieldset>
           <legend>{t('createNeed.contactDetailsLegend')}</legend>
+          <p className="hint">{t('createNeed.contactDetailsHint')}</p>
           <label>
-            {t('createNeed.name')} * <input type="text" value={form.contact_name} onChange={set('contact_name')} required />
+            {t('createNeed.name')} <input type="text" value={form.contact_name} onChange={set('contact_name')} />
           </label>
           <label>
-            {t('createNeed.phone')} * <input type="tel" value={form.contact_phone} onChange={set('contact_phone')} required />
+            {t('createNeed.phone')} <input type="tel" value={form.contact_phone} onChange={set('contact_phone')} />
           </label>
           <label>
             {t('collectionPoints.otherPhones')}

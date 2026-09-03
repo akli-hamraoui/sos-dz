@@ -56,11 +56,23 @@ export default function CollectionPointDetail() {
   }
 
   const closePoint = async () => {
-    const contact_name = await showPrompt(t('collectionPoints.closePromptName'))
-    if (!contact_name) return
-    const contact_phone = await showPrompt(t('collectionPoints.closePromptPhone'))
+    // Name+phone are optional at creation now -- a point created with a
+    // recovery code instead has nothing to match against on the
+    // name/phone path, so that's offered first and only falls back to
+    // name+phone if left blank.
+    const code = await showPrompt(t('collectionPoints.closePromptCode'))
+    if (code === null) return
+    let payload
+    if (code.trim()) {
+      payload = { code: code.trim() }
+    } else {
+      const contact_name = await showPrompt(t('collectionPoints.closePromptName'))
+      if (!contact_name) return
+      const contact_phone = await showPrompt(t('collectionPoints.closePromptPhone'))
+      payload = { contact_name, contact_phone }
+    }
     try {
-      setCp(await api(`/collection-points/${id}/close/`, { method: 'POST', body: JSON.stringify({ contact_name, contact_phone }) }))
+      setCp(await api(`/collection-points/${id}/close/`, { method: 'POST', body: JSON.stringify(payload) }))
     } catch (e) {
       showAlert(translateApiError(e, t))
     }

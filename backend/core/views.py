@@ -734,8 +734,10 @@ class CollectionPointViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mix
         else:
             serializer = CollectionPointCloseSerializer(data=request.data)
             serializer.is_valid(raise_exception=True)
-            if not point.matches_creator(serializer.validated_data["contact_name"], serializer.validated_data["contact_phone"]):
-                return Response({"detail": "Name/phone don't match this collection point's contact."}, status=status.HTTP_403_FORBIDDEN)
+            d = serializer.validated_data
+            matched = point.matches_code(d.get("code")) if d.get("code") else point.matches_creator(d.get("contact_name"), d.get("contact_phone"))
+            if not matched:
+                return Response({"detail": "Name/phone (or recovery code) don't match this collection point's contact."}, status=status.HTTP_403_FORBIDDEN)
         point.status = CollectionPoint.STATUS_CLOSED
         point.save(update_fields=["status"])
         log_admin_action(request, "closed collection point", point)

@@ -13,6 +13,7 @@ const DEFAULT_FORM = {
   point_name: '',
   contact_name: '',
   contact_phone: '',
+  recovery_code: '',
   other_phones: '',
   organization: '',
   location_description: '',
@@ -130,15 +131,21 @@ export default function CreateCollectionPoint() {
         <label>
           {t('collectionPoints.pointName')} * <input type="text" value={form.point_name} onChange={set('point_name')} required />
         </label>
+        <p className="hint">{t('createNeed.contactDetailsHint')}</p>
         <label>
-          {t('collectionPoints.contactName')} * <input type="text" value={form.contact_name} onChange={set('contact_name')} required />
+          {t('collectionPoints.contactName')} <input type="text" value={form.contact_name} onChange={set('contact_name')} />
         </label>
         <label>
-          {t('collectionPoints.contactPhone')} * <input type="tel" value={form.contact_phone} onChange={set('contact_phone')} required />
+          {t('collectionPoints.contactPhone')} <input type="tel" value={form.contact_phone} onChange={set('contact_phone')} />
         </label>
         <label>
           {t('collectionPoints.otherPhones')}
           <textarea rows={3} value={form.other_phones} onChange={set('other_phones')} placeholder={t('collectionPoints.otherPhonesPlaceholder')} />
+        </label>
+        <label>
+          {t('createNeed.recoveryCode')}{' '}
+          <input type="text" value={form.recovery_code} onChange={set('recovery_code')} placeholder={t('createNeed.recoveryCodePlaceholder')} minLength={6} />
+          <span className="hint">{t('createNeed.recoveryCodeHint')}</span>
         </label>
         <label>
           {t('collectionPoints.organization')} <input type="text" value={form.organization} onChange={set('organization')} />

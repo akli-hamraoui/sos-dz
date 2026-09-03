@@ -272,8 +272,13 @@ class Need(IdentityListingMixin, models.Model):
     longitude = models.FloatField(null=True, blank=True)
     position_accuracy = models.CharField(max_length=20, choices=POSITION_CHOICES, default=POSITION_APPROXIMATE)
 
-    contact_name = models.CharField(max_length=200)
-    contact_phone = models.CharField(max_length=30)
+    # Both optional (NeedCreateSerializer.validate enforces that at least
+    # one of these two OR a recovery_code is present -- an access_token is
+    # always issued regardless and remains the primary way back in, this
+    # is just about the name+phone/code *fallback* path for a different
+    # device/browser never being a dead end with nothing to match against).
+    contact_name = models.CharField(max_length=200, blank=True)
+    contact_phone = models.CharField(max_length=30, blank=True)
     # Free text, e.g. several extra numbers separated by line breaks --
     # unlike contact_phone, never used for identity matching (matches_creator
     # below), so no format constraint beyond "optional text". Same field as
@@ -619,8 +624,17 @@ class CollectionPoint(models.Model):
 
     wilaya = models.ForeignKey(Wilaya, on_delete=models.PROTECT, related_name="collection_points")
     point_name = models.CharField(max_length=200)
-    contact_name = models.CharField(max_length=200)
-    contact_phone = models.CharField(max_length=30)
+    # Both optional (CollectionPointCreateSerializer.validate enforces that
+    # at least one of these two OR a recovery_code is present) -- unlike
+    # Need/Pickup, a collection point has no access_token of its own, so
+    # matches_creator()/matches_code() below are the *only* way its
+    # creator can later prove ownership to close it. Leaving both name+
+    # phone blank with no code at all would mean literally anyone could
+    # "close" it (blank matching blank), which is exactly the security
+    # regression the optional-fields request warned against avoiding.
+    contact_name = models.CharField(max_length=200, blank=True)
+    contact_phone = models.CharField(max_length=30, blank=True)
+    recovery_code = models.CharField(max_length=20, blank=True)
     # Free text, e.g. several extra numbers separated by line breaks --
     # unlike contact_phone, never used for identity matching (matches_creator
     # below), so no format constraint beyond "optional text".
@@ -659,11 +673,22 @@ class CollectionPoint(models.Model):
     def matches_creator(self, name, phone):
         """Loose name+phone match for self-service closing -- lighter than
         Need/Pickup's token+DOB scheme, per spec: collection points carry
-        less edit/cancel sensitivity."""
+        less edit/cancel sensitivity. Both name and phone are optional at
+        creation time, so a point created without them has nothing here to
+        ever match against -- explicitly never a match on blank vs. blank,
+        or anyone submitting the close form empty could "prove" ownership
+        of every such point. Those creators rely on matches_code instead."""
+        if not self.contact_name.strip() or not self.contact_phone.strip():
+            return False
         return (
             self.contact_name.strip().lower() == (name or "").strip().lower()
             and self.contact_phone.strip() == (phone or "").strip()
         )
+
+    def matches_code(self, code):
+        if not self.recovery_code:
+            return False
+        return self.recovery_code.strip() == (code or "").strip()
 
 
 class Comment(models.Model):

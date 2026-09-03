@@ -387,6 +387,17 @@ class NeedCreateSerializer(serializers.ModelSerializer):
         if video_file:
             validate_video_size(video_file)
             validate_video_duration(video_file)
+        # contact_name/contact_phone are both optional -- the access_token
+        # returned on creation is always the primary way back in, but
+        # without a name+phone or a recovery_code there would be no
+        # fallback at all for recovering access from a different
+        # device/browser (see Need.matches_identity/matches_code).
+        has_name_phone = (attrs.get("contact_name") or "").strip() and (attrs.get("contact_phone") or "").strip()
+        has_code = (attrs.get("recovery_code") or "").strip()
+        if not has_name_phone and not has_code:
+            raise serializers.ValidationError(
+                "Please provide either your name and phone, or set a recovery code, so you can manage this listing later."
+            )
         return attrs
 
     def create(self, validated_data):
@@ -532,6 +543,7 @@ class CollectionPointCreateSerializer(serializers.ModelSerializer):
             "wilaya", "point_name", "contact_name", "contact_phone", "other_phones",
             "organization", "location_description", "latitude", "longitude", "hours",
             "accepted_donations", "facebook_url", "tiktok_url", "instagram_url", "flyer_image",
+            "recovery_code",
         ]
 
     def validate_facebook_url(self, value):
@@ -543,10 +555,23 @@ class CollectionPointCreateSerializer(serializers.ModelSerializer):
     def validate_instagram_url(self, value):
         return validate_social_url(value)
 
+    def validate_recovery_code(self, value):
+        return check_recovery_code_available(CollectionPoint, value)
+
     def validate(self, attrs):
         lat, lon = attrs.get("latitude"), attrs.get("longitude")
         if lat is not None or lon is not None:
             validate_algeria_bounds(lat, lon)
+        # contact_name/contact_phone are both optional, but a point with
+        # neither and no recovery_code either would have absolutely no way
+        # for its creator to prove ownership later (see matches_creator's
+        # own blank-vs-blank guard) -- at least one path must exist.
+        has_name_phone = (attrs.get("contact_name") or "").strip() and (attrs.get("contact_phone") or "").strip()
+        has_code = (attrs.get("recovery_code") or "").strip()
+        if not has_name_phone and not has_code:
+            raise serializers.ValidationError(
+                "Please provide either your name and phone, or set a recovery code, so you can manage this listing later."
+            )
         return attrs
 
 
@@ -574,5 +599,13 @@ class CollectionPointMapPinSerializer(serializers.ModelSerializer):
 
 
 class CollectionPointCloseSerializer(serializers.Serializer):
-    contact_name = serializers.CharField()
-    contact_phone = serializers.CharField()
+    """Either `code` (if the creator set a recovery_code) or the
+    contact_name+contact_phone fallback must be provided -- see the view,
+    which tries the code first when present. All optional at the field
+    level since contact_name/contact_phone are themselves optional on the
+    model now; matches_creator/matches_code below reject a blank/blank
+    "match" either way."""
+
+    code = serializers.CharField(required=False, allow_blank=True)
+    contact_name = serializers.CharField(required=False, allow_blank=True)
+    contact_phone = serializers.CharField(required=False, allow_blank=True)
