@@ -10,6 +10,7 @@ import CreateNeed from './pages/CreateNeed'
 import NeedsList from './pages/NeedsList'
 import NeedDetail from './pages/NeedDetail'
 import TakeCharge from './pages/TakeCharge'
+import PickupDetail from './pages/PickupDetail'
 import Recover from './pages/Recover'
 import Support from './pages/Support'
 import ReportBug from './pages/ReportBug'
@@ -272,6 +273,7 @@ export default function App() {
           <Route path="/create" element={<CreateNeed />} />
           <Route path="/needs" element={<NeedsList />} />
           <Route path="/needs/:id" element={<NeedDetail />} />
+          <Route path="/pickups/:id" element={<PickupDetail />} />
           <Route path="/needs/:id/take-charge" element={<TakeCharge />} />
           <Route path="/recover" element={<Recover />} />
           <Route path="/support" element={<Support />} />

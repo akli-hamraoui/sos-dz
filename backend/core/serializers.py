@@ -137,7 +137,37 @@ class LocationPingSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "recorded_at"]
 
 
-class PickupPublicSerializer(serializers.ModelSerializer):
+class PickupParentInfoMixin(serializers.Serializer):
+    """need_title/need_wilaya_name (or their collection_point_* equivalents,
+    whichever of the two this pickup belongs to) -- shared by any Pickup
+    serializer that needs to be readable without a second request to fetch
+    its parent. SerializerMethodField rather than source="need.title"
+    because exactly one of need/collection_point is ever set on a given
+    pickup -- a dotted source would try to traverse through the unset
+    (None) one. Subclasses serializers.Serializer (not just a plain mixin)
+    so DRF's SerializerMetaclass actually picks up these declared fields
+    through inheritance -- a plain-object mixin's Field attributes are
+    silently ignored by ModelSerializer's field auto-generation."""
+
+    need_title = serializers.SerializerMethodField()
+    need_wilaya_name = serializers.SerializerMethodField()
+    collection_point_name = serializers.SerializerMethodField()
+    collection_point_wilaya_name = serializers.SerializerMethodField()
+
+    def get_need_title(self, obj):
+        return obj.need.title if obj.need_id else None
+
+    def get_need_wilaya_name(self, obj):
+        return obj.need.wilaya.name if obj.need_id else None
+
+    def get_collection_point_name(self, obj):
+        return obj.collection_point.point_name if obj.collection_point_id else None
+
+    def get_collection_point_wilaya_name(self, obj):
+        return obj.collection_point.wilaya.name if obj.collection_point_id else None
+
+
+class PickupPublicSerializer(PickupParentInfoMixin, serializers.ModelSerializer):
     progress_updates = ProgressUpdateSerializer(many=True, read_only=True)
     delivery_photos = DeliveryPhotoSerializer(many=True, read_only=True)
     needs_verification = serializers.BooleanField(read_only=True)
@@ -148,7 +178,11 @@ class PickupPublicSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "need",
+            "need_title",
+            "need_wilaya_name",
             "collection_point",
+            "collection_point_name",
+            "collection_point_wilaya_name",
             "responder_type",
             "responder_name",
             "responder_phone",
@@ -171,21 +205,12 @@ class PickupPublicSerializer(serializers.ModelSerializer):
         ]
 
 
-class PickupListSerializer(serializers.ModelSerializer):
+class PickupListSerializer(PickupParentInfoMixin, serializers.ModelSerializer):
     """Lighter than PickupPublicSerializer for the global "deliveries in
     progress" list (no nested progress_updates/delivery_photos -- not
     needed for an overview row, and keeps the payload small for weak
-    connectivity). Adds need_title/need_wilaya_name (or their
-    collection_point_* equivalents, whichever of the two this pickup
-    belongs to) so the list is readable without a second request per row.
-    SerializerMethodField rather than source="need.title" because exactly
-    one of need/collection_point is ever set on a given pickup -- a dotted
-    source would try to traverse through the unset (None) one."""
+    connectivity)."""
 
-    need_title = serializers.SerializerMethodField()
-    need_wilaya_name = serializers.SerializerMethodField()
-    collection_point_name = serializers.SerializerMethodField()
-    collection_point_wilaya_name = serializers.SerializerMethodField()
     is_anonymized = serializers.BooleanField(read_only=True)
 
     class Meta:
@@ -208,18 +233,6 @@ class PickupListSerializer(serializers.ModelSerializer):
             "actual_delivery_date",
             "is_anonymized",
         ]
-
-    def get_need_title(self, obj):
-        return obj.need.title if obj.need_id else None
-
-    def get_need_wilaya_name(self, obj):
-        return obj.need.wilaya.name if obj.need_id else None
-
-    def get_collection_point_name(self, obj):
-        return obj.collection_point.point_name if obj.collection_point_id else None
-
-    def get_collection_point_wilaya_name(self, obj):
-        return obj.collection_point.wilaya.name if obj.collection_point_id else None
 
 
 class PickupCreateSerializer(serializers.ModelSerializer):

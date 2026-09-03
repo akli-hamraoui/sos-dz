@@ -208,6 +208,10 @@
     },
     "namePrompt": "Your name (for this comment):"
   },
+  "pickupDetail": {
+    "title": "Delivery details",
+    "notFound": "This pickup could not be found."
+  },
   "takeCharge": {
     "title": "Take charge of: {{need}}",
     "type": "Type",

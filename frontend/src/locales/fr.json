@@ -208,6 +208,10 @@
     },
     "namePrompt": "Votre nom (pour ce commentaire) :"
   },
+  "pickupDetail": {
+    "title": "Détails de la livraison",
+    "notFound": "Cette prise en charge est introuvable."
+  },
   "takeCharge": {
     "title": "Prendre en charge : {{need}}",
     "type": "Type",

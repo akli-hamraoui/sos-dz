@@ -36,14 +36,12 @@ export default function Recover() {
         navigate(`/collection-points/${id}`)
       } else {
         savePickupToken(id, result.access_token)
-        // Recovering a pickup's access must land back on the page that
-        // actually shows its owner controls (share-location toggle, mark
-        // delivered, anonymize -- all on the need/collection point's own
-        // detail page via PickupManager), not leave the courier stranded
-        // on this form with just a toast. Look up which of the two this
-        // pickup belongs to so the redirect goes to the right one.
-        const pickup = await api(`/pickups/${id}/`)
-        navigate(pickup.need ? `/needs/${pickup.need}` : `/collection-points/${pickup.collection_point}`)
+        // Recovering a pickup's access must land back on a page that shows
+        // its owner controls (share-location toggle, mark delivered,
+        // anonymize), not leave the courier stranded on this form with
+        // just a toast -- its own dedicated page (PickupDetail) shows all
+        // of that plus a link back to the parent need/collection point.
+        navigate(`/pickups/${id}`)
       }
     } catch (err) {
       setError(translateApiError(err, t))
