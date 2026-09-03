@@ -10,10 +10,27 @@ function statusLabel(t, s) {
   return t(`status.${s}`, s)
 }
 
+// "SOS" speech-bubble mark inside the same white circle/black border pin
+// used for collection points and courier markers (see .pickup-marker-pin/
+// .cp-marker-pin/.need-marker-pin). Inverted to white -- urgencyColor()
+// only ever returns a saturated red/orange/gray, never white, so the icon
+// always sits on a colored background here and needs the contrast; the
+// source PNG is a solid black mark on transparent, so a CSS filter is all
+// that's needed rather than a second asset.
+const NEED_SOS_ICON = '<img src="/icons/need-marker-sos.png" width="18" height="18" alt="" style="filter:invert(1)" />'
+
+const CP_BOX_SVG =
+  '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+  '<path d="M3.5 7.5 12 3l8.5 4.5v9L12 21l-8.5-4.5v-9Z"/><path d="M3.5 7.5 12 12l8.5-4.5"/><path d="M12 12v9"/></svg>'
+
 export default function NeedsList() {
   const { t } = useTranslation()
   const { activeCampaignWilayas } = useApp()
   const [filterWilaya, setFilterWilaya] = useState('')
+  // '' (both, default) | 'needs' | 'collection_points' -- only affects the
+  // map (the list view stays needs-only, unaffected, since that's a
+  // different card layout per type).
+  const [filterType, setFilterType] = useState('')
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
   const [needs, setNeeds] = useState([])
@@ -108,26 +125,44 @@ export default function NeedsList() {
   useEffect(() => {
     if (viewMode !== 'map') return
     let cancelled = false
+    let rafId = null
 
     ;(async () => {
-      let needPins
       const params = new URLSearchParams()
       if (filterWilaya) params.set('wilaya', filterWilaya)
       if (search) params.set('search', search)
       const qs = params.toString() ? `?${params.toString()}` : ''
+      const wantNeeds = filterType === '' || filterType === 'needs'
+      const wantPoints = filterType === '' || filterType === 'collection_points'
+      let needPins = []
+      let cpPins = []
       try {
-        needPins = await api(`/needs/locations/${qs}`)
+        ;[needPins, cpPins] = await Promise.all([
+          wantNeeds ? api(`/needs/locations/${qs}`) : Promise.resolve([]),
+          wantPoints ? api(`/collection-points/locations/${qs}`) : Promise.resolve([]),
+        ])
       } catch {
         return // offline/network failure -- offline banner already informs the user
       }
       if (cancelled) return
+
+      const needsWithPos = needPins.filter((p) => p.display_latitude != null && p.display_longitude != null)
+      const cpsWithPos = cpPins.filter((p) => p.display_latitude != null && p.display_longitude != null)
       // The map itself is always shown (see below) -- this only controls
       // whether a supplementary "nothing yet" hint is shown alongside it,
       // e.g. right after a campaign starts before any need has been
       // reported yet.
-      setMapHasNothing(needPins.length === 0)
+      setMapHasNothing(needsWithPos.length === 0 && cpsWithPos.length === 0)
 
-      requestAnimationFrame(() => {
+      // activeCampaignWilayas can settle in more than one wave while
+      // campaigns/wilayas are still loading, re-running this whole effect
+      // each time -- checking `cancelled` again here (not just before the
+      // network request above) stops a since-superseded run's requestAnimationFrame
+      // from firing after its own effect instance was already cleaned up,
+      // which otherwise intermittently clobbered a fresher run's markers
+      // with a stale (sometimes empty) set on first load.
+      rafId = requestAnimationFrame(() => {
+        if (cancelled) return
         if (!mapElRef.current) return
         if (!mapRef.current) {
           mapRef.current = L.map(mapElRef.current, {
@@ -153,14 +188,14 @@ export default function NeedsList() {
         markersRef.current.forEach((m) => map.removeLayer(m))
         const markers = []
 
-        const needsWithPos = needPins.filter((p) => p.display_latitude != null && p.display_longitude != null)
         needsWithPos.forEach((p) => {
-          const marker = L.circleMarker([p.display_latitude, p.display_longitude], {
-            radius: 9,
-            color: urgencyColor(p.urgency),
-            fillColor: urgencyColor(p.urgency),
-            fillOpacity: 0.85,
-          }).addTo(map)
+          const icon = L.divIcon({
+            className: 'need-marker-icon',
+            html: `<span class="need-marker-pin" style="background:${urgencyColor(p.urgency)}">${NEED_SOS_ICON}</span>`,
+            iconSize: [30, 30],
+            iconAnchor: [15, 15],
+          })
+          const marker = L.marker([p.display_latitude, p.display_longitude], { icon }).addTo(map)
           const gpsNote = p.has_exact_position ? '' : `<br><em>${t('common.noExactGpsPosition')}</em>`
           marker.bindPopup(
             `<strong>${p.title}</strong><br>${t(`urgency.${p.urgency}`)} — ${p.wilaya_name}<br>${(p.location_description || '').slice(0, 80)}` +
@@ -169,20 +204,39 @@ export default function NeedsList() {
           markers.push(marker)
         })
 
+        cpsWithPos.forEach((p) => {
+          // Same box-on-a-pin marker used everywhere else for collection
+          // points (CollectionPoints.jsx's own map).
+          const icon = L.divIcon({
+            className: 'cp-marker-icon',
+            html: `<span class="cp-marker-pin">${CP_BOX_SVG}</span>`,
+            iconSize: [30, 30],
+            iconAnchor: [15, 15],
+          })
+          const marker = L.marker([p.display_latitude, p.display_longitude], { icon }).addTo(map)
+          const gpsNote = p.has_exact_position ? '' : `<br><em>${t('common.noExactGpsPosition')}</em>`
+          marker.bindPopup(
+            `<strong>${p.point_name}</strong><br>${p.contact_name}${p.organization ? '<br>' + p.organization : ''}` +
+              `${p.hours ? '<br>' + p.hours : ''}<br>${p.wilaya_name}${gpsNote}<br><a href="/collection-points/${p.id}">${t('common.open')}</a>`
+          )
+          markers.push(marker)
+        })
+
         markersRef.current = markers
-        const allPoints = needsWithPos.map((p) => [p.display_latitude, p.display_longitude])
+        const allPoints = [...needsWithPos, ...cpsWithPos].map((p) => [p.display_latitude, p.display_longitude])
         smartZoom(map, allPoints, filterWilaya)
       })
     })()
 
     return () => {
       cancelled = true
+      if (rafId != null) cancelAnimationFrame(rafId)
     }
     // activeCampaignWilayas is included so the map re-zooms once campaigns
     // finish loading, in case that response lands after this effect's
     // first run already captured an empty fallback list.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewMode, filterWilaya, search, activeCampaignWilayas])
+  }, [viewMode, filterWilaya, search, filterType, activeCampaignWilayas])
 
   // Switching to "Liste" unmounts the #main-map div (see the JSX below),
   // but without this the Leaflet instance in mapRef.current kept pointing
@@ -219,6 +273,16 @@ export default function NeedsList() {
             ))}
           </select>
         </label>
+        {viewMode === 'map' && (
+          <label>
+            {t('needsList.filterByType')}
+            <select value={filterType} onChange={(e) => setFilterType(e.target.value)}>
+              <option value="">{t('needsList.typeAll')}</option>
+              <option value="needs">{t('needsList.typeNeeds')}</option>
+              <option value="collection_points">{t('nav.collectionPoints')}</option>
+            </select>
+          </label>
+        )}
         <div className="view-toggle">
           <button className={viewMode === 'list' ? 'active' : ''} onClick={() => setViewMode('list')}>
             {t('needsList.list')}
@@ -253,17 +317,19 @@ export default function NeedsList() {
         <div className="map-wrap">
           {mapHasNothing && <p className="hint">{t('needsList.noActiveNeeds')}</p>}
           <div id="main-map" ref={mapElRef} style={{ height: 600 }} />
-          <div className="legend">
-            <span className="legend-item">
-              <span className="legend-dot" style={{ background: urgencyColor('critical') }} />
-              {t('urgency.critical')}
-            </span>
-            <span className="legend-item">
-              <span className="legend-dot" style={{ background: urgencyColor('medium') }} />
-              {t('urgency.medium')}
-            </span>
-            <span className="legend-note">{t('needsList.legendNote')}</span>
-          </div>
+          {filterType !== 'collection_points' && (
+            <div className="legend">
+              <span className="legend-item">
+                <span className="legend-dot" style={{ background: urgencyColor('critical') }} />
+                {t('urgency.critical')}
+              </span>
+              <span className="legend-item">
+                <span className="legend-dot" style={{ background: urgencyColor('medium') }} />
+                {t('urgency.medium')}
+              </span>
+              <span className="legend-note">{t('needsList.legendNote')}</span>
+            </div>
+          )}
         </div>
       )}
     </section>

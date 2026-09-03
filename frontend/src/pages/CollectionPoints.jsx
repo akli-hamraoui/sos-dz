@@ -96,6 +96,7 @@ export default function CollectionPoints() {
   useEffect(() => {
     if (viewMode !== 'map') return
     let cancelled = false
+    let rafId = null
 
     ;(async () => {
       let cpPins
@@ -111,7 +112,16 @@ export default function CollectionPoints() {
       if (cancelled) return
       setMapHasNothing(cpPins.length === 0)
 
-      requestAnimationFrame(() => {
+      // activeCampaignWilayas can settle in more than one wave while
+      // campaigns/wilayas are still loading, re-running this whole effect
+      // each time -- checking `cancelled` again here (not just before the
+      // network request above) stops a since-superseded run's
+      // requestAnimationFrame from firing after its own effect instance was
+      // already cleaned up, which otherwise intermittently clobbered a
+      // fresher run's markers with a stale (sometimes empty) set on first
+      // load.
+      rafId = requestAnimationFrame(() => {
+        if (cancelled) return
         if (!mapElRef.current) return
         if (!mapRef.current) {
           mapRef.current = L.map(mapElRef.current, {
@@ -141,7 +151,7 @@ export default function CollectionPoints() {
           const icon = L.divIcon({
             className: 'cp-marker-icon',
             html:
-              '<span class="cp-marker-pin"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="2" ' +
+              '<span class="cp-marker-pin"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="2" ' +
               'stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 7.5 12 3l8.5 4.5v9L12 21l-8.5-4.5v-9Z"/>' +
               '<path d="M3.5 7.5 12 12l8.5-4.5"/><path d="M12 12v9"/></svg></span>',
             iconSize: [30, 30],
@@ -164,6 +174,7 @@ export default function CollectionPoints() {
 
     return () => {
       cancelled = true
+      if (rafId != null) cancelAnimationFrame(rafId)
     }
     // activeCampaignWilayas is included so the map re-zooms once campaigns
     // finish loading, in case that response lands after this effect's

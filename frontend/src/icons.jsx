@@ -134,6 +134,17 @@ export function IconTrash(props) {
   )
 }
 
+export function IconSwitchCamera(props) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M17 2.1l4 4-4 4" />
+      <path d="M3 12.9a9 9 0 0 1 15-6.7l3 2.7" />
+      <path d="M7 21.9l-4-4 4-4" />
+      <path d="M21 11.1a9 9 0 0 1-15 6.7l-3-2.7" />
+    </svg>
+  )
+}
+
 export function IconMenu(props) {
   return (
     <svg {...base} {...props}>

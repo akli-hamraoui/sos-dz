@@ -860,7 +860,8 @@ fieldset {
   flex-shrink: 0;
 }
 .pickup-marker-pin,
-.cp-marker-pin {
+.cp-marker-pin,
+.need-marker-pin {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1063,6 +1064,25 @@ footer {
   margin: 0 0 16px;
   font-size: 16px;
   white-space: pre-wrap;
+}
+.recording-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-inline-end: 2px;
+  border-radius: 50%;
+  background: var(--danger);
+  vertical-align: -1px;
+  animation: recording-pulse 1.2s ease-in-out infinite;
+}
+@keyframes recording-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
 }
 .dialog-input {
   width: 100%;

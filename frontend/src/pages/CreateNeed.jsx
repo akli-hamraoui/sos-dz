@@ -6,7 +6,7 @@ import { useDialog } from '../context/DialogContext'
 import { api, createOrQueue } from '../api'
 import { compressPhoto, isInAlgeria, reverseGeocodePlace } from '../utils'
 import { translateApiError } from '../apiErrors'
-import { IconMapPin, IconMic, IconVideoCam, IconCamera, IconTrash } from '../icons'
+import { IconMapPin, IconMic, IconVideoCam, IconCamera, IconTrash, IconSwitchCamera } from '../icons'
 import PlaceAutocomplete from '../components/PlaceAutocomplete'
 
 const DEFAULT_FORM = {
@@ -45,10 +45,20 @@ export default function CreateNeed() {
   const [voiceBlobUrl, setVoiceBlobUrl] = useState(null)
   const [videoBlob, setVideoBlob] = useState(null)
   const [videoBlobUrl, setVideoBlobUrl] = useState(null)
+  // Which camera the *next* video recording will use -- switchable only
+  // before recording starts (switching mid-recording would mean tearing
+  // down and restarting the whole capture, not worth the complexity here).
+  const [videoFacingMode, setVideoFacingMode] = useState('environment')
+  const [voiceModalOpen, setVoiceModalOpen] = useState(false)
   const mediaRecorderRef = useRef(null)
   const streamRef = useRef(null)
   const timerRef = useRef(null)
   const turnstileTokenRef = useRef('')
+  const videoPreviewRef = useRef(null)
+  // Set right before calling stopRecording() when the user cancels instead
+  // of confirming -- checked in mediaRecorder.onstop so a cancelled take is
+  // torn down without ever being saved as voiceBlob/videoBlob.
+  const discardOnStopRef = useRef(false)
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }))
 
@@ -118,7 +128,7 @@ export default function CreateNeed() {
 
   const startRecording = async (kind) => {
     if (recordingKind) return // one at a time (shared mic/camera)
-    const constraints = kind === 'video' ? { video: { facingMode: 'environment' }, audio: true } : { audio: true }
+    const constraints = kind === 'video' ? { video: { facingMode: videoFacingMode }, audio: true } : { audio: true }
     const stream = await navigator.mediaDevices.getUserMedia(constraints)
     const mediaRecorder = new MediaRecorder(stream)
     const chunks = []
@@ -126,6 +136,11 @@ export default function CreateNeed() {
       if (e.data.size > 0) chunks.push(e.data)
     }
     mediaRecorder.onstop = () => {
+      stream.getTracks().forEach((t) => t.stop())
+      if (discardOnStopRef.current) {
+        discardOnStopRef.current = false
+        return // cancelled -- discard instead of saving
+      }
       const b = new Blob(chunks, { type: mediaRecorder.mimeType || (kind === 'video' ? 'video/webm' : 'audio/webm') })
       const url = URL.createObjectURL(b)
       if (kind === 'video') {
@@ -135,7 +150,6 @@ export default function CreateNeed() {
         setVoiceBlob(b)
         setVoiceBlobUrl(url)
       }
-      stream.getTracks().forEach((t) => t.stop())
     }
     mediaRecorderRef.current = mediaRecorder
     streamRef.current = stream
@@ -157,6 +171,38 @@ export default function CreateNeed() {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.stop()
     }
+  }
+
+  // Stops (if actively recording) without ever saving the result -- distinct
+  // from discardRecording below, which throws away an *already-stopped* take.
+  const cancelRecording = () => {
+    discardOnStopRef.current = true
+    stopRecording()
+  }
+
+  // Live camera preview while recording video -- streamRef.current is
+  // already set (assigned synchronously in startRecording, before the
+  // recordingKind state update that causes the <video> element below to
+  // mount) by the time this effect runs.
+  useEffect(() => {
+    if (recordingKind === 'video' && videoPreviewRef.current && streamRef.current) {
+      videoPreviewRef.current.srcObject = streamRef.current
+    }
+  }, [recordingKind])
+
+  const toggleCameraFacing = () => setVideoFacingMode((m) => (m === 'environment' ? 'user' : 'environment'))
+
+  const openVoiceModal = () => {
+    if (recordingKind === 'video') return // shared mic/camera, one at a time
+    setVoiceModalOpen(true)
+  }
+  const closeVoiceModalCancel = () => {
+    if (recordingKind === 'voice') cancelRecording()
+    setVoiceModalOpen(false)
+  }
+  const closeVoiceModalStop = () => {
+    stopRecording()
+    setVoiceModalOpen(false)
   }
 
   const discardRecording = (kind) => {
@@ -304,14 +350,11 @@ export default function CreateNeed() {
             <div className="media-capture-card">
               <IconMic width={28} height={28} strokeWidth={1.5} />
               <span>{t('createNeed.mediaVoice')}</span>
-              {!voiceBlobUrl && recordingKind !== 'voice' && (
-                <button type="button" className="btn record-btn" onClick={() => startRecording('voice')} disabled={!!recordingKind}>
+              {/* The actual recording (start/cancel/stop) happens in the
+                  modal below, not inline -- this button only opens it. */}
+              {!voiceBlobUrl && !voiceModalOpen && (
+                <button type="button" className="btn record-btn" onClick={openVoiceModal} disabled={recordingKind === 'video'}>
                   {t('createNeed.startRecording')}
-                </button>
-              )}
-              {recordingKind === 'voice' && (
-                <button type="button" className="btn btn-danger record-btn" onClick={stopRecording}>
-                  {t('createNeed.stopRecording', { seconds })}
                 </button>
               )}
               {voiceBlobUrl && recordingKind !== 'voice' && (
@@ -327,14 +370,31 @@ export default function CreateNeed() {
               <IconVideoCam width={28} height={28} strokeWidth={1.5} />
               <span>{t('createNeed.mediaVideo')}</span>
               {!videoBlobUrl && recordingKind !== 'video' && (
-                <button type="button" className="btn record-btn" onClick={() => startRecording('video')} disabled={!!recordingKind}>
-                  {t('createNeed.startRecording')}
-                </button>
+                <>
+                  <button
+                    type="button"
+                    className="btn btn-icon switch-camera-btn"
+                    onClick={toggleCameraFacing}
+                    disabled={!!recordingKind}
+                  >
+                    <IconSwitchCamera width={16} height={16} strokeWidth={2} />{' '}
+                    {videoFacingMode === 'environment' ? t('createNeed.cameraBack') : t('createNeed.cameraFront')}
+                  </button>
+                  <button type="button" className="btn record-btn" onClick={() => startRecording('video')} disabled={!!recordingKind}>
+                    {t('createNeed.startRecording')}
+                  </button>
+                </>
               )}
               {recordingKind === 'video' && (
-                <button type="button" className="btn btn-danger record-btn" onClick={stopRecording}>
-                  {t('createNeed.stopRecording', { seconds })}
-                </button>
+                <>
+                  {/* Live feed of what's actually being recorded -- muted to
+                      avoid feedback from the mic being captured at the same
+                      time. */}
+                  <video ref={videoPreviewRef} className="media-player" muted autoPlay playsInline />
+                  <button type="button" className="btn btn-danger record-btn" onClick={stopRecording}>
+                    {t('createNeed.stopRecording', { seconds })}
+                  </button>
+                </>
               )}
               {videoBlobUrl && recordingKind !== 'video' && (
                 <>
@@ -407,6 +467,40 @@ export default function CreateNeed() {
           {t('createNeed.publish')}
         </button>
       </form>
+
+      {voiceModalOpen && (
+        <div className="dialog-backdrop" onClick={closeVoiceModalCancel}>
+          <div className="dialog-sheet" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+            {recordingKind === 'voice' ? (
+              <>
+                <p className="dialog-message">
+                  <span className="recording-dot" /> {t('createNeed.recordingSeconds', { seconds })}
+                </p>
+                <div className="dialog-actions">
+                  <button type="button" className="btn" onClick={closeVoiceModalCancel}>
+                    {t('common.cancel')}
+                  </button>
+                  <button type="button" className="btn btn-danger" onClick={closeVoiceModalStop}>
+                    {t('createNeed.stopRecordingShort')}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="dialog-message">{t('createNeed.startSpeakingPrompt')}</p>
+                <div className="dialog-actions">
+                  <button type="button" className="btn" onClick={closeVoiceModalCancel}>
+                    {t('common.cancel')}
+                  </button>
+                  <button type="button" className="btn btn-primary" onClick={() => startRecording('voice')}>
+                    {t('createNeed.startSpeaking')}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </section>
   )
 }
