@@ -158,6 +158,12 @@ export default function PickupManager({ pickup, pickupToken, onChange, onLocatio
         </p>
       )}
       <p>{t('needDetail.bringing', { content: pickup.content_brought })}</p>
+      {(pickup.departure_description || pickup.departure_latitude != null) && (
+        <p className="hint field-label-icon">
+          <IconMapPin width={16} height={16} strokeWidth={2} /> {t('takeCharge.departureLocation')}:{' '}
+          {pickup.departure_description || t('deliveries.departureMarkerLabel')}
+        </p>
+      )}
       <div className="timeline">
         {pickup.progress_updates.map((u) => (
           <div className="timeline-item" key={u.id}>
