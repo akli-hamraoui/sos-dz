@@ -1735,6 +1735,81 @@ class CollectionPointFlyerTests(BaseAPITestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertIsNone(resp.data["flyer_image"])
 
+    def test_admin_approve_flyer_action_is_logged(self):
+        from unittest.mock import patch
+
+        from core.admin import CollectionPointAdmin, approve_flyer
+        from core.models import AuditLog
+
+        with patch("core.views.moderate_image_field", return_value="pending"):
+            resp = self.client.post(
+                "/api/collection-points/", self._payload(flyer_image=make_test_image()), format="multipart"
+            )
+        point = CollectionPoint.objects.get(pk=resp.data["id"])
+        self.assertEqual(point.flyer_moderation_status, "pending")
+        admin = get_user_model().objects.create_superuser("cpadmin", "cp@example.com", "pw123456!")
+
+        request = _fake_admin_request(admin)
+        modeladmin = CollectionPointAdmin(CollectionPoint, _admin_site())
+        approve_flyer(modeladmin, request, CollectionPoint.objects.filter(pk=point.pk))
+        point.refresh_from_db()
+        self.assertEqual(point.flyer_moderation_status, "approved")
+        self.assertEqual(point.flyer_moderated_by, "admin")
+        self.assertTrue(AuditLog.objects.filter(action="approved flyer").exists())
+
+    def test_admin_reject_flyer_action_is_logged(self):
+        from unittest.mock import patch
+
+        from core.admin import CollectionPointAdmin, reject_flyer
+        from core.models import AuditLog
+
+        with patch("core.views.moderate_image_field", return_value="pending"):
+            resp = self.client.post(
+                "/api/collection-points/", self._payload(flyer_image=make_test_image()), format="multipart"
+            )
+        point = CollectionPoint.objects.get(pk=resp.data["id"])
+        admin = get_user_model().objects.create_superuser("cpadmin2", "cp2@example.com", "pw123456!")
+
+        request = _fake_admin_request(admin)
+        modeladmin = CollectionPointAdmin(CollectionPoint, _admin_site())
+        reject_flyer(modeladmin, request, CollectionPoint.objects.filter(pk=point.pk))
+        point.refresh_from_db()
+        self.assertEqual(point.flyer_moderation_status, "rejected")
+        self.assertEqual(point.flyer_moderated_by, "admin")
+        self.assertTrue(AuditLog.objects.filter(action="rejected flyer").exists())
+
+    def test_admin_restore_content_handles_collection_point_flyer(self):
+        # restore_content/confirm_content_rejection (used for ContentReport
+        # review) branch on the reported object's type -- this is the
+        # CollectionPoint branch specifically, added alongside the flyer
+        # feature (see core/admin.py).
+        from unittest.mock import patch
+
+        from core.admin import ContentReportAdmin, restore_content
+        from core.models import ContentReport
+
+        with patch("core.views.moderate_image_field", return_value="approved"):
+            create_resp = self.client.post(
+                "/api/collection-points/", self._payload(flyer_image=make_test_image()), format="multipart"
+            )
+        point_id = create_resp.data["id"]
+        self.client.post(
+            "/api/content-reports/",
+            {"media_type": "collection_point_flyer", "media_id": point_id, "reporter_name": "A", "reporter_phone": "0600", "reason": "inappropriate"},
+            format="json",
+        )
+        point = CollectionPoint.objects.get(pk=point_id)
+        self.assertEqual(point.flyer_moderation_status, "pending")  # hidden immediately by the report
+
+        admin = get_user_model().objects.create_superuser("cpadmin3", "cp3@example.com", "pw123456!")
+        request = _fake_admin_request(admin)
+        modeladmin = ContentReportAdmin(ContentReport, _admin_site())
+        report = ContentReport.objects.get(media_type="collection_point_flyer", media_id=point_id)
+        restore_content(modeladmin, request, ContentReport.objects.filter(pk=report.pk))
+        point.refresh_from_db()
+        self.assertEqual(point.flyer_moderation_status, "approved")
+        self.assertEqual(point.flyer_moderated_by, "admin")
+
 
 class CollectionPointSocialLinksTests(BaseAPITestCase):
     def setUp(self):
