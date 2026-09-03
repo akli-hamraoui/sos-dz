@@ -1085,6 +1085,25 @@ fieldset {
   text-align: center;
   border: 1.5px solid var(--card); /* separates the badge from the icon behind it */
 }
+/* Small "this opens a map" cue, bottom-right of the icon (top-right is
+   .nav-badge's corner) -- fixed colors rather than currentColor so it
+   stays equally legible whether the tab is active (accent pill,
+   white icon) or not. */
+.map-indicator {
+  position: absolute;
+  bottom: -3px;
+  inset-inline-end: -5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 13px;
+  height: 13px;
+  background: var(--card);
+  border: 1.5px solid #555;
+  border-radius: 50%;
+  color: #555;
+  box-sizing: border-box;
+}
 .bottom-nav a.active {
   /* Same solid pill treatment as the Liste/Carte toggle's .active state
      (.view-toggle button.active) -- a clear "this is the one you clicked"

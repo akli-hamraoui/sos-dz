@@ -19,7 +19,19 @@ import CreateCollectionPoint from './pages/CreateCollectionPoint'
 import CollectionPointDetail from './pages/CollectionPointDetail'
 import Deliveries from './pages/Deliveries'
 import BackButton from './components/BackButton'
-import { IconHome, IconNeeds, IconBox, IconTruck, IconPlus, IconWarning, IconWifiOff, IconCheckCircle, IconMenu, IconClose } from './icons'
+import { IconHome, IconNeeds, IconBox, IconTruck, IconPlus, IconWarning, IconWifiOff, IconCheckCircle, IconMenu, IconClose, IconMapPin } from './icons'
+
+// Small "this opens a map" cue on a bottom-nav icon -- Besoins/Points de
+// collecte/Livraisons all default to their map view (see each page's own
+// viewMode state), which isn't obvious from the plain list/box/truck icon
+// alone. Not shown on Home (no map) or the two FABs (they create, not view).
+function MapIndicator() {
+  return (
+    <span className="map-indicator" aria-hidden="true">
+      <IconMapPin width={9} height={9} strokeWidth={2.5} />
+    </span>
+  )
+}
 
 function LanguageSwitcher() {
   const { i18n, t } = useTranslation()
@@ -124,6 +136,7 @@ function BottomNav() {
       <Link to="/needs" className={isActive('/needs') ? 'active' : ''}>
         <span className="icon">
           <IconNeeds />
+          <MapIndicator />
           {!!config.needs_open_count && <span className="nav-badge">{formatBadgeCount(config.needs_open_count)}</span>}
         </span>
         <span>{t('nav.needs')}</span>
@@ -154,6 +167,7 @@ function BottomNav() {
       <Link to="/collection-points" className={isActive('/collection-points') ? 'active' : ''}>
         <span className="icon">
           <IconBox />
+          <MapIndicator />
           {!!config.collection_points_active_count && (
             <span className="nav-badge">{formatBadgeCount(config.collection_points_active_count)}</span>
           )}
@@ -167,6 +181,7 @@ function BottomNav() {
       <Link to="/deliveries" className={isActive('/deliveries') ? 'active' : ''}>
         <span className="icon">
           <IconTruck />
+          <MapIndicator />
           {!!config.deliveries_en_route_count && <span className="nav-badge">{formatBadgeCount(config.deliveries_en_route_count)}</span>}
         </span>
         <span>{t('nav.deliveries')}</span>
