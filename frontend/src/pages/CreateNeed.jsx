@@ -51,6 +51,13 @@ export default function CreateNeed() {
   // down and restarting the whole capture, not worth the complexity here).
   const [videoFacingMode, setVideoFacingMode] = useState('environment')
   const [voiceModalOpen, setVoiceModalOpen] = useState(false)
+  const [videoModalOpen, setVideoModalOpen] = useState(false)
+  // The live camera stream shown in the video modal *before* recording
+  // starts, so the reporter can see what's actually framed (and switch
+  // front/back) before committing -- same stream object gets reused as the
+  // actual recording's input once they hit "start" (see
+  // beginRecordingFromPreview), so there's no re-prompt/re-acquire.
+  const [previewStream, setPreviewStream] = useState(null)
   const mediaRecorderRef = useRef(null)
   const streamRef = useRef(null)
   const timerRef = useRef(null)
@@ -127,10 +134,14 @@ export default function CreateNeed() {
     setForm((f) => ({ ...f, latitude: null, longitude: null }))
   }
 
-  const startRecording = async (kind) => {
+  // existingStream: reuse an already-live stream (the video modal's preview
+  // feed) instead of calling getUserMedia again -- avoids a second
+  // permission prompt and a jarring feed swap when recording actually
+  // starts. Voice has no preview step, so it always acquires fresh.
+  const startRecording = async (kind, existingStream) => {
     if (recordingKind) return // one at a time (shared mic/camera)
     const constraints = kind === 'video' ? { video: { facingMode: videoFacingMode }, audio: true } : { audio: true }
-    const stream = await navigator.mediaDevices.getUserMedia(constraints)
+    const stream = existingStream || (await navigator.mediaDevices.getUserMedia(constraints))
     const mediaRecorder = new MediaRecorder(stream)
     const chunks = []
     mediaRecorder.ondataavailable = (e) => {
@@ -160,7 +171,11 @@ export default function CreateNeed() {
     timerRef.current = setInterval(() => {
       setSeconds((s) => {
         const next = s + 1
-        if (kind === 'video' && next >= 20) stopRecording() // hard cap, spec Wave 2
+        if (kind === 'video' && next >= 20) {
+          stopRecording() // hard cap, spec Wave 2
+          setVideoModalOpen(false)
+          setPreviewStream(null)
+        }
         return next
       })
     }, 1000)
@@ -181,20 +196,27 @@ export default function CreateNeed() {
     stopRecording()
   }
 
-  // Live camera preview while recording video -- streamRef.current is
-  // already set (assigned synchronously in startRecording, before the
-  // recordingKind state update that causes the <video> element below to
-  // mount) by the time this effect runs.
+  // Binds whichever stream is currently live (preview-only, or the same
+  // stream once recording has begun -- see beginRecordingFromPreview) to
+  // the modal's <video> element. Runs after the element has actually
+  // mounted since it's keyed off previewStream, not a ref mutation.
   useEffect(() => {
-    if (recordingKind === 'video' && videoPreviewRef.current && streamRef.current) {
-      videoPreviewRef.current.srcObject = streamRef.current
-    }
-  }, [recordingKind])
+    if (videoPreviewRef.current) videoPreviewRef.current.srcObject = previewStream
+  }, [previewStream])
 
-  const toggleCameraFacing = () => setVideoFacingMode((m) => (m === 'environment' ? 'user' : 'environment'))
+  // Opens the camera at the given facing mode and swaps it in as the live
+  // preview, stopping whatever was previously live -- used both for the
+  // initial preview and for switching front/back mid-preview.
+  const startPreview = async (facingMode) => {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode }, audio: true })
+    setPreviewStream((prev) => {
+      if (prev && prev !== stream) prev.getTracks().forEach((t) => t.stop())
+      return stream
+    })
+  }
 
   const openVoiceModal = () => {
-    if (recordingKind === 'video') return // shared mic/camera, one at a time
+    if (recordingKind || videoModalOpen) return // shared mic/camera, one at a time
     setVoiceModalOpen(true)
   }
   const closeVoiceModalCancel = () => {
@@ -204,6 +226,45 @@ export default function CreateNeed() {
   const closeVoiceModalStop = () => {
     stopRecording()
     setVoiceModalOpen(false)
+  }
+
+  const openVideoModal = async () => {
+    if (recordingKind || voiceModalOpen) return // shared mic/camera, one at a time
+    setVideoModalOpen(true)
+    try {
+      await startPreview(videoFacingMode)
+    } catch {
+      setVideoModalOpen(false) // camera/mic permission denied or unavailable
+    }
+  }
+  // Only switchable before recording starts -- switching mid-recording
+  // would mean tearing down and restarting the whole capture, not worth
+  // the complexity here.
+  const switchPreviewCamera = async () => {
+    const next = videoFacingMode === 'environment' ? 'user' : 'environment'
+    setVideoFacingMode(next)
+    try {
+      await startPreview(next)
+    } catch {
+      /* keep the current preview if the other-facing camera isn't available */
+    }
+  }
+  const beginRecordingFromPreview = () => {
+    if (previewStream) startRecording('video', previewStream)
+  }
+  const closeVideoModalCancel = () => {
+    if (recordingKind === 'video') {
+      cancelRecording() // also stops the (shared) preview stream's tracks
+    } else if (previewStream) {
+      previewStream.getTracks().forEach((t) => t.stop())
+    }
+    setPreviewStream(null)
+    setVideoModalOpen(false)
+  }
+  const closeVideoModalStop = () => {
+    stopRecording()
+    setPreviewStream(null)
+    setVideoModalOpen(false)
   }
 
   const discardRecording = (kind) => {
@@ -354,7 +415,7 @@ export default function CreateNeed() {
               {/* The actual recording (start/cancel/stop) happens in the
                   modal below, not inline -- this button only opens it. */}
               {!voiceBlobUrl && !voiceModalOpen && (
-                <button type="button" className="btn record-btn" onClick={openVoiceModal} disabled={recordingKind === 'video'}>
+                <button type="button" className="btn record-btn" onClick={openVoiceModal} disabled={recordingKind === 'video' || videoModalOpen}>
                   {t('createNeed.startRecording')}
                 </button>
               )}
@@ -370,32 +431,13 @@ export default function CreateNeed() {
             <div className="media-capture-card">
               <IconVideoCam width={28} height={28} strokeWidth={1.5} />
               <span>{t('createNeed.mediaVideo')}</span>
-              {!videoBlobUrl && recordingKind !== 'video' && (
-                <>
-                  <button
-                    type="button"
-                    className="btn btn-icon switch-camera-btn"
-                    onClick={toggleCameraFacing}
-                    disabled={!!recordingKind}
-                  >
-                    <IconSwitchCamera width={16} height={16} strokeWidth={2} />{' '}
-                    {videoFacingMode === 'environment' ? t('createNeed.cameraBack') : t('createNeed.cameraFront')}
-                  </button>
-                  <button type="button" className="btn record-btn" onClick={() => startRecording('video')} disabled={!!recordingKind}>
-                    {t('createNeed.startRecording')}
-                  </button>
-                </>
-              )}
-              {recordingKind === 'video' && (
-                <>
-                  {/* Live feed of what's actually being recorded -- muted to
-                      avoid feedback from the mic being captured at the same
-                      time. */}
-                  <video ref={videoPreviewRef} className="media-player" muted autoPlay playsInline />
-                  <button type="button" className="btn btn-danger record-btn" onClick={stopRecording}>
-                    {t('createNeed.stopRecording', { seconds })}
-                  </button>
-                </>
+              {/* Same pattern as voice: the camera preview, front/back
+                  switch, and the actual recording all happen in the modal
+                  below, not inline -- this button only opens it. */}
+              {!videoBlobUrl && !videoModalOpen && (
+                <button type="button" className="btn record-btn" onClick={openVideoModal} disabled={recordingKind === 'voice' || voiceModalOpen}>
+                  {t('createNeed.startRecording')}
+                </button>
               )}
               {videoBlobUrl && recordingKind !== 'video' && (
                 <>
@@ -503,6 +545,41 @@ export default function CreateNeed() {
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {videoModalOpen && (
+        <div className="dialog-backdrop" onClick={closeVideoModalCancel}>
+          <div className="dialog-sheet" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+            {/* Muted: this is the reporter's own live preview (before and
+                during recording), not playback -- avoids feedback from the
+                mic being captured at the same time. */}
+            <video ref={videoPreviewRef} className="media-player" muted autoPlay playsInline />
+            {recordingKind === 'video' ? (
+              <p className="dialog-message">
+                <span className="recording-dot" /> {t('createNeed.recordingSeconds', { seconds })}
+              </p>
+            ) : (
+              <button type="button" className="btn btn-icon switch-camera-btn" onClick={switchPreviewCamera}>
+                <IconSwitchCamera width={16} height={16} strokeWidth={2} />{' '}
+                {videoFacingMode === 'environment' ? t('createNeed.cameraBack') : t('createNeed.cameraFront')}
+              </button>
+            )}
+            <div className="dialog-actions">
+              <button type="button" className="btn" onClick={closeVideoModalCancel}>
+                {t('common.cancel')}
+              </button>
+              {recordingKind === 'video' ? (
+                <button type="button" className="btn btn-danger" onClick={closeVideoModalStop}>
+                  {t('createNeed.stopRecordingShort')}
+                </button>
+              ) : (
+                <button type="button" className="btn btn-primary" onClick={beginRecordingFromPreview}>
+                  {t('createNeed.startRecording')}
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

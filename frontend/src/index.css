@@ -1065,6 +1065,12 @@ footer {
   font-size: 16px;
   white-space: pre-wrap;
 }
+.dialog-sheet .media-player {
+  margin-block-end: 12px;
+}
+.dialog-sheet .switch-camera-btn {
+  margin-block-end: 16px;
+}
 .recording-dot {
   display: inline-block;
   width: 10px;
