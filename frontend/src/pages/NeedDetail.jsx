@@ -266,7 +266,10 @@ export default function NeedDetail() {
           {t('needDetail.alsoTakeCharge')}
         </button>
       </div>
-      <span className={`badge urgency-${need.urgency}`}>{t(`urgency.${need.urgency}`)}</span> <span className="status">{statusLabel(t, need.overall_status)}</span>
+      {need.urgency !== 'medium' && (
+        <span className={`badge urgency-${need.urgency}`}>{t(`urgency.${need.urgency}`)}</span>
+      )}{' '}
+      <span className="status">{statusLabel(t, need.overall_status)}</span>
       <p>
         {need.wilaya_name}
         {need.commune ? ' — ' + need.commune : ''}

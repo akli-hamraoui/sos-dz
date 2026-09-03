@@ -197,8 +197,9 @@ export default function NeedsList() {
           })
           const marker = L.marker([p.display_latitude, p.display_longitude], { icon }).addTo(map)
           const gpsNote = p.has_exact_position ? '' : `<br><em>${t('common.noExactGpsPosition')}</em>`
+          const urgencyPrefix = p.urgency !== 'medium' ? `${t(`urgency.${p.urgency}`)} — ` : ''
           marker.bindPopup(
-            `<strong>${p.title}</strong><br>${t(`urgency.${p.urgency}`)} — ${p.wilaya_name}<br>${(p.location_description || '').slice(0, 80)}` +
+            `<strong>${p.title}</strong><br>${urgencyPrefix}${p.wilaya_name}<br>${(p.location_description || '').slice(0, 80)}` +
               `<br>${statusLabel(t, p.overall_status)}${gpsNote}<br><a href="/needs/${p.id}">${t('common.open')}</a>`
           )
           markers.push(marker)
@@ -301,7 +302,9 @@ export default function NeedsList() {
           {needs.length === 0 && <p>{t('needsList.noActiveNeeds')}</p>}
           {needs.map((n) => (
             <Link className="need-card" to={`/needs/${n.id}`} key={n.id}>
-              <span className={`badge urgency-${n.urgency}`}>{t(`urgency.${n.urgency}`)}</span>
+              {n.urgency !== 'medium' && (
+                <span className={`badge urgency-${n.urgency}`}>{t(`urgency.${n.urgency}`)}</span>
+              )}
               <h3>{n.title}</h3>
               <p>
                 {n.wilaya_name}
