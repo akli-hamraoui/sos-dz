@@ -410,7 +410,7 @@ export default function NeedDetail() {
       </button>
 
       {need.pickups.map((p) => (
-        <PickupManager key={p.id} pickup={p} pickupToken={pickupTokens[p.id]} onChange={load} />
+        <PickupManager key={p.id} pickup={p} pickupToken={pickupTokens[p.id]} onChange={load} onLocationUpdate={checkLiveMapAccess} />
       ))}
 
       <CommentThread comments={need.comments || []} target="need" targetId={need.id} onChanged={load} />

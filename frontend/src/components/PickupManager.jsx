@@ -21,7 +21,7 @@ function statusLabel(t, s) {
 // collection point instead of a Need) get the exact same logic instead of
 // a second, divergent copy -- same Pickup model and endpoints either way,
 // just linked to collection_point instead of need.
-export default function PickupManager({ pickup, pickupToken, onChange }) {
+export default function PickupManager({ pickup, pickupToken, onChange, onLocationUpdate }) {
   const { t, i18n } = useTranslation()
   const { refreshConfig } = useApp()
   const { showConfirm, showPrompt } = useDialog()
@@ -41,10 +41,17 @@ export default function PickupManager({ pickup, pickupToken, onChange }) {
         api(`/pickups/${pickup.id}/location-pings/`, {
           method: 'POST',
           body: JSON.stringify({ latitude: pos.coords.latitude, longitude: pos.coords.longitude, access_token: pickupToken }),
-        }).catch(() => {
-          /* one failed send (offline blip, delivery just ended server-side) -- watchPosition keeps
-             running and simply retries on the next real position change, no need to tear it down here */
         })
+          // Lets a parent page holding its own live map (e.g. NeedDetail's
+          // private per-need tracking map) redraw with the courier's new
+          // position right away instead of waiting for its own next
+          // unrelated reload -- a real position update must show up on the
+          // map automatically, not only after a manual page refresh.
+          .then(() => onLocationUpdate && onLocationUpdate())
+          .catch(() => {
+            /* one failed send (offline blip, delivery just ended server-side) -- watchPosition keeps
+               running and simply retries on the next real position change, no need to tear it down here */
+          })
       },
       () => {
         /* GPS temporarily unavailable/denied mid-watch -- never treated as
@@ -52,7 +59,7 @@ export default function PickupManager({ pickup, pickupToken, onChange }) {
       },
       { enableHighAccuracy: true, maximumAge: 15000, timeout: 20000 }
     )
-  }, [pickup.id, pickupToken])
+  }, [pickup.id, pickupToken, onLocationUpdate])
 
   const stopLocationWatch = useCallback(() => {
     if (watchIdRef.current != null) {
