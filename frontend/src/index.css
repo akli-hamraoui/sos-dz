@@ -148,6 +148,25 @@ a {
   letter-spacing: 0.08em;
   margin-block: 0 10px;
 }
+.back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: none;
+  background: none;
+  padding: 4px 0;
+  margin-block: 0 6px;
+  color: #6b6b6b;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.back-btn:hover {
+  color: inherit;
+}
+:root[dir='rtl'] .back-btn svg {
+  transform: scaleX(-1);
+}
 .brand {
   /* The full designed lockup (icon + "SOS DZ" wordmark, as one image --
      see logo-lockup.png) rather than a live-rendered icon+text pairing,

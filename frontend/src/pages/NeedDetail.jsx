@@ -10,6 +10,7 @@ import { translateApiError } from '../apiErrors'
 import { IconMapPin } from '../icons'
 import { fetchDrivingRoute } from '../routing'
 import CommentThread from '../components/CommentThread'
+import CopyButton from '../components/CopyButton'
 
 function statusLabel(t, s) {
   return t(`status.${s}`, s)
@@ -521,6 +522,7 @@ export default function NeedDetail() {
           {shareLink && (
             <p className="share-link">
               {t('needDetail.shareLink')}: <code>{shareLink}</code>{' '}
+              <CopyButton text={shareLink} className="link" />{' '}
               <button className="link" onClick={regenerateShareToken}>
                 {t('needDetail.regenerate')}
               </button>

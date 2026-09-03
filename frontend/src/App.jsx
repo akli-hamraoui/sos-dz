@@ -18,6 +18,7 @@ import CollectionPoints from './pages/CollectionPoints'
 import CreateCollectionPoint from './pages/CreateCollectionPoint'
 import CollectionPointDetail from './pages/CollectionPointDetail'
 import Deliveries from './pages/Deliveries'
+import BackButton from './components/BackButton'
 import { IconHome, IconNeeds, IconBox, IconTruck, IconPlus, IconWarning, IconWifiOff, IconCheckCircle, IconMenu, IconClose } from './icons'
 
 function LanguageSwitcher() {
@@ -242,6 +243,7 @@ export default function App() {
       )}
 
       <main>
+        {location.pathname !== '/' && <BackButton />}
         <PageTitle />
         <Routes>
           <Route path="/" element={<Home />} />
