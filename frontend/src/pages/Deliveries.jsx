@@ -28,7 +28,6 @@ export default function Deliveries() {
   // default than a text list, same reasoning as NeedsList's own map-first
   // default.
   const [viewMode, setViewMode] = useState('map')
-  const [mapHasNothing, setMapHasNothing] = useState(false)
   // pickup_ids currently shown on the map (live ping or declared departure
   // position) -- used to flag, in the list, which en_route deliveries have
   // neither and so are never on the map at all (never "position
@@ -79,7 +78,6 @@ export default function Deliveries() {
       // flagging (below) needs this even when the map itself isn't mounted.
       setLocatedPickupIds(new Set(locations.map((l) => l.pickup_id)))
       if (!mapElRef.current) return
-      setMapHasNothing(locations.length === 0)
       if (!mapRef.current) {
         mapRef.current = L.map(mapElRef.current, {
           attributionControl: false,
@@ -275,23 +273,11 @@ export default function Deliveries() {
 
       {viewMode === 'map' && (
         <div className="map-wrap">
-          {mapHasNothing && (
-            <div className="hint">
-              <p>{t('deliveries.noLiveLocations')}</p>
-              {/* This map only ever shows couriers who opted into live
-                  sharing (see PickupManager's checkbox, on their own
-                  delivery's page) -- an empty map here does not mean a
-                  delivery wasn't created, so point explicitly at the list
-                  (which shows every delivery regardless of sharing) and at
-                  where sharing is actually turned on. */}
-              <p>
-                {t('deliveries.noLiveLocationsHint')}{' '}
-                <button type="button" className="link" onClick={() => setViewMode('list')}>
-                  {t('needsList.list')}
-                </button>
-              </p>
-            </div>
-          )}
+          {/* Always shows the map itself -- couriers with a known position
+              (live or declared departure) get real markers, everyone else
+              en_route is represented by the single unknown-position-chip
+              bubble below, never a separate "nothing to show" message
+              standing in for the map. */}
           <div className="map-frame">
             <div id="deliveries-map" ref={mapElRef} style={{ height: 600 }} />
             {unknownPositionCount > 0 && (
