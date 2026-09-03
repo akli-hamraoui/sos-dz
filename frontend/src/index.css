@@ -422,13 +422,13 @@ main {
   border-color: var(--danger);
 }
 /* The main "start a delivery from here" call to action (NeedDetail/
-   CollectionPointDetail) -- deliberately not var(--accent)/btn-primary's
-   black or var(--collection-accent)'s muted green, but a plainly "go"
-   green so it reads at a glance as the one action to take on the page. */
+   CollectionPointDetail) -- same green as the bottom-nav's own Collecte
+   FAB (var(--collection-accent)), so it reads as the same "go" color
+   already established elsewhere in the app rather than a new one. */
 .btn-success {
-  background: #2e7d32;
+  background: var(--collection-accent);
   color: #fff;
-  border-color: #2e7d32;
+  border-color: var(--collection-accent);
 }
 /* Title + primary action side by side at the very top of a detail page,
    instead of the action buried further down the page. */
