@@ -345,10 +345,21 @@ main {
   height: auto;
   margin-inline: auto;
 }
+/* Transparency notice: what's publicly visible on a listing, and why
+   (so bénévoles can reach the reporter) -- red for real attention, not
+   the app's default error/danger styling on a form. */
+.home-privacy-notice {
+  margin-block: 20px 0;
+  color: var(--danger);
+  font-size: 13px;
+  font-weight: 600;
+  max-width: 480px;
+  margin-inline: auto;
+}
 .home-tagline {
   /* Sits over the background photo, same contrast need as
      .home-about-link below. */
-  margin-block: 14px 0;
+  margin-block: 10px 0;
   color: var(--text);
   font-size: 15px;
   font-weight: 500;

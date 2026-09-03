@@ -66,6 +66,7 @@
     "djangoAdmin": "Administration"
   },
   "home": {
+    "privacyNotice": "Les informations telles que le numéro de téléphone, le nom, le prénom, l'adresse et les points de collecte sont accessibles publiquement, afin de permettre aux bénévoles de vous contacter dans cette situation d'urgence.",
     "tagline": "Coordination de l'aide suite aux feux de forêt en Algérie.",
     "iNeedHelp": "J'ai besoin d'aide",
     "iWantToHelp": "Je veux aider"

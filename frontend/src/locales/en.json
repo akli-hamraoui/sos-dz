@@ -66,6 +66,7 @@
     "djangoAdmin": "Administration"
   },
   "home": {
+    "privacyNotice": "Information such as phone number, first name, last name, address, and collection points is publicly accessible, so volunteers can contact you during this emergency.",
     "tagline": "Coordinating relief following the wildfires in Algeria.",
     "iNeedHelp": "I need help",
     "iWantToHelp": "I want to help"
