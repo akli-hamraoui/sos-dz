@@ -138,7 +138,7 @@ export default function TakeCharge({ source = 'need' }) {
             {t('takeCharge.nameLabel')} * <input type="text" value={form.responder_name} onChange={set('responder_name')} required {...validityProps} />
           </label>
           <label>
-            {t('takeCharge.phoneLabel')} * <input type="tel" value={form.responder_phone} onChange={set('responder_phone')} required {...validityProps} />
+            {t('takeCharge.phoneLabel')} ({t('common.optional')}) <input type="tel" value={form.responder_phone} onChange={set('responder_phone')} {...validityProps} />
           </label>
           <label>
             {t('createNeed.email')} <input type="email" value={form.responder_email} onChange={set('responder_email')} {...validityProps} />

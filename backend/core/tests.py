@@ -2488,6 +2488,49 @@ class PickupDepartureLocationTests(BaseAPITestCase):
         self.assertEqual(resp.status_code, 403)
 
 
+class PickupOptionalPhoneTests(BaseAPITestCase):
+    """responder_phone is optional (unlike Need/CollectionPoint contact
+    fields, a Pickup's primary way back in is always its own access_token,
+    never requiring a phone as a fallback identity path)."""
+
+    def setUp(self):
+        super().setUp()
+        self.campaign = make_campaign()
+        self.wilaya = self.campaign.authorized_wilayas.first()
+        resp = self.client.post(
+            "/api/needs/", dict(NEED_PAYLOAD, campaign=self.campaign.pk, wilaya=self.wilaya.pk), format="json"
+        )
+        self.need_id = resp.data["id"]
+
+    def _pickup_payload(self, **overrides):
+        data = {
+            "need": self.need_id,
+            "responder_type": "individual_volunteer",
+            "responder_name": "No Phone Courier",
+            "content_brought": "Water",
+        }
+        data.update(overrides)
+        return data
+
+    def test_create_without_phone(self):
+        resp = self.client.post("/api/pickups/", self._pickup_payload(), format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+        self.assertEqual(resp.data["responder_phone"], "")
+
+    def test_blank_phone_never_matches_blank_submitted_phone_on_recovery(self):
+        # Security check for the optional field: IdentityRecoverySerializer
+        # requires a truthy phone to even attempt the name+phone path, so a
+        # blank stored phone can never be "matched" by submitting blank.
+        create_resp = self.client.post("/api/pickups/", self._pickup_payload(), format="json")
+        pickup_id = create_resp.data["id"]
+        resp = self.client.post(
+            f"/api/pickups/{pickup_id}/recover-access/",
+            {"name": "No Phone Courier", "phone": ""},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 400)
+
+
 class PickupFromCollectionPointTests(BaseAPITestCase):
     """A courier can start a delivery/pickup from a CollectionPoint, not
     just a Need -- same Pickup model and endpoints, just linked to a

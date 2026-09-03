@@ -66,7 +66,7 @@
     "djangoAdmin": "Administration"
   },
   "home": {
-    "privacyNotice": "Les informations des associations et des demandes d'aide (nom, téléphone, adresse, points de collecte) sont publiques pour permettre aux bénévoles de les contacter. Vous pouvez les anonymiser à tout moment.",
+    "privacyNotice": "Les informations des associations, demandes d'aide et transporteurs (nom, téléphone, adresse, points de collecte) sont publiques pour que les bénévoles puissent les contacter — le téléphone n'est pas obligatoire pour les transporteurs. Vous pouvez les anonymiser à tout moment.",
     "tagline": "Coordination de l'aide suite aux feux de forêt en Algérie.",
     "iNeedHelp": "J'ai besoin d'aide",
     "iWantToHelp": "Je veux aider"

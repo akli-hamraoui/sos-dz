@@ -430,7 +430,15 @@ class Pickup(IdentityListingMixin, models.Model):
     collection_point = models.ForeignKey("CollectionPoint", null=True, blank=True, on_delete=models.CASCADE, related_name="pickups")
     responder_type = models.CharField(max_length=30, choices=RESPONDER_TYPE_CHOICES)
     responder_name = models.CharField(max_length=200)
-    responder_phone = models.CharField(max_length=30)
+    # Optional -- a courier may prefer not to share a phone number; unlike
+    # Need/CollectionPoint's contact_name/phone (where at least one identity
+    # path must exist for recover-access, see NeedCreateSerializer.validate),
+    # Pickup's primary way back in is always its own access_token, issued
+    # regardless, so there is no equivalent "must have something to match
+    # against" requirement here. IdentityRecoverySerializer.validate still
+    # requires a non-blank phone to attempt the name+phone recovery path, so
+    # a blank stored phone can never be matched by a blank submitted one.
+    responder_phone = models.CharField(max_length=30, blank=True)
     responder_email = models.EmailField(blank=True)
     organization_or_person_name = models.CharField(max_length=200, blank=True)
     content_brought = models.TextField(blank=True)

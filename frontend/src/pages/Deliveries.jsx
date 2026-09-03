@@ -253,8 +253,8 @@ export default function Deliveries() {
                 <p>{p.need_wilaya_name || p.collection_point_wilaya_name}</p>
                 {!p.is_anonymized && (
                   <p className="status">
-                    {t('deliveries.responder')}: {p.organization_or_person_name || p.responder_name} —{' '}
-                    {maskPhone(p.responder_phone)}
+                    {t('deliveries.responder')}: {p.organization_or_person_name || p.responder_name}
+                    {p.responder_phone && ` — ${maskPhone(p.responder_phone)}`}
                   </p>
                 )}
                 {p.content_brought && (
