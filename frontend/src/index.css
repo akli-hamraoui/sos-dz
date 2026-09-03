@@ -1014,8 +1014,12 @@ fieldset {
    invented markers (never plot a position we don't actually have). */
 .unknown-position-chip {
   position: absolute;
-  bottom: 12px;
-  inset-inline-start: 12px;
+  top: 12px;
+  inset-inline-end: 12px;
+  /* Top-right, not bottom-left: clear of Leaflet's own zoom control
+     (top-left) and attribution (bottom-right), and out of the way of
+     real courier markers, which cluster toward the map's fitBounds
+     center rather than its corners. */
   z-index: 1200; /* above Leaflet's own zoom/attribution controls (1000) */
   display: flex;
   align-items: center;
@@ -1170,6 +1174,14 @@ fieldset {
   border: none;
   cursor: pointer;
   font-family: inherit;
+}
+/* The Besoins/SOS tab has no text label under its icon (unlike every
+   other tab), so this row's grid align-items: center centers its
+   shorter content block lower than the others' icon-above-label blocks
+   -- nudged back up so its icon lines up with the rest instead of
+   sitting visibly below them. */
+.nav-icon-only {
+  margin-block-start: -7px;
 }
 /* Collecte/Livreurs' MapIndicator badge sits at the icon's bottom edge
    (see .map-indicator/.map-indicator-shift) and the default 2px gap above

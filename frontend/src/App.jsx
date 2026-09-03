@@ -141,7 +141,7 @@ function BottomNav() {
         <span className="icon"><IconHome /></span>
         <span>{t('nav.home')}</span>
       </Link>
-      <Link to="/needs" className={isActive('/needs') ? 'active' : ''} aria-label={t('nav.needs')}>
+      <Link to="/needs" className={`nav-icon-only${isActive('/needs') ? ' active' : ''}`} aria-label={t('nav.needs')}>
         <span className="icon">
           {/* Same SOS mark used for need pins/the Home & Besoins "J'ai
               besoin d'aide" buttons elsewhere -- inverted to white only in
