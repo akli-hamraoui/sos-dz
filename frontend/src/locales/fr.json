@@ -171,7 +171,7 @@
     "liveTrackingMap": "Carte de suivi en direct",
     "liveMapRestrictedHint": "La carte de position en direct n'est visible que par le créateur de ce besoin, l'admin, ou une personne disposant d'un lien de partage.",
     "pickupsTitle": "Prises en charge ({{count}})",
-    "alsoTakeCharge": "Prendre en charge aussi",
+    "alsoTakeCharge": "Prendre en charge une livraison",
     "bringing": "Apporte : {{content}}",
     "latestUpdate": "Dernière mise à jour : {{text}}",
     "progressUpdatePlaceholder": "Ajouter une mise à jour (ex. vient de passer Boumerdès)",

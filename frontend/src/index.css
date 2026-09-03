@@ -438,6 +438,9 @@ main {
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 10px;
+  /* Clear gap below the row -- the urgency/status badges right after it
+     otherwise sat flush against the button, reading as if attached to it. */
+  margin-block-end: 14px;
 }
 .detail-title-row h2 {
   margin: 0;

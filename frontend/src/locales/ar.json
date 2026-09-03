@@ -171,7 +171,7 @@
     "liveTrackingMap": "خريطة التتبع المباشر",
     "liveMapRestrictedHint": "خريطة الموقع المباشر مرئية فقط لصاحب هذا الاحتياج، أو الإدارة، أو من يملك رابط المشاركة.",
     "pickupsTitle": "عمليات الاستلام ({{count}})",
-    "alsoTakeCharge": "المساهمة أيضاً",
+    "alsoTakeCharge": "تكفّل بتوصيلة",
     "bringing": "سيُحضر: {{content}}",
     "latestUpdate": "آخر تحديث: {{text}}",
     "progressUpdatePlaceholder": "أضف تحديثاً (مثال: تجاوزت للتو بومرداس)",
