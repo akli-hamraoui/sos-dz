@@ -66,7 +66,7 @@
     "djangoAdmin": "Administration"
   },
   "home": {
-    "privacyNotice": "Information from associations, aid requests and couriers (name, phone, address, collection points) is public so volunteers can contact them — phone numbers aren't required for couriers. You can anonymize it at any time.",
+    "privacyNotice": "Information from associations, aid requests and couriers (name, phone, address, collection points) is public so volunteers can contact you.\n* Phone numbers are not required.\n* You can anonymize your information at any time.",
     "tagline": "Coordinating relief following the wildfires in Algeria.",
     "iNeedHelp": "I need help",
     "iWantToHelp": "I want to help"

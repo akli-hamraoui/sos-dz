@@ -352,10 +352,15 @@ main {
 .home-privacy-notice {
   margin-block: 16px 0;
   color: var(--collection-accent);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 400;
+  line-height: 1.5;
   max-width: 420px;
   margin-inline: auto;
+  /* The translation string carries its own \n line breaks (intro
+     sentence, then "* ..." bullet lines) -- render them as real breaks
+     instead of collapsing to one run-on line. */
+  white-space: pre-line;
 }
 .home-tagline {
   /* Sits over the background photo, same contrast need as
