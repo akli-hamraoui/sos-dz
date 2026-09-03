@@ -281,6 +281,8 @@
     "closePromptCode": "Your recovery code (leave blank if you didn't set one):",
     "closePromptName": "Your name (as entered when creating this point):",
     "closePromptPhone": "Your phone:",
+    "isThisYourPoint": "Is this your collection point? Recover access",
+    "manageMyPoint": "Manage my collection point",
     "facebook": "Facebook (optional)",
     "tiktok": "TikTok (optional)",
     "instagram": "Instagram (optional)",

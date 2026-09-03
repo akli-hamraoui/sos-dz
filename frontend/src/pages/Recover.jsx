@@ -10,14 +10,16 @@ export default function Recover() {
   const { t } = useTranslation()
   const location = useLocation()
   const navigate = useNavigate()
-  const { saveNeedToken, savePickupToken } = useApp()
+  const { saveNeedToken, savePickupToken, saveCpToken } = useApp()
   const validityProps = validityMessageProps(t)
-  const recoverContext = location.state // { type: 'need'|'pickup', id }
+  const recoverContext = location.state // { type: 'need'|'pickup'|'collection_point', id }
   const [useCode, setUseCode] = useState(true)
   const [form, setForm] = useState({ code: '', name: '', phone: '' })
   const [error, setError] = useState('')
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }))
+
+  const RESOURCE_PATHS = { need: 'needs', pickup: 'pickups', collection_point: 'collection-points' }
 
   const submit = async (e) => {
     e.preventDefault()
@@ -25,10 +27,13 @@ export default function Recover() {
     const { type, id } = recoverContext
     const payload = useCode ? { code: form.code } : { name: form.name, phone: form.phone }
     try {
-      const result = await api(`/${type === 'need' ? 'needs' : 'pickups'}/${id}/recover-access/`, { method: 'POST', body: JSON.stringify(payload) })
+      const result = await api(`/${RESOURCE_PATHS[type]}/${id}/recover-access/`, { method: 'POST', body: JSON.stringify(payload) })
       if (type === 'need') {
         saveNeedToken(id, { access_token: result.access_token })
         navigate(`/needs/${id}`)
+      } else if (type === 'collection_point') {
+        saveCpToken(id, result.access_token)
+        navigate(`/collection-points/${id}`)
       } else {
         savePickupToken(id, result.access_token)
         // Recovering a pickup's access must land back on the page that

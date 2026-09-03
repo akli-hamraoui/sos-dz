@@ -19,6 +19,7 @@ export function AppProvider({ children }) {
   const [campaigns, setCampaigns] = useState([])
   const [needTokens, setNeedTokens] = useState(() => loadJSON('rassemble_need_tokens', {}))
   const [pickupTokens, setPickupTokens] = useState(() => loadJSON('rassemble_pickup_tokens', {}))
+  const [cpTokens, setCpTokens] = useState(() => loadJSON('rassemble_cp_tokens', {}))
   const [commentTokens, setCommentTokens] = useState(() => loadJSON('rassemble_comment_tokens', {}))
   const [commentAuthor, setCommentAuthorState] = useState(() => loadJSON('rassemble_comment_author', { name: '' }))
   const [isOnline, setIsOnline] = useState(navigator.onLine)
@@ -107,6 +108,14 @@ export function AppProvider({ children }) {
     })
   }, [])
 
+  const saveCpToken = useCallback((cpId, token) => {
+    setCpTokens((prev) => {
+      const next = { ...prev, [cpId]: token }
+      saveJSON('rassemble_cp_tokens', next)
+      return next
+    })
+  }, [])
+
   const setCommentAuthor = useCallback((author) => {
     setCommentAuthorState(author)
     saveJSON('rassemble_comment_author', author)
@@ -157,6 +166,8 @@ export function AppProvider({ children }) {
     saveNeedToken,
     pickupTokens,
     savePickupToken,
+    cpTokens,
+    saveCpToken,
     commentAuthor,
     setCommentAuthor,
     commentTokens,

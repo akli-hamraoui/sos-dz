@@ -653,14 +653,26 @@ class CollectionPoint(models.Model):
 
     wilaya = models.ForeignKey(Wilaya, on_delete=models.PROTECT, related_name="collection_points")
     point_name = models.CharField(max_length=200)
+    # Issued at creation, same shape as Need/Pickup's own access_token
+    # (IdentityListingMixin) -- lets a creator "recover access" via
+    # recover-access and come back as the owner without re-proving identity
+    # on every single action. Not inherited from IdentityListingMixin
+    # itself: that mixin also carries anonymize()/pii_obfuscated_at, a
+    # concept that has no equivalent here (a collection point has never had
+    # an anonymize endpoint, and adding one is out of scope of just
+    # recovering access) -- see is_anonymized below, a permanent False stub
+    # so this model still satisfies access.py's owner_authorized()/
+    # authorized_for_write() duck-typing contract without the extra
+    # behaviour those helpers don't need from it.
+    access_token = models.CharField(max_length=32, unique=True, default=generate_token, editable=False)
     # Both optional (CollectionPointCreateSerializer.validate enforces that
-    # at least one of these two OR a recovery_code is present) -- unlike
-    # Need/Pickup, a collection point has no access_token of its own, so
-    # matches_creator()/matches_code() below are the *only* way its
-    # creator can later prove ownership to close it. Leaving both name+
-    # phone blank with no code at all would mean literally anyone could
-    # "close" it (blank matching blank), which is exactly the security
-    # regression the optional-fields request warned against avoiding.
+    # at least one of these two OR a recovery_code is present) -- matches_
+    # creator()/matches_code() below are the *fallback* path back in from a
+    # new device/browser (mirrors Need's own contact_name/phone comment),
+    # while access_token above is the primary one. Leaving both name+phone
+    # blank with no code at all would mean literally anyone could "close" a
+    # point via the identity path (blank matching blank), which is exactly
+    # the security regression the optional-fields request warned against.
     contact_name = models.CharField(max_length=200, blank=True)
     contact_phone = models.CharField(max_length=30, blank=True)
     recovery_code = models.CharField(max_length=20, blank=True)
@@ -698,6 +710,17 @@ class CollectionPoint(models.Model):
 
     def __str__(self):
         return self.point_name
+
+    @property
+    def is_anonymized(self):
+        # Permanent stub -- see the access_token field comment above. Always
+        # False since there is no anonymization concept for CollectionPoint.
+        return False
+
+    def regenerate_token(self):
+        self.access_token = generate_token()
+        self.save(update_fields=["access_token"])
+        return self.access_token
 
     def matches_creator(self, name, phone):
         """Loose name+phone match for self-service closing -- lighter than

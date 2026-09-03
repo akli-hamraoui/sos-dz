@@ -1778,6 +1778,86 @@ class CollectionPointTests(BaseAPITestCase):
         self.assertEqual(resp.status_code, 403)
 
 
+class CollectionPointAccessRecoveryTests(BaseAPITestCase):
+    """access_token + recover-access, same pattern as Need/Pickup (see
+    IdentityRecoveryTests) -- added on top of the pre-existing matches_code/
+    matches_creator-only close() flow, which stays available as the fallback."""
+
+    def setUp(self):
+        super().setUp()
+        self.wilaya = Wilaya.objects.first()
+
+    def _payload(self, **overrides):
+        data = dict(COLLECTION_POINT_PAYLOAD, wilaya=self.wilaya.pk)
+        data.update(overrides)
+        return data
+
+    def test_create_response_includes_access_token(self):
+        resp = self.client.post("/api/collection-points/", self._payload(), format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+        self.assertIn("access_token", resp.data)
+
+    def test_access_token_never_exposed_on_read(self):
+        create_resp = self.client.post("/api/collection-points/", self._payload(), format="json")
+        resp = self.client.get(f"/api/collection-points/{create_resp.data['id']}/")
+        self.assertNotIn("access_token", resp.data)
+
+    def test_identity_recovery_issues_new_token_and_invalidates_old(self):
+        create_resp = self.client.post("/api/collection-points/", self._payload(), format="json")
+        cp_id = create_resp.data["id"]
+        old_token = create_resp.data["access_token"]
+
+        resp = self.client.post(
+            f"/api/collection-points/{cp_id}/recover-access/",
+            {"name": COLLECTION_POINT_PAYLOAD["contact_name"], "phone": COLLECTION_POINT_PAYLOAD["contact_phone"]},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 200)
+        new_token = resp.data["access_token"]
+        self.assertNotEqual(new_token, old_token)
+
+        # old token no longer authorizes closing
+        resp = self.client.post(f"/api/collection-points/{cp_id}/close/", {"access_token": old_token}, format="json")
+        self.assertEqual(resp.status_code, 403)
+
+        # new token does, with no name/phone/code needed
+        resp = self.client.post(f"/api/collection-points/{cp_id}/close/", {"access_token": new_token}, format="json")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data["status"], "closed")
+
+    def test_identity_recovery_wrong_identity_rejected(self):
+        create_resp = self.client.post("/api/collection-points/", self._payload(), format="json")
+        resp = self.client.post(
+            f"/api/collection-points/{create_resp.data['id']}/recover-access/",
+            {"name": "Wrong", "phone": "0000000000"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 403)
+
+    def test_code_recovery_issues_new_token(self):
+        create_resp = self.client.post("/api/collection-points/", self._payload(recovery_code="cpPin123"), format="json")
+        resp = self.client.post(f"/api/collection-points/{create_resp.data['id']}/recover-access/", {"code": "cpPin123"}, format="json")
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("access_token", resp.data)
+
+    def test_code_recovery_wrong_code_rejected(self):
+        create_resp = self.client.post("/api/collection-points/", self._payload(recovery_code="cpPin123"), format="json")
+        resp = self.client.post(f"/api/collection-points/{create_resp.data['id']}/recover-access/", {"code": "wrongPin"}, format="json")
+        self.assertEqual(resp.status_code, 403)
+
+    def test_access_token_lets_owner_close_without_reproving_identity(self):
+        create_resp = self.client.post("/api/collection-points/", self._payload(), format="json")
+        token = create_resp.data["access_token"]
+        resp = self.client.post(f"/api/collection-points/{create_resp.data['id']}/close/", {"access_token": token}, format="json")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data["status"], "closed")
+
+    def test_wrong_access_token_falls_back_to_identity_match_requirement(self):
+        create_resp = self.client.post("/api/collection-points/", self._payload(), format="json")
+        resp = self.client.post(f"/api/collection-points/{create_resp.data['id']}/close/", {"access_token": "not-a-real-token"}, format="json")
+        self.assertEqual(resp.status_code, 403)
+
+
 class CollectionPointFlyerTests(BaseAPITestCase):
     def setUp(self):
         super().setUp()

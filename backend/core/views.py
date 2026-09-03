@@ -746,7 +746,9 @@ class CollectionPointViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mix
             point.flyer_moderated_by = Need.MODERATED_BY_SYSTEM if moderation_active() else ""
             point.save(update_fields=["flyer_moderation_status", "flyer_moderated_by"])
 
-        return Response(CollectionPointSerializer(point, context={"request": request}).data, status=status.HTTP_201_CREATED)
+        out = CollectionPointSerializer(point, context={"request": request}).data
+        out["access_token"] = point.access_token
+        return Response(out, status=status.HTTP_201_CREATED)
 
     @action(detail=False, methods=["get"], url_path="locations")
     def locations(self, request):
@@ -761,8 +763,8 @@ class CollectionPointViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mix
         block_reason = write_guard(request)
         if block_reason:
             return Response({"detail": block_reason}, status=status.HTTP_403_FORBIDDEN)
-        if is_admin_request(request):
-            pass  # admin override, no identity match needed
+        if is_admin_request(request) or owner_authorized(request, point):
+            pass  # admin override, or a recovered access_token, needs no re-matching
         else:
             serializer = CollectionPointCloseSerializer(data=request.data)
             serializer.is_valid(raise_exception=True)
@@ -774,6 +776,21 @@ class CollectionPointViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mix
         point.save(update_fields=["status"])
         log_admin_action(request, "closed collection point", point)
         return Response(CollectionPointSerializer(point, context={"request": request}).data)
+
+    @action(detail=True, methods=["post"], url_path="recover-access")
+    def recover_access(self, request, pk=None):
+        point = self.get_object()
+        serializer = IdentityRecoverySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        d = serializer.validated_data
+        matched = point.matches_code(d.get("code")) if d.get("code") else point.matches_creator(d.get("name"), d.get("phone"))
+        if not matched:
+            return Response(
+                {"detail": "No match. If this keeps happening, use the support/contact-admin form."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        token = point.regenerate_token()
+        return Response({"access_token": token})
 
 
 class CommentViewSet(mixins.CreateModelMixin, mixins.DestroyModelMixin, viewsets.GenericViewSet):

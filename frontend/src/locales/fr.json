@@ -281,6 +281,8 @@
     "closePromptCode": "Votre code de récupération (laissez vide si vous n'en avez pas défini un) :",
     "closePromptName": "Votre nom (tel que saisi à la création) :",
     "closePromptPhone": "Votre téléphone :",
+    "isThisYourPoint": "C'est votre point de collecte ? Récupérer l'accès",
+    "manageMyPoint": "Gérer mon point de collecte",
     "facebook": "Facebook (optionnel)",
     "tiktok": "TikTok (optionnel)",
     "instagram": "Instagram (optionnel)",

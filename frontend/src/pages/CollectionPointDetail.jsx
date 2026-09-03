@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useDialog } from '../context/DialogContext'
 import { useApp } from '../context/AppContext'
@@ -28,10 +28,12 @@ export default function CollectionPointDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { showAlert, showPrompt } = useDialog()
-  const { refreshConfig, pickupTokens } = useApp()
+  const { refreshConfig, pickupTokens, cpTokens } = useApp()
   const [cp, setCp] = useState(null)
   const [showPhone, setShowPhone] = useState(false)
   const [lightbox, setLightbox] = useState(null) // { src } for a full-size flyer preview
+
+  const isOwner = !!cpTokens[id]
 
   const load = useCallback(async () => {
     setCp(await api(`/collection-points/${id}/`))
@@ -50,7 +52,16 @@ export default function CollectionPointDetail() {
     load()
   }
 
-  const closePoint = async () => {
+  const closePointOwned = async () => {
+    try {
+      setCp(await api(`/collection-points/${id}/close/`, { method: 'POST', body: JSON.stringify({ access_token: cpTokens[id] }) }))
+      refreshConfig()
+    } catch (e) {
+      showAlert(translateApiError(e, t))
+    }
+  }
+
+  const closePointByIdentity = async () => {
     // Name+phone are optional at creation now -- a point created with a
     // recovery code instead has nothing to match against on the
     // name/phone path, so that's offered first and only falls back to
@@ -147,11 +158,25 @@ export default function CollectionPointDetail() {
           {t('collectionPoints.otherPhonesLabel')}: {cp.other_phones}
         </p>
       )}
-      {cp.status === 'active' && (
-        <button className="btn" onClick={closePoint}>
-          {t('collectionPoints.markAsClosed')}
-        </button>
-      )}
+      {cp.status === 'active' &&
+        (isOwner ? (
+          <div className="owner-actions">
+            <h4>{t('collectionPoints.manageMyPoint')}</h4>
+            <button className="btn" onClick={closePointOwned}>
+              {t('collectionPoints.markAsClosed')}
+            </button>
+          </div>
+        ) : (
+          <div>
+            <button className="btn" onClick={closePointByIdentity}>
+              {t('collectionPoints.markAsClosed')}
+            </button>
+            <br />
+            <Link className="link" to="/recover" state={{ type: 'collection_point', id: cp.id }}>
+              {t('collectionPoints.isThisYourPoint')}
+            </Link>
+          </div>
+        ))}
 
       {cp.status === 'active' && <h3>{t('needDetail.pickupsTitle', { count: cp.pickups.length })}</h3>}
       {cp.pickups.map((p) => (
