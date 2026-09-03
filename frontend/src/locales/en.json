@@ -53,8 +53,8 @@
   "nav": {
     "home": "Home",
     "needs": "Needs",
-    "needsShort": "SOS",
     "collectionPoints": "Collection points",
+    "collectionPointsShort": "Collection",
     "iNeedHelp": "I need help",
     "forgotDetails": "Find my listing or delivery",
     "support": "Support",

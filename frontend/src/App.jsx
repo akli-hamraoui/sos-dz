@@ -141,18 +141,19 @@ function BottomNav() {
         <span className="icon"><IconHome /></span>
         <span>{t('nav.home')}</span>
       </Link>
-      <Link to="/needs" className={isActive('/needs') ? 'active' : ''}>
+      <Link to="/needs" className={isActive('/needs') ? 'active' : ''} aria-label={t('nav.needs')}>
         <span className="icon">
           {/* Same SOS mark used for need pins/the Home & Besoins "J'ai
               besoin d'aide" buttons elsewhere -- inverted to white only in
               the active state, where the pill background goes dark (the
               other tabs' stroke-based icons get that for free via
-              currentColor; a raster image needs the filter toggled by hand). */}
+              currentColor; a raster image needs the filter toggled by hand).
+              No text label below it (unlike the other tabs) -- the icon
+              already spells out "SOS" on its own. */}
           <img src="/icons/need-marker-sos.png" width={22} height={22} alt="" style={isActive('/needs') ? { filter: 'invert(1)' } : undefined} />
           <MapIndicator />
           {!!config.needs_open_count && <span className="nav-badge">{formatBadgeCount(config.needs_open_count)}</span>}
         </span>
-        <span>{t('nav.needsShort')}</span>
       </Link>
       <Link to="/collection-points" className={isActive('/collection-points') ? 'active' : ''}>
         <span className="icon">
@@ -162,7 +163,7 @@ function BottomNav() {
             <span className="nav-badge">{formatBadgeCount(config.collection_points_active_count)}</span>
           )}
         </span>
-        <span>{t('nav.collectionPoints')}</span>
+        <span>{t('nav.collectionPointsShort')}</span>
       </Link>
       <Link to="/deliveries" className={isActive('/deliveries') ? 'active' : ''}>
         <span className="icon">
