@@ -20,6 +20,16 @@ const SOCIAL_NETWORKS = [
   { field: 'instagram_url', name: 'Instagram', Icon: IconInstagram },
 ]
 
+// Same badge as NeedDetail's own ModerationBadge -- reuses its generic
+// (not need-specific) needDetail.moderationBadge.* translation keys rather
+// than duplicating them under collectionPoints.*.
+function ModerationBadge({ t, status, moderatedBy }) {
+  let key = 'pending'
+  if (status === 'approved') key = moderatedBy === 'admin' ? 'adminApproved' : 'systemApproved'
+  else if (status === 'rejected') key = 'rejected'
+  return <span className={`moderation-badge moderation-badge-${status === 'rejected' ? 'rejected' : status === 'approved' ? 'approved' : 'pending'}`}>{t(`needDetail.moderationBadge.${key}`)}</span>
+}
+
 export default function CollectionPointDetail() {
   const { t } = useTranslation()
   const { id } = useParams()
@@ -34,6 +44,15 @@ export default function CollectionPointDetail() {
   useEffect(() => {
     load().catch(() => {}) // offline/network failure -- offline banner already informs the user
   }, [load])
+
+  const reportFlyer = async () => {
+    const reason = await showPrompt(t('needDetail.reportContent') + '?')
+    if (!reason) return
+    const reporter_name = (await showPrompt(t('createNeed.name') + ':')) || ''
+    const reporter_phone = (await showPrompt(t('createNeed.phone') + ':')) || ''
+    await api('/content-reports/', { method: 'POST', body: JSON.stringify({ media_type: 'collection_point_flyer', media_id: cp.id, reporter_name, reporter_phone, reason }) })
+    load()
+  }
 
   const closePoint = async () => {
     const contact_name = await showPrompt(t('collectionPoints.closePromptName'))
@@ -69,6 +88,28 @@ export default function CollectionPointDetail() {
         <p className="multiline-text">
           {t('collectionPoints.acceptedDonationsLabel')}: {cp.accepted_donations}
         </p>
+      )}
+
+      {(cp.flyer_image || cp.flyer_moderation_status !== 'approved') && (
+        <div>
+          <ModerationBadge t={t} status={cp.flyer_moderation_status} moderatedBy={cp.flyer_moderated_by} />
+          {!cp.flyer_image && (
+            <p className="hint">
+              {t('needDetail.recordedMessage', {
+                status: cp.flyer_moderation_status === 'rejected' ? t('needDetail.removedByModeration') : t('needDetail.pendingReview'),
+              })}
+            </p>
+          )}
+          {cp.flyer_image && (
+            <div>
+              <img className="media-player" src={cp.flyer_image} alt="" />
+              <br />
+              <button className="link" onClick={reportFlyer}>
+                {t('needDetail.reportContent')}
+              </button>
+            </div>
+          )}
+        </div>
       )}
       <p>
         {t('needDetail.contact')}: {cp.contact_name} — {maskPhone(cp.contact_phone, showPhone)}{' '}

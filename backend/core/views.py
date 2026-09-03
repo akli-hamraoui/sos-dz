@@ -643,7 +643,12 @@ class ContentReportViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
         report = serializer.save()
         media_obj = report.get_media_object()
         if media_obj is not None:
-            field = "media_moderation_status" if isinstance(media_obj, Need) else "moderation_status"
+            if isinstance(media_obj, Need):
+                field = "video_moderation_status"
+            elif isinstance(media_obj, CollectionPoint):
+                field = "flyer_moderation_status"
+            else:
+                field = "moderation_status"
             setattr(media_obj, field, Need.MODERATION_PENDING)
             media_obj.save(update_fields=[field])
         return Response(self.get_serializer(report).data, status=status.HTTP_201_CREATED)
@@ -682,9 +687,21 @@ class CollectionPointViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mix
         block_reason = write_guard(request)
         if block_reason:
             return Response({"detail": block_reason}, status=status.HTTP_403_FORBIDDEN)
+        flyer_image = request.FILES.get("flyer_image")
+        if flyer_image:
+            try:
+                validate_photo_size([flyer_image])
+            except Exception as exc:
+                return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         point = serializer.save()
+
+        if point.flyer_image:
+            point.flyer_moderation_status = moderate_image_field(point.flyer_image)
+            point.flyer_moderated_by = Need.MODERATED_BY_SYSTEM if moderation_active() else ""
+            point.save(update_fields=["flyer_moderation_status", "flyer_moderated_by"])
+
         return Response(CollectionPointSerializer(point, context={"request": request}).data, status=status.HTTP_201_CREATED)
 
     @action(detail=False, methods=["get"], url_path="locations")

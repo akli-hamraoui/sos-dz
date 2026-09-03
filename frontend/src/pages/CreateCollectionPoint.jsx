@@ -2,11 +2,11 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useApp } from '../context/AppContext'
-import { api } from '../api'
+import { api, apiUpload } from '../api'
 import { isInAlgeria, reverseGeocodePlace } from '../utils'
 import { translateApiError } from '../apiErrors'
 import PlaceAutocomplete from '../components/PlaceAutocomplete'
-import { IconFacebook, IconTikTok, IconInstagram } from '../icons'
+import { IconFacebook, IconTikTok, IconInstagram, IconCamera, IconTrash } from '../icons'
 
 const DEFAULT_FORM = {
   wilaya: '',
@@ -30,6 +30,18 @@ export default function CreateCollectionPoint() {
   const [form, setForm] = useState(DEFAULT_FORM)
   const [gpsStatus, setGpsStatus] = useState(null) // null | 'locating' | 'error'
   const [error, setError] = useState('')
+  const [flyer, setFlyer] = useState(null) // { file, previewUrl } | null
+
+  const addFlyer = (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    setFlyer({ file, previewUrl: URL.createObjectURL(file) })
+  }
+
+  const removeFlyer = () => {
+    if (flyer) URL.revokeObjectURL(flyer.previewUrl)
+    setFlyer(null)
+  }
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }))
 
@@ -81,7 +93,12 @@ export default function CreateCollectionPoint() {
     e.preventDefault()
     setError('')
     try {
-      const point = await api('/collection-points/', { method: 'POST', body: JSON.stringify(form) })
+      const formData = new FormData()
+      Object.entries(form).forEach(([k, v]) => {
+        if (v !== null && v !== undefined && v !== '') formData.append(k, v)
+      })
+      if (flyer) formData.append('flyer_image', flyer.file, flyer.file.name || 'flyer.jpg')
+      const point = await apiUpload('/collection-points/', formData)
       navigate(`/collection-points/${point.id}`)
     } catch (err) {
       // Temporary diagnostic: a raw client-side failure (thrown before/
@@ -146,6 +163,25 @@ export default function CreateCollectionPoint() {
           {t('collectionPoints.acceptedDonations')}
           <textarea rows={3} value={form.accepted_donations} onChange={set('accepted_donations')} placeholder={t('collectionPoints.acceptedDonationsPlaceholder')} />
         </label>
+        <div>
+          {t('collectionPoints.flyer')}
+          <p className="hint">{t('collectionPoints.flyerHint')}</p>
+          {flyer ? (
+            <div className="photo-thumbs">
+              <div className="photo-thumb">
+                <img src={flyer.previewUrl} alt="" />
+                <button type="button" className="link" onClick={removeFlyer}>
+                  <IconTrash width={14} height={14} strokeWidth={2} />
+                </button>
+              </div>
+            </div>
+          ) : (
+            <label className="btn photo-add-btn">
+              <IconCamera width={18} height={18} strokeWidth={1.6} /> {t('collectionPoints.flyerAdd')}
+              <input type="file" accept="image/*" onChange={addFlyer} hidden />
+            </label>
+          )}
+        </div>
         <label>
           <span className="field-label-icon">
             <IconFacebook width={18} height={18} strokeWidth={1.6} /> {t('collectionPoints.facebook')}

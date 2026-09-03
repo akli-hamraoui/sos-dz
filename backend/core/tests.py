@@ -1618,6 +1618,94 @@ class CollectionPointTests(BaseAPITestCase):
         self.assertEqual(resp.status_code, 403)
 
 
+class CollectionPointFlyerTests(BaseAPITestCase):
+    def setUp(self):
+        super().setUp()
+        self.wilaya = Wilaya.objects.first()
+
+    def _payload(self, **overrides):
+        data = dict(COLLECTION_POINT_PAYLOAD, wilaya=self.wilaya.pk)
+        data.update(overrides)
+        return data
+
+    def test_create_without_flyer_still_works(self):
+        resp = self.client.post("/api/collection-points/", self._payload(), format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+        self.assertIsNone(resp.data["flyer_image"])
+        # Never-set flyer defaults to approved -- an absent flyer must never
+        # look like a pending/rejected one on an otherwise-ordinary point.
+        self.assertEqual(resp.data["flyer_moderation_status"], "approved")
+
+    def test_create_with_flyer_auto_approved_is_visible(self):
+        from unittest.mock import patch
+
+        with patch("core.views.moderate_image_field", return_value="approved"):
+            resp = self.client.post(
+                "/api/collection-points/", self._payload(flyer_image=make_test_image()), format="multipart"
+            )
+        self.assertEqual(resp.status_code, 201, resp.content)
+        self.assertEqual(resp.data["flyer_moderation_status"], "approved")
+        self.assertIsNotNone(resp.data["flyer_image"])
+
+    def test_flyer_oversized_rejected(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        from core.media_validation import MAX_PHOTO_SIZE_BYTES
+
+        oversized = SimpleUploadedFile("big.jpg", b"x" * (MAX_PHOTO_SIZE_BYTES + 1), content_type="image/jpeg")
+        resp = self.client.post("/api/collection-points/", self._payload(flyer_image=oversized), format="multipart")
+        self.assertEqual(resp.status_code, 400)
+
+    def test_flyer_pending_hides_image_url(self):
+        from unittest.mock import patch
+
+        with patch("core.views.moderate_image_field", return_value="pending"):
+            resp = self.client.post(
+                "/api/collection-points/", self._payload(flyer_image=make_test_image()), format="multipart"
+            )
+        self.assertEqual(resp.status_code, 201, resp.content)
+        self.assertEqual(resp.data["flyer_moderation_status"], "pending")
+        self.assertIsNone(resp.data["flyer_image"])
+
+    def test_flyer_rejected_hides_image_url(self):
+        from unittest.mock import patch
+
+        with patch("core.views.moderate_image_field", return_value="rejected"):
+            resp = self.client.post(
+                "/api/collection-points/", self._payload(flyer_image=make_test_image()), format="multipart"
+            )
+        self.assertEqual(resp.data["flyer_moderation_status"], "rejected")
+        self.assertIsNone(resp.data["flyer_image"])
+
+    def test_report_flyer_hides_it_immediately(self):
+        from unittest.mock import patch
+
+        with patch("core.views.moderate_image_field", return_value="approved"):
+            create_resp = self.client.post(
+                "/api/collection-points/", self._payload(flyer_image=make_test_image()), format="multipart"
+            )
+        point_id = create_resp.data["id"]
+        self.assertIsNotNone(create_resp.data["flyer_image"])
+
+        report_resp = self.client.post(
+            "/api/content-reports/",
+            {"media_type": "collection_point_flyer", "media_id": point_id, "reporter_name": "A", "reporter_phone": "0600", "reason": "inappropriate"},
+            format="json",
+        )
+        self.assertEqual(report_resp.status_code, 201, report_resp.content)
+
+        point_resp2 = self.client.get(f"/api/collection-points/{point_id}/")
+        self.assertIsNone(point_resp2.data["flyer_image"])  # hidden immediately, before any admin review
+
+    def test_existing_collection_point_without_flyer_still_readable(self):
+        # Backward-compat: a point created before this field existed (no
+        # flyer ever attempted) must still serialize cleanly.
+        point = CollectionPoint.objects.create(**self._payload(wilaya=self.wilaya))
+        resp = self.client.get(f"/api/collection-points/{point.id}/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertIsNone(resp.data["flyer_image"])
+
+
 class CollectionPointSocialLinksTests(BaseAPITestCase):
     def setUp(self):
         super().setUp()

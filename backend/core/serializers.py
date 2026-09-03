@@ -494,6 +494,7 @@ class CommentCreateSerializer(serializers.ModelSerializer):
 class CollectionPointSerializer(serializers.ModelSerializer):
     wilaya_name = serializers.CharField(source="wilaya.name", read_only=True)
     comments = serializers.SerializerMethodField()
+    flyer_image = serializers.SerializerMethodField()
 
     class Meta:
         model = CollectionPoint
@@ -502,11 +503,24 @@ class CollectionPointSerializer(serializers.ModelSerializer):
             "other_phones", "organization", "location_description", "latitude", "longitude", "hours",
             "accepted_donations", "status", "created_at", "comments",
             "facebook_url", "tiktok_url", "instagram_url",
+            "flyer_image", "flyer_moderation_status", "flyer_moderated_by",
         ]
 
     def get_comments(self, obj):
         roots = obj.comments.filter(parent_comment__isnull=True)
         return CommentSerializer(roots, many=True, context=self.context).data
+
+    def get_flyer_image(self, obj):
+        # Same "hidden until approved" gate as Need.video_file (see
+        # NeedPublicSerializer.get_video_file) -- flyer_moderation_status
+        # and flyer_moderated_by are still exposed as their own fields
+        # above so the frontend can show a pending/rejected badge same as
+        # it does for damage/delivery photos.
+        if not obj.flyer_image or obj.flyer_moderation_status != Need.MODERATION_APPROVED:
+            return None
+        request = self.context.get("request")
+        url = obj.flyer_image.url
+        return request.build_absolute_uri(url) if request else url
 
 
 class CollectionPointCreateSerializer(serializers.ModelSerializer):
@@ -515,7 +529,7 @@ class CollectionPointCreateSerializer(serializers.ModelSerializer):
         fields = [
             "wilaya", "point_name", "contact_name", "contact_phone", "other_phones",
             "organization", "location_description", "latitude", "longitude", "hours",
-            "accepted_donations", "facebook_url", "tiktok_url", "instagram_url",
+            "accepted_donations", "facebook_url", "tiktok_url", "instagram_url", "flyer_image",
         ]
 
     def validate_facebook_url(self, value):

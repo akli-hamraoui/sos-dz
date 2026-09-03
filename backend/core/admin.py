@@ -315,8 +315,12 @@ def restore_content(modeladmin, request, queryset):
     for report in queryset.filter(status=ContentReport.STATUS_PENDING):
         media_obj = report.get_media_object()
         if media_obj is not None:
-            field = "video_moderation_status" if isinstance(media_obj, Need) else "moderation_status"
-            by_field = "video_moderated_by" if isinstance(media_obj, Need) else "moderated_by"
+            if isinstance(media_obj, Need):
+                field, by_field = "video_moderation_status", "video_moderated_by"
+            elif isinstance(media_obj, CollectionPoint):
+                field, by_field = "flyer_moderation_status", "flyer_moderated_by"
+            else:
+                field, by_field = "moderation_status", "moderated_by"
             setattr(media_obj, field, Need.MODERATION_APPROVED)
             setattr(media_obj, by_field, Need.MODERATED_BY_ADMIN)
             media_obj.save(update_fields=[field, by_field])
@@ -335,8 +339,12 @@ def confirm_content_rejection(modeladmin, request, queryset):
     for report in queryset.filter(status=ContentReport.STATUS_PENDING):
         media_obj = report.get_media_object()
         if media_obj is not None:
-            field = "video_moderation_status" if isinstance(media_obj, Need) else "moderation_status"
-            by_field = "video_moderated_by" if isinstance(media_obj, Need) else "moderated_by"
+            if isinstance(media_obj, Need):
+                field, by_field = "video_moderation_status", "video_moderated_by"
+            elif isinstance(media_obj, CollectionPoint):
+                field, by_field = "flyer_moderation_status", "flyer_moderated_by"
+            else:
+                field, by_field = "moderation_status", "moderated_by"
             setattr(media_obj, field, Need.MODERATION_REJECTED)
             setattr(media_obj, by_field, Need.MODERATED_BY_ADMIN)
             media_obj.save(update_fields=[field, by_field])
@@ -361,11 +369,30 @@ class ContentReportAdmin(admin.ModelAdmin):
 # Community: collection points and comments (Wave 4)
 # ---------------------------------------------------------------------------
 
+def approve_flyer(modeladmin, request, queryset):
+    count = queryset.update(flyer_moderation_status=Need.MODERATION_APPROVED, flyer_moderated_by=Need.MODERATED_BY_ADMIN)
+    AuditLog.objects.create(admin_user=request.user, action="approved flyer", target_description=f"{count} collection point(s)")
+    modeladmin.message_user(request, f"Approved flyer on {count} collection point(s).")
+
+
+approve_flyer.short_description = "Approve flyer (pending review queue)"
+
+
+def reject_flyer(modeladmin, request, queryset):
+    count = queryset.update(flyer_moderation_status=Need.MODERATION_REJECTED, flyer_moderated_by=Need.MODERATED_BY_ADMIN)
+    AuditLog.objects.create(admin_user=request.user, action="rejected flyer", target_description=f"{count} collection point(s)")
+    modeladmin.message_user(request, f"Rejected flyer on {count} collection point(s).")
+
+
+reject_flyer.short_description = "Reject flyer (pending review queue)"
+
+
 @admin.register(CollectionPoint)
 class CollectionPointAdmin(admin.ModelAdmin):
-    list_display = ["point_name", "wilaya", "contact_name", "status", "created_at"]
-    list_filter = ["status", "wilaya"]
+    list_display = ["point_name", "wilaya", "contact_name", "status", "flyer_moderation_status", "created_at"]
+    list_filter = ["status", "wilaya", "flyer_moderation_status"]
     search_fields = ["point_name", "contact_name", "contact_phone"]
+    actions = [approve_flyer, reject_flyer]
 
 
 @admin.register(Comment)

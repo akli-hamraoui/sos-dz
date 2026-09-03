@@ -524,15 +524,17 @@ class ContentReport(models.Model):
     MEDIA_NEED_FILE = "need_media_file"
     MEDIA_DAMAGE_PHOTO = "damage_photo"
     MEDIA_DELIVERY_PHOTO = "delivery_photo"
+    MEDIA_COLLECTION_POINT_FLYER = "collection_point_flyer"
     MEDIA_TYPE_CHOICES = [
         (MEDIA_NEED_FILE, "Need media file (audio/video)"),
         (MEDIA_DAMAGE_PHOTO, "Damage photo"),
         (MEDIA_DELIVERY_PHOTO, "Delivery photo"),
+        (MEDIA_COLLECTION_POINT_FLYER, "Collection point flyer"),
     ]
     STATUS_PENDING, STATUS_PROCESSED = "pending", "processed"
     STATUS_CHOICES = [(STATUS_PENDING, "Pending"), (STATUS_PROCESSED, "Processed")]
 
-    media_type = models.CharField(max_length=20, choices=MEDIA_TYPE_CHOICES)
+    media_type = models.CharField(max_length=30, choices=MEDIA_TYPE_CHOICES)
     media_id = models.PositiveIntegerField()
     reporter_name = models.CharField(max_length=200)
     reporter_phone = models.CharField(max_length=30)
@@ -545,6 +547,7 @@ class ContentReport(models.Model):
             self.MEDIA_NEED_FILE: Need,
             self.MEDIA_DAMAGE_PHOTO: DamagePhoto,
             self.MEDIA_DELIVERY_PHOTO: DeliveryPhoto,
+            self.MEDIA_COLLECTION_POINT_FLYER: CollectionPoint,
         }[self.media_type]
         return model.objects.filter(pk=self.media_id).first()
 
@@ -624,6 +627,16 @@ class CollectionPoint(models.Model):
     facebook_url = models.URLField(max_length=300, blank=True)
     tiktok_url = models.URLField(max_length=300, blank=True)
     instagram_url = models.URLField(max_length=300, blank=True)
+    # A single optional flyer/poster image -- most real-world collection
+    # points already have one (a printed announcement with hours, what's
+    # accepted, etc.) and reusing it here is easier than retyping the same
+    # information into the text fields above. Same single-field-on-the-
+    # model + moderation_status/moderated_by shape as Need.video_file
+    # (one flyer per point, not a gallery -- DamagePhoto's separate-model
+    # pattern is for up to 3 photos per listing, not this).
+    flyer_image = models.ImageField(upload_to="collection_point_flyers/", null=True, blank=True)
+    flyer_moderation_status = models.CharField(max_length=10, choices=Need.MODERATION_CHOICES, default=Need.MODERATION_APPROVED)
+    flyer_moderated_by = models.CharField(max_length=10, choices=Need.MODERATED_BY_CHOICES, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
