@@ -1096,10 +1096,10 @@ fieldset {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 13px;
-  height: 13px;
+  width: 10px;
+  height: 10px;
   background: var(--card);
-  border: 1.5px solid #555;
+  border: 1.25px solid #555;
   border-radius: 50%;
   color: #555;
   box-sizing: border-box;

@@ -28,7 +28,7 @@ import { IconHome, IconNeeds, IconBox, IconTruck, IconPlus, IconWarning, IconWif
 function MapIndicator() {
   return (
     <span className="map-indicator" aria-hidden="true">
-      <IconMapPin width={9} height={9} strokeWidth={2.5} />
+      <IconMapPin width={7} height={7} strokeWidth={3} />
     </span>
   )
 }
