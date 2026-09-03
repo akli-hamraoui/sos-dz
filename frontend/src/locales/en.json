@@ -70,9 +70,7 @@
   "home": {
     "tagline": "Wildfire relief coordination for Algeria.",
     "iNeedHelp": "I need help",
-    "iWantToHelp": "I want to help",
-    "collectionPoints": "Collection points",
-    "reportedNeeds": "Reported needs"
+    "iWantToHelp": "I want to help"
   },
   "status": {
     "open": "open",

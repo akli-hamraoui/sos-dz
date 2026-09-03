@@ -70,9 +70,7 @@
   "home": {
     "tagline": "تنسيق الإغاثة من حرائق الغابات في الجزائر.",
     "iNeedHelp": "أحتاج مساعدة",
-    "iWantToHelp": "أريد المساعدة",
-    "collectionPoints": "نقاط التجميع",
-    "reportedNeeds": "الاحتياجات المُبلَّغ عنها"
+    "iWantToHelp": "أريد المساعدة"
   },
   "status": {
     "open": "مفتوح",

@@ -70,9 +70,7 @@
   "home": {
     "tagline": "Coordination de l'aide pour les feux en Algérie.",
     "iNeedHelp": "J'ai besoin d'aide",
-    "iWantToHelp": "Je veux aider",
-    "collectionPoints": "Points de collecte",
-    "reportedNeeds": "Besoins signalés"
+    "iWantToHelp": "Je veux aider"
   },
   "status": {
     "open": "ouvert",
