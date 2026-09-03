@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useDialog } from '../context/DialogContext'
 import { useApp } from '../context/AppContext'
@@ -7,6 +7,8 @@ import { api } from '../api'
 import { maskPhone, googleMapsUrl } from '../utils'
 import { translateApiError } from '../apiErrors'
 import CommentThread from '../components/CommentThread'
+import ModerationBadge from '../components/ModerationBadge'
+import PickupManager from '../components/PickupManager'
 import { IconFacebook, IconTikTok, IconInstagram, IconMapPin } from '../icons'
 
 // Belt-and-suspenders on top of the server-side validation (which already
@@ -21,21 +23,12 @@ const SOCIAL_NETWORKS = [
   { field: 'instagram_url', name: 'Instagram', Icon: IconInstagram },
 ]
 
-// Same badge as NeedDetail's own ModerationBadge -- reuses its generic
-// (not need-specific) needDetail.moderationBadge.* translation keys rather
-// than duplicating them under collectionPoints.*.
-function ModerationBadge({ t, status, moderatedBy }) {
-  let key = 'pending'
-  if (status === 'approved') key = moderatedBy === 'admin' ? 'adminApproved' : 'systemApproved'
-  else if (status === 'rejected') key = 'rejected'
-  return <span className={`moderation-badge moderation-badge-${status === 'rejected' ? 'rejected' : status === 'approved' ? 'approved' : 'pending'}`}>{t(`needDetail.moderationBadge.${key}`)}</span>
-}
-
 export default function CollectionPointDetail() {
   const { t } = useTranslation()
   const { id } = useParams()
+  const navigate = useNavigate()
   const { showAlert, showPrompt } = useDialog()
-  const { refreshConfig } = useApp()
+  const { refreshConfig, pickupTokens } = useApp()
   const [cp, setCp] = useState(null)
   const [showPhone, setShowPhone] = useState(false)
   const [lightbox, setLightbox] = useState(null) // { src } for a full-size flyer preview
@@ -152,6 +145,18 @@ export default function CollectionPointDetail() {
           {t('collectionPoints.markAsClosed')}
         </button>
       )}
+
+      {cp.status === 'active' && (
+        <>
+          <h3>{t('needDetail.pickupsTitle', { count: cp.pickups.length })}</h3>
+          <button className="btn btn-primary" onClick={() => navigate(`/collection-points/${id}/take-charge`)}>
+            {t('collectionPoints.takeChargeDelivery')}
+          </button>
+        </>
+      )}
+      {cp.pickups.map((p) => (
+        <PickupManager key={p.id} pickup={p} pickupToken={pickupTokens[p.id]} onChange={load} />
+      ))}
 
       {SOCIAL_NETWORKS.some(({ field }) => isSafeHttpUrl(cp[field])) && (
         <div className="social-links-section">

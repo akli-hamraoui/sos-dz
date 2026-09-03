@@ -148,7 +148,7 @@ class NeedAdmin(admin.ModelAdmin):
 
 @admin.register(Pickup)
 class PickupAdmin(admin.ModelAdmin):
-    list_display = ["id", "need", "responder_type", "responder_name", "status", "is_anonymized_display", "created_at"]
+    list_display = ["id", "need", "collection_point", "responder_type", "responder_name", "status", "is_anonymized_display", "created_at"]
     list_filter = ["status", "responder_type"]
     search_fields = ["responder_name", "responder_phone"]
     readonly_fields = ["access_token", "pii_obfuscated_at", "obfuscated_by"]

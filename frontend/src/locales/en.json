@@ -252,6 +252,7 @@
     "flyerAdd": "Add an image",
     "publish": "Publish this collection point",
     "markAsClosed": "Mark as closed",
+    "takeChargeDelivery": "Take charge of a delivery",
     "closePromptCode": "Your recovery code (leave blank if you didn't set one):",
     "closePromptName": "Your name (as entered when creating this point):",
     "closePromptPhone": "Your phone:",

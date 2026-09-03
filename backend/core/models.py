@@ -419,7 +419,15 @@ class Pickup(IdentityListingMixin, models.Model):
         (STATUS_CANCELLED, "Cancelled"),
     ]
 
-    need = models.ForeignKey(Need, on_delete=models.CASCADE, related_name="pickups")
+    # Exactly one of need/collection_point is ever set (enforced in
+    # PickupCreateSerializer.validate(), same convention as Comment's own
+    # need/collection_point pair above) -- a delivery is either headed to a
+    # specific Need or picking up/dropping off at a CollectionPoint, never
+    # both. Both nullable so existing Need-only pickups keep working
+    # unchanged (need stays required in practice for that path, just no
+    # longer required at the DB level).
+    need = models.ForeignKey(Need, null=True, blank=True, on_delete=models.CASCADE, related_name="pickups")
+    collection_point = models.ForeignKey("CollectionPoint", null=True, blank=True, on_delete=models.CASCADE, related_name="pickups")
     responder_type = models.CharField(max_length=30, choices=RESPONDER_TYPE_CHOICES)
     responder_name = models.CharField(max_length=200)
     responder_phone = models.CharField(max_length=30)
@@ -441,7 +449,7 @@ class Pickup(IdentityListingMixin, models.Model):
         ordering = ["-created_at"]
 
     def __str__(self):
-        return f"Pickup #{self.pk} for {self.need_id}"
+        return f"Pickup #{self.pk} for need {self.need_id}" if self.need_id else f"Pickup #{self.pk} for collection point {self.collection_point_id}"
 
     def identity_fields(self):
         return {
@@ -473,7 +481,12 @@ class Pickup(IdentityListingMixin, models.Model):
         self.actual_delivery_date = timezone.now()
         self.location_sharing_active = False
         self.save(update_fields=["status", "actual_delivery_date", "location_sharing_active"])
-        self.need.recompute_status()
+        # recompute_status (covered_quantity/overall_status) is a Need-only
+        # notion -- a CollectionPoint's own status (active/closed) is never
+        # derived from how many pickups it's had, so there's nothing to
+        # recompute when this pickup belongs to a collection point instead.
+        if self.need_id:
+            self.need.recompute_status()
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)

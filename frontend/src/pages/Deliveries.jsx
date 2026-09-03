@@ -95,10 +95,15 @@ export default function Deliveries() {
         iconAnchor: [15, 15],
       })
       markersRef.current = locations.map((loc) => {
+        // Exactly one of the need_*/collection_point_* pairs is populated,
+        // matching whichever this delivery is headed to/from -- see
+        // PickupViewSet.live_locations.
+        const destHref = loc.need_id ? `/needs/${loc.need_id}` : `/collection-points/${loc.collection_point_id}`
+        const destLabel = loc.need_id ? `${loc.need_title} — ${loc.need_wilaya_name}` : `${loc.collection_point_name} — ${loc.collection_point_wilaya_name}`
         const marker = L.marker([loc.latitude, loc.longitude], { icon: truckIcon }).addTo(map)
         marker.bindPopup(
           `<strong>${loc.responder_name}</strong><br>${t('deliveries.bringing')}: ${loc.content_brought || '—'}<br>` +
-            `<a href="/needs/${loc.need_id}">${loc.need_title} — ${loc.need_wilaya_name}</a>`
+            `<a href="${destHref}">${destLabel}</a>`
         )
         return marker
       })
@@ -181,12 +186,16 @@ export default function Deliveries() {
           {pickups.length === 0 && <p>{t('deliveries.noDeliveries')}</p>}
           <div className="needs-list">
             {pickups.map((p) => (
-              <Link className="need-card" to={`/needs/${p.need}`} key={p.id}>
+              <Link
+                className="need-card"
+                to={p.need ? `/needs/${p.need}` : `/collection-points/${p.collection_point}`}
+                key={p.id}
+              >
                 <span className={`badge badge-status-${p.status}`}>{t(`status.${p.status}`)}</span>
                 <h3>
-                  <IconTruck width={17} height={17} strokeWidth={1.9} className="truck-icon" /> {p.need_title}
+                  <IconTruck width={17} height={17} strokeWidth={1.9} className="truck-icon" /> {p.need_title || p.collection_point_name}
                 </h3>
-                <p>{p.need_wilaya_name}</p>
+                <p>{p.need_wilaya_name || p.collection_point_wilaya_name}</p>
                 {!p.is_anonymized && (
                   <p className="status">
                     {t('deliveries.responder')}: {p.organization_or_person_name || p.responder_name} —{' '}

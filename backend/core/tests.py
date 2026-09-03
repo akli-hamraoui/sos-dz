@@ -2231,6 +2231,166 @@ class PickupLiveLocationsTests(BaseAPITestCase):
         self.assertEqual(resp.data[0]["latitude"], 37.0)
 
 
+class PickupFromCollectionPointTests(BaseAPITestCase):
+    """A courier can start a delivery/pickup from a CollectionPoint, not
+    just a Need -- same Pickup model and endpoints, just linked to a
+    collection_point instead of a need (exactly one of the two is ever
+    set, see Pickup.__str__ and PickupCreateSerializer.validate). Covers
+    create/start/deliver/cancel, permissions, live-locations map
+    inclusion, and backward compatibility with existing Need-only pickups."""
+
+    def setUp(self):
+        super().setUp()
+        self.wilaya = Wilaya.objects.first()
+        resp = self.client.post(
+            "/api/collection-points/",
+            dict(COLLECTION_POINT_PAYLOAD, wilaya=self.wilaya.pk),
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 201, resp.content)
+        self.point_id = resp.data["id"]
+
+    def _pickup_payload(self, **overrides):
+        data = {
+            "collection_point": self.point_id,
+            "responder_type": "individual_volunteer",
+            "responder_name": "Sara Amrani",
+            "responder_phone": "0666000002",
+            "content_brought": "Redistributing donations",
+        }
+        data.update(overrides)
+        return data
+
+    def test_create_pickup_from_collection_point(self):
+        resp = self.client.post("/api/pickups/", self._pickup_payload(), format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+        pickup = Pickup.objects.get(pk=resp.data["id"])
+        self.assertEqual(pickup.collection_point_id, self.point_id)
+        self.assertIsNone(pickup.need_id)
+        self.assertEqual(pickup.status, Pickup.STATUS_EN_ROUTE)
+
+    def test_create_requires_exactly_one_of_need_or_collection_point(self):
+        # Neither set.
+        payload = self._pickup_payload()
+        del payload["collection_point"]
+        resp = self.client.post("/api/pickups/", payload, format="json")
+        self.assertEqual(resp.status_code, 400)
+
+        # Both set.
+        campaign = make_campaign()
+        need_resp = self.client.post(
+            "/api/needs/", dict(NEED_PAYLOAD, campaign=campaign.pk, wilaya=campaign.authorized_wilayas.first().pk), format="json"
+        )
+        payload = self._pickup_payload(need=need_resp.data["id"])
+        resp = self.client.post("/api/pickups/", payload, format="json")
+        self.assertEqual(resp.status_code, 400)
+
+    def test_cannot_create_pickup_for_closed_collection_point(self):
+        point = CollectionPoint.objects.get(pk=self.point_id)
+        point.status = CollectionPoint.STATUS_CLOSED
+        point.save(update_fields=["status"])
+        resp = self.client.post("/api/pickups/", self._pickup_payload(), format="json")
+        self.assertEqual(resp.status_code, 400)
+
+    def test_deliver_pickup_from_collection_point(self):
+        resp = self.client.post("/api/pickups/", self._pickup_payload(), format="json")
+        pickup_id, token = resp.data["id"], resp.data["access_token"]
+        resp = self.client.post(f"/api/pickups/{pickup_id}/deliver/", {"access_token": token}, format="json")
+        self.assertEqual(resp.status_code, 200)
+        pickup = Pickup.objects.get(pk=pickup_id)
+        self.assertEqual(pickup.status, Pickup.STATUS_DELIVERED)
+        self.assertFalse(pickup.location_sharing_active)
+
+    def test_cancel_pickup_from_collection_point(self):
+        resp = self.client.post("/api/pickups/", self._pickup_payload(), format="json")
+        pickup_id, token = resp.data["id"], resp.data["access_token"]
+        resp = self.client.patch(
+            f"/api/pickups/{pickup_id}/", {"is_cancelled": True, "access_token": token}, format="json"
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(Pickup.objects.get(pk=pickup_id).status, Pickup.STATUS_CANCELLED)
+
+    def test_wrong_token_cannot_edit(self):
+        resp = self.client.post("/api/pickups/", self._pickup_payload(), format="json")
+        pickup_id = resp.data["id"]
+        resp = self.client.patch(
+            f"/api/pickups/{pickup_id}/", {"is_cancelled": True, "access_token": "wrong"}, format="json"
+        )
+        self.assertEqual(resp.status_code, 403)
+
+    def test_location_tracking_works_same_as_need_pickup(self):
+        resp = self.client.post("/api/pickups/", self._pickup_payload(), format="json")
+        pickup_id, token = resp.data["id"], resp.data["access_token"]
+        resp = self.client.post(
+            f"/api/pickups/{pickup_id}/location-pings/",
+            {"latitude": 36.75, "longitude": 3.04, "access_token": token},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 201)
+        self.assertTrue(Pickup.objects.get(pk=pickup_id).location_sharing_active)
+
+    def test_appears_on_live_locations_map_with_collection_point_fields(self):
+        resp = self.client.post("/api/pickups/", self._pickup_payload(), format="json")
+        pickup_id, token = resp.data["id"], resp.data["access_token"]
+        self.client.post(
+            f"/api/pickups/{pickup_id}/location-pings/",
+            {"latitude": 36.75, "longitude": 3.04, "access_token": token},
+            format="json",
+        )
+        resp = self.client.get("/api/pickups/live-locations/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(len(resp.data), 1)
+        entry = resp.data[0]
+        self.assertEqual(entry["collection_point_id"], self.point_id)
+        self.assertIsNone(entry["need_id"])
+        self.assertEqual(entry["collection_point_name"], COLLECTION_POINT_PAYLOAD["point_name"])
+
+    def test_collection_point_detail_lists_its_own_pickups(self):
+        self.client.post("/api/pickups/", self._pickup_payload(), format="json")
+        resp = self.client.get(f"/api/collection-points/{self.point_id}/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(len(resp.data["pickups"]), 1)
+        self.assertEqual(resp.data["pickups"][0]["collection_point"], self.point_id)
+
+    def test_anonymize_pickup_from_collection_point_does_not_crash(self):
+        # Regression: anonymize() used to unconditionally read
+        # pickup.need.campaign.status, which crashed for a
+        # collection_point-linked pickup (need is None).
+        resp = self.client.post("/api/pickups/", self._pickup_payload(), format="json")
+        pickup_id, token = resp.data["id"], resp.data["access_token"]
+        resp = self.client.post(
+            f"/api/pickups/{pickup_id}/anonymize/", {"access_token": token, "confirm": True}, format="json"
+        )
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.assertTrue(Pickup.objects.get(pk=pickup_id).is_anonymized)
+
+    def test_existing_need_only_pickup_flow_unaffected(self):
+        # Backward compatibility: the original Need-only pickup flow must
+        # keep working byte-for-byte the same after this change.
+        campaign = make_campaign()
+        need_resp = self.client.post(
+            "/api/needs/", dict(NEED_PAYLOAD, campaign=campaign.pk, wilaya=campaign.authorized_wilayas.first().pk), format="json"
+        )
+        need_id = need_resp.data["id"]
+        resp = self.client.post(
+            "/api/pickups/",
+            {
+                "need": need_id,
+                "responder_type": "individual_volunteer",
+                "responder_name": "Sara Amrani",
+                "responder_phone": "0666000002",
+                "content_brought": "30 blankets",
+            },
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 201, resp.content)
+        pickup = Pickup.objects.get(pk=resp.data["id"])
+        self.assertEqual(pickup.need_id, need_id)
+        self.assertIsNone(pickup.collection_point_id)
+        need = Need.objects.get(pk=need_id)
+        self.assertEqual(need.overall_status, Need.STATUS_PARTIALLY_COVERED)
+
+
 class SearchFilterTests(BaseAPITestCase):
     def setUp(self):
         super().setUp()

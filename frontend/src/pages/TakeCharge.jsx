@@ -16,19 +16,27 @@ const DEFAULT_FORM = {
   recovery_code: '',
 }
 
-export default function TakeCharge() {
+// source: 'need' (default) or 'collection_point' -- same Pickup model and
+// endpoint either way, just linked via a different field and returning to
+// a different detail page. See core/models.py Pickup: exactly one of
+// need/collection_point is ever set on a given pickup.
+export default function TakeCharge({ source = 'need' }) {
   const { t } = useTranslation()
   const { id } = useParams()
   const navigate = useNavigate()
   const { savePickupToken, config, refreshConfig } = useApp()
   const { showAlert } = useDialog()
-  const [need, setNeed] = useState(null)
+  const [target, setTarget] = useState(null)
   const [form, setForm] = useState(DEFAULT_FORM)
   const [error, setError] = useState('')
 
+  const detailPath = source === 'collection_point' ? `/collection-points/${id}` : `/needs/${id}`
+  const targetLabel = source === 'collection_point' ? target?.point_name : target?.title
+
   useEffect(() => {
-    api(`/needs/${id}/`).then(setNeed).catch(() => {}) // offline/network failure -- offline banner already informs the user
-  }, [id])
+    const endpoint = source === 'collection_point' ? `/collection-points/${id}/` : `/needs/${id}/`
+    api(endpoint).then(setTarget).catch(() => {}) // offline/network failure -- offline banner already informs the user
+  }, [id, source])
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }))
 
@@ -36,16 +44,16 @@ export default function TakeCharge() {
     e.preventDefault()
     setError('')
     try {
-      const fields = { ...form, need: id, turnstile_token: window.__turnstileToken || '' }
+      const fields = { ...form, [source]: id, turnstile_token: window.__turnstileToken || '' }
       const result = await createOrQueue({ type: 'pickup', endpoint: '/api/pickups/', fields })
       if (result.queued) {
         showAlert(t('offline.pendingSync'))
-        navigate(`/needs/${id}`)
+        navigate(detailPath)
         return
       }
       savePickupToken(result.data.id, result.data.access_token)
       refreshConfig()
-      navigate(`/needs/${id}`)
+      navigate(detailPath)
     } catch (err) {
       setError(translateApiError(err, t))
     }
@@ -53,7 +61,7 @@ export default function TakeCharge() {
 
   return (
     <section className="form-page">
-      <h2>{t('takeCharge.title', { need: need ? need.title : '' })}</h2>
+      <h2>{t('takeCharge.title', { need: targetLabel || '' })}</h2>
       <form onSubmit={submit}>
         <label>
           {t('takeCharge.type')} *

@@ -148,6 +148,7 @@ class PickupPublicSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "need",
+            "collection_point",
             "responder_type",
             "responder_name",
             "responder_phone",
@@ -171,11 +172,17 @@ class PickupListSerializer(serializers.ModelSerializer):
     """Lighter than PickupPublicSerializer for the global "deliveries in
     progress" list (no nested progress_updates/delivery_photos -- not
     needed for an overview row, and keeps the payload small for weak
-    connectivity). Adds need_title/need_wilaya_name so the list is
-    readable without a second request per row."""
+    connectivity). Adds need_title/need_wilaya_name (or their
+    collection_point_* equivalents, whichever of the two this pickup
+    belongs to) so the list is readable without a second request per row.
+    SerializerMethodField rather than source="need.title" because exactly
+    one of need/collection_point is ever set on a given pickup -- a dotted
+    source would try to traverse through the unset (None) one."""
 
-    need_title = serializers.CharField(source="need.title", read_only=True)
-    need_wilaya_name = serializers.CharField(source="need.wilaya.name", read_only=True)
+    need_title = serializers.SerializerMethodField()
+    need_wilaya_name = serializers.SerializerMethodField()
+    collection_point_name = serializers.SerializerMethodField()
+    collection_point_wilaya_name = serializers.SerializerMethodField()
     is_anonymized = serializers.BooleanField(read_only=True)
 
     class Meta:
@@ -185,6 +192,9 @@ class PickupListSerializer(serializers.ModelSerializer):
             "need",
             "need_title",
             "need_wilaya_name",
+            "collection_point",
+            "collection_point_name",
+            "collection_point_wilaya_name",
             "responder_type",
             "responder_name",
             "responder_phone",
@@ -196,12 +206,25 @@ class PickupListSerializer(serializers.ModelSerializer):
             "is_anonymized",
         ]
 
+    def get_need_title(self, obj):
+        return obj.need.title if obj.need_id else None
+
+    def get_need_wilaya_name(self, obj):
+        return obj.need.wilaya.name if obj.need_id else None
+
+    def get_collection_point_name(self, obj):
+        return obj.collection_point.point_name if obj.collection_point_id else None
+
+    def get_collection_point_wilaya_name(self, obj):
+        return obj.collection_point.wilaya.name if obj.collection_point_id else None
+
 
 class PickupCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Pickup
         fields = [
             "need",
+            "collection_point",
             "responder_type",
             "responder_name",
             "responder_phone",
@@ -221,8 +244,19 @@ class PickupCreateSerializer(serializers.ModelSerializer):
             )
         return need
 
+    def validate_collection_point(self, collection_point):
+        if collection_point.status != CollectionPoint.STATUS_ACTIVE:
+            raise serializers.ValidationError("This collection point is closed.")
+        return collection_point
+
     def validate_recovery_code(self, value):
         return check_recovery_code_available(Pickup, value)
+
+    def validate(self, attrs):
+        need, collection_point = attrs.get("need"), attrs.get("collection_point")
+        if bool(need) == bool(collection_point):
+            raise serializers.ValidationError("Exactly one of 'need' or 'collection_point' must be set.")
+        return attrs
 
 
 class NeedPublicSerializer(serializers.ModelSerializer):
@@ -508,13 +542,18 @@ class CollectionPointSerializer(serializers.ModelSerializer):
     wilaya_name = serializers.CharField(source="wilaya.name", read_only=True)
     comments = serializers.SerializerMethodField()
     flyer_image = serializers.SerializerMethodField()
+    # Same "a listing carries its own pickups" convention as
+    # NeedPublicSerializer -- lets a courier's take-charge/delivery from
+    # this collection point (and its live tracking state) show up on the
+    # point's own detail page, same UI/logic as a Need's pickups.
+    pickups = PickupPublicSerializer(many=True, read_only=True)
 
     class Meta:
         model = CollectionPoint
         fields = [
             "id", "wilaya", "wilaya_name", "point_name", "contact_name", "contact_phone",
             "other_phones", "organization", "location_description", "latitude", "longitude", "hours",
-            "accepted_donations", "status", "created_at", "comments",
+            "accepted_donations", "status", "created_at", "comments", "pickups",
             "facebook_url", "tiktok_url", "instagram_url",
             "flyer_image", "flyer_moderation_status", "flyer_moderated_by",
         ]

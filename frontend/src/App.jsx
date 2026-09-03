@@ -258,6 +258,7 @@ export default function App() {
           <Route path="/collection-points" element={<CollectionPoints />} />
           <Route path="/collection-points/create" element={<CreateCollectionPoint />} />
           <Route path="/collection-points/:id" element={<CollectionPointDetail />} />
+          <Route path="/collection-points/:id/take-charge" element={<TakeCharge source="collection_point" />} />
           <Route path="/deliveries" element={<Deliveries />} />
         </Routes>
       </main>

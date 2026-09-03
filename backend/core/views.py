@@ -409,7 +409,7 @@ class NeedViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retriev
 
 
 class PickupViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.RetrieveModelMixin):
-    queryset = Pickup.objects.select_related("need", "need__wilaya").prefetch_related("progress_updates", "delivery_photos")
+    queryset = Pickup.objects.select_related("need", "need__wilaya", "collection_point", "collection_point__wilaya").prefetch_related("progress_updates", "delivery_photos")
     permission_classes = [AllowAny]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
@@ -426,7 +426,7 @@ class PickupViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retri
         status_param = self.request.query_params.get("status")
         search = self.request.query_params.get("search")
         if wilaya:
-            qs = qs.filter(need__wilaya_id=wilaya)
+            qs = qs.filter(Q(need__wilaya_id=wilaya) | Q(collection_point__wilaya_id=wilaya))
         if status_param:
             qs = qs.filter(status=status_param)
         if search:
@@ -436,6 +436,8 @@ class PickupViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retri
                 | Q(organization_or_person_name__icontains=search)
                 | Q(need__title__icontains=search)
                 | Q(need__wilaya__name__icontains=search)
+                | Q(collection_point__point_name__icontains=search)
+                | Q(collection_point__wilaya__name__icontains=search)
             )
         return qs
 
@@ -455,7 +457,7 @@ class PickupViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retri
         latest known position, not its full trail."""
         pickups = (
             Pickup.objects.filter(status=Pickup.STATUS_EN_ROUTE, location_sharing_active=True)
-            .select_related("need", "need__wilaya")
+            .select_related("need", "need__wilaya", "collection_point", "collection_point__wilaya")
             .prefetch_related(Prefetch("location_pings", queryset=LocationPing.objects.order_by("-recorded_at")))
         )
         result = []
@@ -464,17 +466,25 @@ class PickupViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retri
             if not pings:
                 continue
             latest = pings[0]
-            result.append({
+            entry = {
                 "pickup_id": pickup.id,
+                # Exactly one of these two pairs is populated, matching
+                # whichever of need/collection_point this pickup belongs to
+                # -- the frontend map picks whichever is present rather
+                # than assuming need_id is always set.
                 "need_id": pickup.need_id,
-                "need_title": pickup.need.title,
-                "need_wilaya_name": pickup.need.wilaya.name,
+                "need_title": pickup.need.title if pickup.need_id else None,
+                "need_wilaya_name": pickup.need.wilaya.name if pickup.need_id else None,
+                "collection_point_id": pickup.collection_point_id,
+                "collection_point_name": pickup.collection_point.point_name if pickup.collection_point_id else None,
+                "collection_point_wilaya_name": pickup.collection_point.wilaya.name if pickup.collection_point_id else None,
                 "responder_name": pickup.organization_or_person_name or pickup.responder_name,
                 "content_brought": pickup.content_brought,
                 "latitude": latest.latitude,
                 "longitude": latest.longitude,
                 "recorded_at": latest.recorded_at,
-            })
+            }
+            result.append(entry)
         return Response(result)
 
     def create(self, request, *args, **kwargs):
@@ -487,7 +497,8 @@ class PickupViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retri
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         pickup = serializer.save()
-        pickup.need.recompute_status()
+        if pickup.need_id:
+            pickup.need.recompute_status()
         out = PickupPublicSerializer(pickup).data
         out["access_token"] = pickup.access_token
         return Response(out, status=status.HTTP_201_CREATED)
@@ -515,7 +526,8 @@ class PickupViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retri
             # untick the checkbox themselves.
             pickup.location_sharing_active = False
         pickup.save()
-        pickup.need.recompute_status()
+        if pickup.need_id:
+            pickup.need.recompute_status()
         log_admin_action(request, "edited pickup", pickup)
         return Response(PickupPublicSerializer(pickup).data)
 
@@ -610,7 +622,11 @@ class PickupViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retri
             return Response({"detail": "Not authorized."}, status=status.HTTP_403_FORBIDDEN)
 
         actor = pickup.OBFUSCATED_BY_ADMIN if admin else pickup.OBFUSCATED_BY_RESPONDER
-        is_active = pickup.status == Pickup.STATUS_EN_ROUTE and pickup.need.campaign.status != Campaign.STATUS_STOPPED
+        # A collection-point pickup has no campaign to check (CollectionPoint
+        # isn't campaign-scoped) -- only the STATUS_STOPPED override applies
+        # to a Need-linked pickup.
+        campaign_stopped = pickup.need_id and pickup.need.campaign.status == Campaign.STATUS_STOPPED
+        is_active = pickup.status == Pickup.STATUS_EN_ROUTE and not campaign_stopped
         if not admin and is_active:
             serializer = AnonymizeSerializer(data=request.data)
             serializer.is_valid(raise_exception=True)
@@ -667,7 +683,9 @@ class ContentReportViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
 
 
 class CollectionPointViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.RetrieveModelMixin):
-    queryset = CollectionPoint.objects.select_related("wilaya").prefetch_related("comments__replies")
+    queryset = CollectionPoint.objects.select_related("wilaya").prefetch_related(
+        "comments__replies", "pickups__progress_updates", "pickups__delivery_photos"
+    )
     permission_classes = [AllowAny]
 
     def get_serializer_class(self):

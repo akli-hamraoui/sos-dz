@@ -4,23 +4,18 @@ import { useTranslation } from 'react-i18next'
 import L from 'leaflet'
 import { useApp } from '../context/AppContext'
 import { useDialog } from '../context/DialogContext'
-import { api, apiUpload, createOrQueue } from '../api'
-import { maskPhone, formatDate, compressPhoto, googleMapsUrl } from '../utils'
+import { api } from '../api'
+import { maskPhone, formatDate, googleMapsUrl } from '../utils'
 import { translateApiError } from '../apiErrors'
 import { IconMapPin } from '../icons'
 import { fetchDrivingRoute } from '../routing'
 import CommentThread from '../components/CommentThread'
 import CopyButton from '../components/CopyButton'
+import ModerationBadge from '../components/ModerationBadge'
+import PickupManager from '../components/PickupManager'
 
 function statusLabel(t, s) {
   return t(`status.${s}`, s)
-}
-
-function ModerationBadge({ t, status, moderatedBy }) {
-  let key = 'pending'
-  if (status === 'approved') key = moderatedBy === 'admin' ? 'adminApproved' : 'systemApproved'
-  else if (status === 'rejected') key = 'rejected'
-  return <span className={`moderation-badge moderation-badge-${status === 'rejected' ? 'rejected' : status === 'approved' ? 'approved' : 'pending'}`}>{t(`needDetail.moderationBadge.${key}`)}</span>
 }
 
 export default function NeedDetail() {
@@ -32,21 +27,13 @@ export default function NeedDetail() {
   const { showAlert, showConfirm, showPrompt } = useDialog()
   const [need, setNeed] = useState(null)
   const [showPhone, setShowPhone] = useState(false)
-  const [revealedPickupPhones, setRevealedPickupPhones] = useState({})
   const [shareLink, setShareLink] = useState('')
   const [canSeeLiveMap, setCanSeeLiveMap] = useState(false)
   const [routeInfo, setRouteInfo] = useState(null)
-  const [progressText, setProgressText] = useState({})
-  const [deliveryPhotos, setDeliveryPhotos] = useState({})
   const [lightbox, setLightbox] = useState(null) // { src } for a full-size image preview
   const [anonymizingNeed, setAnonymizingNeed] = useState(false)
-  const [anonymizingPickupIds, setAnonymizingPickupIds] = useState(() => new Set())
   const mapElRef = useRef(null)
   const mapRef = useRef(null)
-  // navigator.geolocation.watchPosition ID per pickup id -- continuous
-  // tracking (not a one-shot ping) while location_sharing_active is on and
-  // the delivery is still en route; see the sync effect below.
-  const watchIdsRef = useRef({})
 
   const isNeedOwner = needTokens[id] && needTokens[id].access_token
   const viewerToken = searchParams.get('viewer')
@@ -269,149 +256,6 @@ export default function NeedDetail() {
     showAlert(t('common.confirm'))
   }
 
-  const addProgressUpdate = async (pickupId) => {
-    const text = progressText[pickupId]
-    if (!text) return
-    const token = pickupTokens[pickupId]
-    const result = await createOrQueue({
-      type: 'progress_update',
-      endpoint: `/api/pickups/${pickupId}/progress-updates/`,
-      fields: { free_text: text, access_token: token },
-    })
-    setProgressText((p) => ({ ...p, [pickupId]: '' }))
-    if (result.queued) {
-      showAlert(t('offline.pendingSync'))
-      return
-    }
-    load()
-  }
-
-  // Continuous tracking (watchPosition), not a one-shot ping -- starts the
-  // instant sharing is turned on and keeps sending as the courier's real
-  // position changes, until stopLocationWatch tears it down (toggled off,
-  // delivered, cancelled, or this page unmounts). Never starts on its own:
-  // only ever called from the explicit opt-in toggle below, or the sync
-  // effect resuming a share the courier had already turned on.
-  const startLocationWatch = useCallback(
-    (pickupId) => {
-      if (!navigator.geolocation || watchIdsRef.current[pickupId] != null) return
-      const token = pickupTokens[pickupId]
-      const watchId = navigator.geolocation.watchPosition(
-        (pos) => {
-          api(`/pickups/${pickupId}/location-pings/`, {
-            method: 'POST',
-            body: JSON.stringify({ latitude: pos.coords.latitude, longitude: pos.coords.longitude, access_token: token }),
-          })
-            .then(checkLiveMapAccess)
-            .catch(() => {
-              /* one failed send (offline blip, delivery just ended server-side) -- watchPosition keeps
-                 running and simply retries on the next real position change, no need to tear it down here */
-            })
-        },
-        () => {
-          /* GPS temporarily unavailable/denied mid-watch -- never treated as
-             fatal or shown as a blocking error; the browser keeps calling
-             back on future position changes, per spec 17.4/17.10 (#18). */
-        },
-        { enableHighAccuracy: true, maximumAge: 15000, timeout: 20000 }
-      )
-      watchIdsRef.current[pickupId] = watchId
-    },
-    [pickupTokens, checkLiveMapAccess]
-  )
-
-  const stopLocationWatch = useCallback((pickupId) => {
-    const watchId = watchIdsRef.current[pickupId]
-    if (watchId != null) {
-      navigator.geolocation.clearWatch(watchId)
-      delete watchIdsRef.current[pickupId]
-    }
-  }, [])
-
-  const toggleLocationSharing = async (pickup, checked) => {
-    const token = pickupTokens[pickup.id]
-    // Optimistic stop: never leave the browser still emitting a courier's
-    // position for even one more tick once they've said no.
-    if (!checked) stopLocationWatch(pickup.id)
-    await api(`/pickups/${pickup.id}/`, { method: 'PATCH', body: JSON.stringify({ location_sharing_active: checked, access_token: token }) })
-    if (checked) startLocationWatch(pickup.id)
-    load()
-  }
-
-  // Keeps the actual watchPosition calls in sync with each owned pickup's
-  // server-known state -- covers a page reload while sharing was already
-  // on (resumes tracking) and, symmetrically, a delivery that just moved
-  // to delivered/cancelled (stops it), without the courier having to touch
-  // the toggle themselves. Also the effect cleanup that guarantees no
-  // watch survives navigating away from this page.
-  useEffect(() => {
-    if (!need) return
-    need.pickups.forEach((p) => {
-      const owned = !!pickupTokens[p.id]
-      const shouldTrack = owned && p.location_sharing_active && p.status === 'en_route'
-      if (shouldTrack) startLocationWatch(p.id)
-      else stopLocationWatch(p.id)
-    })
-    // No cleanup here -- start/stopLocationWatch are idempotent against
-    // watchIdsRef, so re-running this sync on every `need`/`pickupTokens`
-    // change (e.g. after posting a progress update) is a cheap no-op for
-    // pickups whose tracking state hasn't actually changed. A real
-    // "stop everything" cleanup belongs to unmount only (below), not to
-    // every re-run of this effect.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [need, pickupTokens])
-
-  // Guarantees no watchPosition survives navigating away from this page,
-  // regardless of what state the pickups were in.
-  useEffect(() => {
-    return () => {
-      Object.keys(watchIdsRef.current).forEach((pid) => stopLocationWatch(pid))
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  const addDeliveryPhotoFile = async (e, pickupId) => {
-    const file = e.target.files[0]
-    e.target.value = ''
-    const current = deliveryPhotos[pickupId] || []
-    if (!file || current.length >= 3) return
-    const compressed = await compressPhoto(file)
-    setDeliveryPhotos((p) => ({ ...p, [pickupId]: [...current, { file: compressed, previewUrl: URL.createObjectURL(compressed) }] }))
-  }
-
-  const markDelivered = async (pickupId) => {
-    const token = pickupTokens[pickupId]
-    const formData = new FormData()
-    formData.append('access_token', token)
-    ;(deliveryPhotos[pickupId] || []).forEach((p) => formData.append('delivery_photos', p.file, p.file.name))
-    await apiUpload(`/pickups/${pickupId}/deliver/`, formData)
-    setDeliveryPhotos((p) => ({ ...p, [pickupId]: [] }))
-    load()
-    refreshConfig()
-  }
-
-  const anonymizePickup = async (pickupId) => {
-    if (anonymizingPickupIds.has(pickupId)) return
-    setAnonymizingPickupIds((prev) => new Set(prev).add(pickupId))
-    try {
-      const token = pickupTokens[pickupId]
-      try {
-        await api(`/pickups/${pickupId}/anonymize/`, { method: 'POST', body: JSON.stringify({ access_token: token }) })
-      } catch (e) {
-        if (e.data && e.data.requires_confirmation && (await showConfirm(translateApiError(e, t)))) {
-          await api(`/pickups/${pickupId}/anonymize/`, { method: 'POST', body: JSON.stringify({ access_token: token, confirm: true }) })
-        }
-      }
-      load()
-    } finally {
-      setAnonymizingPickupIds((prev) => {
-        const next = new Set(prev)
-        next.delete(pickupId)
-        return next
-      })
-    }
-  }
-
   if (!need) return null
 
   return (
@@ -565,118 +409,9 @@ export default function NeedDetail() {
         {t('needDetail.alsoTakeCharge')}
       </button>
 
-      {need.pickups.map((p) => {
-        const owned = !!pickupTokens[p.id]
-        return (
-          <div className="pickup-card" key={p.id}>
-            <p>
-              <strong>{p.responder_name}</strong>{' '}
-              <span className="status">{statusLabel(t, p.status)}</span>{' '}
-              {p.needs_verification && <span className="badge badge-warn">{t('status.toVerify')}</span>}
-            </p>
-            {p.responder_phone && (
-              <p>
-                {maskPhone(p.responder_phone, revealedPickupPhones[p.id])}{' '}
-                <button className="link" onClick={() => setRevealedPickupPhones((r) => ({ ...r, [p.id]: !r[p.id] }))}>
-                  {revealedPickupPhones[p.id] ? t('common.hideNumber') : t('common.showFullNumber')}
-                </button>
-              </p>
-            )}
-            <p>{t('needDetail.bringing', { content: p.content_brought })}</p>
-            <div className="timeline">
-              {p.progress_updates.map((u) => (
-                <div className="timeline-item" key={u.id}>
-                  <span className="dot" />
-                  <span>
-                    {formatDate(u.timestamp, i18n.language)} — {u.free_text}
-                  </span>
-                </div>
-              ))}
-            </div>
-            {p.delivery_photos && p.delivery_photos.length > 0 && (
-              <div className="photo-thumbs">
-                {p.delivery_photos.map((photo) => (
-                  <div className="photo-thumb" key={photo.id}>
-                    {photo.image ? (
-                      <button type="button" className="gallery-thumb-btn" onClick={() => setLightbox({ src: photo.image })}>
-                        <img className="gallery-thumb" src={photo.image} alt="" />
-                      </button>
-                    ) : (
-                      <ModerationBadge t={t} status={photo.moderation_status} moderatedBy={photo.moderated_by} />
-                    )}
-                    {photo.image && (
-                      <>
-                        <ModerationBadge t={t} status={photo.moderation_status} moderatedBy={photo.moderated_by} />
-                        <br />
-                        <button className="link" onClick={() => reportContent('delivery_photo', photo.id)}>
-                          {t('needDetail.reportContent')}
-                        </button>
-                      </>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-            {owned && (
-              <div className="pickup-owner-actions">
-                <input type="text" value={progressText[p.id] || ''} onChange={(e) => setProgressText((pt) => ({ ...pt, [p.id]: e.target.value }))} placeholder={t('needDetail.progressUpdatePlaceholder')} />
-                <button className="btn" onClick={() => addProgressUpdate(p.id)}>
-                  {t('needDetail.postUpdate')}
-                </button>
-                <label>
-                  <input type="checkbox" checked={p.location_sharing_active} onChange={(e) => toggleLocationSharing(p, e.target.checked)} /> {t('needDetail.shareMyLiveLocation')}
-                </label>
-                {/* Purely informational -- there's no separate "send now"
-                    action anymore, tracking is continuous (watchPosition)
-                    for as long as the checkbox above stays on. */}
-                {p.location_sharing_active && (
-                  <p className="hint field-label-icon">
-                    <IconMapPin width={16} height={16} strokeWidth={2} /> {t('needDetail.locationTrackingActive')}
-                  </p>
-                )}
-                {p.status === 'en_route' && (
-                  <div>
-                    <p className="hint">{t('needDetail.deliveryPhotosLabel')}</p>
-                    {(deliveryPhotos[p.id] || []).length < 3 && (
-                      <label className="btn record-btn photo-add-btn">
-                        {t('createNeed.takePhoto')}
-                        <input type="file" accept="image/*" capture="environment" onChange={(e) => addDeliveryPhotoFile(e, p.id)} hidden />
-                      </label>
-                    )}
-                    <div className="photo-thumbs">
-                      {(deliveryPhotos[p.id] || []).map((ph, idx) => (
-                        <div className="photo-thumb" key={idx}>
-                          <img src={ph.previewUrl} alt="" />
-                          <button
-                            type="button"
-                            className="link"
-                            onClick={() => setDeliveryPhotos((d) => ({ ...d, [p.id]: d[p.id].filter((_, i) => i !== idx) }))}
-                          >
-                            {t('createNeed.remove')}
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                    <button className="btn btn-primary" onClick={() => markDelivered(p.id)}>
-                      {t('needDetail.markAsDelivered')}
-                    </button>
-                  </div>
-                )}
-                <button className="btn btn-danger" onClick={() => anonymizePickup(p.id)} disabled={anonymizingPickupIds.has(p.id)}>
-                  {t('needDetail.anonymizeMyInfo')}
-                </button>
-              </div>
-            )}
-            {!owned && (
-              <div>
-                <Link className="link" to="/recover" state={{ type: 'pickup', id: p.id }}>
-                  {t('needDetail.isThisYourPickup')}
-                </Link>
-              </div>
-            )}
-          </div>
-        )
-      })}
+      {need.pickups.map((p) => (
+        <PickupManager key={p.id} pickup={p} pickupToken={pickupTokens[p.id]} onChange={load} />
+      ))}
 
       <CommentThread comments={need.comments || []} target="need" targetId={need.id} onChanged={load} />
 

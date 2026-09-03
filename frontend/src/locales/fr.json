@@ -252,6 +252,7 @@
     "flyerAdd": "Ajouter une image",
     "publish": "Publier ce point de collecte",
     "markAsClosed": "Marquer comme fermé",
+    "takeChargeDelivery": "Prendre en charge une livraison",
     "closePromptCode": "Votre code de récupération (laissez vide si vous n'en avez pas défini un) :",
     "closePromptName": "Votre nom (tel que saisi à la création) :",
     "closePromptPhone": "Votre téléphone :",
