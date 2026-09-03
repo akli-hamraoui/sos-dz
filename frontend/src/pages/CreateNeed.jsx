@@ -29,7 +29,7 @@ const DEFAULT_FORM = {
 export default function CreateNeed() {
   const { t, i18n } = useTranslation()
   const navigate = useNavigate()
-  const { campaigns, wilayasForCampaign, wilayas, saveNeedToken, config } = useApp()
+  const { campaigns, wilayasForCampaign, wilayas, saveNeedToken, config, refreshConfig } = useApp()
   const { showConfirm, showAlert } = useDialog()
   const [form, setForm] = useState(DEFAULT_FORM)
   const [gpsStatus, setGpsStatus] = useState(null) // null | 'locating' | 'error'
@@ -328,6 +328,7 @@ export default function CreateNeed() {
       }
       const need = result.data
       saveNeedToken(need.id, { access_token: need.access_token, location_viewer_share_token: need.location_viewer_share_token })
+      refreshConfig()
       navigate(`/needs/${need.id}`)
     } catch (err) {
       setError(translateApiError(err, t))

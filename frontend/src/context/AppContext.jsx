@@ -24,6 +24,19 @@ export function AppProvider({ children }) {
   const [isOnline, setIsOnline] = useState(navigator.onLine)
   const [syncMessage, setSyncMessage] = useState('')
 
+  // Re-fetches just the nav badge counts (needs_open_count,
+  // collection_points_active_count, deliveries_en_route_count) without
+  // touching turnstile setup -- called after creating/closing a
+  // Need/CollectionPoint/Pickup or any other action that changes one of
+  // these counts, so the badges update in the background instead of
+  // needing a manual page reload. Merges into the existing config rather
+  // than replacing it wholesale, in case of a transient failure.
+  const refreshConfig = useCallback(() => {
+    return api('/config/')
+      .then((data) => setConfig((prev) => ({ ...prev, ...data })))
+      .catch(() => {})
+  }, [])
+
   useEffect(() => {
     api('/config/')
       .then((data) => {
@@ -134,6 +147,7 @@ export function AppProvider({ children }) {
 
   const value = {
     config,
+    refreshConfig,
     wilayas,
     campaigns,
     wilayasForCampaign,

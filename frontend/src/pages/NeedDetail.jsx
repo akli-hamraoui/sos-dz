@@ -28,7 +28,7 @@ export default function NeedDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const { needTokens, saveNeedToken, pickupTokens, savePickupToken, wilayas } = useApp()
+  const { needTokens, saveNeedToken, pickupTokens, savePickupToken, wilayas, refreshConfig } = useApp()
   const { showAlert, showConfirm, showPrompt } = useDialog()
   const [need, setNeed] = useState(null)
   const [showPhone, setShowPhone] = useState(false)
@@ -201,6 +201,7 @@ export default function NeedDetail() {
     const reason = await showPrompt(t('needDetail.cancelThisNeed') + '?', '')
     if (reason === null) return
     editNeed({ is_cancelled: true, cancellation_reason: reason })
+    refreshConfig()
   }
 
   const promptUpdateGPS = () => {
@@ -386,6 +387,7 @@ export default function NeedDetail() {
     await apiUpload(`/pickups/${pickupId}/deliver/`, formData)
     setDeliveryPhotos((p) => ({ ...p, [pickupId]: [] }))
     load()
+    refreshConfig()
   }
 
   const anonymizePickup = async (pickupId) => {

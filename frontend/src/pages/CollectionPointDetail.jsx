@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useDialog } from '../context/DialogContext'
+import { useApp } from '../context/AppContext'
 import { api } from '../api'
 import { maskPhone, googleMapsUrl } from '../utils'
 import { translateApiError } from '../apiErrors'
@@ -34,6 +35,7 @@ export default function CollectionPointDetail() {
   const { t } = useTranslation()
   const { id } = useParams()
   const { showAlert, showPrompt } = useDialog()
+  const { refreshConfig } = useApp()
   const [cp, setCp] = useState(null)
   const [showPhone, setShowPhone] = useState(false)
   const [lightbox, setLightbox] = useState(null) // { src } for a full-size flyer preview
@@ -73,6 +75,7 @@ export default function CollectionPointDetail() {
     }
     try {
       setCp(await api(`/collection-points/${id}/close/`, { method: 'POST', body: JSON.stringify(payload) }))
+      refreshConfig()
     } catch (e) {
       showAlert(translateApiError(e, t))
     }

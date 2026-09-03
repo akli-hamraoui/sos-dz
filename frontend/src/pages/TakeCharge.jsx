@@ -20,7 +20,7 @@ export default function TakeCharge() {
   const { t } = useTranslation()
   const { id } = useParams()
   const navigate = useNavigate()
-  const { savePickupToken, config } = useApp()
+  const { savePickupToken, config, refreshConfig } = useApp()
   const { showAlert } = useDialog()
   const [need, setNeed] = useState(null)
   const [form, setForm] = useState(DEFAULT_FORM)
@@ -44,6 +44,7 @@ export default function TakeCharge() {
         return
       }
       savePickupToken(result.data.id, result.data.access_token)
+      refreshConfig()
       navigate(`/needs/${id}`)
     } catch (err) {
       setError(translateApiError(err, t))

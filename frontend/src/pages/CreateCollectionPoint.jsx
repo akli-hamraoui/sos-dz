@@ -27,7 +27,7 @@ const DEFAULT_FORM = {
 export default function CreateCollectionPoint() {
   const { t, i18n } = useTranslation()
   const navigate = useNavigate()
-  const { activeCampaignWilayas, wilayas, config } = useApp()
+  const { activeCampaignWilayas, wilayas, config, refreshConfig } = useApp()
   const [form, setForm] = useState(DEFAULT_FORM)
   const [gpsStatus, setGpsStatus] = useState(null) // null | 'locating' | 'error'
   const [error, setError] = useState('')
@@ -100,6 +100,7 @@ export default function CreateCollectionPoint() {
       })
       if (flyer) formData.append('flyer_image', flyer.file, flyer.file.name || 'flyer.jpg')
       const point = await apiUpload('/collection-points/', formData)
+      refreshConfig()
       navigate(`/collection-points/${point.id}`)
     } catch (err) {
       // Temporary diagnostic: a raw client-side failure (thrown before/
