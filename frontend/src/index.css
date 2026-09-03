@@ -1104,6 +1104,12 @@ fieldset {
   color: #555;
   box-sizing: border-box;
 }
+/* IconBox (Collecte) and IconTruck (Livraisons) are wider than the other
+   nav icons -- at the default offset the badge sat partly over the icon
+   itself instead of clear of it, so these two get pushed further out. */
+.map-indicator-shift {
+  inset-inline-end: -9px;
+}
 .bottom-nav a.active {
   /* Same solid pill treatment as the Liste/Carte toggle's .active state
      (.view-toggle button.active) -- a clear "this is the one you clicked"

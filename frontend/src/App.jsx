@@ -29,9 +29,9 @@ import { IconHome, IconNeeds, IconBox, IconTruck, IconPlus, IconWarning, IconWif
 // filled rather than the app's usual thin-stroke style, so this one
 // glyph reads as "map" at a glance rather than blending into the rest of
 // the (deliberately colorless) icon language.
-function MapIndicator() {
+function MapIndicator({ shiftRight }) {
   return (
-    <span className="map-indicator" aria-hidden="true">
+    <span className={`map-indicator${shiftRight ? ' map-indicator-shift' : ''}`} aria-hidden="true">
       <svg width="10" height="10" viewBox="0 0 24 24">
         <path d="M12 21.5S5 14.8 5 9.8a7 7 0 1 1 14 0c0 5-7 11.7-7 11.7Z" fill="#000" />
         <circle cx="12" cy="9.8" r="2.6" fill="#fff" />
@@ -174,7 +174,7 @@ function BottomNav() {
       <Link to="/collection-points" className={isActive('/collection-points') ? 'active' : ''}>
         <span className="icon">
           <IconBox />
-          <MapIndicator />
+          <MapIndicator shiftRight />
           {!!config.collection_points_active_count && (
             <span className="nav-badge">{formatBadgeCount(config.collection_points_active_count)}</span>
           )}
@@ -188,7 +188,7 @@ function BottomNav() {
       <Link to="/deliveries" className={isActive('/deliveries') ? 'active' : ''}>
         <span className="icon">
           <IconTruck />
-          <MapIndicator />
+          <MapIndicator shiftRight />
           {!!config.deliveries_en_route_count && <span className="nav-badge">{formatBadgeCount(config.deliveries_en_route_count)}</span>}
         </span>
         <span>{t('nav.deliveries')}</span>
