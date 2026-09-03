@@ -274,8 +274,37 @@ main {
      it doesn't push content off-screen on very tall/desktop viewports. */
   padding: clamp(20px, 12svh, 140px) 20px 60px;
   position: relative;
+  /* z-index (any value, not just position) is what's needed for an element
+     to actually establish a new stacking context -- without this, the
+     ::before below's z-index:-1 escapes past .home entirely and paints
+     behind body's own background instead of just behind .home's content,
+     making it invisible no matter the opacity. */
+  z-index: 0;
   overflow: hidden;
   text-align: center;
+}
+.home::before {
+  /* A barely-there map hint in the clear space above the logo -- a real
+     crop of the app's own collection-points map (not a live-rendered one,
+     just a static image), so it reads as "this app has a map" without the
+     weight of an actual Leaflet instance sitting unused on the homepage.
+     Deliberately anchored high and away from the hand/flag photo further
+     down (see body's own background-image) -- overlapping the two only
+     turned both into an illegible grey smear, neither reading as anything.
+     Masked with a radial fade so it dissolves into the page instead of
+     reading as a photo with a visible rectangular edge. */
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image: url('/backgrounds/home-map-hint.jpg');
+  background-repeat: no-repeat;
+  background-position: center 20%;
+  background-size: cover;
+  mask-image: radial-gradient(ellipse 95% 34% at center 10%, #000 40%, transparent 82%);
+  -webkit-mask-image: radial-gradient(ellipse 95% 34% at center 10%, #000 40%, transparent 82%);
+  opacity: 0.34;
+  pointer-events: none;
 }
 .home-logo {
   display: block;
