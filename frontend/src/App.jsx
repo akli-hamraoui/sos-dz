@@ -134,20 +134,18 @@ function BottomNav() {
               the two FABs read as "add a need" / "add a collection point"
               rather than two identical plain "+" buttons. */}
           <span className="fab fab-need">
-            <IconPlus width={13} height={13} strokeWidth={2.5} />
+            <IconPlus width={16} height={16} strokeWidth={3} />
             {/* Same SOS mark used for need pins on the map (NeedsList.jsx),
                 not the heart icon -- that's the icon the user already
-                associates with "need" elsewhere in the app. Bigger than the
-                "+" above it -- it's the one that has to actually be read,
-                not just recognized as a shape. */}
-            <img src="/icons/need-marker-sos.png" width={16} height={16} alt="" style={{ filter: 'invert(1)' }} />
+                associates with "need" elsewhere in the app. */}
+            <img src="/icons/need-marker-sos.png" width={15} height={15} alt="" style={{ filter: 'invert(1)' }} />
           </span>
           <span className="fab-label">{t('nav.fabNeed')}</span>
         </Link>
         <Link to="/collection-points/create" className="fab-item" aria-label={t('collectionPoints.addButton')}>
           <span className="fab fab-collection">
-            <IconPlus width={13} height={13} strokeWidth={2.5} />
-            <IconBox width={16} height={16} strokeWidth={2} />
+            <IconPlus width={16} height={16} strokeWidth={3} />
+            <IconBox width={15} height={15} strokeWidth={2} />
           </span>
           <span className="fab-label">{t('nav.fabCollectionPoint')}</span>
         </Link>

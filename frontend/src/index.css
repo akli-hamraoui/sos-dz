@@ -1035,15 +1035,20 @@ fieldset {
 }
 .fab {
   color: #fff;
-  width: 50px;
-  height: 50px;
+  width: 54px;
+  height: 54px;
   border-radius: 50%;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 1px;
-  margin-block-start: -22px;
+  /* The "+" and the type icon are centered as one block by default, which
+     puts the "+" above the circle's actual center -- this padding nudges
+     the whole block down just enough that the "+" itself lands in the
+     middle of the circle instead. */
+  padding-block-start: 15px;
+  gap: 2px;
+  margin-block-start: -24px;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
 }
 .fab-need {
