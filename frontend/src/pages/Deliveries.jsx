@@ -181,6 +181,20 @@ export default function Deliveries() {
         </div>
       </div>
 
+      {/* Starting a delivery always begins on the need/collection point's
+          own page ("Prendre en charge"/"Prendre en charge une livraison")
+          -- these two just get a courier to the right browse screen (map
+          or list, same pages as the Besoins/Collecte tabs) to pick which
+          one, instead of duplicating that browsing UI here. */}
+      <div className="toolbar">
+        <Link className="btn btn-primary" to="/needs">
+          {t('deliveries.deliverToNeed')}
+        </Link>
+        <Link className="btn btn-primary" to="/collection-points">
+          {t('deliveries.deliverToCollectionPoint')}
+        </Link>
+      </div>
+
       {viewMode === 'list' && (
         <>
           {pickups.length === 0 && <p>{t('deliveries.noDeliveries')}</p>}

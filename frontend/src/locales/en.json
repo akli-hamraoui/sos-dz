@@ -151,7 +151,8 @@
     "noActiveNeeds": "No active needs right now.",
     "pickupsCount": "{{count}} pickup(s)",
     "collectionPointLabel": "Collection point",
-    "legendNote": "— pins without exact GPS sit at the wilaya's approximate centroid (\"no exact GPS position\")"
+    "legendNote": "— pins without exact GPS sit at the wilaya's approximate centroid (\"no exact GPS position\")",
+    "addButton": "+ Add a need"
   },
   "needDetail": {
     "contact": "Contact",
@@ -295,7 +296,9 @@
     "noLiveLocationsHint": "Sharing your position is optional and is turned on from your own delivery's page. To see every delivery (whether or not their position is shared), check the",
     "liveMapNote": "Positions volunteered by couriers, updated automatically.",
     "searchPlaceholder": "Search (name, phone...)",
-    "yours": "Yours"
+    "yours": "Yours",
+    "deliverToNeed": "Deliver to a need",
+    "deliverToCollectionPoint": "Deliver to a collection point"
   },
   "reportBug": {
     "title": "Report a bug",

@@ -151,7 +151,8 @@
     "noActiveNeeds": "Aucun besoin actif pour le moment.",
     "pickupsCount": "{{count}} prise(s) en charge",
     "collectionPointLabel": "Point de collecte",
-    "legendNote": "— les points sans GPS exact sont placés au centre approximatif de la wilaya (« sans position GPS exacte »)"
+    "legendNote": "— les points sans GPS exact sont placés au centre approximatif de la wilaya (« sans position GPS exacte »)",
+    "addButton": "+ Ajouter un besoin"
   },
   "needDetail": {
     "contact": "Contact",
@@ -295,7 +296,9 @@
     "noLiveLocationsHint": "Le partage de position est facultatif et se fait depuis la page de sa propre livraison. Pour voir toutes les livraisons (avec ou sans position partagée), consultez la",
     "liveMapNote": "Positions partagées volontairement par les livreurs, mises à jour automatiquement.",
     "searchPlaceholder": "Rechercher (nom, téléphone...)",
-    "yours": "La vôtre"
+    "yours": "La vôtre",
+    "deliverToNeed": "Livrer un besoin",
+    "deliverToCollectionPoint": "Livrer vers un point de collecte"
   },
   "reportBug": {
     "title": "Signaler un bug",

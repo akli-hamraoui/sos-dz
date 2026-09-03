@@ -291,6 +291,9 @@ export default function NeedsList() {
             {t('needsList.map')}
           </button>
         </div>
+        <Link className="btn btn-primary" to="/create">
+          {t('needsList.addButton')}
+        </Link>
       </div>
 
       {viewMode === 'list' && (
