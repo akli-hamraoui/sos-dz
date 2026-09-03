@@ -682,6 +682,28 @@ class AnonymizationTests(BaseAPITestCase):
         self.assertEqual(need.contact_name, "Anonymized")
         self.assertEqual(need.title, NEED_PAYLOAD["title"])  # untouched
 
+    def test_anonymize_is_idempotent_a_repeat_call_never_undoes_it(self):
+        # Regression: a double-click on "Anonymiser mes informations" used
+        # to be able to fire two overlapping requests from the frontend.
+        # The backend side of that must be a harmless no-op either way --
+        # anonymizing twice must never restore or otherwise change data.
+        self.client.post(
+            f"/api/needs/{self.need_id}/anonymize/", {"access_token": self.token, "confirm": True}, format="json"
+        )
+        need = Need.objects.get(pk=self.need_id)
+        self.assertTrue(need.is_anonymized)
+        first_obfuscated_at = need.pii_obfuscated_at
+
+        resp = self.client.post(
+            f"/api/needs/{self.need_id}/anonymize/", {"access_token": self.token}, format="json"
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data["detail"], "Already anonymized.")
+        need.refresh_from_db()
+        self.assertTrue(need.is_anonymized)
+        self.assertEqual(need.contact_name, "Anonymized")
+        self.assertEqual(need.pii_obfuscated_at, first_obfuscated_at)  # untouched by the repeat call
+
     def test_anonymize_no_warning_when_cancelled(self):
         self.client.patch(
             f"/api/needs/{self.need_id}/",

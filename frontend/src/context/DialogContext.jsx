@@ -10,6 +10,12 @@ export function DialogProvider({ children }) {
   const { t } = useTranslation()
   const [state, setState] = useState(null) // { type: 'alert'|'confirm'|'prompt', message, defaultValue, resolve }
   const inputRef = useRef(null)
+  // A second show*() call while one is already open used to just overwrite
+  // `state` outright -- the first call's `resolve` was then never invoked,
+  // leaving its awaiting caller (e.g. a double-clicked action) permanently
+  // hung. Queueing instead means every call is guaranteed to eventually
+  // resolve, one dialog at a time, in the order they were requested.
+  const queueRef = useRef([])
 
   useEffect(() => {
     if (state && state.type === 'prompt' && inputRef.current) {
@@ -18,34 +24,29 @@ export function DialogProvider({ children }) {
     }
   }, [state])
 
-  const showAlert = useCallback(
-    (message) =>
-      new Promise((resolve) => {
-        setState({ type: 'alert', message, resolve })
-      }),
-    []
-  )
+  const enqueue = useCallback((entry) => {
+    return new Promise((resolve) => {
+      const full = { ...entry, resolve }
+      setState((current) => {
+        if (current) {
+          queueRef.current.push(full)
+          return current
+        }
+        return full
+      })
+    })
+  }, [])
 
-  const showConfirm = useCallback(
-    (message) =>
-      new Promise((resolve) => {
-        setState({ type: 'confirm', message, resolve })
-      }),
-    []
-  )
+  const showAlert = useCallback((message) => enqueue({ type: 'alert', message }), [enqueue])
 
-  const showPrompt = useCallback(
-    (message, defaultValue = '') =>
-      new Promise((resolve) => {
-        setState({ type: 'prompt', message, defaultValue, resolve })
-      }),
-    []
-  )
+  const showConfirm = useCallback((message) => enqueue({ type: 'confirm', message }), [enqueue])
+
+  const showPrompt = useCallback((message, defaultValue = '') => enqueue({ type: 'prompt', message, defaultValue }), [enqueue])
 
   const finish = (result) => {
     setState((s) => {
       if (s) s.resolve(result)
-      return null
+      return queueRef.current.shift() || null
     })
   }
 

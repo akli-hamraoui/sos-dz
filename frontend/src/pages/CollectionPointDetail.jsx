@@ -36,6 +36,7 @@ export default function CollectionPointDetail() {
   const { showAlert, showPrompt } = useDialog()
   const [cp, setCp] = useState(null)
   const [showPhone, setShowPhone] = useState(false)
+  const [lightbox, setLightbox] = useState(null) // { src } for a full-size flyer preview
 
   const load = useCallback(async () => {
     setCp(await api(`/collection-points/${id}/`))
@@ -102,7 +103,13 @@ export default function CollectionPointDetail() {
           )}
           {cp.flyer_image && (
             <div>
-              <img className="media-player" src={cp.flyer_image} alt="" />
+              {/* A capped-size preview (click to view full-size in the
+                  lightbox), not the full-bleed .media-player treatment
+                  meant for video/audio -- a poster image doesn't need to
+                  take up to 70vh of the page by default. */}
+              <button type="button" className="flyer-thumb-btn" onClick={() => setLightbox({ src: cp.flyer_image })}>
+                <img className="flyer-thumb" src={cp.flyer_image} alt="" />
+              </button>
               <br />
               <button className="link" onClick={reportFlyer}>
                 {t('needDetail.reportContent')}
@@ -153,6 +160,15 @@ export default function CollectionPointDetail() {
       )}
 
       <CommentThread comments={cp.comments || []} target="collection_point" targetId={cp.id} onChanged={load} />
+
+      {lightbox && (
+        <div className="lightbox-overlay" onClick={() => setLightbox(null)}>
+          <button type="button" className="lightbox-close" onClick={() => setLightbox(null)} aria-label={t('needDetail.closeLightbox')}>
+            ×
+          </button>
+          <img src={lightbox.src} alt="" onClick={(e) => e.stopPropagation()} />
+        </div>
+      )}
     </section>
   )
 }

@@ -38,6 +38,8 @@ export default function NeedDetail() {
   const [progressText, setProgressText] = useState({})
   const [deliveryPhotos, setDeliveryPhotos] = useState({})
   const [lightbox, setLightbox] = useState(null) // { src } for a full-size image preview
+  const [anonymizingNeed, setAnonymizingNeed] = useState(false)
+  const [anonymizingPickupIds, setAnonymizingPickupIds] = useState(() => new Set())
   const mapElRef = useRef(null)
   const mapRef = useRef(null)
   // navigator.geolocation.watchPosition ID per pickup id -- continuous
@@ -226,15 +228,24 @@ export default function NeedDetail() {
   }
 
   const anonymizeNeed = async () => {
-    const token = needTokens[id].access_token
+    // Belt-and-suspenders alongside the DialogContext queue fix: a second
+    // click while the first is still awaiting confirmation is simply
+    // ignored outright, rather than firing a second concurrent request.
+    if (anonymizingNeed) return
+    setAnonymizingNeed(true)
     try {
-      const data = await api(`/needs/${id}/anonymize/`, { method: 'POST', body: JSON.stringify({ access_token: token }) })
-      setNeed(data)
-    } catch (e) {
-      if (e.data && e.data.requires_confirmation && (await showConfirm(translateApiError(e, t) + '\n\n' + t('common.confirm') + '?'))) {
-        const data = await api(`/needs/${id}/anonymize/`, { method: 'POST', body: JSON.stringify({ access_token: token, confirm: true }) })
+      const token = needTokens[id].access_token
+      try {
+        const data = await api(`/needs/${id}/anonymize/`, { method: 'POST', body: JSON.stringify({ access_token: token }) })
         setNeed(data)
+      } catch (e) {
+        if (e.data && e.data.requires_confirmation && (await showConfirm(translateApiError(e, t) + '\n\n' + t('common.confirm') + '?'))) {
+          const data = await api(`/needs/${id}/anonymize/`, { method: 'POST', body: JSON.stringify({ access_token: token, confirm: true }) })
+          setNeed(data)
+        }
       }
+    } finally {
+      setAnonymizingNeed(false)
     }
   }
 
@@ -377,15 +388,25 @@ export default function NeedDetail() {
   }
 
   const anonymizePickup = async (pickupId) => {
-    const token = pickupTokens[pickupId]
+    if (anonymizingPickupIds.has(pickupId)) return
+    setAnonymizingPickupIds((prev) => new Set(prev).add(pickupId))
     try {
-      await api(`/pickups/${pickupId}/anonymize/`, { method: 'POST', body: JSON.stringify({ access_token: token }) })
-    } catch (e) {
-      if (e.data && e.data.requires_confirmation && (await showConfirm(translateApiError(e, t)))) {
-        await api(`/pickups/${pickupId}/anonymize/`, { method: 'POST', body: JSON.stringify({ access_token: token, confirm: true }) })
+      const token = pickupTokens[pickupId]
+      try {
+        await api(`/pickups/${pickupId}/anonymize/`, { method: 'POST', body: JSON.stringify({ access_token: token }) })
+      } catch (e) {
+        if (e.data && e.data.requires_confirmation && (await showConfirm(translateApiError(e, t)))) {
+          await api(`/pickups/${pickupId}/anonymize/`, { method: 'POST', body: JSON.stringify({ access_token: token, confirm: true }) })
+        }
       }
+      load()
+    } finally {
+      setAnonymizingPickupIds((prev) => {
+        const next = new Set(prev)
+        next.delete(pickupId)
+        return next
+      })
     }
-    load()
   }
 
   if (!need) return null
@@ -505,7 +526,7 @@ export default function NeedDetail() {
               </button>
             </p>
           )}
-          <button className="btn btn-danger" onClick={anonymizeNeed}>
+          <button className="btn btn-danger" onClick={anonymizeNeed} disabled={anonymizingNeed}>
             {t('needDetail.anonymizeMyInfo')}
           </button>
         </div>
@@ -637,7 +658,7 @@ export default function NeedDetail() {
                     </button>
                   </div>
                 )}
-                <button className="btn btn-danger" onClick={() => anonymizePickup(p.id)}>
+                <button className="btn btn-danger" onClick={() => anonymizePickup(p.id)} disabled={anonymizingPickupIds.has(p.id)}>
                   {t('needDetail.anonymizeMyInfo')}
                 </button>
               </div>

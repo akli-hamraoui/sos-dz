@@ -808,6 +808,26 @@ fieldset {
   cursor: pointer;
   line-height: 0;
 }
+/* A collection point's flyer/poster -- bigger than a gallery-thumb square
+   (posters are usually portrait text you actually want to read at a
+   glance) but capped well short of the old full-bleed .media-player
+   treatment; click opens the same lightbox as any other photo. */
+.flyer-thumb {
+  display: block;
+  width: 100%;
+  max-width: 260px;
+  height: auto;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+}
+.flyer-thumb-btn {
+  display: block;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  line-height: 0;
+}
 .upload-status {
   font-size: 13px;
   color: #555;
