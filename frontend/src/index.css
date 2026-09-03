@@ -301,10 +301,23 @@ main {
   background-repeat: no-repeat;
   background-position: center 20%;
   background-size: cover;
-  mask-image: radial-gradient(ellipse 95% 34% at center 10%, #000 40%, transparent 82%);
-  -webkit-mask-image: radial-gradient(ellipse 95% 34% at center 10%, #000 40%, transparent 82%);
+  /* A tighter ellipse (was 95%/34%, edge-to-edge enough to read as a
+     rectangle) with more room given to the fade-out band, so all four
+     sides visibly round off and dissolve rather than getting cropped by
+     .home's own bounding box. */
+  mask-image: radial-gradient(ellipse 62% 30% at center 12%, #000 20%, transparent 92%);
+  -webkit-mask-image: radial-gradient(ellipse 62% 30% at center 12%, #000 20%, transparent 92%);
   opacity: 0.34;
   pointer-events: none;
+}
+@media (min-width: 900px) {
+  /* The 900px-wide source is soft/blurry once background-size:cover has
+     to stretch it across a full desktop-width .home -- same fix as
+     body's own responsive watermark below: swap in a higher-resolution
+     source past this breakpoint instead of upscaling the mobile one. */
+  .home::before {
+    background-image: url('/backgrounds/home-map-hint-lg.jpg');
+  }
 }
 .home-logo {
   display: block;
