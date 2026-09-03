@@ -440,6 +440,22 @@ class Pickup(IdentityListingMixin, models.Model):
 
     location_sharing_active = models.BooleanField(default=False)
 
+    # Optional, courier-declared starting point -- entirely separate from
+    # live tracking (LocationPing/location_sharing_active above). Lets a
+    # courier who never turns on live sharing still show roughly where
+    # they're coming from on the public deliveries map (PickupViewSet.
+    # live_locations falls back to this when there's no live ping yet).
+    # departure_description is the free text the courier typed (shown as
+    # a label regardless of whether it resolved to a map position);
+    # departure_latitude/longitude are only set when that text could be
+    # geocoded (a picked map suggestion, or a best-effort forward-geocode
+    # of the typed text) -- blank/None text or an ungeocodable one leaves
+    # coordinates unset, and the courier simply doesn't appear on the map
+    # until either this or a live ping exists.
+    departure_description = models.CharField(max_length=300, blank=True)
+    departure_latitude = models.FloatField(null=True, blank=True)
+    departure_longitude = models.FloatField(null=True, blank=True)
+
     pickup_date = models.DateTimeField(auto_now_add=True)
     actual_delivery_date = models.DateTimeField(null=True, blank=True)
 

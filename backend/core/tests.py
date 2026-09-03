@@ -2231,6 +2231,109 @@ class PickupLiveLocationsTests(BaseAPITestCase):
         self.assertEqual(resp.data[0]["latitude"], 37.0)
 
 
+class PickupDepartureLocationTests(BaseAPITestCase):
+    """Optional, courier-declared starting point (text and/or map
+    coordinates) -- distinct from live tracking. See PickupViewSet.
+    live_locations for the priority: live ping > departure fallback > no
+    marker at all (never invent coordinates from text alone)."""
+
+    def setUp(self):
+        super().setUp()
+        self.campaign = make_campaign()
+        self.wilaya = self.campaign.authorized_wilayas.first()
+        resp = self.client.post(
+            "/api/needs/", dict(NEED_PAYLOAD, campaign=self.campaign.pk, wilaya=self.wilaya.pk), format="json"
+        )
+        self.need_id = resp.data["id"]
+
+    def _pickup_payload(self, **overrides):
+        data = {
+            "need": self.need_id,
+            "responder_type": "individual_volunteer",
+            "responder_name": "Sara Amrani",
+            "responder_phone": "0666000002",
+            "content_brought": "30 blankets",
+        }
+        data.update(overrides)
+        return data
+
+    def test_create_with_no_departure_info_at_all(self):
+        resp = self.client.post("/api/pickups/", self._pickup_payload(), format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+        self.assertEqual(resp.data["departure_description"], "")
+        self.assertIsNone(resp.data["departure_latitude"])
+
+    def test_create_with_text_only(self):
+        resp = self.client.post("/api/pickups/", self._pickup_payload(departure_description="Alger centre"), format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+        self.assertEqual(resp.data["departure_description"], "Alger centre")
+        self.assertIsNone(resp.data["departure_latitude"])
+
+    def test_create_with_coordinates_only(self):
+        resp = self.client.post(
+            "/api/pickups/", self._pickup_payload(departure_latitude=36.75, departure_longitude=3.04), format="json"
+        )
+        self.assertEqual(resp.status_code, 201, resp.content)
+        self.assertEqual(resp.data["departure_latitude"], 36.75)
+
+    def test_create_with_text_and_coordinates(self):
+        resp = self.client.post(
+            "/api/pickups/",
+            self._pickup_payload(departure_description="Alger centre", departure_latitude=36.75, departure_longitude=3.04),
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 201, resp.content)
+        self.assertEqual(resp.data["departure_description"], "Alger centre")
+        self.assertEqual(resp.data["departure_latitude"], 36.75)
+
+    def test_latitude_without_longitude_rejected(self):
+        resp = self.client.post("/api/pickups/", self._pickup_payload(departure_latitude=36.75), format="json")
+        self.assertEqual(resp.status_code, 400)
+
+    def test_departure_coordinates_outside_algeria_rejected(self):
+        resp = self.client.post(
+            "/api/pickups/", self._pickup_payload(departure_latitude=48.85, departure_longitude=2.35), format="json"
+        )
+        self.assertEqual(resp.status_code, 400)
+
+    def test_live_ping_takes_priority_over_departure_position(self):
+        resp = self.client.post(
+            "/api/pickups/", self._pickup_payload(departure_latitude=36.0, departure_longitude=3.0), format="json"
+        )
+        pickup_id, token = resp.data["id"], resp.data["access_token"]
+        self.client.post(
+            f"/api/pickups/{pickup_id}/location-pings/",
+            {"latitude": 36.9, "longitude": 3.2, "access_token": token},
+            format="json",
+        )
+        resp = self.client.get("/api/pickups/live-locations/")
+        self.assertEqual(len(resp.data), 1)
+        self.assertEqual(resp.data[0]["latitude"], 36.9)
+        self.assertTrue(resp.data[0]["is_live"])
+
+    def test_departure_position_shown_when_no_live_ping(self):
+        resp = self.client.post(
+            "/api/pickups/", self._pickup_payload(departure_description="Alger centre", departure_latitude=36.0, departure_longitude=3.0), format="json"
+        )
+        resp = self.client.get("/api/pickups/live-locations/")
+        self.assertEqual(len(resp.data), 1)
+        self.assertEqual(resp.data[0]["latitude"], 36.0)
+        self.assertFalse(resp.data[0]["is_live"])
+        self.assertEqual(resp.data[0]["departure_description"], "Alger centre")
+
+    def test_text_only_never_appears_on_map(self):
+        # Section 3, CAS 3: a departure text with no coordinates must never
+        # invent a marker.
+        self.client.post("/api/pickups/", self._pickup_payload(departure_description="Chez moi"), format="json")
+        resp = self.client.get("/api/pickups/live-locations/")
+        self.assertEqual(resp.data, [])
+
+    def test_no_departure_and_no_live_ping_never_appears_on_map(self):
+        self.client.post("/api/pickups/", self._pickup_payload(), format="json")
+        resp = self.client.get("/api/pickups/live-locations/")
+        self.assertEqual(resp.data, [])
+
+
 class PickupFromCollectionPointTests(BaseAPITestCase):
     """A courier can start a delivery/pickup from a CollectionPoint, not
     just a Need -- same Pickup model and endpoints, just linked to a

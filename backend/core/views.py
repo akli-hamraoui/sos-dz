@@ -453,20 +453,31 @@ class PickupViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retri
         product decision, unlike NeedViewSet.pickup_locations (which is
         access-restricted to that one need's owner/share-link/admin), this
         one is visible to anyone. Still respects the volunteer's own
-        location_sharing_active consent toggle (never shows a position for
-        a pickup where that's off), and only ever exposes each pickup's
-        latest known position, not its full trail."""
+        location_sharing_active consent toggle (never shows a *live* trail
+        position for a pickup where that's off), and only ever exposes each
+        pickup's latest known position, not its full trail.
+
+        A courier who never turns on live sharing can still declare a
+        rough departure point (Pickup.departure_latitude/longitude, set at
+        take-charge time) -- that's shown here as a fallback, marked
+        is_live=False, only for as long as there's no actual live ping to
+        prefer instead. Once a live ping exists, it always wins."""
         pickups = (
-            Pickup.objects.filter(status=Pickup.STATUS_EN_ROUTE, location_sharing_active=True)
+            Pickup.objects.filter(status=Pickup.STATUS_EN_ROUTE)
+            .filter(Q(location_sharing_active=True) | Q(departure_latitude__isnull=False))
             .select_related("need", "need__wilaya", "collection_point", "collection_point__wilaya")
             .prefetch_related(Prefetch("location_pings", queryset=LocationPing.objects.order_by("-recorded_at")))
         )
         result = []
         for pickup in pickups:
-            pings = list(pickup.location_pings.all())
-            if not pings:
+            pings = list(pickup.location_pings.all()) if pickup.location_sharing_active else []
+            if pings:
+                latest = pings[0]
+                latitude, longitude, recorded_at, is_live = latest.latitude, latest.longitude, latest.recorded_at, True
+            elif pickup.departure_latitude is not None:
+                latitude, longitude, recorded_at, is_live = pickup.departure_latitude, pickup.departure_longitude, None, False
+            else:
                 continue
-            latest = pings[0]
             entry = {
                 "pickup_id": pickup.id,
                 # Exactly one of these two pairs is populated, matching
@@ -481,9 +492,11 @@ class PickupViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retri
                 "collection_point_wilaya_name": pickup.collection_point.wilaya.name if pickup.collection_point_id else None,
                 "responder_name": pickup.organization_or_person_name or pickup.responder_name,
                 "content_brought": pickup.content_brought,
-                "latitude": latest.latitude,
-                "longitude": latest.longitude,
-                "recorded_at": latest.recorded_at,
+                "latitude": latitude,
+                "longitude": longitude,
+                "recorded_at": recorded_at,
+                "is_live": is_live,
+                "departure_description": pickup.departure_description,
             }
             result.append(entry)
         return Response(result)

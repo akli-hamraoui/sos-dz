@@ -29,6 +29,11 @@ export default function Deliveries() {
   // default.
   const [viewMode, setViewMode] = useState('map')
   const [mapHasNothing, setMapHasNothing] = useState(false)
+  // pickup_ids currently shown on the map (live ping or declared departure
+  // position) -- used to flag, in the list, which en_route deliveries have
+  // neither and so are never on the map at all (never "position
+  // unavailable" purely by omission -- see the .noPosition list below).
+  const [locatedPickupIds, setLocatedPickupIds] = useState(() => new Set())
   const mapRef = useRef(null)
   const mapElRef = useRef(null)
   const markersRef = useRef([])
@@ -64,6 +69,9 @@ export default function Deliveries() {
       } catch {
         return // offline/network failure -- silently skip this refresh, the next tick retries
       }
+      // Updated regardless of viewMode -- the list view's "no position"
+      // flagging (below) needs this even when the map itself isn't mounted.
+      setLocatedPickupIds(new Set(locations.map((l) => l.pickup_id)))
       if (!mapElRef.current) return
       setMapHasNothing(locations.length === 0)
       if (!mapRef.current) {
@@ -84,13 +92,23 @@ export default function Deliveries() {
       markersRef.current.forEach((m) => map.removeLayer(m))
       // Same truck-on-white-circle marker as the per-need live map
       // (NeedDetail.jsx) -- reads as "a delivery" at a glance, distinct
-      // from any other pin style in the app.
+      // from any other pin style in the app. The departure-only variant
+      // (is_live false -- a declared starting point, not an actual live
+      // ping) is visually muted/dashed so it's never mistaken for a
+      // currently-tracked courier.
+      const truckSvg =
+        '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="1.9" ' +
+        'stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 7.5h11v8h-11Z"/><path d="M13.5 11h4l3 2.8v1.7h-7Z"/>' +
+        '<circle cx="7" cy="18" r="1.7"/><circle cx="17" cy="18" r="1.7"/><path d="M2.5 16h2.8M15.5 16h.2M18.7 16H21"/></svg>'
       const truckIcon = L.divIcon({
         className: 'pickup-marker-icon',
-        html:
-          '<span class="pickup-marker-pin"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="1.9" ' +
-          'stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 7.5h11v8h-11Z"/><path d="M13.5 11h4l3 2.8v1.7h-7Z"/>' +
-          '<circle cx="7" cy="18" r="1.7"/><circle cx="17" cy="18" r="1.7"/><path d="M2.5 16h2.8M15.5 16h.2M18.7 16H21"/></svg></span>',
+        html: `<span class="pickup-marker-pin">${truckSvg.replace('{color}', '#111')}</span>`,
+        iconSize: [30, 30],
+        iconAnchor: [15, 15],
+      })
+      const departureIcon = L.divIcon({
+        className: 'pickup-marker-icon pickup-marker-departure',
+        html: `<span class="pickup-marker-pin pickup-marker-pin-departure">${truckSvg.replace('{color}', '#888')}</span>`,
         iconSize: [30, 30],
         iconAnchor: [15, 15],
       })
@@ -100,10 +118,13 @@ export default function Deliveries() {
         // PickupViewSet.live_locations.
         const destHref = loc.need_id ? `/needs/${loc.need_id}` : `/collection-points/${loc.collection_point_id}`
         const destLabel = loc.need_id ? `${loc.need_title} — ${loc.need_wilaya_name}` : `${loc.collection_point_name} — ${loc.collection_point_wilaya_name}`
-        const marker = L.marker([loc.latitude, loc.longitude], { icon: truckIcon }).addTo(map)
+        const marker = L.marker([loc.latitude, loc.longitude], { icon: loc.is_live ? truckIcon : departureIcon }).addTo(map)
+        const statusLine = loc.is_live
+          ? t('deliveries.liveMarkerLabel')
+          : t('deliveries.departureMarkerLabel') + (loc.departure_description ? ` (${loc.departure_description})` : '')
         marker.bindPopup(
           `<strong>${loc.responder_name}</strong><br>${t('deliveries.bringing')}: ${loc.content_brought || '—'}<br>` +
-            `<a href="${destHref}">${destLabel}</a>`
+            `<em>${statusLine}</em><br><a href="${destHref}">${destLabel}</a>`
         )
         return marker
       })
@@ -122,8 +143,11 @@ export default function Deliveries() {
   )
 
   useEffect(() => {
-    if (viewMode !== 'map') return
-    renderLiveLocations(true)
+    // fitView only makes sense once there's an actual map to fit -- in
+    // list view this call still runs (to keep locatedPickupIds fresh for
+    // the "no position" flagging below), it just no-ops on the map itself
+    // since renderLiveLocations bails out early when mapElRef isn't mounted.
+    renderLiveLocations(viewMode === 'map')
     const interval = setInterval(() => renderLiveLocations(false), LIVE_REFRESH_INTERVAL_MS)
     return () => clearInterval(interval)
   }, [viewMode, renderLiveLocations])
@@ -212,6 +236,13 @@ export default function Deliveries() {
                     list instead of hunting for the need/collection point it
                     came from. */}
                 {!!pickupTokens[p.id] && <span className="badge badge-accent">{t('deliveries.yours')}</span>}
+                {/* En route with neither a live ping nor a declared
+                    departure position -- explicitly flagged rather than
+                    just silently missing from the map, per the "never let
+                    a courier look located when they're not" rule. */}
+                {p.status === 'en_route' && !locatedPickupIds.has(p.id) && (
+                  <span className="badge badge-muted">{t('deliveries.positionUnavailable')}</span>
+                )}
                 <h3>
                   <IconTruck width={17} height={17} strokeWidth={1.9} className="truck-icon" /> {p.need_title || p.collection_point_name}
                 </h3>

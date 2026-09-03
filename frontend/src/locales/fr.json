@@ -70,7 +70,9 @@
   "home": {
     "tagline": "Coordination de l'aide pour les feux en Algérie.",
     "iNeedHelp": "J'ai besoin d'aide",
-    "iWantToHelp": "Je veux aider"
+    "iWantToHelp": "Je veux aider",
+    "collectionPoints": "Points de collecte",
+    "reportedNeeds": "Besoins signalés"
   },
   "status": {
     "open": "ouvert",
@@ -216,6 +218,15 @@
     "whatBringingPlaceholder": "ex. 30 couvertures et 50L d'eau",
     "nameLabel": "Nom complet",
     "phoneLabel": "Téléphone",
+    "resourceType": "Type",
+    "resourceTypeNeed": "Besoin",
+    "viewNeedDetail": "Voir le détail du besoin",
+    "viewCollectionPointDetail": "Voir le détail du point de collecte",
+    "departureLocation": "Lieu de départ",
+    "departureLocationPlaceholder": "ex. Alger centre, entrepôt de Oran... (optionnel)",
+    "departureLocationHint": "Facultatif. Recherchez un lieu pour le placer sur la carte, ou saisissez simplement du texte libre.",
+    "departurePositionCaptured": "Position de départ enregistrée.",
+    "clearDeparturePosition": "Effacer la position",
     "confirmButton": "Confirmer — je prends en charge"
   },
   "recover": {
@@ -298,7 +309,10 @@
     "searchPlaceholder": "Rechercher (nom, téléphone...)",
     "yours": "La vôtre",
     "deliverToNeed": "Livrer un besoin",
-    "deliverToCollectionPoint": "Livrer vers un point de collecte"
+    "deliverToCollectionPoint": "Livrer vers un point de collecte",
+    "liveMarkerLabel": "Position en direct",
+    "departureMarkerLabel": "Position de départ déclarée",
+    "positionUnavailable": "Position indisponible"
   },
   "reportBug": {
     "title": "Signaler un bug",

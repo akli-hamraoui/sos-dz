@@ -70,7 +70,9 @@
   "home": {
     "tagline": "Wildfire relief coordination for Algeria.",
     "iNeedHelp": "I need help",
-    "iWantToHelp": "I want to help"
+    "iWantToHelp": "I want to help",
+    "collectionPoints": "Collection points",
+    "reportedNeeds": "Reported needs"
   },
   "status": {
     "open": "open",
@@ -216,6 +218,15 @@
     "whatBringingPlaceholder": "e.g. 30 blankets and 50L of water",
     "nameLabel": "Full name",
     "phoneLabel": "Phone",
+    "resourceType": "Type",
+    "resourceTypeNeed": "Need",
+    "viewNeedDetail": "View need detail",
+    "viewCollectionPointDetail": "View collection point detail",
+    "departureLocation": "Departure location",
+    "departureLocationPlaceholder": "e.g. Algiers center, Oran warehouse... (optional)",
+    "departureLocationHint": "Optional. Search for a place to pin it on the map, or just type free text.",
+    "departurePositionCaptured": "Departure position saved.",
+    "clearDeparturePosition": "Clear position",
     "confirmButton": "Confirm — I'm taking charge"
   },
   "recover": {
@@ -298,7 +309,10 @@
     "searchPlaceholder": "Search (name, phone...)",
     "yours": "Yours",
     "deliverToNeed": "Deliver to a need",
-    "deliverToCollectionPoint": "Deliver to a collection point"
+    "deliverToCollectionPoint": "Deliver to a collection point",
+    "liveMarkerLabel": "Live position",
+    "departureMarkerLabel": "Declared departure position",
+    "positionUnavailable": "Position unavailable"
   },
   "reportBug": {
     "title": "Report a bug",

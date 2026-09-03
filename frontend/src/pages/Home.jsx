@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { IconNeeds } from '../icons'
+import { IconNeeds, IconBox } from '../icons'
 
 function IconGroup(props) {
   return (
@@ -24,6 +24,21 @@ export default function Home() {
         </Link>
         <Link to="/needs" className="btn btn-huge btn-icon home-btn-outline">
           <IconNeeds width={22} height={22} strokeWidth={2} /> {t('home.iWantToHelp')}
+        </Link>
+      </div>
+      {/* Smaller, secondary pair below the two main CTAs -- direct
+          shortcuts to browse what's already reported, same destinations
+          the main nav already reaches (/needs, /collection-points), just
+          one tap away from Home too instead of only via the footer/bottom
+          nav. Same "different framing, same destination" pattern already
+          used between this page's own "Je veux aider" and the bottom
+          nav's "Besoins" tab. */}
+      <div className="home-actions home-actions-secondary">
+        <Link to="/collection-points" className="btn btn-icon home-btn-outline">
+          <IconBox width={20} height={20} strokeWidth={2} /> {t('home.collectionPoints')}
+        </Link>
+        <Link to="/needs" className="btn btn-icon home-btn-outline">
+          <IconNeeds width={20} height={20} strokeWidth={2} /> {t('home.reportedNeeds')}
         </Link>
       </div>
       {/* The footer also carries this link (it's the only entry point to

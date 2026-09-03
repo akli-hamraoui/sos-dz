@@ -380,6 +380,14 @@ main {
   border: 1.5px solid var(--accent);
   border-radius: 999px;
 }
+.home-actions-secondary {
+  margin-block-start: 16px;
+  max-width: 480px;
+}
+.home-actions-secondary .btn {
+  padding: 8px 16px;
+  font-size: 14px;
+}
 .home-about-link {
   /* Sits over the background photo, so it needs real contrast -- the
      footer's own muted #777 all but disappears there. */
@@ -412,6 +420,27 @@ main {
 .btn-danger {
   color: var(--danger);
   border-color: var(--danger);
+}
+/* The main "start a delivery from here" call to action (NeedDetail/
+   CollectionPointDetail) -- deliberately not var(--accent)/btn-primary's
+   black or var(--collection-accent)'s muted green, but a plainly "go"
+   green so it reads at a glance as the one action to take on the page. */
+.btn-success {
+  background: #2e7d32;
+  color: #fff;
+  border-color: #2e7d32;
+}
+/* Title + primary action side by side at the very top of a detail page,
+   instead of the action buried further down the page. */
+.detail-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.detail-title-row h2 {
+  margin: 0;
 }
 .btn-huge {
   padding: 22px;
@@ -752,6 +781,12 @@ fieldset {
 .badge-accent {
   background: var(--collection-accent);
 }
+/* Flags an en-route delivery that has neither a live GPS ping nor a
+   declared departure position -- explicitly "we don't know where this
+   one is" rather than silently absent from the map. */
+.badge-muted {
+  background: #999;
+}
 
 .status {
   font-size: 13px;
@@ -813,6 +848,14 @@ fieldset {
   flex-wrap: wrap;
   gap: 8px;
   margin-block-start: 8px;
+}
+/* Clear gap above "Marquer comme livré", separating it from the photo
+   add/thumbnail controls right above it -- close enough together before
+   that a hurried tap could land on the wrong one, and confirming delivery
+   is not the one to get by accident. */
+.mark-delivered-btn {
+  display: block;
+  margin-block-start: 20px;
 }
 .photo-thumb {
   position: relative;
@@ -962,6 +1005,13 @@ fieldset {
   background: #fff;
   border: 2px solid #111;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+/* Declared departure position, not an actual live GPS ping -- dashed and
+   muted so it reads as "roughly here, as of take-charge time" rather than
+   "currently tracked", never mistaken for a live courier. */
+.pickup-marker-pin-departure {
+  border: 2px dashed #888;
+  opacity: 0.85;
 }
 
 .comment-thread {

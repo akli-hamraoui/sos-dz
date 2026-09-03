@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useApp } from '../context/AppContext'
 import { useDialog } from '../context/DialogContext'
 import { api, createOrQueue } from '../api'
 import { translateApiError } from '../apiErrors'
-import { validityMessageProps } from '../utils'
+import { validityMessageProps, reverseGeocodePlace } from '../utils'
+import PlaceAutocomplete from '../components/PlaceAutocomplete'
+import { IconMapPin } from '../icons'
 
 const DEFAULT_FORM = {
   responder_type: 'individual_volunteer',
@@ -15,6 +17,9 @@ const DEFAULT_FORM = {
   responder_email: '',
   organization_or_person_name: '',
   recovery_code: '',
+  departure_description: '',
+  departure_latitude: null,
+  departure_longitude: null,
 }
 
 // source: 'need' (default) or 'collection_point' -- same Pickup model and
@@ -22,7 +27,7 @@ const DEFAULT_FORM = {
 // a different detail page. See core/models.py Pickup: exactly one of
 // need/collection_point is ever set on a given pickup.
 export default function TakeCharge({ source = 'need' }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { id } = useParams()
   const navigate = useNavigate()
   const { savePickupToken, config, refreshConfig } = useApp()
@@ -31,9 +36,11 @@ export default function TakeCharge({ source = 'need' }) {
   const [target, setTarget] = useState(null)
   const [form, setForm] = useState(DEFAULT_FORM)
   const [error, setError] = useState('')
+  const [gpsStatus, setGpsStatus] = useState(null) // null | 'locating' | 'error'
 
   const detailPath = source === 'collection_point' ? `/collection-points/${id}` : `/needs/${id}`
   const targetLabel = source === 'collection_point' ? target?.point_name : target?.title
+  const targetDescription = target?.location_description
 
   useEffect(() => {
     const endpoint = source === 'collection_point' ? `/collection-points/${id}/` : `/needs/${id}/`
@@ -41,6 +48,39 @@ export default function TakeCharge({ source = 'need' }) {
   }, [id, source])
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }))
+
+  // Optional "use my current position" shortcut for the departure field --
+  // same navigator.geolocation.getCurrentPosition + reverse-geocode
+  // pattern as CreateNeed's own "Ma position" button, just without that
+  // page's admin-outside-Algeria fallback (not relevant here: a courier
+  // declaring where they're starting from is expected to actually be
+  // there). Never invents coordinates from typed text alone -- see
+  // PlaceAutocomplete's onSelectPlace below for the other way coordinates
+  // get set.
+  const useMyDepartureLocation = () => {
+    if (!navigator.geolocation) {
+      setGpsStatus('error')
+      return
+    }
+    setGpsStatus('locating')
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords
+        setGpsStatus(null)
+        setForm((f) => ({ ...f, departure_latitude: latitude, departure_longitude: longitude }))
+        try {
+          const label = await reverseGeocodePlace(latitude, longitude, i18n.language)
+          if (label) setForm((f) => (f.departure_description ? f : { ...f, departure_description: label }))
+        } catch {
+          /* best-effort label only -- coordinates are already captured either way */
+        }
+      },
+      () => setGpsStatus('error'),
+      { enableHighAccuracy: true, timeout: 15000 }
+    )
+  }
+
+  const clearDeparturePosition = () => setForm((f) => ({ ...f, departure_latitude: null, departure_longitude: null }))
 
   const submit = async (e) => {
     e.preventDefault()
@@ -64,6 +104,21 @@ export default function TakeCharge({ source = 'need' }) {
   return (
     <section className="form-page">
       <h2>{t('takeCharge.title', { need: targetLabel || '' })}</h2>
+      {target && (
+        <div className="pickup-card">
+          <p className="status">
+            {t('takeCharge.resourceType')}:{' '}
+            {source === 'collection_point' ? t('needsList.collectionPointLabel') : t('takeCharge.resourceTypeNeed')}
+          </p>
+          <p>
+            <strong>{targetLabel}</strong>
+          </p>
+          {targetDescription && <p>{targetDescription}</p>}
+          <Link className="link" to={detailPath}>
+            {source === 'collection_point' ? t('takeCharge.viewCollectionPointDetail') : t('takeCharge.viewNeedDetail')}
+          </Link>
+        </div>
+      )}
       <form onSubmit={submit}>
         <label>
           {t('takeCharge.type')} *
@@ -92,6 +147,30 @@ export default function TakeCharge({ source = 'need' }) {
             {t('createNeed.orgOrPerson')} <input type="text" value={form.organization_or_person_name} onChange={set('organization_or_person_name')} />
           </label>
         </fieldset>
+        <label>
+          {t('takeCharge.departureLocation')} ({t('common.optional')})
+          <PlaceAutocomplete
+            value={form.departure_description}
+            onChange={(v) => setForm((f) => ({ ...f, departure_description: v }))}
+            onSelectPlace={({ lat, lon }) => setForm((f) => ({ ...f, departure_latitude: lat, departure_longitude: lon }))}
+            placeholder={t('takeCharge.departureLocationPlaceholder')}
+          />
+          <span className="hint">{t('takeCharge.departureLocationHint')}</span>
+        </label>
+        <button type="button" className="btn btn-icon" onClick={useMyDepartureLocation} disabled={gpsStatus === 'locating'}>
+          <IconMapPin width={16} height={16} strokeWidth={2} /> {t('createNeed.useMyLocation')}
+        </button>
+        {gpsStatus === 'locating' && <p className="hint">{t('createNeed.gpsLocating')}</p>}
+        {gpsStatus === 'error' && <p className="error">{t('createNeed.gpsError')}</p>}
+        {form.departure_latitude != null && (
+          <p className="hint field-label-icon">
+            <IconMapPin width={16} height={16} strokeWidth={2} />
+            {t('takeCharge.departurePositionCaptured')}{' '}
+            <button type="button" className="link" onClick={clearDeparturePosition}>
+              {t('takeCharge.clearDeparturePosition')}
+            </button>
+          </p>
+        )}
         <label>
           {t('createNeed.recoveryCode')}{' '}
           <input type="text" value={form.recovery_code} onChange={set('recovery_code')} placeholder={t('createNeed.recoveryCodePlaceholder')} minLength={6} {...validityProps} />

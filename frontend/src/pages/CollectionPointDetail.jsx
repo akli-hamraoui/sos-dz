@@ -78,7 +78,14 @@ export default function CollectionPointDetail() {
 
   return (
     <section className="detail-page">
-      <h2>{cp.point_name}</h2>
+      <div className="detail-title-row">
+        <h2>{cp.point_name}</h2>
+        {cp.status === 'active' && (
+          <button className="btn btn-success" onClick={() => navigate(`/collection-points/${id}/take-charge`)}>
+            {t('collectionPoints.takeChargeDelivery')}
+          </button>
+        )}
+      </div>
       <span className="status">{t(`status.${cp.status}`)}</span>
       <p>{cp.wilaya_name}</p>
       <p>{cp.location_description}</p>
@@ -146,14 +153,7 @@ export default function CollectionPointDetail() {
         </button>
       )}
 
-      {cp.status === 'active' && (
-        <>
-          <h3>{t('needDetail.pickupsTitle', { count: cp.pickups.length })}</h3>
-          <button className="btn btn-primary" onClick={() => navigate(`/collection-points/${id}/take-charge`)}>
-            {t('collectionPoints.takeChargeDelivery')}
-          </button>
-        </>
-      )}
+      {cp.status === 'active' && <h3>{t('needDetail.pickupsTitle', { count: cp.pickups.length })}</h3>}
       {cp.pickups.map((p) => (
         <PickupManager key={p.id} pickup={p} pickupToken={pickupTokens[p.id]} onChange={load} />
       ))}

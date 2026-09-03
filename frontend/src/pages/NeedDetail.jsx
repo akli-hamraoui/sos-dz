@@ -260,7 +260,12 @@ export default function NeedDetail() {
 
   return (
     <section className="detail-page">
-      <h2>{need.title}</h2>
+      <div className="detail-title-row">
+        <h2>{need.title}</h2>
+        <button className="btn btn-success" onClick={() => navigate(`/needs/${id}/take-charge`)}>
+          {t('needDetail.alsoTakeCharge')}
+        </button>
+      </div>
       <span className={`badge urgency-${need.urgency}`}>{t(`urgency.${need.urgency}`)}</span> <span className="status">{statusLabel(t, need.overall_status)}</span>
       <p>
         {need.wilaya_name}
@@ -405,9 +410,6 @@ export default function NeedDetail() {
       )}
 
       <h3>{t('needDetail.pickupsTitle', { count: need.pickups.length })}</h3>
-      <button className="btn btn-primary" onClick={() => navigate(`/needs/${id}/take-charge`)}>
-        {t('needDetail.alsoTakeCharge')}
-      </button>
 
       {need.pickups.map((p) => (
         <PickupManager key={p.id} pickup={p} pickupToken={pickupTokens[p.id]} onChange={load} onLocationUpdate={checkLiveMapAccess} />

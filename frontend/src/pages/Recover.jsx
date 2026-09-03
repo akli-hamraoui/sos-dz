@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { useLocation, useNavigate, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useApp } from '../context/AppContext'
-import { useDialog } from '../context/DialogContext'
 import { api } from '../api'
 import { translateApiError } from '../apiErrors'
 import { validityMessageProps } from '../utils'
@@ -12,7 +11,6 @@ export default function Recover() {
   const location = useLocation()
   const navigate = useNavigate()
   const { saveNeedToken, savePickupToken } = useApp()
-  const { showAlert } = useDialog()
   const validityProps = validityMessageProps(t)
   const recoverContext = location.state // { type: 'need'|'pickup', id }
   const [useCode, setUseCode] = useState(true)
@@ -33,7 +31,14 @@ export default function Recover() {
         navigate(`/needs/${id}`)
       } else {
         savePickupToken(id, result.access_token)
-        showAlert(t('recover.recoverButton') + ' ✓')
+        // Recovering a pickup's access must land back on the page that
+        // actually shows its owner controls (share-location toggle, mark
+        // delivered, anonymize -- all on the need/collection point's own
+        // detail page via PickupManager), not leave the courier stranded
+        // on this form with just a toast. Look up which of the two this
+        // pickup belongs to so the redirect goes to the right one.
+        const pickup = await api(`/pickups/${id}/`)
+        navigate(pickup.need ? `/needs/${pickup.need}` : `/collection-points/${pickup.collection_point}`)
       }
     } catch (err) {
       setError(translateApiError(err, t))

@@ -225,7 +225,11 @@ export default function PickupManager({ pickup, pickupToken, onChange, onLocatio
                   </div>
                 ))}
               </div>
-              <button className="btn btn-primary" onClick={markDelivered}>
+              {/* Visually separated from "Prendre une photo" above (not just
+                  adjacent buttons) -- the two were close enough together to
+                  invite a mis-tap between "add a photo" and "mark
+                  delivered", a much higher-stakes action. */}
+              <button className="btn btn-primary mark-delivered-btn" onClick={markDelivered}>
                 {t('needDetail.markAsDelivered')}
               </button>
             </div>

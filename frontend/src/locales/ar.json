@@ -70,7 +70,9 @@
   "home": {
     "tagline": "تنسيق الإغاثة من حرائق الغابات في الجزائر.",
     "iNeedHelp": "أحتاج مساعدة",
-    "iWantToHelp": "أريد المساعدة"
+    "iWantToHelp": "أريد المساعدة",
+    "collectionPoints": "نقاط التجميع",
+    "reportedNeeds": "الاحتياجات المُبلَّغ عنها"
   },
   "status": {
     "open": "مفتوح",
@@ -216,6 +218,15 @@
     "whatBringingPlaceholder": "مثال: 30 بطانية و50 لتر ماء",
     "nameLabel": "الاسم الكامل",
     "phoneLabel": "الهاتف",
+    "resourceType": "النوع",
+    "resourceTypeNeed": "احتياج",
+    "viewNeedDetail": "عرض تفاصيل الاحتياج",
+    "viewCollectionPointDetail": "عرض تفاصيل نقطة التجميع",
+    "departureLocation": "مكان الانطلاق",
+    "departureLocationPlaceholder": "مثال: وسط الجزائر، مستودع وهران... (اختياري)",
+    "departureLocationHint": "اختياري. ابحث عن مكان لتحديده على الخريطة، أو اكتب نصًا حرًا فقط.",
+    "departurePositionCaptured": "تم حفظ مكان الانطلاق.",
+    "clearDeparturePosition": "مسح الموقع",
     "confirmButton": "تأكيد — سأتكفل بهذا"
   },
   "recover": {
@@ -298,7 +309,10 @@
     "searchPlaceholder": "بحث (اسم، هاتف...)",
     "yours": "توصيلتك",
     "deliverToNeed": "توصيل لاحتياج",
-    "deliverToCollectionPoint": "توصيل إلى نقطة تجميع"
+    "deliverToCollectionPoint": "توصيل إلى نقطة تجميع",
+    "liveMarkerLabel": "موقع مباشر",
+    "departureMarkerLabel": "موقع انطلاق مُعلَن",
+    "positionUnavailable": "الموقع غير متوفر"
   },
   "reportBug": {
     "title": "الإبلاغ عن خلل",

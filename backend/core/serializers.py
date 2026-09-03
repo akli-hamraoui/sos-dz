@@ -158,6 +158,9 @@ class PickupPublicSerializer(serializers.ModelSerializer):
             "status",
             "cancellation_reason",
             "location_sharing_active",
+            "departure_description",
+            "departure_latitude",
+            "departure_longitude",
             "pickup_date",
             "actual_delivery_date",
             "created_at",
@@ -233,6 +236,9 @@ class PickupCreateSerializer(serializers.ModelSerializer):
             "content_brought",
             "location_sharing_active",
             "recovery_code",
+            "departure_description",
+            "departure_latitude",
+            "departure_longitude",
         ]
 
     def validate_need(self, need):
@@ -256,6 +262,11 @@ class PickupCreateSerializer(serializers.ModelSerializer):
         need, collection_point = attrs.get("need"), attrs.get("collection_point")
         if bool(need) == bool(collection_point):
             raise serializers.ValidationError("Exactly one of 'need' or 'collection_point' must be set.")
+        lat, lon = attrs.get("departure_latitude"), attrs.get("departure_longitude")
+        if lat is not None or lon is not None:
+            if lat is None or lon is None:
+                raise serializers.ValidationError("departure_latitude and departure_longitude must be provided together.")
+            validate_algeria_bounds(lat, lon)
         return attrs
 
 
