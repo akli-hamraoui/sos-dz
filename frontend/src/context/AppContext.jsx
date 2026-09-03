@@ -1,0 +1,186 @@
+import { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react'
+import { api, loadJSON, saveJSON } from '../api'
+import { setupAutoSync } from '../offlineQueue'
+import i18n from '../i18n'
+
+const AppContext = createContext(null)
+
+export function AppProvider({ children }) {
+  const [config, setConfig] = useState({
+    mode: 'normal',
+    media_moderation_active: true,
+    turnstile_enabled: false,
+    turnstile_site_key: '',
+    contact_phones: [],
+    admin_contact_email: '',
+    is_admin: false,
+  })
+  const [wilayas, setWilayas] = useState([])
+  const [campaigns, setCampaigns] = useState([])
+  const [needTokens, setNeedTokens] = useState(() => loadJSON('rassemble_need_tokens', {}))
+  const [pickupTokens, setPickupTokens] = useState(() => loadJSON('rassemble_pickup_tokens', {}))
+  const [cpTokens, setCpTokens] = useState(() => loadJSON('rassemble_cp_tokens', {}))
+  const [commentTokens, setCommentTokens] = useState(() => loadJSON('rassemble_comment_tokens', {}))
+  const [commentAuthor, setCommentAuthorState] = useState(() => loadJSON('rassemble_comment_author', { name: '' }))
+  const [isOnline, setIsOnline] = useState(navigator.onLine)
+  const [syncMessage, setSyncMessage] = useState('')
+
+  // Re-fetches just the nav badge counts (needs_open_count,
+  // collection_points_active_count, deliveries_en_route_count) without
+  // touching turnstile setup -- called after creating/closing a
+  // Need/CollectionPoint/Pickup or any other action that changes one of
+  // these counts, so the badges update in the background instead of
+  // needing a manual page reload. Merges into the existing config rather
+  // than replacing it wholesale, in case of a transient failure.
+  const refreshConfig = useCallback(() => {
+    return api('/config/')
+      .then((data) => setConfig((prev) => ({ ...prev, ...data })))
+      .catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    api('/config/')
+      .then((data) => {
+        setConfig(data)
+        if (data.turnstile_enabled && !document.getElementById('turnstile-script')) {
+          const s = document.createElement('script')
+          s.id = 'turnstile-script'
+          s.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js'
+          s.async = true
+          s.defer = true
+          document.head.appendChild(s)
+        }
+      })
+      .catch(() => {})
+    api('/wilayas/')
+      .then((d) => setWilayas(d.results || d))
+      .catch(() => {})
+    api('/campaigns/')
+      .then((d) => setCampaigns(d.results || d))
+      .catch(() => {})
+    // Admin-entered text corrections (Django Admin), merged over the
+    // static locale JSON bundles -- lets a wrong/outdated string be fixed
+    // without a frontend deploy. Missing entirely (network/API failure)
+    // just means the static bundles are used as-is, same as before this
+    // existed.
+    api('/translations/')
+      .then((overrides) => {
+        let changed = false
+        for (const [locale, tree] of Object.entries(overrides)) {
+          if (Object.keys(tree).length === 0) continue
+          i18n.addResourceBundle(locale, 'translation', tree, true, true)
+          changed = true
+        }
+        if (changed) i18n.changeLanguage(i18n.language) // re-render components bound via useTranslation
+      })
+      .catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    const onOnline = () => setIsOnline(true)
+    const onOffline = () => setIsOnline(false)
+    window.addEventListener('online', onOnline)
+    window.addEventListener('offline', onOffline)
+    const stopSync = setupAutoSync((result) => {
+      setSyncMessage(result.synced.length === 1 ? 'syncedOne' : 'syncedMany')
+      setTimeout(() => setSyncMessage(''), 6000)
+    })
+    return () => {
+      window.removeEventListener('online', onOnline)
+      window.removeEventListener('offline', onOffline)
+      stopSync()
+    }
+  }, [])
+
+  const saveNeedToken = useCallback((needId, tokenData) => {
+    setNeedTokens((prev) => {
+      const next = { ...prev, [needId]: { ...(prev[needId] || {}), ...tokenData } }
+      saveJSON('rassemble_need_tokens', next)
+      return next
+    })
+  }, [])
+
+  const savePickupToken = useCallback((pickupId, token) => {
+    setPickupTokens((prev) => {
+      const next = { ...prev, [pickupId]: token }
+      saveJSON('rassemble_pickup_tokens', next)
+      return next
+    })
+  }, [])
+
+  const saveCpToken = useCallback((cpId, token) => {
+    setCpTokens((prev) => {
+      const next = { ...prev, [cpId]: token }
+      saveJSON('rassemble_cp_tokens', next)
+      return next
+    })
+  }, [])
+
+  const setCommentAuthor = useCallback((author) => {
+    setCommentAuthorState(author)
+    saveJSON('rassemble_comment_author', author)
+  }, [])
+
+  const saveCommentToken = useCallback((commentId, token) => {
+    setCommentTokens((prev) => {
+      const next = { ...prev, [commentId]: token }
+      saveJSON('rassemble_comment_tokens', next)
+      return next
+    })
+  }, [])
+
+  const wilayasForCampaign = useCallback(
+    (campaignId) => {
+      const c = campaigns.find((c) => String(c.id) === String(campaignId))
+      return c ? c.authorized_wilayas : wilayas
+    },
+    [campaigns, wilayas]
+  )
+
+  // The single active campaign's authorized wilayas -- since only one
+  // campaign is ever active at a time (see the campaign lock in
+  // CreateNeed), this is the one list of "wilayas that matter" for every
+  // wilaya dropdown and map default-zoom across the app, not just the
+  // create-need form. Falls back to the full 58-wilaya list before
+  // campaigns have loaded or if none is active.
+  //
+  // Memoized (not just computed inline) so its reference only changes
+  // when campaigns/wilayas themselves actually change, not on every
+  // AppProvider render (isOnline/syncMessage/etc. all live in this same
+  // provider) -- pages that put this in a useEffect dependency array (to
+  // re-zoom a map once campaigns finish loading, if that happens after
+  // the map's own data already arrived) would otherwise re-run on almost
+  // every unrelated re-render.
+  const activeCampaign = useMemo(() => campaigns.find((c) => c.status === 'active') || null, [campaigns])
+  const activeCampaignWilayas = useMemo(() => (activeCampaign ? activeCampaign.authorized_wilayas : wilayas), [activeCampaign, wilayas])
+
+  const value = {
+    config,
+    refreshConfig,
+    wilayas,
+    campaigns,
+    wilayasForCampaign,
+    activeCampaign,
+    activeCampaignWilayas,
+    needTokens,
+    saveNeedToken,
+    pickupTokens,
+    savePickupToken,
+    cpTokens,
+    saveCpToken,
+    commentAuthor,
+    setCommentAuthor,
+    commentTokens,
+    saveCommentToken,
+    isOnline,
+    syncMessage,
+  }
+
+  return <AppContext.Provider value={value}>{children}</AppContext.Provider>
+}
+
+export function useApp() {
+  const ctx = useContext(AppContext)
+  if (!ctx) throw new Error('useApp must be used within AppProvider')
+  return ctx
+}

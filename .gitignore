@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+
+# Django
+db.sqlite3
+db.sqlite3-journal
+staticfiles/
+media/
+*.log
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+GeoLite2-Country.mmdb
+
+# Virtualenv
+venv/
+backend-venv/
+env/
+.venv/
+
+# Node / frontend (Wave 5)
+node_modules/
+frontend/dist/
+frontend/dev-dist/
+.vite/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+
+# Test / coverage
+.coverage
+htmlcov/
+.pytest_cache/

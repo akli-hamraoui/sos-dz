@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SOS DZ</title>
+    <meta name="description" content="Coordination de l'aide pour les feux en Algérie." />
+
+    <!-- Open Graph (Facebook, WhatsApp, LinkedIn...) -- absolute URLs are
+         required here, a relative path silently fails to show a preview
+         image. Static (not per-route/per-language): link-preview crawlers
+         fetch this HTML directly and never run the React app's JS, so
+         these can't be swapped per page/locale without server-side
+         rendering, which this SPA doesn't do. og-image.png is the SOS DZ
+         logo lockup flattened onto white and padded to Facebook's
+         recommended 1.91:1 ratio (source logo has a transparent
+         background, which social crawlers render unpredictably). -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="SOS DZ" />
+    <meta property="og:title" content="SOS DZ — Coordination de l'aide pour les feux en Algérie" />
+    <meta property="og:description" content="Coordination de l'aide pour les feux en Algérie." />
+    <meta property="og:url" content="https://sosdz.org/" />
+    <meta property="og:image" content="https://sosdz.org/og-image.png" />
+    <meta property="og:image:width" content="2172" />
+    <meta property="og:image:height" content="1137" />
+    <meta property="og:locale" content="fr_FR" />
+    <meta property="og:locale:alternate" content="ar_AR" />
+    <meta property="og:locale:alternate" content="en_US" />
+
+    <!-- Twitter/X falls back to Open Graph tags for everything except
+         card type, which has no OG equivalent. -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="SOS DZ" />
+    <meta name="twitter:description" content="Coordination de l'aide pour les feux en Algérie." />
+    <meta name="twitter:image" content="https://sosdz.org/og-image.png" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

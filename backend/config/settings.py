@@ -1,0 +1,346 @@
+"""
+Django settings for the SOS DZ project.
+
+Configuration is driven by environment variables (see .env.example at the
+repo root). Nothing here should ever hold a real secret — only placeholders
+and safe local-development defaults.
+"""
+
+import os
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+REPO_ROOT = BASE_DIR.parent
+
+load_dotenv(REPO_ROOT / ".env")
+
+
+def env(name, default=None, required=False):
+    # An env var present in .env but left blank (e.g. "DB_NAME=") still sets
+    # it in os.environ as an empty string, not absent -- os.environ.get's
+    # own default only kicks in when the key doesn't exist at all, so a
+    # blank line would otherwise silently produce "" instead of falling
+    # back to `default` (this broke local SQLite setup: DB_NAME shipped
+    # blank in .env.example, intending the sqlite path default below, but
+    # got "" instead, and Django's sqlite backend rejects an empty NAME).
+    value = os.environ.get(name)
+    if value is None or value == "":
+        value = default
+    if required and (value is None or value == ""):
+        raise RuntimeError(
+            f"Required environment variable '{name}' is not set. "
+            f"Copy .env.example to .env and fill it in."
+        )
+    return value
+
+
+def env_bool(name, default=False):
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.strip().lower() in ("1", "true", "yes", "on")
+
+
+# --- Core ---------------------------------------------------------------
+
+SECRET_KEY = env("SECRET_KEY", default="dev-insecure-secret-key-do-not-use-in-production")
+DEBUG = env_bool("DEBUG", default=True)
+
+_allowed_hosts = env("ALLOWED_HOSTS", default="localhost,127.0.0.1")
+ALLOWED_HOSTS = [h.strip() for h in _allowed_hosts.split(",") if h.strip()]
+
+_cors_origins = env("CORS_ALLOWED_ORIGINS", default="http://localhost:5173,http://127.0.0.1:5173")
+CORS_ALLOWED_ORIGINS = [o.strip() for o in _cors_origins.split(",") if o.strip()]
+CORS_ALLOW_CREDENTIALS = True
+
+# Needed because the SPA (Vite dev server or its production origin) is a
+# different origin from this backend. Without this, any request carrying a
+# Django session cookie (e.g. an admin who is also browsing the public
+# site in the same browser) fails Django's CSRF origin check even though
+# CORS itself is configured, since CSRF_TRUSTED_ORIGINS is checked
+# independently.
+_csrf_trusted_origins = env("CSRF_TRUSTED_ORIGINS", default="http://localhost:5173,http://127.0.0.1:5173")
+CSRF_TRUSTED_ORIGINS = [o.strip() for o in _csrf_trusted_origins.split(",") if o.strip()]
+
+# The real, maintained frontend (React/Vite, deployed separately from this
+# backend -- see DEPLOYMENT.md). Used for Django Admin's "View site" link
+# and the backend's own "/" route, so neither ever points a visitor (staff
+# or public) at the stale, English-only Wave 1-4 Alpine.js page still kept
+# under templates/index.html purely for history/reference.
+FRONTEND_URL = env("FRONTEND_URL", default="http://localhost:5173")
+
+# --- Applications ---------------------------------------------------------
+
+INSTALLED_APPS = [
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
+    "rest_framework",
+    "corsheaders",
+    "core",
+]
+
+MIDDLEWARE = [
+    "django.middleware.security.SecurityMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    # Must come after SessionMiddleware and before CommonMiddleware (Django
+    # requirement) -- lets the admin's language switcher (see
+    # templates/admin/base_site.html) actually take effect per-session,
+    # instead of the whole admin being permanently stuck on LANGUAGE_CODE.
+    "django.middleware.locale.LocaleMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "core.middleware.RequestClientIPMiddleware",
+]
+
+ROOT_URLCONF = "config.urls"
+
+TEMPLATES = [
+    {
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [BASE_DIR / "templates"],
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
+            ],
+        },
+    },
+]
+
+WSGI_APPLICATION = "config.wsgi.application"
+
+# --- Database -------------------------------------------------------------
+# Database-agnostic: local dev uses SQLite, production points to
+# MySQL/PostgreSQL via DATABASE_URL-style discrete env vars. No
+# SQLite-specific features (e.g. JSON1 quirks) are relied upon in the app
+# code so switching engines later is a settings-only change.
+
+DB_ENGINE = env("DB_ENGINE", default="sqlite3")
+
+if DB_ENGINE == "sqlite3":
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": env("DB_NAME", default=str(REPO_ROOT / "db.sqlite3")),
+        }
+    }
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": f"django.db.backends.{DB_ENGINE}",
+            "NAME": env("DB_NAME", required=True),
+            "USER": env("DB_USER", required=True),
+            "PASSWORD": env("DB_PASSWORD", required=True),
+            "HOST": env("DB_HOST", required=True),
+            "PORT": env("DB_PORT", default=""),
+            "OPTIONS": {"charset": "utf8mb4"} if DB_ENGINE == "mysql" else {},
+        }
+    }
+
+# --- Passwords / i18n / tz -------------------------------------------------
+
+AUTH_PASSWORD_VALIDATORS = [
+    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
+]
+
+LANGUAGE_CODE = "fr"
+TIME_ZONE = env("TIME_ZONE", default="Africa/Algiers")
+USE_I18N = True
+USE_TZ = True
+
+# Restricts Django's admin language switcher (see
+# templates/admin/base_site.html) to the app's actual 3 supported
+# languages -- Django ships built-in admin-chrome translations (Add,
+# Change, Save, date pickers, etc.) for all of these -- instead of
+# Django's full built-in list of 100+ unrelated languages.
+LANGUAGES = [
+    ("fr", "Français"),
+    ("en", "English"),
+    ("ar", "العربية"),
+]
+
+# --- Static / media ---------------------------------------------------------
+
+STATIC_URL = "static/"
+STATIC_ROOT = REPO_ROOT / "staticfiles"
+STATICFILES_DIRS = [BASE_DIR / "static"]
+
+MEDIA_URL = "media/"
+MEDIA_ROOT = REPO_ROOT / "media"
+
+# Media storage backend: Cloudflare R2 (S3-compatible) in production, local
+# filesystem in dev when R2 credentials are not configured. See Wave 2.
+R2_ACCESS_KEY_ID = env("R2_ACCESS_KEY_ID", default="")
+R2_SECRET_ACCESS_KEY = env("R2_SECRET_ACCESS_KEY", default="")
+R2_BUCKET_NAME = env("R2_BUCKET_NAME", default="")
+R2_ENDPOINT_URL = env("R2_ENDPOINT_URL", default="")
+R2_PUBLIC_BASE_URL = env("R2_PUBLIC_BASE_URL", default="")
+
+USE_R2_STORAGE = bool(R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY and R2_BUCKET_NAME and R2_ENDPOINT_URL)
+
+if USE_R2_STORAGE:
+    STORAGES = {
+        "default": {"BACKEND": "core.storage_backends.R2MediaStorage"},
+        "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+    }
+    AWS_ACCESS_KEY_ID = R2_ACCESS_KEY_ID
+    AWS_SECRET_ACCESS_KEY = R2_SECRET_ACCESS_KEY
+    AWS_STORAGE_BUCKET_NAME = R2_BUCKET_NAME
+    AWS_S3_ENDPOINT_URL = R2_ENDPOINT_URL
+    AWS_S3_ADDRESSING_STYLE = "virtual"
+    AWS_DEFAULT_ACL = None
+    AWS_QUERYSTRING_AUTH = False
+else:
+    STORAGES = {
+        "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+        "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+    }
+
+# Django's own default (2.5MB) rejects a create-need submission outright
+# (RequestDataTooBig -> 413) once photos/voice/video are attached, well
+# before it reaches any of this app's own validation -- confirmed live on
+# the real deploy. Raised to comfortably cover the realistic worst case:
+# up to 3 client-compressed photos (~3MB each, see compressPhoto() in
+# frontend/src/utils.js) plus a ~20s voice or video recording. Nginx's own
+# client_max_body_size must be raised to match (see DEPLOYMENT.md step 4)
+# -- whichever of the two is smaller is the one that actually applies.
+DATA_UPLOAD_MAX_MEMORY_SIZE = 30 * 1024 * 1024
+FILE_UPLOAD_MAX_MEMORY_SIZE = 30 * 1024 * 1024
+
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# --- DRF --------------------------------------------------------------------
+
+REST_FRAMEWORK = {
+    "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.AllowAny"],
+    "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE": 50,
+    "DEFAULT_THROTTLE_CLASSES": [],
+    "DEFAULT_THROTTLE_RATES": {
+        "creation": f"{int(env('RATE_LIMIT_CREATIONS_PER_HOUR', default='20'))}/hour",
+    },
+    "EXCEPTION_HANDLER": "core.exceptions.rassemble_exception_handler",
+}
+
+# --- SOS DZ-specific configuration -------------------------------------------
+
+# Geo bounding box for Algeria (validation of submitted lat/long on Needs
+# and CollectionPoints -- see Wave 3 "geolocation restricted to Algeria").
+ALGERIA_BOUNDING_BOX = {
+    "lat_min": 18.9,
+    "lat_max": 37.3,
+    "lon_min": -8.7,
+    "lon_max": 12.0,
+}
+
+# Local, offline MaxMind GeoLite2-Country database used for the IP-based
+# write restriction (Wave 1 "geographic write restriction"). This file is
+# NOT included in the repo (it's a MaxMind-licensed download) -- see
+# README.md "GeoIP setup". When the file is absent, IP geolocation cannot
+# be resolved; core.geoip falls back to "unknown" and denies non-admin
+# writes only while geo_restrict_writes_to_algeria is enabled, so behaviour
+# stays safe-by-default rather than silently open.
+GEOIP_DB_PATH = env("GEOIP_DB_PATH", default=str(REPO_ROOT / "GeoLite2-Country.mmdb"))
+
+# Cloudflare Turnstile (captcha) -- see .env.example.
+TURNSTILE_SITE_KEY = env("TURNSTILE_SITE_KEY", default="")
+TURNSTILE_SECRET_KEY = env("TURNSTILE_SECRET_KEY", default="")
+TURNSTILE_ENABLED = bool(TURNSTILE_SECRET_KEY)
+
+# NSFWJS moderation sidecar (Wave 3).
+NSFWJS_SIDECAR_URL = env("NSFWJS_SIDECAR_URL", default="http://127.0.0.1:8801")
+# Combined score (sum of Hentai+Porn+Sexy probabilities, 0-1) below which
+# media is auto-approved, and above which it's auto-rejected. Between the
+# two: queued for human review. Tuned conservatively (wide "pending" band)
+# since community reporting is the documented safety net for anything this
+# free, self-hosted model gets wrong either way.
+NSFWJS_APPROVE_THRESHOLD = float(env("NSFWJS_APPROVE_THRESHOLD", default="0.4"))
+NSFWJS_REJECT_THRESHOLD = float(env("NSFWJS_REJECT_THRESHOLD", default="0.85"))
+
+RATE_LIMIT_CREATIONS_PER_HOUR = int(env("RATE_LIMIT_CREATIONS_PER_HOUR", default="20"))
+
+# --- Logging --------------------------------------------------------------
+
+# Console output alone (Django's default) is lost as soon as the process's
+# stdout isn't being captured somewhere -- a rotating file under REPO_ROOT
+# (gitignored, see .gitignore's `*.log`) survives independently of however
+# the process is run/supervised (systemd, `runserver`, ...) and can be
+# tailed/shipped without needing to know the deployment's log-capture setup.
+LOG_DIR = Path(env("LOG_DIR", default=str(REPO_ROOT / "logs")))
+LOG_DIR.mkdir(parents=True, exist_ok=True)
+LOG_LEVEL = env("LOG_LEVEL", default="INFO")
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "{asctime} {levelname} {name}: {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
+        "file": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": LOG_DIR / "django.log",
+            "maxBytes": 5 * 1024 * 1024,
+            "backupCount": 5,
+            "formatter": "verbose",
+        },
+    },
+    "root": {
+        "handlers": ["console", "file"],
+        "level": LOG_LEVEL,
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console", "file"],
+            "level": LOG_LEVEL,
+            "propagate": False,
+        },
+        "django.request": {
+            # Unhandled view exceptions -- always worth keeping regardless
+            # of LOG_LEVEL, since they're the errors an admin most needs to
+            # notice in the file after the fact.
+            "handlers": ["console", "file"],
+            "level": "ERROR",
+            "propagate": False,
+        },
+        "django.server": {
+            # The per-request access log line ("GET /api/needs/ 200 ...")
+            # that `manage.py runserver` prints -- Django gives it its own
+            # logger with a console-only handler by default, so without
+            # this override those lines never reached the file at all
+            # (only warnings/errors from django/django.request/core did),
+            # even though the console clearly showed activity.
+            "handlers": ["console", "file"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "core": {
+            "handlers": ["console", "file"],
+            "level": LOG_LEVEL,
+            "propagate": False,
+        },
+    },
+}
