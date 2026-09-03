@@ -460,9 +460,14 @@ class Pickup(IdentityListingMixin, models.Model):
         return timezone.now() - reference_time > timedelta(hours=24)
 
     def mark_delivered(self):
+        # Live tracking must stop the instant a delivery is done -- a
+        # courier is never geolocated after their delivery has ended (see
+        # add_location_ping's own status check, which rejects pings once
+        # this is off/status has moved on).
         self.status = self.STATUS_DELIVERED
         self.actual_delivery_date = timezone.now()
-        self.save(update_fields=["status", "actual_delivery_date"])
+        self.location_sharing_active = False
+        self.save(update_fields=["status", "actual_delivery_date", "location_sharing_active"])
         self.need.recompute_status()
 
     def save(self, *args, **kwargs):

@@ -40,6 +40,10 @@ export default function NeedDetail() {
   const [lightbox, setLightbox] = useState(null) // { src } for a full-size image preview
   const mapElRef = useRef(null)
   const mapRef = useRef(null)
+  // navigator.geolocation.watchPosition ID per pickup id -- continuous
+  // tracking (not a one-shot ping) while location_sharing_active is on and
+  // the delivery is still en route; see the sync effect below.
+  const watchIdsRef = useRef({})
 
   const isNeedOwner = needTokens[id] && needTokens[id].access_token
   const viewerToken = searchParams.get('viewer')
@@ -269,20 +273,89 @@ export default function NeedDetail() {
     load()
   }
 
+  // Continuous tracking (watchPosition), not a one-shot ping -- starts the
+  // instant sharing is turned on and keeps sending as the courier's real
+  // position changes, until stopLocationWatch tears it down (toggled off,
+  // delivered, cancelled, or this page unmounts). Never starts on its own:
+  // only ever called from the explicit opt-in toggle below, or the sync
+  // effect resuming a share the courier had already turned on.
+  const startLocationWatch = useCallback(
+    (pickupId) => {
+      if (!navigator.geolocation || watchIdsRef.current[pickupId] != null) return
+      const token = pickupTokens[pickupId]
+      const watchId = navigator.geolocation.watchPosition(
+        (pos) => {
+          api(`/pickups/${pickupId}/location-pings/`, {
+            method: 'POST',
+            body: JSON.stringify({ latitude: pos.coords.latitude, longitude: pos.coords.longitude, access_token: token }),
+          })
+            .then(checkLiveMapAccess)
+            .catch(() => {
+              /* one failed send (offline blip, delivery just ended server-side) -- watchPosition keeps
+                 running and simply retries on the next real position change, no need to tear it down here */
+            })
+        },
+        () => {
+          /* GPS temporarily unavailable/denied mid-watch -- never treated as
+             fatal or shown as a blocking error; the browser keeps calling
+             back on future position changes, per spec 17.4/17.10 (#18). */
+        },
+        { enableHighAccuracy: true, maximumAge: 15000, timeout: 20000 }
+      )
+      watchIdsRef.current[pickupId] = watchId
+    },
+    [pickupTokens, checkLiveMapAccess]
+  )
+
+  const stopLocationWatch = useCallback((pickupId) => {
+    const watchId = watchIdsRef.current[pickupId]
+    if (watchId != null) {
+      navigator.geolocation.clearWatch(watchId)
+      delete watchIdsRef.current[pickupId]
+    }
+  }, [])
+
   const toggleLocationSharing = async (pickup, checked) => {
     const token = pickupTokens[pickup.id]
+    // Optimistic stop: never leave the browser still emitting a courier's
+    // position for even one more tick once they've said no.
+    if (!checked) stopLocationWatch(pickup.id)
     await api(`/pickups/${pickup.id}/`, { method: 'PATCH', body: JSON.stringify({ location_sharing_active: checked, access_token: token }) })
+    if (checked) startLocationWatch(pickup.id)
     load()
   }
 
-  const pingLocation = (pickupId) => {
-    if (!navigator.geolocation) return
-    const token = pickupTokens[pickupId]
-    navigator.geolocation.getCurrentPosition(async (pos) => {
-      await api(`/pickups/${pickupId}/location-pings/`, { method: 'POST', body: JSON.stringify({ latitude: pos.coords.latitude, longitude: pos.coords.longitude, access_token: token }) })
-      checkLiveMapAccess()
+  // Keeps the actual watchPosition calls in sync with each owned pickup's
+  // server-known state -- covers a page reload while sharing was already
+  // on (resumes tracking) and, symmetrically, a delivery that just moved
+  // to delivered/cancelled (stops it), without the courier having to touch
+  // the toggle themselves. Also the effect cleanup that guarantees no
+  // watch survives navigating away from this page.
+  useEffect(() => {
+    if (!need) return
+    need.pickups.forEach((p) => {
+      const owned = !!pickupTokens[p.id]
+      const shouldTrack = owned && p.location_sharing_active && p.status === 'en_route'
+      if (shouldTrack) startLocationWatch(p.id)
+      else stopLocationWatch(p.id)
     })
-  }
+    // No cleanup here -- start/stopLocationWatch are idempotent against
+    // watchIdsRef, so re-running this sync on every `need`/`pickupTokens`
+    // change (e.g. after posting a progress update) is a cheap no-op for
+    // pickups whose tracking state hasn't actually changed. A real
+    // "stop everything" cleanup belongs to unmount only (below), not to
+    // every re-run of this effect.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [need, pickupTokens])
+
+  // Guarantees no watchPosition survives navigating away from this page,
+  // regardless of what state the pickups were in.
+  useEffect(() => {
+    return () => {
+      Object.keys(watchIdsRef.current).forEach((pid) => stopLocationWatch(pid))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const addDeliveryPhotoFile = async (e, pickupId) => {
     const file = e.target.files[0]
@@ -528,17 +601,23 @@ export default function NeedDetail() {
                 <label>
                   <input type="checkbox" checked={p.location_sharing_active} onChange={(e) => toggleLocationSharing(p, e.target.checked)} /> {t('needDetail.shareMyLiveLocation')}
                 </label>
+                {/* Purely informational -- there's no separate "send now"
+                    action anymore, tracking is continuous (watchPosition)
+                    for as long as the checkbox above stays on. */}
                 {p.location_sharing_active && (
-                  <button className="btn btn-icon" onClick={() => pingLocation(p.id)}>
-                    <IconMapPin width={16} height={16} strokeWidth={2} /> {t('needDetail.updatePositionNow')}
-                  </button>
+                  <p className="hint field-label-icon">
+                    <IconMapPin width={16} height={16} strokeWidth={2} /> {t('needDetail.locationTrackingActive')}
+                  </p>
                 )}
                 {p.status === 'en_route' && (
                   <div>
-                    <label>
-                      {t('needDetail.deliveryPhotosLabel')}
-                      {(deliveryPhotos[p.id] || []).length < 3 && <input type="file" accept="image/*" capture="environment" onChange={(e) => addDeliveryPhotoFile(e, p.id)} />}
-                    </label>
+                    <p className="hint">{t('needDetail.deliveryPhotosLabel')}</p>
+                    {(deliveryPhotos[p.id] || []).length < 3 && (
+                      <label className="btn record-btn photo-add-btn">
+                        {t('createNeed.takePhoto')}
+                        <input type="file" accept="image/*" capture="environment" onChange={(e) => addDeliveryPhotoFile(e, p.id)} hidden />
+                      </label>
+                    )}
                     <div className="photo-thumbs">
                       {(deliveryPhotos[p.id] || []).map((ph, idx) => (
                         <div className="photo-thumb" key={idx}>

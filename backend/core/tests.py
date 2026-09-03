@@ -2045,6 +2045,50 @@ class PickupLiveLocationsTests(BaseAPITestCase):
         resp = self.client.get("/api/pickups/live-locations/")
         self.assertEqual(resp.data, [])
 
+    def test_deliver_clears_location_sharing(self):
+        # location_sharing_active must be turned off the instant a delivery
+        # is marked delivered, not just filtered out of live-locations by
+        # status alone -- a courier who re-opts-in on a future delivery
+        # should start from a clean, explicit consent state.
+        pickup_id, token = self._make_pickup()
+        self.assertTrue(Pickup.objects.get(pk=pickup_id).location_sharing_active)
+        resp = self.client.post(f"/api/pickups/{pickup_id}/deliver/", {"access_token": token}, format="json")
+        self.assertEqual(resp.status_code, 200)
+        self.assertFalse(Pickup.objects.get(pk=pickup_id).location_sharing_active)
+
+    def test_cancel_clears_location_sharing(self):
+        pickup_id, token = self._make_pickup()
+        self.assertTrue(Pickup.objects.get(pk=pickup_id).location_sharing_active)
+        resp = self.client.patch(
+            f"/api/pickups/{pickup_id}/", {"is_cancelled": True, "access_token": token}, format="json"
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertFalse(Pickup.objects.get(pk=pickup_id).location_sharing_active)
+
+    def test_ping_rejected_after_delivered(self):
+        pickup_id, token = self._make_pickup()
+        self.client.post(f"/api/pickups/{pickup_id}/deliver/", {"access_token": token}, format="json")
+        resp = self.client.post(
+            f"/api/pickups/{pickup_id}/location-pings/",
+            {"latitude": 36.8, "longitude": 3.1, "access_token": token},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 403)
+        # And it genuinely wasn't recorded either, not just hidden from the map.
+        from core.models import LocationPing
+
+        self.assertEqual(LocationPing.objects.filter(pickup_id=pickup_id, latitude=36.8).count(), 0)
+
+    def test_ping_rejected_after_cancelled(self):
+        pickup_id, token = self._make_pickup()
+        self.client.patch(f"/api/pickups/{pickup_id}/", {"is_cancelled": True, "access_token": token}, format="json")
+        resp = self.client.post(
+            f"/api/pickups/{pickup_id}/location-pings/",
+            {"latitude": 36.8, "longitude": 3.1, "access_token": token},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 403)
+
     def test_returns_latest_ping_not_oldest(self):
         pickup_id, token = self._make_pickup()
         self.client.post(

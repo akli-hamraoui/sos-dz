@@ -510,6 +510,10 @@ class PickupViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retri
         if data.get("is_cancelled") is True and pickup.status != Pickup.STATUS_CANCELLED:
             pickup.status = Pickup.STATUS_CANCELLED
             pickup.cancellation_reason = data.get("cancellation_reason", "")
+            # Same as mark_delivered(): a cancelled delivery must stop live
+            # tracking immediately, not just once the courier happens to
+            # untick the checkbox themselves.
+            pickup.location_sharing_active = False
         pickup.save()
         pickup.need.recompute_status()
         log_admin_action(request, "edited pickup", pickup)
@@ -562,6 +566,14 @@ class PickupViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retri
             return Response({"detail": block_reason}, status=status.HTTP_403_FORBIDDEN)
         if not authorized_for_write(request, pickup):
             return Response({"detail": "Not authorized: only this pickup's own volunteer can submit its position."}, status=status.HTTP_403_FORBIDDEN)
+        # A finished delivery must never keep being geolocated -- reject any
+        # ping submitted after the pickup left en_route (delivered or
+        # cancelled), even if the frontend's own watchPosition somehow kept
+        # running (a stale tab, a race on stop). Consent
+        # (location_sharing_active) is granted by this same request when
+        # it's currently off, same as before.
+        if pickup.status != Pickup.STATUS_EN_ROUTE:
+            return Response({"detail": "This delivery is no longer active; position updates are no longer accepted."}, status=status.HTTP_403_FORBIDDEN)
         serializer = LocationPingSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         from core.validators import validate_algeria_bounds

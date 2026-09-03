@@ -453,7 +453,7 @@ export default function CreateNeed() {
               <span>{t('createNeed.mediaPhoto')}</span>
               {damagePhotos.length < 3 && (
                 <label className="btn record-btn photo-add-btn">
-                  {t('createNeed.startRecording')}
+                  {t('createNeed.takePhoto')}
                   <input type="file" accept="image/*" capture="environment" onChange={addDamagePhoto} hidden />
                 </label>
               )}
