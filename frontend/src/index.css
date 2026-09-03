@@ -746,6 +746,12 @@ fieldset {
 .badge-status-cancelled {
   background: #888;
 }
+/* Marks a delivery card as one this browser itself created (see
+   Deliveries.jsx's pickupTokens check) -- lets someone who just took
+   charge of a delivery spot it again in the list at a glance. */
+.badge-accent {
+  background: var(--collection-accent);
+}
 
 .status {
   font-size: 13px;

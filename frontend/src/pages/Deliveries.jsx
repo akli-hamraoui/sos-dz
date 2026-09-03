@@ -18,7 +18,7 @@ const LIVE_REFRESH_INTERVAL_MS = 20000
 
 export default function Deliveries() {
   const { t, i18n } = useTranslation()
-  const { activeCampaignWilayas } = useApp()
+  const { activeCampaignWilayas, pickupTokens } = useApp()
   const [filterWilaya, setFilterWilaya] = useState('')
   const [filterStatus, setFilterStatus] = useState('en_route')
   const [searchInput, setSearchInput] = useState('')
@@ -147,7 +147,7 @@ export default function Deliveries() {
           className="search-input"
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
-          placeholder={t('common.searchPlaceholder')}
+          placeholder={t('deliveries.searchPlaceholder')}
         />
         <label>
           {t('needsList.filterByWilaya')}
@@ -192,6 +192,12 @@ export default function Deliveries() {
                 key={p.id}
               >
                 <span className={`badge badge-status-${p.status}`}>{t(`status.${p.status}`)}</span>
+                {/* pickupTokens only ever holds pickups created in this exact
+                    browser (see AppContext) -- lets someone who just took
+                    charge of a delivery instantly spot it again in this
+                    list instead of hunting for the need/collection point it
+                    came from. */}
+                {!!pickupTokens[p.id] && <span className="badge badge-accent">{t('deliveries.yours')}</span>}
                 <h3>
                   <IconTruck width={17} height={17} strokeWidth={1.9} className="truck-icon" /> {p.need_title || p.collection_point_name}
                 </h3>
@@ -218,7 +224,23 @@ export default function Deliveries() {
 
       {viewMode === 'map' && (
         <div className="map-wrap">
-          {mapHasNothing && <p className="hint">{t('deliveries.noLiveLocations')}</p>}
+          {mapHasNothing && (
+            <div className="hint">
+              <p>{t('deliveries.noLiveLocations')}</p>
+              {/* This map only ever shows couriers who opted into live
+                  sharing (see PickupManager's checkbox, on their own
+                  delivery's page) -- an empty map here does not mean a
+                  delivery wasn't created, so point explicitly at the list
+                  (which shows every delivery regardless of sharing) and at
+                  where sharing is actually turned on. */}
+              <p>
+                {t('deliveries.noLiveLocationsHint')}{' '}
+                <button type="button" className="link" onClick={() => setViewMode('list')}>
+                  {t('needsList.list')}
+                </button>
+              </p>
+            </div>
+          )}
           <div id="deliveries-map" ref={mapElRef} style={{ height: 600 }} />
           <p className="legend-note">{t('deliveries.liveMapNote')}</p>
         </div>

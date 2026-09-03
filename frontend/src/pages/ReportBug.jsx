@@ -3,9 +3,11 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { api } from '../api'
 import { translateApiError } from '../apiErrors'
+import { validityMessageProps } from '../utils'
 
 export default function ReportBug() {
   const { t } = useTranslation()
+  const validityProps = validityMessageProps(t)
   const [form, setForm] = useState({ requester_phone: '', requester_email: '', message: '' })
   const [error, setError] = useState('')
   const [sent, setSent] = useState(false)
@@ -29,13 +31,13 @@ export default function ReportBug() {
       <p>{t('reportBug.description')}</p>
       <form onSubmit={submit}>
         <label>
-          {t('reportBug.message')} * <textarea value={form.message} onChange={set('message')} placeholder={t('reportBug.messagePlaceholder')} required />
+          {t('reportBug.message')} * <textarea value={form.message} onChange={set('message')} placeholder={t('reportBug.messagePlaceholder')} required {...validityProps} />
         </label>
         <label>
           {t('support.yourPhone')} ({t('common.optional')}) <input type="tel" value={form.requester_phone} onChange={set('requester_phone')} />
         </label>
         <label>
-          {t('support.yourEmail')} ({t('common.optional')}) <input type="email" value={form.requester_email} onChange={set('requester_email')} />
+          {t('support.yourEmail')} ({t('common.optional')}) <input type="email" value={form.requester_email} onChange={set('requester_email')} {...validityProps} />
         </label>
         {error && <p className="error">{error}</p>}
         <button type="submit" className="btn btn-primary">

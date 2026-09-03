@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useApp } from '../context/AppContext'
 import { api, apiUpload } from '../api'
-import { isInAlgeria, reverseGeocodePlace } from '../utils'
+import { isInAlgeria, reverseGeocodePlace, validityMessageProps } from '../utils'
 import { translateApiError } from '../apiErrors'
 import PlaceAutocomplete from '../components/PlaceAutocomplete'
 import { IconFacebook, IconTikTok, IconInstagram, IconCamera, IconTrash } from '../icons'
@@ -28,6 +28,7 @@ export default function CreateCollectionPoint() {
   const { t, i18n } = useTranslation()
   const navigate = useNavigate()
   const { activeCampaignWilayas, wilayas, config, refreshConfig } = useApp()
+  const validityProps = validityMessageProps(t)
   const [form, setForm] = useState(DEFAULT_FORM)
   const [gpsStatus, setGpsStatus] = useState(null) // null | 'locating' | 'error'
   const [error, setError] = useState('')
@@ -120,7 +121,7 @@ export default function CreateCollectionPoint() {
       <form onSubmit={submit}>
         <label>
           {t('createNeed.wilaya')} *
-          <select value={form.wilaya} onChange={set('wilaya')} required>
+          <select value={form.wilaya} onChange={set('wilaya')} required {...validityProps}>
             <option value="">{t('createNeed.selectPlaceholder')}</option>
             {activeCampaignWilayas.map((w) => (
               <option key={w.id} value={w.id}>
@@ -130,7 +131,7 @@ export default function CreateCollectionPoint() {
           </select>
         </label>
         <label>
-          {t('collectionPoints.pointName')} * <input type="text" value={form.point_name} onChange={set('point_name')} required />
+          {t('collectionPoints.pointName')} * <input type="text" value={form.point_name} onChange={set('point_name')} required {...validityProps} />
         </label>
         <p className="hint">{t('createNeed.contactDetailsHint')}</p>
         <label>
@@ -145,7 +146,7 @@ export default function CreateCollectionPoint() {
         </label>
         <label>
           {t('createNeed.recoveryCode')}{' '}
-          <input type="text" value={form.recovery_code} onChange={set('recovery_code')} placeholder={t('createNeed.recoveryCodePlaceholder')} minLength={6} />
+          <input type="text" value={form.recovery_code} onChange={set('recovery_code')} placeholder={t('createNeed.recoveryCodePlaceholder')} minLength={6} {...validityProps} />
           <span className="hint">{t('createNeed.recoveryCodeHint')}</span>
         </label>
         <label>
@@ -162,6 +163,7 @@ export default function CreateCollectionPoint() {
               setForm((f) => ({ ...f, latitude: lat, longitude: lon }))
             }}
             required
+            onInvalid={validityProps.onInvalid}
           />
         </label>
         <label>

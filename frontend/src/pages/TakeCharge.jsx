@@ -5,6 +5,7 @@ import { useApp } from '../context/AppContext'
 import { useDialog } from '../context/DialogContext'
 import { api, createOrQueue } from '../api'
 import { translateApiError } from '../apiErrors'
+import { validityMessageProps } from '../utils'
 
 const DEFAULT_FORM = {
   responder_type: 'individual_volunteer',
@@ -26,6 +27,7 @@ export default function TakeCharge({ source = 'need' }) {
   const navigate = useNavigate()
   const { savePickupToken, config, refreshConfig } = useApp()
   const { showAlert } = useDialog()
+  const validityProps = validityMessageProps(t)
   const [target, setTarget] = useState(null)
   const [form, setForm] = useState(DEFAULT_FORM)
   const [error, setError] = useState('')
@@ -65,7 +67,7 @@ export default function TakeCharge({ source = 'need' }) {
       <form onSubmit={submit}>
         <label>
           {t('takeCharge.type')} *
-          <select value={form.responder_type} onChange={set('responder_type')} required>
+          <select value={form.responder_type} onChange={set('responder_type')} required {...validityProps}>
             <option value="individual_volunteer">{t('takeCharge.individualVolunteer')}</option>
             <option value="organization">{t('takeCharge.organization')}</option>
             <option value="collective_truck">{t('takeCharge.collectiveTruck')}</option>
@@ -73,18 +75,18 @@ export default function TakeCharge({ source = 'need' }) {
         </label>
         <label>
           {t('takeCharge.whatBringing')} *
-          <input type="text" value={form.content_brought} onChange={set('content_brought')} placeholder={t('takeCharge.whatBringingPlaceholder')} required />
+          <input type="text" value={form.content_brought} onChange={set('content_brought')} placeholder={t('takeCharge.whatBringingPlaceholder')} required {...validityProps} />
         </label>
         <fieldset>
           <legend>{t('createNeed.contactDetailsLegend')}</legend>
           <label>
-            {t('createNeed.name')} * <input type="text" value={form.responder_name} onChange={set('responder_name')} required />
+            {t('takeCharge.nameLabel')} * <input type="text" value={form.responder_name} onChange={set('responder_name')} required {...validityProps} />
           </label>
           <label>
-            {t('createNeed.phone')} * <input type="tel" value={form.responder_phone} onChange={set('responder_phone')} required />
+            {t('takeCharge.phoneLabel')} * <input type="tel" value={form.responder_phone} onChange={set('responder_phone')} required {...validityProps} />
           </label>
           <label>
-            {t('createNeed.email')} <input type="email" value={form.responder_email} onChange={set('responder_email')} />
+            {t('createNeed.email')} <input type="email" value={form.responder_email} onChange={set('responder_email')} {...validityProps} />
           </label>
           <label>
             {t('createNeed.orgOrPerson')} <input type="text" value={form.organization_or_person_name} onChange={set('organization_or_person_name')} />
@@ -92,7 +94,7 @@ export default function TakeCharge({ source = 'need' }) {
         </fieldset>
         <label>
           {t('createNeed.recoveryCode')}{' '}
-          <input type="text" value={form.recovery_code} onChange={set('recovery_code')} placeholder={t('createNeed.recoveryCodePlaceholder')} minLength={6} />
+          <input type="text" value={form.recovery_code} onChange={set('recovery_code')} placeholder={t('createNeed.recoveryCodePlaceholder')} minLength={6} {...validityProps} />
           <span className="hint">{t('createNeed.recoveryCodeHint')}</span>
         </label>
         {config.turnstile_enabled && <div className="cf-turnstile" data-sitekey={config.turnstile_site_key} data-callback="onTurnstileToken" />}

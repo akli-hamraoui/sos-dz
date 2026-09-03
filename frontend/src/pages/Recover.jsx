@@ -5,6 +5,7 @@ import { useApp } from '../context/AppContext'
 import { useDialog } from '../context/DialogContext'
 import { api } from '../api'
 import { translateApiError } from '../apiErrors'
+import { validityMessageProps } from '../utils'
 
 export default function Recover() {
   const { t } = useTranslation()
@@ -12,6 +13,7 @@ export default function Recover() {
   const navigate = useNavigate()
   const { saveNeedToken, savePickupToken } = useApp()
   const { showAlert } = useDialog()
+  const validityProps = validityMessageProps(t)
   const recoverContext = location.state // { type: 'need'|'pickup', id }
   const [useCode, setUseCode] = useState(true)
   const [form, setForm] = useState({ code: '', name: '', phone: '' })
@@ -66,15 +68,15 @@ export default function Recover() {
       <form onSubmit={submit}>
         {useCode ? (
           <label>
-            {t('createNeed.recoveryCode')} * <input type="text" value={form.code} onChange={set('code')} required />
+            {t('recover.codeLabel')} * <input type="text" value={form.code} onChange={set('code')} required {...validityProps} />
           </label>
         ) : (
           <>
             <label>
-              {t('createNeed.name')} * <input type="text" value={form.name} onChange={set('name')} required />
+              {t('recover.nameLabel')} * <input type="text" value={form.name} onChange={set('name')} required {...validityProps} />
             </label>
             <label>
-              {t('createNeed.phone')} * <input type="tel" value={form.phone} onChange={set('phone')} required />
+              {t('recover.phoneLabel')} * <input type="tel" value={form.phone} onChange={set('phone')} required {...validityProps} />
             </label>
           </>
         )}

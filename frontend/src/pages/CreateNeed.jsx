@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { useApp } from '../context/AppContext'
 import { useDialog } from '../context/DialogContext'
 import { api, createOrQueue } from '../api'
-import { compressPhoto, isInAlgeria, reverseGeocodePlace } from '../utils'
+import { compressPhoto, isInAlgeria, reverseGeocodePlace, validityMessageProps } from '../utils'
 import { translateApiError } from '../apiErrors'
 import { IconMapPin, IconMic, IconVideoCam, IconCamera, IconTrash, IconSwitchCamera } from '../icons'
 import PlaceAutocomplete from '../components/PlaceAutocomplete'
@@ -31,6 +31,7 @@ export default function CreateNeed() {
   const navigate = useNavigate()
   const { campaigns, wilayasForCampaign, wilayas, saveNeedToken, config, refreshConfig } = useApp()
   const { showConfirm, showAlert } = useDialog()
+  const validityProps = validityMessageProps(t)
   const [form, setForm] = useState(DEFAULT_FORM)
   const [gpsStatus, setGpsStatus] = useState(null) // null | 'locating' | 'error'
   const [error, setError] = useState('')
@@ -351,7 +352,7 @@ export default function CreateNeed() {
         </label>
         <label>
           {t('createNeed.wilaya')} *
-          <select value={form.wilaya} onChange={set('wilaya')} required>
+          <select value={form.wilaya} onChange={set('wilaya')} required {...validityProps}>
             <option value="">{t('createNeed.selectPlaceholder')}</option>
             {wilayasForCampaign(form.campaign).map((w) => (
               <option key={w.id} value={w.id}>
@@ -488,14 +489,14 @@ export default function CreateNeed() {
             <textarea rows={3} value={form.other_phones} onChange={set('other_phones')} placeholder={t('collectionPoints.otherPhonesPlaceholder')} />
           </label>
           <label>
-            {t('createNeed.email')} <input type="email" value={form.contact_email} onChange={set('contact_email')} />
+            {t('createNeed.email')} <input type="email" value={form.contact_email} onChange={set('contact_email')} {...validityProps} />
           </label>
           <label>
             {t('createNeed.orgOrPerson')} <input type="text" value={form.organization_or_person_name} onChange={set('organization_or_person_name')} />
           </label>
           <label>
             {t('createNeed.recoveryCode')}{' '}
-            <input type="text" value={form.recovery_code} onChange={set('recovery_code')} placeholder={t('createNeed.recoveryCodePlaceholder')} minLength={6} />
+            <input type="text" value={form.recovery_code} onChange={set('recovery_code')} placeholder={t('createNeed.recoveryCodePlaceholder')} minLength={6} {...validityProps} />
             <span className="hint">{t('createNeed.recoveryCodeHint')}</span>
           </label>
         </fieldset>

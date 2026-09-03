@@ -28,6 +28,13 @@
     "adminModeBadge": "Mode admin",
     "adminLogout": "se déconnecter"
   },
+  "validation": {
+    "required": "Ce champ est obligatoire.",
+    "tooShort": "Veuillez saisir au moins {{min}} caractères.",
+    "tooLong": "Veuillez saisir au maximum {{max}} caractères.",
+    "invalidEmail": "Veuillez saisir une adresse email valide.",
+    "invalidFormat": "Le format saisi n'est pas valide."
+  },
   "map": {
     "gestureTouch": "Utilisez deux doigts pour déplacer la carte",
     "gestureScroll": "Utilisez Ctrl + molette pour zoomer sur la carte",
@@ -53,7 +60,8 @@
     "fabCollectionPoint": "Collecte",
     "forgotDetails": "Retrouver mon annonce ou livraison",
     "support": "Aide",
-    "deliveries": "Livraisons",
+    "deliveries": "Position Livreurs",
+    "deliveriesShort": "Livreurs",
     "menu": "Menu",
     "reportBug": "Signaler un bug",
     "about": "Qui sommes-nous",
@@ -205,6 +213,8 @@
     "collectiveTruck": "Camion collectif",
     "whatBringing": "Qu'apportez-vous ?",
     "whatBringingPlaceholder": "ex. 30 couvertures et 50L d'eau",
+    "nameLabel": "Nom complet",
+    "phoneLabel": "Téléphone",
     "confirmButton": "Confirmer — je prends en charge"
   },
   "recover": {
@@ -214,7 +224,10 @@
     "stillNotWorking": "Toujours bloqué ? Contactez le support admin",
     "forgotCode": "Code oublié ? Utiliser mon nom et téléphone",
     "useCodeInstead": "J'ai un code de récupération",
-    "noContextHint": "Cette page s'utilise depuis le bouton « Récupérer l'accès » sur la page d'un besoin ou d'une prise en charge précis. Si vous ne retrouvez plus ce lien, cherchez votre annonce dans la liste des besoins ci-dessous."
+    "noContextHint": "Cette page s'utilise depuis le bouton « Récupérer l'accès » sur la page d'un besoin ou d'une prise en charge précis. Si vous ne retrouvez plus ce lien, cherchez votre annonce dans la liste des besoins ci-dessous.",
+    "codeLabel": "Code de récupération",
+    "nameLabel": "Nom complet",
+    "phoneLabel": "Téléphone"
   },
   "support": {
     "title": "Retrouver mon annonce ou livraison / contacter l'admin",
@@ -279,7 +292,10 @@
     "responder": "Livreur/livreuse",
     "since": "depuis",
     "noLiveLocations": "Aucun livreur ne partage sa position en direct pour le moment.",
-    "liveMapNote": "Positions partagées volontairement par les livreurs, mises à jour automatiquement."
+    "noLiveLocationsHint": "Le partage de position est facultatif et se fait depuis la page de sa propre livraison. Pour voir toutes les livraisons (avec ou sans position partagée), consultez la",
+    "liveMapNote": "Positions partagées volontairement par les livreurs, mises à jour automatiquement.",
+    "searchPlaceholder": "Rechercher (nom, téléphone...)",
+    "yours": "La vôtre"
   },
   "reportBug": {
     "title": "Signaler un bug",

@@ -106,6 +106,44 @@ export async function reverseGeocodePlace(lat, lon, lang) {
   return data.display_name || null
 }
 
+// The browser's own native form-validation bubble ("Please fill out this
+// field", "Please lengthen this text to 6 characters or more"...) is drawn
+// by the browser itself, in the browser/OS's own language -- never the
+// app's currently-selected language -- so a French/Arabic-language visitor
+// on an English-locale browser would see it in English regardless. Spread
+// this onto any <input>/<textarea>/<select> that has required/minLength/
+// maxLength/type=email/pattern to replace that bubble's text with a real,
+// translated one via the standard Constraint Validation API
+// (setCustomValidity) -- the native bubble/positioning/timing stays
+// exactly the same, only the message text changes. onInput clears it again
+// as soon as the value changes, so a message set for one invalid attempt
+// never lingers stale once the field becomes valid.
+export function validityMessageProps(t) {
+  const applyMessage = (e) => {
+    const el = e.target
+    const v = el.validity
+    if (v.valid) {
+      el.setCustomValidity('')
+    } else if (v.valueMissing) {
+      el.setCustomValidity(t('validation.required'))
+    } else if (v.tooShort) {
+      el.setCustomValidity(t('validation.tooShort', { min: el.minLength }))
+    } else if (v.tooLong) {
+      el.setCustomValidity(t('validation.tooLong', { max: el.maxLength }))
+    } else if (v.typeMismatch && el.type === 'email') {
+      el.setCustomValidity(t('validation.invalidEmail'))
+    } else if (v.patternMismatch || v.typeMismatch) {
+      el.setCustomValidity(t('validation.invalidFormat'))
+    } else {
+      el.setCustomValidity('')
+    }
+  }
+  return {
+    onInvalid: applyMessage,
+    onInput: (e) => e.target.setCustomValidity(''),
+  }
+}
+
 export async function compressPhoto(file) {
   try {
     const imageCompression = (await import('browser-image-compression')).default

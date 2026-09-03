@@ -2433,6 +2433,25 @@ class SearchFilterTests(BaseAPITestCase):
         resp = self.client.get("/api/pickups/?search=Yacine")
         self.assertEqual(len(resp.data["results"]), 1)
 
+    def test_pickup_search_matches_responder_phone(self):
+        # Couriers/pickups need to be findable by phone too, not just name --
+        # someone looking for "the delivery from 0666000009" had no way to
+        # search for it before this.
+        need_resp = self.client.post("/api/needs/", dict(NEED_PAYLOAD, campaign=self.campaign.pk, wilaya=self.wilaya.pk), format="json")
+        self.client.post(
+            "/api/pickups/",
+            {
+                "need": need_resp.data["id"],
+                "responder_type": "individual_volunteer",
+                "responder_name": "Sara Amrani",
+                "responder_phone": "0666000009",
+                "content_brought": "Water",
+            },
+            format="json",
+        )
+        resp = self.client.get("/api/pickups/?search=0666000009")
+        self.assertEqual(len(resp.data["results"]), 1)
+
 
 class CommentTests(BaseAPITestCase):
     def setUp(self):

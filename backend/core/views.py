@@ -432,6 +432,7 @@ class PickupViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retri
         if search:
             qs = qs.filter(
                 Q(responder_name__icontains=search)
+                | Q(responder_phone__icontains=search)
                 | Q(content_brought__icontains=search)
                 | Q(organization_or_person_name__icontains=search)
                 | Q(need__title__icontains=search)

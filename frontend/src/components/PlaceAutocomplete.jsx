@@ -7,7 +7,7 @@ import { searchPlaces } from '../utils'
 // Never blocks on a match: whatever the visitor typed is always what
 // gets saved, suggestions are purely a convenience for finding the exact
 // spelling/spot faster.
-export default function PlaceAutocomplete({ value, onChange, onSelectPlace, placeholder, as = 'input', required = false, id }) {
+export default function PlaceAutocomplete({ value, onChange, onSelectPlace, placeholder, as = 'input', required = false, id, onInvalid }) {
   const { i18n } = useTranslation()
   const [suggestions, setSuggestions] = useState([])
   const [open, setOpen] = useState(false)
@@ -26,6 +26,7 @@ export default function PlaceAutocomplete({ value, onChange, onSelectPlace, plac
 
   const handleChange = (e) => {
     const next = e.target.value
+    e.target.setCustomValidity('') // clears any translated required-field message set via onInvalid below
     onChange(next)
     if (debounceRef.current) clearTimeout(debounceRef.current)
     if (next.trim().length < 2) {
@@ -79,6 +80,7 @@ export default function PlaceAutocomplete({ value, onChange, onSelectPlace, plac
         }}
         placeholder={placeholder}
         required={required}
+        onInvalid={onInvalid}
         autoComplete="off"
       />
       {open && (

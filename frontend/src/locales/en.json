@@ -28,6 +28,13 @@
     "adminModeBadge": "Admin mode",
     "adminLogout": "log out"
   },
+  "validation": {
+    "required": "This field is required.",
+    "tooShort": "Please enter at least {{min}} characters.",
+    "tooLong": "Please enter at most {{max}} characters.",
+    "invalidEmail": "Please enter a valid email address.",
+    "invalidFormat": "The entered format is invalid."
+  },
   "map": {
     "gestureTouch": "Use two fingers to move the map",
     "gestureScroll": "Use ctrl + scroll to zoom the map",
@@ -53,7 +60,8 @@
     "fabCollectionPoint": "Collection",
     "forgotDetails": "Find my listing or delivery",
     "support": "Support",
-    "deliveries": "Deliveries",
+    "deliveries": "Courier Positions",
+    "deliveriesShort": "Couriers",
     "menu": "Menu",
     "reportBug": "Report a bug",
     "about": "About us",
@@ -205,6 +213,8 @@
     "collectiveTruck": "Collective truck",
     "whatBringing": "What are you bringing?",
     "whatBringingPlaceholder": "e.g. 30 blankets and 50L of water",
+    "nameLabel": "Full name",
+    "phoneLabel": "Phone",
     "confirmButton": "Confirm — I'm taking charge"
   },
   "recover": {
@@ -214,7 +224,10 @@
     "stillNotWorking": "Still not working? Contact admin support",
     "forgotCode": "Forgot your code? Use your name and phone instead",
     "useCodeInstead": "I have a recovery code",
-    "noContextHint": "This page is meant to be opened from the \"Recover access\" button on a specific need or pickup's own page. If you lost that link, search for your listing in the needs list below."
+    "noContextHint": "This page is meant to be opened from the \"Recover access\" button on a specific need or pickup's own page. If you lost that link, search for your listing in the needs list below.",
+    "codeLabel": "Recovery code",
+    "nameLabel": "Full name",
+    "phoneLabel": "Phone"
   },
   "support": {
     "title": "Find my listing or delivery / contact admin",
@@ -279,7 +292,10 @@
     "responder": "Responder",
     "since": "since",
     "noLiveLocations": "No courier is currently sharing their live position.",
-    "liveMapNote": "Positions volunteered by couriers, updated automatically."
+    "noLiveLocationsHint": "Sharing your position is optional and is turned on from your own delivery's page. To see every delivery (whether or not their position is shared), check the",
+    "liveMapNote": "Positions volunteered by couriers, updated automatically.",
+    "searchPlaceholder": "Search (name, phone...)",
+    "yours": "Yours"
   },
   "reportBug": {
     "title": "Report a bug",

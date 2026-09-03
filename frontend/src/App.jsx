@@ -191,7 +191,7 @@ function BottomNav() {
           <MapIndicator shiftRight />
           {!!config.deliveries_en_route_count && <span className="nav-badge">{formatBadgeCount(config.deliveries_en_route_count)}</span>}
         </span>
-        <span>{t('nav.deliveries')}</span>
+        <span>{t('nav.deliveriesShort')}</span>
       </Link>
     </nav>
   )

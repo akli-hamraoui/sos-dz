@@ -3,9 +3,11 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { api } from '../api'
 import { translateApiError } from '../apiErrors'
+import { validityMessageProps } from '../utils'
 
 export default function Support() {
   const { t } = useTranslation()
+  const validityProps = validityMessageProps(t)
   const [form, setForm] = useState({ requester_phone: '', requester_email: '', related_listing_description: '', message: '' })
   const [error, setError] = useState('')
   const [sent, setSent] = useState(false)
@@ -36,13 +38,13 @@ export default function Support() {
           {t('support.yourPhone')} ({t('common.optional')}) <input type="tel" value={form.requester_phone} onChange={set('requester_phone')} />
         </label>
         <label>
-          {t('support.yourEmail')} ({t('common.optional')}) <input type="email" value={form.requester_email} onChange={set('requester_email')} />
+          {t('support.yourEmail')} ({t('common.optional')}) <input type="email" value={form.requester_email} onChange={set('requester_email')} {...validityProps} />
         </label>
         <label>
           {t('support.relatedListing')} <input type="text" value={form.related_listing_description} onChange={set('related_listing_description')} />
         </label>
         <label>
-          {t('support.message')} * <textarea value={form.message} onChange={set('message')} required />
+          {t('support.message')} * <textarea value={form.message} onChange={set('message')} required {...validityProps} />
         </label>
         {error && <p className="error">{error}</p>}
         <button type="submit" className="btn btn-primary">
