@@ -532,6 +532,26 @@ class PickupViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retri
             pickup.content_brought = data["content_brought"]
         if "location_sharing_active" in data:
             pickup.location_sharing_active = bool(data["location_sharing_active"])
+        if "departure_description" in data:
+            pickup.departure_description = data["departure_description"] or ""
+        # Lets a courier who skipped this at take-charge time add it later
+        # (or edit/clear it), same optional text+map-pin shape and Algeria-
+        # bounds validation as at creation (PickupCreateSerializer.validate).
+        # Both keys present but null/blank clears the position; only one of
+        # the two present is rejected the same way creation does.
+        if "departure_latitude" in data or "departure_longitude" in data:
+            lat, lon = data.get("departure_latitude"), data.get("departure_longitude")
+            if lat in (None, "") and lon in (None, ""):
+                pickup.departure_latitude = None
+                pickup.departure_longitude = None
+            elif lat in (None, "") or lon in (None, ""):
+                return Response({"detail": "departure_latitude and departure_longitude must be provided together."}, status=status.HTTP_400_BAD_REQUEST)
+            else:
+                from core.validators import validate_algeria_bounds
+                lat, lon = float(lat), float(lon)
+                validate_algeria_bounds(lat, lon)
+                pickup.departure_latitude = lat
+                pickup.departure_longitude = lon
         if data.get("is_cancelled") is True and pickup.status != Pickup.STATUS_CANCELLED:
             pickup.status = Pickup.STATUS_CANCELLED
             pickup.cancellation_reason = data.get("cancellation_reason", "")

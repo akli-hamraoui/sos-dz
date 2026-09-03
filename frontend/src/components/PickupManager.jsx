@@ -4,10 +4,11 @@ import { useTranslation } from 'react-i18next'
 import { useApp } from '../context/AppContext'
 import { useDialog } from '../context/DialogContext'
 import { api, apiUpload, createOrQueue } from '../api'
-import { maskPhone, formatDate, compressPhoto } from '../utils'
+import { maskPhone, formatDate, compressPhoto, reverseGeocodePlace } from '../utils'
 import { translateApiError } from '../apiErrors'
 import { IconMapPin } from '../icons'
 import ModerationBadge from './ModerationBadge'
+import PlaceAutocomplete from './PlaceAutocomplete'
 
 function statusLabel(t, s) {
   return t(`status.${s}`, s)
@@ -32,6 +33,9 @@ export default function PickupManager({ pickup, pickupToken, onChange, onLocatio
   const [deliveryPhotos, setDeliveryPhotos] = useState([])
   const [lightbox, setLightbox] = useState(null)
   const [anonymizing, setAnonymizing] = useState(false)
+  const [editingDeparture, setEditingDeparture] = useState(false)
+  const [departureForm, setDepartureForm] = useState({ departure_description: pickup.departure_description || '', departure_latitude: pickup.departure_latitude, departure_longitude: pickup.departure_longitude })
+  const [gpsStatus, setGpsStatus] = useState(null) // null | 'locating' | 'error'
   const watchIdRef = useRef(null)
 
   const startLocationWatch = useCallback(() => {
@@ -84,6 +88,48 @@ export default function PickupManager({ pickup, pickupToken, onChange, onLocatio
     if (!checked) stopLocationWatch()
     await api(`/pickups/${pickup.id}/`, { method: 'PATCH', body: JSON.stringify({ location_sharing_active: checked, access_token: pickupToken }) })
     if (checked) startLocationWatch()
+    onChange()
+  }
+
+  // Lets an owner add/edit/clear their departure location after the fact
+  // (TakeCharge only offers it at creation time) -- same optional text +
+  // map-search field, same "use my current position" GPS shortcut, PATCHed
+  // through the same endpoint as content_brought/location_sharing_active
+  // above rather than a separate one.
+  const startEditingDeparture = () => {
+    setDepartureForm({ departure_description: pickup.departure_description || '', departure_latitude: pickup.departure_latitude, departure_longitude: pickup.departure_longitude })
+    setGpsStatus(null)
+    setEditingDeparture(true)
+  }
+
+  const useMyDepartureLocation = () => {
+    if (!navigator.geolocation) {
+      setGpsStatus('error')
+      return
+    }
+    setGpsStatus('locating')
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords
+        setGpsStatus(null)
+        setDepartureForm((f) => ({ ...f, departure_latitude: latitude, departure_longitude: longitude }))
+        try {
+          const label = await reverseGeocodePlace(latitude, longitude, i18n.language)
+          if (label) setDepartureForm((f) => (f.departure_description ? f : { ...f, departure_description: label }))
+        } catch {
+          /* best-effort label only -- coordinates are already captured either way */
+        }
+      },
+      () => setGpsStatus('error'),
+      { enableHighAccuracy: true, timeout: 15000 }
+    )
+  }
+
+  const clearDeparturePosition = () => setDepartureForm((f) => ({ ...f, departure_latitude: null, departure_longitude: null }))
+
+  const saveDepartureLocation = async () => {
+    await api(`/pickups/${pickup.id}/`, { method: 'PATCH', body: JSON.stringify({ ...departureForm, access_token: pickupToken }) })
+    setEditingDeparture(false)
     onChange()
   }
 
@@ -158,11 +204,50 @@ export default function PickupManager({ pickup, pickupToken, onChange, onLocatio
         </p>
       )}
       <p>{t('needDetail.bringing', { content: pickup.content_brought })}</p>
-      {(pickup.departure_description || pickup.departure_latitude != null) && (
+      {!editingDeparture && (pickup.departure_description || pickup.departure_latitude != null) && (
         <p className="hint field-label-icon">
           <IconMapPin width={16} height={16} strokeWidth={2} /> {t('takeCharge.departureLocation')}:{' '}
           {pickup.departure_description || t('deliveries.departureMarkerLabel')}
         </p>
+      )}
+      {owned && !editingDeparture && (
+        <button type="button" className="link" onClick={startEditingDeparture}>
+          {pickup.departure_description || pickup.departure_latitude != null ? t('pickupDetail.editDeparture') : t('pickupDetail.addDeparture')}
+        </button>
+      )}
+      {owned && editingDeparture && (
+        <div className="departure-edit">
+          <label>
+            {t('takeCharge.departureLocation')} ({t('common.optional')})
+            <PlaceAutocomplete
+              value={departureForm.departure_description}
+              onChange={(v) => setDepartureForm((f) => ({ ...f, departure_description: v }))}
+              onSelectPlace={({ lat, lon }) => setDepartureForm((f) => ({ ...f, departure_latitude: lat, departure_longitude: lon }))}
+              placeholder={t('takeCharge.departureLocationPlaceholder')}
+            />
+            <span className="hint">{t('takeCharge.departureLocationHint')}</span>
+          </label>
+          <button type="button" className="btn btn-icon" onClick={useMyDepartureLocation} disabled={gpsStatus === 'locating'}>
+            <IconMapPin width={16} height={16} strokeWidth={2} /> {t('createNeed.useMyLocation')}
+          </button>
+          {gpsStatus === 'locating' && <p className="hint">{t('createNeed.gpsLocating')}</p>}
+          {gpsStatus === 'error' && <p className="error">{t('createNeed.gpsError')}</p>}
+          {departureForm.departure_latitude != null && (
+            <p className="hint field-label-icon">
+              <IconMapPin width={16} height={16} strokeWidth={2} />
+              {t('takeCharge.departurePositionCaptured')}{' '}
+              <button type="button" className="link" onClick={clearDeparturePosition}>
+                {t('takeCharge.clearDeparturePosition')}
+              </button>
+            </p>
+          )}
+          <button type="button" className="btn btn-primary" onClick={saveDepartureLocation}>
+            {t('common.save')}
+          </button>
+          <button type="button" className="btn" onClick={() => setEditingDeparture(false)}>
+            {t('common.cancel')}
+          </button>
+        </div>
       )}
       <div className="timeline">
         {pickup.progress_updates.map((u) => (

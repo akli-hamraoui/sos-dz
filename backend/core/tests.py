@@ -2413,6 +2413,80 @@ class PickupDepartureLocationTests(BaseAPITestCase):
         resp = self.client.get("/api/pickups/live-locations/")
         self.assertEqual(resp.data, [])
 
+    def test_owner_can_add_departure_location_after_take_charge(self):
+        # A courier who skipped this at take-charge time (per this class's
+        # own docstring, it's optional) can still add it later from their
+        # own pickup card -- same PATCH path as content_brought/
+        # location_sharing_active above, not a separate endpoint.
+        create_resp = self.client.post("/api/pickups/", self._pickup_payload(), format="json")
+        pickup_id, token = create_resp.data["id"], create_resp.data["access_token"]
+        resp = self.client.patch(
+            f"/api/pickups/{pickup_id}/",
+            {"departure_description": "Alger centre", "departure_latitude": 36.75, "departure_longitude": 3.04, "access_token": token},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.assertEqual(resp.data["departure_description"], "Alger centre")
+        self.assertEqual(resp.data["departure_latitude"], 36.75)
+
+    def test_owner_can_edit_departure_location(self):
+        create_resp = self.client.post(
+            "/api/pickups/", self._pickup_payload(departure_description="Chez moi", departure_latitude=36.0, departure_longitude=3.0), format="json"
+        )
+        pickup_id, token = create_resp.data["id"], create_resp.data["access_token"]
+        resp = self.client.patch(
+            f"/api/pickups/{pickup_id}/",
+            {"departure_description": "Entrepôt", "departure_latitude": 36.75, "departure_longitude": 3.04, "access_token": token},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.assertEqual(resp.data["departure_description"], "Entrepôt")
+        self.assertEqual(resp.data["departure_latitude"], 36.75)
+
+    def test_owner_can_clear_departure_coordinates(self):
+        create_resp = self.client.post(
+            "/api/pickups/", self._pickup_payload(departure_description="Chez moi", departure_latitude=36.0, departure_longitude=3.0), format="json"
+        )
+        pickup_id, token = create_resp.data["id"], create_resp.data["access_token"]
+        resp = self.client.patch(
+            f"/api/pickups/{pickup_id}/",
+            {"departure_latitude": None, "departure_longitude": None, "access_token": token},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.assertIsNone(resp.data["departure_latitude"])
+        self.assertEqual(resp.data["departure_description"], "Chez moi")  # untouched
+
+    def test_editing_departure_location_rejects_lat_without_lon(self):
+        create_resp = self.client.post("/api/pickups/", self._pickup_payload(), format="json")
+        pickup_id, token = create_resp.data["id"], create_resp.data["access_token"]
+        resp = self.client.patch(
+            f"/api/pickups/{pickup_id}/",
+            {"departure_latitude": 36.75, "access_token": token},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 400)
+
+    def test_editing_departure_location_rejects_coordinates_outside_algeria(self):
+        create_resp = self.client.post("/api/pickups/", self._pickup_payload(), format="json")
+        pickup_id, token = create_resp.data["id"], create_resp.data["access_token"]
+        resp = self.client.patch(
+            f"/api/pickups/{pickup_id}/",
+            {"departure_latitude": 48.85, "departure_longitude": 2.35, "access_token": token},  # Paris
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 400)
+
+    def test_editing_departure_location_requires_matching_token(self):
+        create_resp = self.client.post("/api/pickups/", self._pickup_payload(), format="json")
+        pickup_id = create_resp.data["id"]
+        resp = self.client.patch(
+            f"/api/pickups/{pickup_id}/",
+            {"departure_description": "Alger centre", "access_token": "wrong"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 403)
+
 
 class PickupFromCollectionPointTests(BaseAPITestCase):
     """A courier can start a delivery/pickup from a CollectionPoint, not
