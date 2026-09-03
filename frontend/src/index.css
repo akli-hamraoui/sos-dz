@@ -346,11 +346,12 @@ main {
   margin-inline: auto;
 }
 /* Transparency notice: what's publicly visible on a listing, and why
-   (so bénévoles can reach the reporter) -- red for real attention, not
-   the app's default error/danger styling on a form. */
+   (so bénévoles can reach the reporter) -- the app's own green accent
+   (same as the Collecte FAB/"Prendre en charge" button), not the
+   red/danger styling used for actual form errors. */
 .home-privacy-notice {
   margin-block: 16px 0;
-  color: var(--danger);
+  color: var(--collection-accent);
   font-size: 12px;
   font-weight: 400;
   max-width: 420px;
