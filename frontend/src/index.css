@@ -349,11 +349,11 @@ main {
    (so bénévoles can reach the reporter) -- red for real attention, not
    the app's default error/danger styling on a form. */
 .home-privacy-notice {
-  margin-block: 20px 0;
+  margin-block: 16px 0;
   color: var(--danger);
-  font-size: 13px;
-  font-weight: 600;
-  max-width: 480px;
+  font-size: 12px;
+  font-weight: 400;
+  max-width: 420px;
   margin-inline: auto;
 }
 .home-tagline {
