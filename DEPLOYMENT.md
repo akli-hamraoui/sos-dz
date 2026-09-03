@@ -17,8 +17,10 @@ lsb_release -a       # confirm Ubuntu 24.04
 
 ```bash
 sudo apt update && sudo apt upgrade -y
-sudo apt install -y python3-venv python3-pip nginx certbot python3-certbot-nginx git ffmpeg
+sudo apt install -y python3-venv python3-pip nginx certbot python3-certbot-nginx git ffmpeg sqlite3
 ```
+
+(`sqlite3` here is the CLI tool, not the Python module Django already uses internally -- needed by `scripts/backup_db.sh`'s `.backup` command, see "Database backups" below. Skip it only if you set `DB_ENGINE=mysql`/`postgresql` instead of the default.)
 
 `ffmpeg` (and the `ffprobe` binary that ships with it) is what step 7's video
 duration check and moderation frame extraction use. The server-side duration
@@ -339,6 +341,110 @@ It binds to `127.0.0.1` only (never exposed publicly) and is called by Django ov
 The Need detail page's live tracking map draws a real road-following route (distance + ETA) from a responder's last known position to the need's destination, via OSRM (Open Source Routing Machine) -- the free/open routing engine behind most non-Google routing UIs, using OpenStreetMap's road data. See `frontend/src/routing.js`.
 
 By default it calls the public demo server (`https://router.project-osrm.org`), which needs **no setup, no API key** -- but it's explicitly a demo instance with no uptime/rate guarantees, not meant for real production traffic. Once usage justifies it, self-host OSRM (official Docker image, pre-built for several regions including Africa) and point the frontend at it via a `VITE_OSRM_BASE_URL` build-time env var. If the routing service is unreachable, the map still shows the responder's actual GPS trail (unaffected) and simply omits the projected route line/distance, rather than failing the page.
+
+### 9. Database backups
+
+`scripts/backup_db.sh` dumps the live database (whichever engine `DB_ENGINE`
+in `.env` is set to -- SQLite by default at this app's scale, see step 2's
+table; MySQL/PostgreSQL both supported too), compresses it, and writes it
+timestamped into `/var/backups/sos-dz/` -- **deliberately outside the git
+repo** (`/opt/sos-dz`), so a `git pull`/`git clean` can never touch it, and
+outside anything Nginx serves, so it's never reachable over HTTP either.
+`scripts/restore_db.sh` reverses it, with a confirmation prompt and (for
+SQLite) an automatic safety copy of whatever's live before it overwrites
+anything.
+
+**Status of this section**: the scripts, their permissions/retention/
+logging behavior, and the systemd timer config below have all been written
+and tested (backup, restore, retention pruning, and the failure paths --
+missing `.env`, unknown `DB_ENGINE` -- all verified to fail cleanly with a
+clear message and no partial output). What has **not** been done is
+actually running any of this on the real production VPS -- that needs a
+person with SSH access to that machine to complete steps a-c below.
+
+**a. One-time setup on the VPS:**
+
+```bash
+sudo mkdir -p /var/backups/sos-dz
+sudo chown $USER:$USER /var/backups/sos-dz
+chmod +x /opt/sos-dz/scripts/backup_db.sh /opt/sos-dz/scripts/restore_db.sh
+# Try it by hand once before scheduling it:
+/opt/sos-dz/scripts/backup_db.sh
+ls -la /var/backups/sos-dz/
+```
+
+**b. Run it automatically every 2 hours** via a systemd timer (consistent
+with the rest of this deploy, which is systemd-based throughout --
+`cron` would work identically if preferred).
+
+`/etc/systemd/system/sos-dz-backup.service`:
+
+```ini
+[Unit]
+Description=SOS DZ database backup
+
+[Service]
+Type=oneshot
+User=%i
+WorkingDirectory=/opt/sos-dz
+ExecStart=/opt/sos-dz/scripts/backup_db.sh
+```
+
+Replace `User=%i` with your actual deploy user (e.g. `User=deploy`) --
+whichever account owns `/var/backups/sos-dz` from step a.
+
+`/etc/systemd/system/sos-dz-backup.timer`:
+
+```ini
+[Unit]
+Description=Run SOS DZ database backup every 2 hours
+
+[Timer]
+OnCalendar=0/2:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+```
+
+`Persistent=true` means a backup that was due while the VPS happened to be
+rebooting still runs once it's back up, instead of silently waiting for the
+next scheduled slot.
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now sos-dz-backup.timer
+systemctl list-timers sos-dz-backup.timer   # confirm it's scheduled
+journalctl -u sos-dz-backup.service         # check a run's output
+```
+
+**c. Restoring a backup** (stop the app first so nothing writes to the
+database mid-restore):
+
+```bash
+sudo systemctl stop sos-dz-gunicorn
+/opt/sos-dz/scripts/restore_db.sh                       # restores the most recent backup
+# or: /opt/sos-dz/scripts/restore_db.sh /var/backups/sos-dz/sos-dz-db-20260115-140000.sqlite3.gz
+sudo systemctl start sos-dz-gunicorn
+```
+
+**Configuration** (environment variables, both scripts):
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `SOS_DZ_BACKUP_DIR` | `/var/backups/sos-dz` | Where backups are stored/read from |
+| `SOS_DZ_BACKUP_RETENTION_DAYS` | `14` | Backups older than this are deleted after each successful new backup |
+| `SOS_DZ_ENV_FILE` | `<repo root>/.env` | Where to read `DB_*` from |
+
+**This backs up to the same VPS's local disk only.** It protects against a
+bad migration, an accidental deletion, or app-level data corruption -- it
+does **not** protect against losing the VPS itself (disk failure, account
+suspension, provider incident). Once the above is confirmed working,
+strongly consider copying backups off-VPS too -- e.g. a small daily/weekly
+`rclone sync /var/backups/sos-dz/ r2:sos-dz-backups/` (Cloudflare R2, the
+same S3-compatible storage already used for media in step 6b, so no new
+provider relationship needed) added as its own systemd timer. Not set up
+here -- flagging it as the natural next step, not claiming it's done.
 
 ## Option B — temporary fallback (Railway/Render)
 
