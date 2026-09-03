@@ -154,7 +154,7 @@
     "pickupsCount": "{{count}} prise(s) en charge",
     "collectionPointLabel": "Point de collecte",
     "legendNote": "— les points sans GPS exact sont placés au centre approximatif de la wilaya (« sans position GPS exacte »)",
-    "addButton": "+ Ajouter un besoin"
+    "addButton": "+ J'ai besoin d'aide"
   },
   "needDetail": {
     "contact": "Contact",

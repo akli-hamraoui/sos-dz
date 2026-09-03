@@ -292,7 +292,8 @@ export default function NeedsList() {
             {t('needsList.map')}
           </button>
         </div>
-        <Link className="btn btn-primary" to="/create">
+        <Link className="btn btn-primary btn-icon" to="/create">
+          <img src="/icons/need-marker-sos.png" width={16} height={16} alt="" style={{ filter: 'invert(1)', flexShrink: 0 }} />
           {t('needsList.addButton')}
         </Link>
       </div>

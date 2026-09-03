@@ -154,7 +154,7 @@
     "pickupsCount": "{{count}} pickup(s)",
     "collectionPointLabel": "Collection point",
     "legendNote": "— pins without exact GPS sit at the wilaya's approximate centroid (\"no exact GPS position\")",
-    "addButton": "+ Add a need"
+    "addButton": "+ I need help"
   },
   "needDetail": {
     "contact": "Contact",
