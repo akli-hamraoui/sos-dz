@@ -651,16 +651,17 @@ textarea {
 .place-autocomplete {
   position: relative;
 }
-/* Sizing for the toolbar's row-flex context only (e.g.
-   InternationalCollectionPoints.jsx's "go to a place" field, alongside
-   .search-input). A <label> is itself flex-column (see `label` above),
-   so applying this bare on .place-autocomplete made 220px its *height*
-   basis there instead -- the wrong axis -- opening a ~160px dead gap
-   under every Lieu field in every form on the site (CreateNeed.jsx,
-   CreateCollectionPoint.jsx, CreateInternationalCollectionPoint.jsx...).
-   Scoping to .toolbar keeps the row sizing without touching label
-   layouts. */
-.toolbar .place-autocomplete {
+/* Sizing for the toolbar's row-flex context only -- specifically the
+   "go to a place" field that sits directly in .toolbar (e.g.
+   InternationalCollectionPoints.jsx), alongside .search-input. A
+   <label> is itself flex-column (see `label` above), so applying this
+   on any .place-autocomplete nested inside one -- including
+   CountrySelect's own reuse of this class, wrapped in a <label> inside
+   the very same .toolbar -- made 220px its *height* basis instead of
+   its width, opening the exact same dead-gap bug this rule was added
+   to fix in the first place (see git history). The direct-child
+   combinator keeps this to the one field it's actually meant for. */
+.toolbar > .place-autocomplete {
   flex: 1 1 220px;
   min-width: 160px;
 }
