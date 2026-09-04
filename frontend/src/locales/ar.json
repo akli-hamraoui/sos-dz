@@ -106,6 +106,8 @@
     "startRecording": "بدء التسجيل",
     "stopRecording": "إيقاف ({{seconds}}ث / 20ث)",
     "discardRerecord": "حذف وإعادة التسجيل",
+    "listenRecording": "الاستماع إلى التسجيل",
+    "watchRecording": "مشاهدة الفيديو",
     "cameraBack": "الكاميرا الخلفية",
     "cameraFront": "الكاميرا الأمامية",
     "startSpeaking": "ابدأ الحديث",

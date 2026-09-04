@@ -126,6 +126,14 @@ export function IconCamera(props) {
   )
 }
 
+export function IconPlay(props) {
+  return (
+    <svg {...base} {...props} fill="currentColor" stroke="none">
+      <path d="M7 4.5v15l13-7.5Z" />
+    </svg>
+  )
+}
+
 export function IconTrash(props) {
   return (
     <svg {...base} {...props}>

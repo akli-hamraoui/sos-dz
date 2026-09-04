@@ -753,6 +753,13 @@ fieldset {
   white-space: normal;
   overflow-wrap: break-word;
 }
+.record-btn.btn-icon {
+  justify-content: center;
+  text-align: start;
+}
+.record-btn.btn-icon svg {
+  flex-shrink: 0;
+}
 
 /* --- Lists / toolbar --- */
 
@@ -1380,6 +1387,10 @@ footer {
   white-space: pre-wrap;
 }
 .dialog-sheet .media-player {
+  margin-block-end: 12px;
+}
+.dialog-sheet .media-player-audio {
+  width: 100%;
   margin-block-end: 12px;
 }
 .dialog-sheet .switch-camera-btn {

@@ -106,6 +106,8 @@
     "startRecording": "Démarrer l'enregistrement",
     "stopRecording": "Arrêter ({{seconds}}s / 20s)",
     "discardRerecord": "Supprimer et réenregistrer",
+    "listenRecording": "Écouter l'enregistrement",
+    "watchRecording": "Voir la vidéo",
     "cameraBack": "Caméra arrière",
     "cameraFront": "Caméra avant",
     "startSpeaking": "Commencer à parler",
