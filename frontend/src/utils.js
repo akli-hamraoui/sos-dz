@@ -108,20 +108,26 @@ export async function searchPlaces(query, lang, signal, countryCode = 'dz') {
 // individual collection point or street search narrows it further.
 // Best-effort: the caller falls back to a world view on any failure.
 export async function geocodeCountryBounds(countryCode, lang) {
-  // Nominatim's free-text `q` needs an actual place name -- querying it
-  // with the bare ISO code (e.g. "FR") matches nothing, so this always
-  // fell through to the world-view fallback. Look the country's own
-  // localized name up the same way countries.js does, and search for
-  // that instead; `countrycodes` still pins the result to the right
-  // country if the name happens to collide with something else.
+  // Uses Nominatim's structured-query `country=` field -- the field it
+  // documents specifically for "look up a country by name" -- rather
+  // than the free-text `q` search: `q` needs an actual place name (the
+  // bare ISO code, e.g. "FR", matched nothing) and even combined with
+  // the country's own localized name, mixing free-text with
+  // featureType/countrycodes was unreliable in practice. `countrycodes`
+  // is still added as a belt-and-suspenders filter in case a country's
+  // English name collides with something else.
   let name = countryCode
   try {
-    const displayNames = new Intl.DisplayNames([lang], { type: 'region' })
+    // English, not the visitor's own language: Nominatim's structured
+    // `country=` field matches best against a place's indexed name, and
+    // OSM indexes country boundaries primarily by their English name
+    // regardless of the `accept-language` used for display.
+    const displayNames = new Intl.DisplayNames(['en'], { type: 'region' })
     name = displayNames.of(countryCode) || countryCode
   } catch {
     // Unsupported locale/browser -- fall back to searching the raw code.
   }
-  const url = `${NOMINATIM_BASE}/search?format=json&addressdetails=0&limit=1&featureType=country&accept-language=${lang}&countrycodes=${countryCode.toLowerCase()}&q=${encodeURIComponent(name)}`
+  const url = `${NOMINATIM_BASE}/search?format=json&addressdetails=0&limit=1&accept-language=${lang}&countrycodes=${countryCode.toLowerCase()}&country=${encodeURIComponent(name)}`
   const resp = await fetch(url)
   if (!resp.ok) throw new Error('Country geocode failed')
   const data = await resp.json()

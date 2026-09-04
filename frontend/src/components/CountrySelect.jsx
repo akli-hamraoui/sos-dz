@@ -6,12 +6,20 @@ import { countryOptions } from '../countries'
 // especially on mobile, so this behaves like PlaceAutocomplete
 // (components/PlaceAutocomplete.jsx) but is backed by the local
 // countryOptions() list instead of a network call. The underlying value
-// is always a real ISO code (or '' for allLabel, when provided): free
-// text left in the field that doesn't match any option snaps back to
-// the current selection on blur rather than staying as stray text.
+// is always a real ISO code (or '' for "no country picked"): free text
+// left in the field that doesn't match any option snaps back to the
+// current selection on blur rather than staying as stray text.
+//
+// `allLabel`, when given (the list filter's "All countries" case),
+// only adds a pickable "reset" entry to the suggestion list -- it never
+// fills the field as literal text, even once picked, so the field stays
+// genuinely empty and shows `placeholder` instead. That matches how the
+// *required* create-form select already behaves (an empty field with a
+// "-- select --" hint) instead of pre-filling real text the visitor
+// would have to delete before typing.
 export default function CountrySelect({ value, onChange, lang, placeholder, id, required, onInvalid, disabled, allLabel }) {
   const options = countryOptions(lang)
-  const nameFor = (code) => (code ? options.find((c) => c.code === code)?.name || code : allLabel || '')
+  const nameFor = (code) => (code ? options.find((c) => c.code === code)?.name || code : '')
 
   const [query, setQuery] = useState(nameFor(value))
   const [open, setOpen] = useState(false)
@@ -67,7 +75,7 @@ export default function CountrySelect({ value, onChange, lang, placeholder, id, 
       {open && (
         <ul className="place-suggestions" role="listbox">
           {allLabel && (
-            <li role="option" onMouseDown={() => pick('', allLabel)}>
+            <li role="option" onMouseDown={() => pick('', '')}>
               {allLabel}
             </li>
           )}

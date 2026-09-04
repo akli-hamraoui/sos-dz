@@ -240,7 +240,7 @@ export default function InternationalCollectionPoints() {
             value={filterCountry}
             onChange={setFilterCountry}
             lang={i18n.language}
-            placeholder={t('needsList.all')}
+            placeholder={t('createNeed.selectPlaceholder')}
             allLabel={t('needsList.all')}
             disabled={placeSelected}
           />
