@@ -287,9 +287,10 @@
     },
     "hosting": {
       "title": "الاستضافة",
-      "provider": "المُستضيف: Contabo GmbH",
+      "provider": "مُستضيف الخادم: Contabo GmbH",
       "country": "بلد الخادم: ألمانيا",
-      "domain": "اسم النطاق: sosdz.org"
+      "domain": "اسم النطاق: sosdz.org",
+      "registrar": "مكتب تسجيل اسم النطاق: IONOS (فرنسا)"
     },
     "cgu": {
       "title": "الشروط العامة للاستخدام",

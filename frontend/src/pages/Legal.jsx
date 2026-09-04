@@ -37,6 +37,7 @@ export default function Legal() {
         <li>{t('legal.hosting.provider')}</li>
         <li>{t('legal.hosting.country')}</li>
         <li>{t('legal.hosting.domain')}</li>
+        <li>{t('legal.hosting.registrar')}</li>
       </ul>
 
       <h3>{t('legal.cgu.title')}</h3>

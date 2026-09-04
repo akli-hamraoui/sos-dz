@@ -287,9 +287,10 @@
     },
     "hosting": {
       "title": "Hosting",
-      "provider": "Host: Contabo GmbH",
+      "provider": "Server host: Contabo GmbH",
       "country": "Server country: Germany",
-      "domain": "Domain name: sosdz.org"
+      "domain": "Domain name: sosdz.org",
+      "registrar": "Domain registrar: IONOS (France)"
     },
     "cgu": {
       "title": "Terms of Use",
