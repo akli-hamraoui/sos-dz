@@ -282,6 +282,8 @@
     "useMyLocation": "Use my current position as the location of the collection point",
     "hours": "Hours",
     "hoursPlaceholder": "e.g. 8am-6pm daily",
+    "description": "Description (optional)",
+    "descriptionPlaceholder": "A few details about this collection point...",
     "acceptedDonations": "Accepted donations (optional)",
     "acceptedDonationsLabel": "Accepted donations",
     "acceptedDonationsPlaceholder": "e.g. blankets, water, warm clothes, canned food...",

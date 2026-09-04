@@ -724,6 +724,11 @@ class CollectionPoint(models.Model):
     latitude = models.FloatField(null=True, blank=True)
     longitude = models.FloatField(null=True, blank=True)
     hours = models.CharField(max_length=200, blank=True)
+    # Free-form, optional -- unlike location_description (where/how to find
+    # the point), this is for anything else worth telling a donor about it
+    # (what it's for, who runs it...), shown right before accepted_donations
+    # on both the form and the detail page.
+    description = models.TextField(blank=True)
     accepted_donations = models.TextField(blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_ACTIVE)
     # All three optional -- http(s)-only enforcement lives in
