@@ -2,7 +2,8 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 
 const GITHUB_URL = 'https://github.com/akli-hamraoui/sos-dz'
-const SNYK_REPORT_URL = 'https://app.snyk.io/share/36ed4ee0-2dc1-4ade-b375-0dcc4718c933'
+const SNYK_TEST_URL = 'https://snyk.io/test/github/akli-hamraoui/sos-dz'
+const SNYK_BADGE_URL = 'https://snyk.io/test/github/akli-hamraoui/sos-dz/badge.svg'
 const CGU_ARTICLE_COUNT = 7
 
 export default function Legal() {
@@ -44,8 +45,8 @@ export default function Legal() {
           {n === 6 && (
             <p>
               {t('legal.cgu.article6LinkLabel')}{' '}
-              <a href={SNYK_REPORT_URL} target="_blank" rel="noopener noreferrer">
-                Snyk
+              <a href={SNYK_TEST_URL} target="_blank" rel="noopener noreferrer">
+                <img src={SNYK_BADGE_URL} alt="Snyk" />
               </a>
             </p>
           )}
