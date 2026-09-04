@@ -132,21 +132,6 @@ export default function TakeCharge({ source = 'need' }) {
           {t('takeCharge.whatBringing')} *
           <input type="text" value={form.content_brought} onChange={set('content_brought')} placeholder={t('takeCharge.whatBringingPlaceholder')} required {...validityProps} />
         </label>
-        <fieldset>
-          <legend>{t('createNeed.contactDetailsLegend')}</legend>
-          <label>
-            {t('takeCharge.nameLabel')} * <input type="text" value={form.responder_name} onChange={set('responder_name')} required {...validityProps} />
-          </label>
-          <label>
-            {t('takeCharge.phoneLabel')} ({t('common.optional')}) <input type="tel" value={form.responder_phone} onChange={set('responder_phone')} {...validityProps} />
-          </label>
-          <label>
-            {t('createNeed.email')} <input type="email" value={form.responder_email} onChange={set('responder_email')} {...validityProps} />
-          </label>
-          <label>
-            {t('createNeed.orgOrPerson')} <input type="text" value={form.organization_or_person_name} onChange={set('organization_or_person_name')} />
-          </label>
-        </fieldset>
         <label>
           {t('takeCharge.departureLocation')} ({t('common.optional')})
           <PlaceAutocomplete
@@ -176,6 +161,21 @@ export default function TakeCharge({ source = 'need' }) {
           <input type="text" value={form.recovery_code} onChange={set('recovery_code')} placeholder={t('createNeed.recoveryCodePlaceholder')} minLength={6} {...validityProps} />
           <span className="hint">{t('createNeed.recoveryCodeHint')}</span>
         </label>
+        <fieldset>
+          <legend>{t('createNeed.contactDetailsLegend')}</legend>
+          <label>
+            {t('takeCharge.nameLabel')} * <input type="text" value={form.responder_name} onChange={set('responder_name')} required {...validityProps} />
+          </label>
+          <label>
+            {t('takeCharge.phoneLabel')} ({t('common.optional')}) <input type="tel" value={form.responder_phone} onChange={set('responder_phone')} {...validityProps} />
+          </label>
+          <label>
+            {t('createNeed.email')} <input type="email" value={form.responder_email} onChange={set('responder_email')} {...validityProps} />
+          </label>
+          <label>
+            {t('createNeed.orgOrPerson')} <input type="text" value={form.organization_or_person_name} onChange={set('organization_or_person_name')} />
+          </label>
+        </fieldset>
         {config.turnstile_enabled && <div className="cf-turnstile" data-sitekey={config.turnstile_site_key} data-callback="onTurnstileToken" />}
         {error && <p className="error">{error}</p>}
         <button type="submit" className="btn btn-primary">
