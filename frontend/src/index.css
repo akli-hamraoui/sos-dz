@@ -367,6 +367,11 @@ main {
   max-width: 100%;
   height: auto;
   margin-inline: auto;
+  /* logo-icon-wordmark.png is cropped just under the "SOS DZ" wordmark,
+     in the genuinely transparent gap before the (dropped) tagline text
+     -- no visible edge there either way, but a soft rounded bottom
+     reads more like an intentional badge shape than an arbitrary crop. */
+  border-radius: 0 0 28px 28px;
 }
 /* Transparency notice: what's publicly visible on a listing, and why
    (so bénévoles can reach the reporter) -- the app's own green accent
