@@ -309,7 +309,7 @@ main {
      a fixed 60px bottom padding on .home only clears the nav for content
      *after* it (once scrolled that far), not for buttons/links sitting
      earlier on a page short enough that no scroll happens at all. */
-  padding: clamp(4px, 3svh, 100px) 20px clamp(16px, 6svh, 60px);
+  padding: clamp(4px, 10svh, 120px) 20px clamp(16px, 6svh, 60px);
   position: relative;
   /* z-index (any value, not just position) is what's needed for an element
      to actually establish a new stacking context -- without this, the
@@ -389,7 +389,7 @@ main {
      centered in the action area below the logo on a tall screen --
      shrinks back down on a short one so they don't end up under the
      fixed bottom nav (see .home's own padding comment above). */
-  margin-block-start: clamp(16px, 5svh, 40px);
+  margin-block-start: clamp(16px, 8svh, 64px);
   max-width: 620px;
   margin-inline: auto;
 }
