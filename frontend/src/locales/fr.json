@@ -272,8 +272,7 @@
     "title": "Mentions légales, CGU & CGV",
     "editor": {
       "title": "Éditeur du site",
-      "p1": "Ce site est édité et développé à titre personnel et bénévole, sans aucune structure commerciale ni association derrière ce projet, par",
-      "contact": "Contact :"
+      "p1": "Ce site est édité et développé à titre personnel, bénévole et non professionnel (aucune structure commerciale ni association derrière ce projet). Conformément à l'article 6-III de la loi n° 2004-575 du 21 juin 2004 pour la confiance dans l'économie numérique (LCEN), un éditeur non professionnel peut ne tenir à la disposition du public que le nom de son hébergeur (voir ci-dessous) ; l'identité complète de l'éditeur reste communicable confidentiellement à cet hébergeur et transmissible aux autorités judiciaires sur demande."
     },
     "project": {
       "title": "Le projet",
@@ -318,8 +317,8 @@
     "solidarity": {
       "title": "Un projet solidaire, pas une entreprise",
       "p1": "Ce projet a été développé bénévolement par un seul informaticien, par solidarité envers les populations touchées par les catastrophes en Algérie, sans aucun but lucratif.",
-      "p2": "Si une association ou une organisation en Algérie souhaite reprendre, poursuivre ou déployer ce projet sur le terrain, vous pouvez me contacter directement : je peux vous donner accès au code et aux données du projet, et vous accompagner dans son déploiement en Algérie.",
-      "contact": "Contact :"
+      "p2": "Si une association ou une organisation en Algérie souhaite reprendre, poursuivre ou déployer ce projet sur le terrain, vous pouvez nous contacter via le formulaire ci-dessous : nous pouvons vous donner accès au code et aux données du projet, et vous accompagner dans son déploiement en Algérie.",
+      "contact": "Contacter l'équipe du projet"
     }
   },
   "apiErrors": {

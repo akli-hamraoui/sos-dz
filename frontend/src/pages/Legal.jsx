@@ -1,8 +1,7 @@
+import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 
 const GITHUB_URL = 'https://github.com/akli-hamraoui/sos-dz'
-const CREATOR_NAME = 'Akli Hamraoui'
-const CREATOR_EMAIL = 'hamraoui.akli@gmail.com'
 const SNYK_REPORT_URL = 'https://app.snyk.io/share/36ed4ee0-2dc1-4ade-b375-0dcc4718c933'
 const CGU_ARTICLE_COUNT = 7
 
@@ -13,12 +12,7 @@ export default function Legal() {
       <h2>{t('legal.title')}</h2>
 
       <h3>{t('legal.editor.title')}</h3>
-      <p>
-        {t('legal.editor.p1')} <strong>{CREATOR_NAME}</strong>.
-      </p>
-      <p>
-        {t('legal.editor.contact')} <a href={`mailto:${CREATOR_EMAIL}`}>{CREATOR_EMAIL}</a>
-      </p>
+      <p>{t('legal.editor.p1')}</p>
 
       <h3>{t('legal.project.title')}</h3>
       <p>{t('legal.project.p1')}</p>
@@ -28,7 +22,7 @@ export default function Legal() {
       <p>
         {t('legal.openSource.p1')}{' '}
         <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">
-          {GITHUB_URL}
+          GitHub
         </a>
       </p>
       <p>{t('legal.openSource.p2')}</p>
@@ -65,7 +59,9 @@ export default function Legal() {
       <p>{t('legal.solidarity.p1')}</p>
       <p>{t('legal.solidarity.p2')}</p>
       <p>
-        {t('legal.solidarity.contact')} <a href={`mailto:${CREATOR_EMAIL}`}>{CREATOR_EMAIL}</a>
+        <Link className="link" to="/support">
+          {t('legal.solidarity.contact')}
+        </Link>
       </p>
     </section>
   )

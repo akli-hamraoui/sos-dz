@@ -272,8 +272,7 @@
     "title": "Legal Notice, Terms of Use & Terms of Sale",
     "editor": {
       "title": "Site publisher",
-      "p1": "This site is published and developed on a personal, volunteer basis, with no commercial entity or association behind it, by",
-      "contact": "Contact:"
+      "p1": "This site is published and developed on a personal, volunteer, non-professional basis (no commercial entity or association behind it). Under French law (LCEN, article 6-III), a non-professional publisher may keep only the name of their hosting provider public (see below); the publisher's full identity remains available confidentially to that host and disclosable to judicial authorities upon request."
     },
     "project": {
       "title": "The project",
@@ -318,8 +317,8 @@
     "solidarity": {
       "title": "A solidarity project, not a company",
       "p1": "This project was built on a volunteer basis by a single developer, out of solidarity with people affected by disasters in Algeria, with no profit motive whatsoever.",
-      "p2": "If an association or organization in Algeria wants to take over, continue, or deploy this project on the ground, you can contact me directly: I can give you access to the project's code and data, and help you deploy it in Algeria.",
-      "contact": "Contact:"
+      "p2": "If an association or organization in Algeria wants to take over, continue, or deploy this project on the ground, you can reach us through the form below: we can give you access to the project's code and data, and help you deploy it in Algeria.",
+      "contact": "Contact the project team"
     }
   },
   "apiErrors": {
