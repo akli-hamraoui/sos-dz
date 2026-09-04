@@ -282,6 +282,8 @@
     "useMyLocation": "استخدام موقعي الحالي كموقع نقطة التجميع",
     "hours": "أوقات العمل",
     "hoursPlaceholder": "مثال: من 8 صباحاً إلى 6 مساءً يومياً",
+    "description": "الوصف (اختياري)",
+    "descriptionPlaceholder": "بعض التفاصيل حول نقطة التجميع هذه...",
     "acceptedDonations": "التبرعات المقبولة (اختياري)",
     "acceptedDonationsLabel": "التبرعات المقبولة",
     "acceptedDonationsPlaceholder": "مثال: بطانيات، ماء، ملابس شتوية، معلبات...",

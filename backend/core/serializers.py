@@ -603,7 +603,7 @@ class CollectionPointSerializer(serializers.ModelSerializer):
             "id", "wilaya", "wilaya_name", "country_code", "country_name", "is_international",
             "point_name", "contact_name", "contact_phone",
             "other_phones", "organization", "location_description", "latitude", "longitude", "hours",
-            "accepted_donations", "status", "created_at", "comments", "pickups",
+            "description", "accepted_donations", "status", "created_at", "comments", "pickups",
             "facebook_url", "tiktok_url", "instagram_url",
             "flyer_image", "flyer_moderation_status", "flyer_moderated_by",
         ]
@@ -636,7 +636,7 @@ class CollectionPointCreateSerializer(serializers.ModelSerializer):
         fields = [
             "wilaya", "country_code", "country_name", "point_name", "contact_name", "contact_phone", "other_phones",
             "organization", "location_description", "latitude", "longitude", "hours",
-            "accepted_donations", "facebook_url", "tiktok_url", "instagram_url", "flyer_image",
+            "description", "accepted_donations", "facebook_url", "tiktok_url", "instagram_url", "flyer_image",
             "recovery_code",
         ]
 

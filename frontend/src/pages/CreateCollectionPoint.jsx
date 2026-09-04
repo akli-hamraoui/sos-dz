@@ -18,6 +18,7 @@ const DEFAULT_FORM = {
   organization: '',
   location_description: '',
   hours: '',
+  description: '',
   accepted_donations: '',
   facebook_url: '',
   tiktok_url: '',
@@ -33,6 +34,9 @@ export default function CreateCollectionPoint() {
   const [gpsStatus, setGpsStatus] = useState(null) // null | 'locating' | 'error'
   const [error, setError] = useState('')
   const [flyer, setFlyer] = useState(null) // { file, previewUrl } | null
+  // Same lightbox pattern as CreateNeed.jsx's own damage-photo gallery --
+  // lets the flyer just picked be viewed full-size before submitting.
+  const [lightbox, setLightbox] = useState(null)
 
   const addFlyer = (e) => {
     const file = e.target.files[0]
@@ -173,6 +177,10 @@ export default function CreateCollectionPoint() {
           {t('collectionPoints.hours')} <input type="text" value={form.hours} onChange={set('hours')} placeholder={t('collectionPoints.hoursPlaceholder')} />
         </label>
         <label>
+          {t('collectionPoints.description')}
+          <textarea rows={3} value={form.description} onChange={set('description')} placeholder={t('collectionPoints.descriptionPlaceholder')} />
+        </label>
+        <label>
           {t('collectionPoints.acceptedDonations')}
           <textarea rows={3} value={form.accepted_donations} onChange={set('accepted_donations')} placeholder={t('collectionPoints.acceptedDonationsPlaceholder')} />
         </label>
@@ -182,7 +190,9 @@ export default function CreateCollectionPoint() {
           {flyer ? (
             <div className="photo-thumbs">
               <div className="photo-thumb">
-                <img src={flyer.previewUrl} alt="" />
+                <button type="button" className="flyer-thumb-btn" onClick={() => setLightbox({ src: flyer.previewUrl })}>
+                  <img className="flyer-thumb" src={flyer.previewUrl} alt="" />
+                </button>
                 <button type="button" className="link" onClick={removeFlyer}>
                   <IconTrash width={14} height={14} strokeWidth={2} />
                 </button>
@@ -244,6 +254,15 @@ export default function CreateCollectionPoint() {
           {t('collectionPoints.publish')}
         </button>
       </form>
+
+      {lightbox && (
+        <div className="lightbox-overlay" onClick={() => setLightbox(null)}>
+          <button type="button" className="lightbox-close" onClick={() => setLightbox(null)} aria-label={t('needDetail.closeLightbox')}>
+            ×
+          </button>
+          <img src={lightbox.src} alt="" onClick={(e) => e.stopPropagation()} />
+        </div>
+      )}
     </section>
   )
 }

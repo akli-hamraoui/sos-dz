@@ -114,6 +114,7 @@ export default function CollectionPointDetail() {
       )}
       {cp.organization && <p>{cp.organization}</p>}
       {cp.hours && <p>{t('collectionPoints.hours')}: {cp.hours}</p>}
+      {cp.description && <p className="multiline-text">{cp.description}</p>}
       {cp.accepted_donations && (
         <p className="multiline-text">
           {t('collectionPoints.acceptedDonationsLabel')}: {cp.accepted_donations}

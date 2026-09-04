@@ -1813,6 +1813,14 @@ class CollectionPointTests(BaseAPITestCase):
         self.assertFalse(resp.data[0]["has_exact_position"])
         self.assertIsNotNone(resp.data[0]["display_latitude"])
 
+    def test_description_is_optional_and_round_trips(self):
+        resp = self.client.post("/api/collection-points/", self._payload(), format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+        self.assertEqual(resp.data["description"], "")
+        resp = self.client.post("/api/collection-points/", self._payload(description="Runs every Friday afternoon."), format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+        self.assertEqual(resp.data["description"], "Runs every Friday afternoon.")
+
     def test_closed_points_excluded_from_locations(self):
         create_resp = self.client.post("/api/collection-points/", self._payload(), format="json")
         self.client.post(
@@ -1878,6 +1886,11 @@ class InternationalCollectionPointTests(BaseAPITestCase):
     def test_rejects_algeria_as_country_code(self):
         resp = self.client.post("/api/collection-points/", self._payload(country_code="DZ"), format="json")
         self.assertEqual(resp.status_code, 400)
+
+    def test_description_is_optional_and_round_trips(self):
+        resp = self.client.post("/api/collection-points/", self._payload(description="Collects for the local shelter."), format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+        self.assertEqual(resp.data["description"], "Collects for the local shelter.")
 
     def test_rejects_position_inside_algeria(self):
         # Algiers coordinates -- must be rejected for an international point.
