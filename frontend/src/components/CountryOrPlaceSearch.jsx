@@ -17,7 +17,7 @@ import { countryOptions } from '../countries'
 // parent decides what a country vs. a place selection actually does
 // (list-filtering by country vs. just recentering the map), this
 // component only tells it which one was picked.
-export default function CountryOrPlaceSearch({ lang, placeholder, onSelectCountry, onSelectPlace }) {
+export default function CountryOrPlaceSearch({ lang, placeholder, onSelectCountry, onSelectPlace, excludeCountryCode }) {
   const [query, setQuery] = useState('')
   const [placeResults, setPlaceResults] = useState([])
   const [open, setOpen] = useState(false)
@@ -58,7 +58,7 @@ export default function CountryOrPlaceSearch({ lang, placeholder, onSelectCountr
       const controller = new AbortController()
       abortRef.current = controller
       try {
-        const results = await searchPlaces(trimmed, lang, controller.signal, 'any')
+        const results = await searchPlaces(trimmed, lang, controller.signal, 'any', excludeCountryCode)
         setPlaceResults(results)
       } catch {
         // Network/CORS failure or a superseded request -- country

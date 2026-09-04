@@ -147,6 +147,7 @@ export default function CreateInternationalCollectionPoint() {
               setForm((f) => ({ ...f, latitude: lat, longitude: lon }))
             }}
             countryCode={form.country_code || 'any'}
+            excludeCountryCode="dz"
             required
             onInvalid={validityProps.onInvalid}
           />

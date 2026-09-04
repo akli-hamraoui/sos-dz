@@ -96,12 +96,23 @@ const NOMINATIM_BASE = 'https://nominatim.openstreetmap.org'
 // always keeps whatever the visitor actually typed regardless (see
 // components/PlaceAutocomplete.jsx), so a place that isn't in OSM's data
 // never blocks a report from going through.
-export async function searchPlaces(query, lang, signal, countryCode = 'dz') {
+//
+// `excludeCountryCode` drops any result actually located in that country
+// from the returned list -- used by the international collection points
+// pages (worldwide search) to keep Algeria out of it entirely, since an
+// international point is by definition never there (same rule the
+// backend already enforces on submit). Nominatim's own `countrycodes`
+// filter only supports an allow-list, not an exclude-list, so this asks
+// for `addressdetails` and filters client-side instead.
+export async function searchPlaces(query, lang, signal, countryCode = 'dz', excludeCountryCode = null) {
   const countryParam = countryCode === 'any' ? '' : `&countrycodes=${countryCode.toLowerCase()}`
-  const url = `${NOMINATIM_BASE}/search?format=json&addressdetails=0&limit=6&accept-language=${lang}${countryParam}&q=${encodeURIComponent(query)}`
+  const addressParam = excludeCountryCode ? '&addressdetails=1' : '&addressdetails=0'
+  const url = `${NOMINATIM_BASE}/search?format=json${addressParam}&limit=6&accept-language=${lang}${countryParam}&q=${encodeURIComponent(query)}`
   const resp = await fetch(url, { signal })
   if (!resp.ok) throw new Error('Place search failed')
-  return resp.json()
+  const results = await resp.json()
+  if (!excludeCountryCode) return results
+  return results.filter((r) => r.address?.country_code?.toLowerCase() !== excludeCountryCode.toLowerCase())
 }
 
 // Geocodes a whole country (by its ISO code) to a bounding box, so

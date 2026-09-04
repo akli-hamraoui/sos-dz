@@ -231,6 +231,7 @@ export default function InternationalCollectionPoints() {
               setPlaceActive(false)
             }}
             onSelectPlace={flyTo}
+            excludeCountryCode="dz"
           />
         </label>
         <input
