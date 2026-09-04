@@ -14,10 +14,15 @@
 
 const OSRM_BASE_URL = import.meta.env.VITE_OSRM_BASE_URL || 'https://router.project-osrm.org'
 
-// Shared color for every trajectory line drawn on a map in this app
-// (Deliveries.jsx's courier-to-destination route, and any collection-point
-// map's visitor-to-point route) -- one definition so they all stay in sync.
+// Deliveries.jsx's own courier-to-destination trajectory -- red so it
+// stands out from that map's green truck markers and black trail lines.
 export const ROUTE_COLOR = '#c62828'
+
+// CollectionPoints.jsx/InternationalCollectionPoints.jsx's own
+// visitor-to-point trajectory -- black, matching those pages' own pin
+// stroke color (see the inline SVG in each page's marker icon), rather
+// than red (Deliveries.jsx's own, unrelated, meaning "a courier").
+export const COLLECTION_POINT_ROUTE_COLOR = '#111'
 
 export async function fetchDrivingRoute([lat1, lon1], [lat2, lon2]) {
   const url = `${OSRM_BASE_URL}/route/v1/driving/${lon1},${lat1};${lon2},${lat2}?overview=full&geometries=geojson`
