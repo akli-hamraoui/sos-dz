@@ -397,7 +397,7 @@ class CollectionPointAdmin(admin.ModelAdmin):
 
 @admin.register(Comment)
 class CommentAdmin(admin.ModelAdmin):
-    list_display = ["id", "author_name", "need", "collection_point", "parent_comment", "confirmation_count", "created_at"]
+    list_display = ["id", "author_name", "need", "collection_point", "pickup", "parent_comment", "confirmation_count", "created_at"]
     list_filter = ["category"]
     search_fields = ["author_name", "text"]
 

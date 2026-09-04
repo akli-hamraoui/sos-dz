@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useApp } from '../context/AppContext'
 import { api } from '../api'
+import CommentThread from '../components/CommentThread'
 import PickupManager from '../components/PickupManager'
 
 // A pickup/delivery's own dedicated page -- recovering access to one (see
@@ -74,6 +75,8 @@ export default function PickupDetail() {
       )}
 
       <PickupManager pickup={pickup} pickupToken={pickupTokens[id]} onChange={load} />
+
+      <CommentThread comments={pickup.comments || []} target="pickup" targetId={pickup.id} onChanged={load} />
     </section>
   )
 }

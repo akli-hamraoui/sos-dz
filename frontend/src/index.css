@@ -1069,12 +1069,13 @@ fieldset {
   border: 2px solid #111;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
 }
-/* Declared departure position, not an actual live GPS ping -- dashed and
-   muted so it reads as "roughly here, as of take-charge time" rather than
-   "currently tracked", never mistaken for a live courier. */
+/* Declared departure position, not an actual live GPS ping -- dashed
+   (instead of the live marker's solid border) so it still reads as
+   "roughly here, as of take-charge time" rather than "currently tracked,"
+   without fading the icon itself: the truck needs to stay just as visible
+   (green glyph, black border) as a live courier's, not greyed out. */
 .pickup-marker-pin-departure {
-  border: 2px dashed #888;
-  opacity: 0.85;
+  border: 2px dashed #111;
 }
 /* Overlay chip on the deliveries map (see .map-wrap below) for couriers
    with neither a live ping nor a declared departure position -- one

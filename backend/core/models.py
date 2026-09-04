@@ -767,9 +767,9 @@ class CollectionPoint(models.Model):
 
 
 class Comment(models.Model):
-    """Usable on either a Need or a CollectionPoint (exactly one of the two
-    FKs is set). One level of replies only -- parent_comment_id must itself
-    have no parent."""
+    """Usable on a Need, a CollectionPoint, or a Pickup (exactly one of the
+    three FKs is set). One level of replies only -- parent_comment_id must
+    itself have no parent."""
 
     CATEGORY_FIELD_INFO = "field_info"
     CATEGORY_CONTACT_INFO = "contact_info"
@@ -782,6 +782,7 @@ class Comment(models.Model):
 
     need = models.ForeignKey(Need, null=True, blank=True, on_delete=models.CASCADE, related_name="comments")
     collection_point = models.ForeignKey(CollectionPoint, null=True, blank=True, on_delete=models.CASCADE, related_name="comments")
+    pickup = models.ForeignKey(Pickup, null=True, blank=True, on_delete=models.CASCADE, related_name="comments")
     parent_comment = models.ForeignKey("self", null=True, blank=True, on_delete=models.CASCADE, related_name="replies")
 
     author_name = models.CharField(max_length=200)

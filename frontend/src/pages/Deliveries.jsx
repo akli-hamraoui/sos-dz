@@ -15,6 +15,11 @@ import { IconTruck } from '../icons'
 // rather than a generic dark pin.
 const TRUCK_GREEN = '#2f6b52'
 
+// The trajectory line to a courier's destination needs to stand out from
+// the green truck markers and the black trail lines elsewhere on this
+// same map, so it gets its own color rather than reusing TRUCK_GREEN.
+const ROUTE_RED = '#c62828'
+
 // Maps Pickup.responder_type values to the same labels already used at
 // take-charge time (TakeCharge.jsx) -- reused here as the closest existing
 // concept to "vehicle/type of transporter" rather than inventing a new label set.
@@ -200,13 +205,19 @@ export default function Deliveries() {
           // Basic straight line first (always available, no network
           // dependency), replaced by the real road-following route (same
           // OSRM helper as NeedDetail's own live map) once/if it resolves.
-          const straight = L.polyline([from, dest], { color: TRUCK_GREEN, weight: 3, dashArray: '4,8' }).addTo(map)
+          const straight = L.polyline([from, dest], { color: ROUTE_RED, weight: 3, dashArray: '4,8' }).addTo(map)
           routeLineRef.current = straight
+          // The map's zoom up to this point only ever framed the courier
+          // markers themselves (see fitView below), which can leave the
+          // destination well outside the visible area once a trajectory is
+          // drawn -- zoom out just enough to fit both ends of the line.
+          map.fitBounds(L.latLngBounds([from, dest]).pad(0.3), { maxZoom: 13 })
           fetchDrivingRoute(from, dest)
             .then((route) => {
               if (routeLineRef.current !== straight) return // superseded by another click/re-render meanwhile
               map.removeLayer(straight)
-              routeLineRef.current = L.polyline(route.coordinates, { color: TRUCK_GREEN, weight: 4, dashArray: '1,10', lineCap: 'round' }).addTo(map)
+              routeLineRef.current = L.polyline(route.coordinates, { color: ROUTE_RED, weight: 4, dashArray: '1,10', lineCap: 'round' }).addTo(map)
+              map.fitBounds(L.latLngBounds(route.coordinates).pad(0.3), { maxZoom: 13 })
             })
             .catch(() => {
               /* routing service unreachable -- the basic straight line drawn above stays as-is */

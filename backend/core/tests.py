@@ -2929,10 +2929,43 @@ class CommentTests(BaseAPITestCase):
         detail = self.client.get(f"/api/collection-points/{cp_resp.data['id']}/")
         self.assertEqual(len(detail.data["comments"]), 1)
 
-    def test_must_target_exactly_one_of_need_or_collection_point(self):
+    def test_comment_on_pickup(self):
+        pickup_resp = self.client.post(
+            "/api/pickups/",
+            {
+                "need": self.need_id,
+                "responder_type": "individual_volunteer",
+                "responder_name": "Sara Amrani",
+                "responder_phone": "0666000002",
+                "content_brought": "30 blankets",
+            },
+            format="json",
+        )
+        resp = self.client.post(
+            "/api/comments/",
+            {"pickup": pickup_resp.data["id"], "author_name": "X", "text": "Thanks for confirming"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 201, resp.content)
+
+        detail = self.client.get(f"/api/pickups/{pickup_resp.data['id']}/")
+        self.assertEqual(len(detail.data["comments"]), 1)
+
+    def test_must_target_exactly_one_of_need_or_collection_point_or_pickup(self):
         resp = self.client.post(
             "/api/comments/",
             {"author_name": "X", "author_phone": "0600", "text": "orphan comment"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 400)
+
+    def test_cannot_target_more_than_one_at_once(self):
+        cp_resp = self.client.post(
+            "/api/collection-points/", dict(COLLECTION_POINT_PAYLOAD, wilaya=self.wilaya.pk), format="json"
+        )
+        resp = self.client.post(
+            "/api/comments/",
+            {"need": self.need_id, "collection_point": cp_resp.data["id"], "author_name": "X", "text": "ambiguous"},
             format="json",
         )
         self.assertEqual(resp.status_code, 400)

@@ -176,9 +176,18 @@ class PickupPublicSerializer(PickupParentInfoMixin, serializers.ModelSerializer)
     # (PickupViewSet.live_locations) -- exposed here too so this pickup's
     # own detail page (PickupDetail.jsx) can show it without a separate call.
     current_position = serializers.SerializerMethodField()
+    # Same "commentable" pattern as Need/CollectionPoint (see
+    # CollectionPointSerializer.get_comments) -- lets someone leave a
+    # comment on this transporter (e.g. to confirm contact was made),
+    # shown on this pickup's own detail page (PickupDetail.jsx).
+    comments = serializers.SerializerMethodField()
 
     def get_current_position(self, obj):
         return obj.latest_known_position()
+
+    def get_comments(self, obj):
+        roots = obj.comments.filter(parent_comment__isnull=True)
+        return CommentSerializer(roots, many=True, context=self.context).data
 
     class Meta:
         model = Pickup
@@ -210,6 +219,7 @@ class PickupPublicSerializer(PickupParentInfoMixin, serializers.ModelSerializer)
             "needs_verification",
             "is_anonymized",
             "current_position",
+            "comments",
         ]
 
 
@@ -544,7 +554,7 @@ class CommentSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Comment
-        fields = ["id", "need", "collection_point", "parent_comment", "author_name", "text", "category", "confirmation_count", "created_at", "replies"]
+        fields = ["id", "need", "collection_point", "pickup", "parent_comment", "author_name", "text", "category", "confirmation_count", "created_at", "replies"]
 
     def get_replies(self, obj):
         # Only ever one level deep -- replies never nest replies.
@@ -556,12 +566,12 @@ class CommentSerializer(serializers.ModelSerializer):
 class CommentCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Comment
-        fields = ["need", "collection_point", "parent_comment", "author_name", "text", "category"]
+        fields = ["need", "collection_point", "pickup", "parent_comment", "author_name", "text", "category"]
 
     def validate(self, attrs):
-        need, collection_point = attrs.get("need"), attrs.get("collection_point")
-        if bool(need) == bool(collection_point):
-            raise serializers.ValidationError("Exactly one of 'need' or 'collection_point' must be set.")
+        targets = [attrs.get("need"), attrs.get("collection_point"), attrs.get("pickup")]
+        if sum(1 for t in targets if t) != 1:
+            raise serializers.ValidationError("Exactly one of 'need', 'collection_point', or 'pickup' must be set.")
         parent = attrs.get("parent_comment")
         if parent is not None:
             if parent.parent_comment_id is not None:
