@@ -305,8 +305,11 @@
       "article4Body": "The Site is provided \"as is\", without any warranty as to its availability or accuracy. The creator cannot be held liable for any direct or indirect damage resulting from the use, unavailability, or malfunction of the Site.",
       "article5Title": "Article 5 — Personal data",
       "article5Body": "The Site is designed to keep the collection of personal data to a strict minimum (no user account, anonymization of sensitive information). The exact details of data processing can be found in the public source code.",
-      "article6Title": "Article 6 — Changes to these Terms",
-      "article6Body": "These Terms of Use may be changed at any time, in particular to follow the evolution of the project."
+      "article6Title": "Article 6 — Security and vulnerabilities",
+      "article6Body": "The Site's software dependencies are regularly scanned for known vulnerabilities (notably via Snyk), and patched as soon as a fix is available.",
+      "article6LinkLabel": "See the latest Snyk scan report:",
+      "article7Title": "Article 7 — Changes to these Terms",
+      "article7Body": "These Terms of Use may be changed at any time, in particular to follow the evolution of the project."
     },
     "cgv": {
       "title": "Terms of Sale",

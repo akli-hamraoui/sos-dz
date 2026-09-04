@@ -305,8 +305,11 @@
       "article4Body": "Le Site est fourni \"en l'état\", sans garantie d'aucune sorte quant à sa disponibilité ou son exactitude. Le créateur ne peut être tenu responsable des dommages directs ou indirects résultant de l'utilisation, de l'indisponibilité ou d'un dysfonctionnement du Site.",
       "article5Title": "Article 5 — Données personnelles",
       "article5Body": "Le Site est conçu pour limiter au strict minimum la collecte de données personnelles (pas de compte utilisateur, anonymisation des informations sensibles). Le détail exact du traitement des données est visible dans le code source, public.",
-      "article6Title": "Article 6 — Modification des CGU",
-      "article6Body": "Ces CGU peuvent être modifiées à tout moment, notamment pour suivre l'évolution du projet."
+      "article6Title": "Article 6 — Sécurité et vulnérabilités",
+      "article6Body": "Les dépendances logicielles du Site sont analysées régulièrement à la recherche de vulnérabilités connues (notamment via Snyk), et corrigées dès qu'un correctif existe.",
+      "article6LinkLabel": "Voir le dernier rapport d'analyse Snyk :",
+      "article7Title": "Article 7 — Modification des CGU",
+      "article7Body": "Ces CGU peuvent être modifiées à tout moment, notamment pour suivre l'évolution du projet."
     },
     "cgv": {
       "title": "Conditions Générales de Vente (CGV)",

@@ -3,7 +3,8 @@ import { useTranslation } from 'react-i18next'
 const GITHUB_URL = 'https://github.com/akli-hamraoui/sos-dz'
 const CREATOR_NAME = 'Akli Hamraoui'
 const CREATOR_EMAIL = 'hamraoui.akli@gmail.com'
-const CGU_ARTICLE_COUNT = 6
+const SNYK_REPORT_URL = 'https://app.snyk.io/share/36ed4ee0-2dc1-4ade-b375-0dcc4718c933'
+const CGU_ARTICLE_COUNT = 7
 
 export default function Legal() {
   const { t } = useTranslation()
@@ -46,6 +47,14 @@ export default function Legal() {
         <div key={n}>
           <h4>{t(`legal.cgu.article${n}Title`)}</h4>
           <p>{t(`legal.cgu.article${n}Body`)}</p>
+          {n === 6 && (
+            <p>
+              {t('legal.cgu.article6LinkLabel')}{' '}
+              <a href={SNYK_REPORT_URL} target="_blank" rel="noopener noreferrer">
+                Snyk
+              </a>
+            </p>
+          )}
         </div>
       ))}
 
