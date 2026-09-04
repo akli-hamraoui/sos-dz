@@ -125,7 +125,7 @@ Single monolithic Django project (Django + Django REST Framework), not microserv
 
 ## Deployment
 
-See [`DEPLOYMENT.md`](./DEPLOYMENT.md) for the exact IONOS VPS setup (Gunicorn + Nginx + systemd + Let's Encrypt), plus a temporary Railway/Render fallback. **Not yet actually deployed** — no live public URL exists yet; see that file for why.
+**Live at [sosdz.org](https://sosdz.org).** See [`DEPLOYMENT.md`](./DEPLOYMENT.md) for the exact VPS setup (Gunicorn + Nginx + systemd + Let's Encrypt) and the routine redeploy command, plus a temporary Railway/Render fallback.
 
 ## Security notes
 
