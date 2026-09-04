@@ -409,9 +409,14 @@ main {
   }
 }
 .btn.home-btn-primary {
-  background: var(--accent);
+  /* Muted brick red (same as --danger elsewhere in the app, not a fresh
+     neon color) rather than the plain black --accent used everywhere
+     else -- draws the eye to the urgent "I need help" action without
+     screaming, on Home only; every other primary button/active-state in
+     the app stays black. */
+  background: var(--danger);
   color: #fff;
-  border: 1px solid var(--accent);
+  border: 1px solid var(--danger);
   border-radius: 999px;
 }
 .btn.home-btn-outline {
