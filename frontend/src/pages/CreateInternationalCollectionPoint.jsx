@@ -7,6 +7,7 @@ import { validityMessageProps } from '../utils'
 import { translateApiError } from '../apiErrors'
 import { countryOptions } from '../countries'
 import PlaceAutocomplete from '../components/PlaceAutocomplete'
+import CountrySelect from '../components/CountrySelect'
 import { IconFacebook, IconTikTok, IconInstagram, IconCamera, IconTrash, IconMapPin } from '../icons'
 
 // International counterpart to CreateCollectionPoint.jsx -- same fields
@@ -120,14 +121,14 @@ export default function CreateInternationalCollectionPoint() {
       <form onSubmit={submit}>
         <label>
           {t('internationalCollectionPoints.country')} *
-          <select value={form.country_code} onChange={set('country_code')} required {...validityProps}>
-            <option value="">{t('createNeed.selectPlaceholder')}</option>
-            {countries.map((c) => (
-              <option key={c.code} value={c.code}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+          <CountrySelect
+            value={form.country_code}
+            onChange={(code) => setForm((f) => ({ ...f, country_code: code }))}
+            lang={i18n.language}
+            placeholder={t('createNeed.selectPlaceholder')}
+            required
+            onInvalid={validityProps.onInvalid}
+          />
         </label>
         <label>
           {t('collectionPoints.pointName')} * <input type="text" value={form.point_name} onChange={set('point_name')} required {...validityProps} />

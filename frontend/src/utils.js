@@ -108,7 +108,20 @@ export async function searchPlaces(query, lang, signal, countryCode = 'dz') {
 // individual collection point or street search narrows it further.
 // Best-effort: the caller falls back to a world view on any failure.
 export async function geocodeCountryBounds(countryCode, lang) {
-  const url = `${NOMINATIM_BASE}/search?format=json&addressdetails=0&limit=1&featureType=country&accept-language=${lang}&countrycodes=${countryCode.toLowerCase()}&q=${encodeURIComponent(countryCode)}`
+  // Nominatim's free-text `q` needs an actual place name -- querying it
+  // with the bare ISO code (e.g. "FR") matches nothing, so this always
+  // fell through to the world-view fallback. Look the country's own
+  // localized name up the same way countries.js does, and search for
+  // that instead; `countrycodes` still pins the result to the right
+  // country if the name happens to collide with something else.
+  let name = countryCode
+  try {
+    const displayNames = new Intl.DisplayNames([lang], { type: 'region' })
+    name = displayNames.of(countryCode) || countryCode
+  } catch {
+    // Unsupported locale/browser -- fall back to searching the raw code.
+  }
+  const url = `${NOMINATIM_BASE}/search?format=json&addressdetails=0&limit=1&featureType=country&accept-language=${lang}&countrycodes=${countryCode.toLowerCase()}&q=${encodeURIComponent(name)}`
   const resp = await fetch(url)
   if (!resp.ok) throw new Error('Country geocode failed')
   const data = await resp.json()

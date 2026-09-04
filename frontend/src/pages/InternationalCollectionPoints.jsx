@@ -4,8 +4,8 @@ import { useTranslation } from 'react-i18next'
 import L from 'leaflet'
 import { api } from '../api'
 import { geocodeCountryBounds } from '../utils'
-import { countryOptions } from '../countries'
 import PlaceAutocomplete from '../components/PlaceAutocomplete'
+import CountrySelect from '../components/CountrySelect'
 
 // Worldwide counterpart to CollectionPoints.jsx -- same map/list page, no
 // wilaya (there is none outside Algeria) and no Algeria restriction on
@@ -22,14 +22,19 @@ export default function InternationalCollectionPoints() {
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
   const [goToPlace, setGoToPlace] = useState('')
+  // True once a "go to a place" suggestion has actually been picked --
+  // the country filter is disabled and reset to "all" while this holds,
+  // since a place search elsewhere in the world would otherwise silently
+  // conflict with it (see flyTo below). Clearing the place field again
+  // re-enables it.
+  const [placeSelected, setPlaceSelected] = useState(false)
   const [points, setPoints] = useState([])
   const [viewMode, setViewMode] = useState('map')
   const [mapHasNothing, setMapHasNothing] = useState(false)
   const mapRef = useRef(null)
   const mapElRef = useRef(null)
   const markersRef = useRef([])
-
-  const countries = countryOptions(i18n.language)
+  const youAreHereRef = useRef(null)
 
   useEffect(() => {
     const timer = setTimeout(() => setSearch(searchInput.trim()), 300)
@@ -49,24 +54,50 @@ export default function InternationalCollectionPoints() {
   }, [load])
 
   // A street/place picked from the "go to a place" search recenters the
-  // map only -- it never touches the country/search filters above, since
-  // an OSM address match isn't necessarily one of this app's own points.
+  // map -- it never touches the search box above, but it does clear and
+  // disable the country filter: a place found anywhere in the world would
+  // otherwise silently conflict with a still-selected country, e.g. the
+  // map jumping to Tokyo while "Filtrer par pays: France" stays showing.
   const flyTo = ({ lat, lon }, zoom = 12) => {
+    setFilterCountry('')
+    setPlaceSelected(true)
     if (mapRef.current) mapRef.current.setView([lat, lon], zoom)
+  }
+
+  const hasActiveFilter = Boolean(filterCountry || searchInput || goToPlace)
+  const resetFilters = () => {
+    setFilterCountry('')
+    setSearchInput('')
+    setGoToPlace('')
+    setPlaceSelected(false)
   }
 
   // No country picked and no place searched yet: default to the visitor's
   // own position, zoomed to roughly a 100km radius (zoom 9, same
   // convention as CollectionPoints.jsx's own "nearby" default) but without
   // the Algeria check (this map is worldwide) -- falls back to a whole-
-  // world view if geolocation is denied/unavailable.
+  // world view if geolocation is denied/unavailable. Marks the spot with
+  // a "you are here" marker so the default view reads as intentional
+  // rather than the map just looking randomly zoomed in.
   const defaultZoom = (map) => {
     if (!navigator.geolocation) {
       map.setView([20, 10], 2)
       return
     }
     navigator.geolocation.getCurrentPosition(
-      (pos) => map.setView([pos.coords.latitude, pos.coords.longitude], 9),
+      (pos) => {
+        const { latitude, longitude } = pos.coords
+        map.setView([latitude, longitude], 9)
+        const marker = L.circleMarker([latitude, longitude], {
+          radius: 8,
+          color: '#2563eb',
+          weight: 2,
+          fillColor: '#3b82f6',
+          fillOpacity: 0.9,
+        }).addTo(map)
+        marker.bindPopup(t('internationalCollectionPoints.youAreHere')).openPopup()
+        youAreHereRef.current = marker
+      },
       () => map.setView([20, 10], 2),
       { timeout: 3000 }
     )
@@ -109,6 +140,10 @@ export default function InternationalCollectionPoints() {
         }
         const map = mapRef.current
         markersRef.current.forEach((m) => map.removeLayer(m))
+        if (youAreHereRef.current) {
+          map.removeLayer(youAreHereRef.current)
+          youAreHereRef.current = null
+        }
         const markers = []
 
         const withPos = pins.filter((p) => p.display_latitude != null && p.display_longitude != null)
@@ -163,6 +198,7 @@ export default function InternationalCollectionPoints() {
     mapRef.current.remove()
     mapRef.current = null
     markersRef.current = []
+    youAreHereRef.current = null
   }, [viewMode])
 
   return (
@@ -181,7 +217,12 @@ export default function InternationalCollectionPoints() {
       <div className="toolbar">
         <PlaceAutocomplete
           value={goToPlace}
-          onChange={setGoToPlace}
+          onChange={(v) => {
+            setGoToPlace(v)
+            // Clearing the place field by hand re-enables the country
+            // filter -- only an actual pick (flyTo) disables it.
+            if (v.trim() === '') setPlaceSelected(false)
+          }}
           onSelectPlace={flyTo}
           countryCode={filterCountry || 'any'}
           placeholder={t('internationalCollectionPoints.goToPlacePlaceholder')}
@@ -195,15 +236,23 @@ export default function InternationalCollectionPoints() {
         />
         <label>
           {t('internationalCollectionPoints.filterByCountry')}
-          <select value={filterCountry} onChange={(e) => setFilterCountry(e.target.value)}>
-            <option value="">{t('needsList.all')}</option>
-            {countries.map((c) => (
-              <option key={c.code} value={c.code}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+          <CountrySelect
+            value={filterCountry}
+            onChange={setFilterCountry}
+            lang={i18n.language}
+            placeholder={t('needsList.all')}
+            allLabel={t('needsList.all')}
+            disabled={placeSelected}
+          />
         </label>
+        {/* Only shown once a filter is actually active -- a discreet text
+            link rather than a full button, since resetting isn't a
+            primary action on this toolbar. */}
+        {hasActiveFilter && (
+          <button type="button" className="link" onClick={resetFilters}>
+            {t('internationalCollectionPoints.resetFilters')}
+          </button>
+        )}
         <div className="view-toggle">
           <button className={viewMode === 'list' ? 'active' : ''} onClick={() => setViewMode('list')}>
             {t('needsList.list')}

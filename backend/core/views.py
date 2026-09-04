@@ -760,9 +760,11 @@ class CollectionPointViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mix
         # international -- a direct retrieve-by-id (e.g. following a link
         # or a comment) always works regardless of which kind the point is,
         # since the caller doesn't necessarily know in advance.
+        is_international_scope = False
         if self.action in ("list", "locations"):
             international = self.request.query_params.get("international")
             if international:
+                is_international_scope = True
                 qs = qs.exclude(country_code="")
                 country = self.request.query_params.get("country")
                 if country:
@@ -774,20 +776,23 @@ class CollectionPointViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mix
         if wilaya:
             qs = qs.filter(wilaya_id=wilaya)
         if search:
-            qs = qs.filter(
-                Q(point_name__icontains=search)
-                | Q(contact_name__icontains=search)
-                | Q(organization__icontains=search)
-                | Q(location_description__icontains=search)
-                | Q(hours__icontains=search)
-                | Q(wilaya__name__icontains=search)
-                # country_name is always blank for a national point and
-                # wilaya always null for an international one, so this and
-                # the wilaya match above are never both relevant to the
-                # same row -- safe to search both unconditionally rather
-                # than branching on scope.
-                | Q(country_name__icontains=search)
-            )
+            if is_international_scope:
+                # The international list has no wilaya/hours-style local
+                # landmarks a visitor would search by -- what actually
+                # tells two international points apart is the point's own
+                # name and the association running it, so this search
+                # deliberately only matches those two (unlike the
+                # national branch below, left untouched).
+                qs = qs.filter(Q(point_name__icontains=search) | Q(organization__icontains=search))
+            else:
+                qs = qs.filter(
+                    Q(point_name__icontains=search)
+                    | Q(contact_name__icontains=search)
+                    | Q(organization__icontains=search)
+                    | Q(location_description__icontains=search)
+                    | Q(hours__icontains=search)
+                    | Q(wilaya__name__icontains=search)
+                )
         return qs
 
     def create(self, request, *args, **kwargs):
