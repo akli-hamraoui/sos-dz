@@ -31,7 +31,7 @@ from core.models import (
     TranslationOverride,
     Wilaya,
 )
-from core.permissions import write_guard
+from core.permissions import read_only_block, write_guard
 from core.serializers import (
     AnonymizeSerializer,
     AppConfigurationPublicSerializer,
@@ -756,6 +756,19 @@ class CollectionPointViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mix
 
     def get_queryset(self):
         qs = super().get_queryset()
+        # Only the browsing endpoints (list/locations) split national vs.
+        # international -- a direct retrieve-by-id (e.g. following a link
+        # or a comment) always works regardless of which kind the point is,
+        # since the caller doesn't necessarily know in advance.
+        if self.action in ("list", "locations"):
+            international = self.request.query_params.get("international")
+            if international:
+                qs = qs.exclude(country_code="")
+                country = self.request.query_params.get("country")
+                if country:
+                    qs = qs.filter(country_code=country.upper())
+            else:
+                qs = qs.filter(country_code="")
         wilaya = self.request.query_params.get("wilaya")
         search = self.request.query_params.get("search")
         if wilaya:
@@ -772,7 +785,12 @@ class CollectionPointViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mix
         return qs
 
     def create(self, request, *args, **kwargs):
-        block_reason = write_guard(request)
+        # An international collection point is deliberately created from
+        # outside Algeria (that's the whole point) -- the Algeria-IP write
+        # restriction would otherwise block almost every real submission.
+        # Read-only mode still applies to everyone regardless.
+        is_international = bool(request.data.get("country_code"))
+        block_reason = read_only_block(request) if is_international else write_guard(request)
         if block_reason:
             return Response({"detail": block_reason}, status=status.HTTP_403_FORBIDDEN)
         flyer_image = request.FILES.get("flyer_image")
@@ -804,7 +822,9 @@ class CollectionPointViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mix
     @action(detail=True, methods=["post"], url_path="close")
     def close(self, request, pk=None):
         point = self.get_object()
-        block_reason = write_guard(request)
+        # Same reasoning as create() above: closing one's own international
+        # point is expected to happen from outside Algeria too.
+        block_reason = read_only_block(request) if point.is_international else write_guard(request)
         if block_reason:
             return Response({"detail": block_reason}, status=status.HTTP_403_FORBIDDEN)
         if is_admin_request(request) or owner_authorized(request, point):

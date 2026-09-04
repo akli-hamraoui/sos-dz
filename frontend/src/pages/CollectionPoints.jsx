@@ -223,6 +223,14 @@ export default function CollectionPoints() {
         <Link className="btn btn-primary" to="/collection-points/create">
           {t('collectionPoints.addButton')}
         </Link>
+        {/* Entry point to the separate worldwide page (any country, no
+            Algeria restriction) -- see InternationalCollectionPoints.jsx.
+            A clearly distinct destination, not a filter on this page,
+            since it has its own map default (visitor position, no wilaya
+            concept) and never shows couriers/take-charge. */}
+        <Link className="btn" to="/international-collection-points">
+          {t('internationalCollectionPoints.navButton')}
+        </Link>
       </div>
 
       {viewMode === 'list' && (

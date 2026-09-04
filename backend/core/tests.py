@@ -1850,6 +1850,136 @@ class CollectionPointTests(BaseAPITestCase):
         self.assertEqual(resp.status_code, 403)
 
 
+INTERNATIONAL_COLLECTION_POINT_PAYLOAD = {
+    "country_code": "FR",
+    "country_name": "France",
+    "point_name": "Centre de collecte Paris",
+    "contact_name": "Amel",
+    "contact_phone": "+33612345678",
+    "location_description": "Near Gare du Nord",
+    "latitude": 48.8809,
+    "longitude": 2.3553,
+}
+
+
+class InternationalCollectionPointTests(BaseAPITestCase):
+    def _payload(self, **overrides):
+        data = dict(INTERNATIONAL_COLLECTION_POINT_PAYLOAD)
+        data.update(overrides)
+        return data
+
+    def test_create_international_point(self):
+        resp = self.client.post("/api/collection-points/", self._payload(), format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+        self.assertTrue(resp.data["is_international"])
+        self.assertEqual(resp.data["country_name"], "France")
+        self.assertIsNone(resp.data["wilaya"])
+
+    def test_rejects_algeria_as_country_code(self):
+        resp = self.client.post("/api/collection-points/", self._payload(country_code="DZ"), format="json")
+        self.assertEqual(resp.status_code, 400)
+
+    def test_rejects_position_inside_algeria(self):
+        # Algiers coordinates -- must be rejected for an international point.
+        resp = self.client.post("/api/collection-points/", self._payload(latitude=36.75, longitude=3.06), format="json")
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("latitude", resp.data)
+
+    def test_rejects_wilaya_set_on_international_point(self):
+        wilaya = Wilaya.objects.first()
+        resp = self.client.post("/api/collection-points/", self._payload(wilaya=wilaya.pk), format="json")
+        self.assertEqual(resp.status_code, 400)
+
+    def test_requires_exact_position(self):
+        resp = self.client.post("/api/collection-points/", self._payload(latitude=None, longitude=None), format="json")
+        self.assertEqual(resp.status_code, 400)
+
+    def test_national_create_still_requires_wilaya(self):
+        resp = self.client.post("/api/collection-points/", dict(COLLECTION_POINT_PAYLOAD), format="json")
+        self.assertEqual(resp.status_code, 400)
+
+    def test_pickup_rejected_for_international_collection_point(self):
+        cp_resp = self.client.post("/api/collection-points/", self._payload(), format="json")
+        resp = self.client.post(
+            "/api/pickups/",
+            {
+                "collection_point": cp_resp.data["id"],
+                "responder_type": "individual_volunteer",
+                "responder_name": "Karim",
+                "responder_phone": "0666000000",
+                "content_brought": "blankets",
+            },
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 400)
+
+    def test_national_list_excludes_international_points(self):
+        self.client.post("/api/collection-points/", self._payload(), format="json")
+        self.client.post("/api/collection-points/", dict(COLLECTION_POINT_PAYLOAD, wilaya=Wilaya.objects.first().pk), format="json")
+        resp = self.client.get("/api/collection-points/")
+        self.assertEqual(len(resp.data["results"]), 1)
+        self.assertFalse(resp.data["results"][0]["is_international"])
+
+    def test_international_scope_shows_only_international_points(self):
+        self.client.post("/api/collection-points/", self._payload(), format="json")
+        self.client.post("/api/collection-points/", dict(COLLECTION_POINT_PAYLOAD, wilaya=Wilaya.objects.first().pk), format="json")
+        resp = self.client.get("/api/collection-points/?international=1")
+        self.assertEqual(len(resp.data["results"]), 1)
+        self.assertTrue(resp.data["results"][0]["is_international"])
+
+    def test_international_scope_filterable_by_country(self):
+        self.client.post("/api/collection-points/", self._payload(country_code="FR", country_name="France"), format="json")
+        self.client.post(
+            "/api/collection-points/",
+            self._payload(country_code="TN", country_name="Tunisia", latitude=36.8, longitude=10.18),
+            format="json",
+        )
+        resp = self.client.get("/api/collection-points/?international=1&country=fr")
+        self.assertEqual(len(resp.data["results"]), 1)
+        self.assertEqual(resp.data["results"][0]["country_code"], "FR")
+
+    def test_retrieve_by_id_works_regardless_of_scope(self):
+        cp_resp = self.client.post("/api/collection-points/", self._payload(), format="json")
+        resp = self.client.get(f"/api/collection-points/{cp_resp.data['id']}/")
+        self.assertEqual(resp.status_code, 200)
+
+    def test_international_point_excluded_from_locations_by_default(self):
+        self.client.post("/api/collection-points/", self._payload(), format="json")
+        resp = self.client.get("/api/collection-points/locations/")
+        self.assertEqual(resp.data, [])
+        resp = self.client.get("/api/collection-points/locations/?international=1")
+        self.assertEqual(len(resp.data), 1)
+
+
+@override_settings(GEOIP_DB_PATH="/nonexistent/GeoLite2-Country.mmdb")
+class InternationalCollectionPointGeoRestrictionTests(BaseAPITestCase):
+    disable_geo_restriction = False
+
+    def _payload(self, **overrides):
+        data = dict(INTERNATIONAL_COLLECTION_POINT_PAYLOAD)
+        data.update(overrides)
+        return data
+
+    def test_international_create_bypasses_algeria_ip_restriction(self):
+        config = AppConfiguration.get_solo()
+        config.geo_restrict_writes_to_algeria = True
+        config.save()
+        resp = self.client.post("/api/collection-points/", self._payload(), format="json", REMOTE_ADDR="8.8.8.8")
+        self.assertEqual(resp.status_code, 201, resp.content)
+
+    def test_national_create_still_blocked_by_algeria_ip_restriction(self):
+        config = AppConfiguration.get_solo()
+        config.geo_restrict_writes_to_algeria = True
+        config.save()
+        resp = self.client.post(
+            "/api/collection-points/",
+            dict(COLLECTION_POINT_PAYLOAD, wilaya=Wilaya.objects.first().pk),
+            format="json",
+            REMOTE_ADDR="8.8.8.8",
+        )
+        self.assertEqual(resp.status_code, 403)
+
+
 class CollectionPointAccessRecoveryTests(BaseAPITestCase):
     """access_token + recover-access, same pattern as Need/Pickup (see
     IdentityRecoveryTests) -- added on top of the pre-existing matches_code/

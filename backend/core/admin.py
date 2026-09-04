@@ -389,9 +389,9 @@ reject_flyer.short_description = "Reject flyer (pending review queue)"
 
 @admin.register(CollectionPoint)
 class CollectionPointAdmin(admin.ModelAdmin):
-    list_display = ["point_name", "wilaya", "contact_name", "status", "flyer_moderation_status", "created_at"]
-    list_filter = ["status", "wilaya", "flyer_moderation_status"]
-    search_fields = ["point_name", "contact_name", "contact_phone"]
+    list_display = ["point_name", "wilaya", "country_name", "contact_name", "status", "flyer_moderation_status", "created_at"]
+    list_filter = ["status", "wilaya", "country_code", "flyer_moderation_status"]
+    search_fields = ["point_name", "contact_name", "contact_phone", "country_name"]
     actions = [approve_flyer, reject_flyer]
 
 

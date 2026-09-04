@@ -20,6 +20,8 @@ import Legal from './pages/Legal'
 import CollectionPoints from './pages/CollectionPoints'
 import CreateCollectionPoint from './pages/CreateCollectionPoint'
 import CollectionPointDetail from './pages/CollectionPointDetail'
+import InternationalCollectionPoints from './pages/InternationalCollectionPoints'
+import CreateInternationalCollectionPoint from './pages/CreateInternationalCollectionPoint'
 import Deliveries from './pages/Deliveries'
 import BackButton from './components/BackButton'
 import { IconHome, IconBox, IconTruck, IconWarning, IconWifiOff, IconCheckCircle, IconMenu, IconClose } from './icons'
@@ -72,6 +74,8 @@ const PAGE_TITLE_KEYS = {
   '/create': 'nav.iNeedHelp',
   '/collection-points': 'nav.collectionPoints',
   '/collection-points/create': 'collectionPoints.createTitle',
+  '/international-collection-points': 'internationalCollectionPoints.navButton',
+  '/international-collection-points/create': 'internationalCollectionPoints.createTitle',
   '/deliveries': 'nav.deliveries',
   '/support': 'support.title',
   '/report-bug': 'reportBug.title',
@@ -279,6 +283,8 @@ export default function App() {
           <Route path="/collection-points/create" element={<CreateCollectionPoint />} />
           <Route path="/collection-points/:id" element={<CollectionPointDetail />} />
           <Route path="/collection-points/:id/take-charge" element={<TakeCharge source="collection_point" />} />
+          <Route path="/international-collection-points" element={<InternationalCollectionPoints />} />
+          <Route path="/international-collection-points/create" element={<CreateInternationalCollectionPoint />} />
           <Route path="/deliveries" element={<Deliveries />} />
         </Routes>
       </main>
