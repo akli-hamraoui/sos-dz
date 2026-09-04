@@ -279,6 +279,7 @@
     "otherPhonesPlaceholder": "D'autres numéros, un par ligne",
     "organization": "Organisation (optionnel)",
     "locationDescription": "Lieu",
+    "useMyLocation": "Utiliser ma position GPS actuelle comme lieu du point de collecte",
     "hours": "Horaires",
     "hoursPlaceholder": "ex. 8h-18h tous les jours",
     "acceptedDonations": "Dons acceptés (optionnel)",
