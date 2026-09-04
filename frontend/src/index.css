@@ -244,6 +244,15 @@ a {
   padding-block-start: 12px;
 }
 
+/* Hidden by default (desktop already shows the language dropdown inline
+   via TopNavLinks) -- only switched on below the 960px nav breakpoint
+   below, right next to the hamburger button. Declared before that media
+   query so its `display: inline-flex` there actually wins the cascade. */
+.topbar-lang-quick {
+  display: none;
+  flex-shrink: 0;
+}
+
 /* Below this width the inline nav (brand + 5 links + language switcher,
    ~900px at natural size) no longer has room -- collapse it into a
    toggleable menu instead of letting it overflow or wrap mid-word. */
@@ -253,6 +262,9 @@ a {
   }
   .nav-toggle {
     display: flex;
+  }
+  .topbar-lang-quick {
+    display: inline-flex;
   }
 }
 @media (min-width: 961px) {

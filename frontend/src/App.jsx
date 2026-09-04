@@ -233,6 +233,16 @@ export default function App() {
         <nav className="topbar-nav-desktop">
           <TopNavLinks isActive={isActive} isAdmin={config.is_admin} />
         </nav>
+        {/* Quick access on mobile, next to the hamburger button, so
+            switching language doesn't require opening the full menu and
+            scrolling to the bottom of it -- the desktop nav already shows
+            LanguageSwitcher inline (via TopNavLinks) so this is hidden
+            there to avoid a duplicate (see index.css .topbar-lang-quick).
+            The dropdown also stays inside the mobile menu list itself
+            (TopNavLinks, unchanged) for anyone who opens it that way. */}
+        <span className="topbar-lang-quick">
+          <LanguageSwitcher />
+        </span>
         <button
           type="button"
           className="nav-toggle"
