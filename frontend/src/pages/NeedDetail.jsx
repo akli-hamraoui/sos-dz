@@ -120,8 +120,12 @@ export default function NeedDetail() {
       // checkered-flag destination marker.
       const truckIcon = L.divIcon({
         className: 'pickup-marker-icon',
+        // Same green as the Deliveries/Transporteurs map (see Deliveries.jsx
+        // TRUCK_GREEN -- this app's own accent, index.css --collection-accent)
+        // instead of plain black, so a courier truck reads the same way
+        // everywhere in the app it appears.
         html:
-          '<span class="pickup-marker-pin"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="1.9" ' +
+          '<span class="pickup-marker-pin"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#2f6b52" stroke-width="1.9" ' +
           'stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 7.5h11v8h-11Z"/><path d="M13.5 11h4l3 2.8v1.7h-7Z"/>' +
           '<circle cx="7" cy="18" r="1.7"/><circle cx="17" cy="18" r="1.7"/><path d="M2.5 16h2.8M15.5 16h.2M18.7 16H21"/></svg></span>',
         iconSize: [30, 30],

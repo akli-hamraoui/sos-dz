@@ -172,6 +172,13 @@ class PickupPublicSerializer(PickupParentInfoMixin, serializers.ModelSerializer)
     delivery_photos = DeliveryPhotoSerializer(many=True, read_only=True)
     needs_verification = serializers.BooleanField(read_only=True)
     is_anonymized = serializers.BooleanField(read_only=True)
+    # Same public info already shown on the aggregate deliveries map
+    # (PickupViewSet.live_locations) -- exposed here too so this pickup's
+    # own detail page (PickupDetail.jsx) can show it without a separate call.
+    current_position = serializers.SerializerMethodField()
+
+    def get_current_position(self, obj):
+        return obj.latest_known_position()
 
     class Meta:
         model = Pickup
@@ -202,6 +209,7 @@ class PickupPublicSerializer(PickupParentInfoMixin, serializers.ModelSerializer)
             "delivery_photos",
             "needs_verification",
             "is_anonymized",
+            "current_position",
         ]
 
 

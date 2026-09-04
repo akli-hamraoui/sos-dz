@@ -209,7 +209,8 @@
     "title": "Delivery details",
     "notFound": "This pickup could not be found.",
     "addDeparture": "+ Add my departure location",
-    "editDeparture": "Edit my departure location"
+    "editDeparture": "Edit my departure location",
+    "currentPosition": "Current position"
   },
   "takeCharge": {
     "title": "Take charge of: {{need}}",
@@ -321,7 +322,8 @@
     "vehicle": "Vehicle",
     "destination": "Destination",
     "filterByDestinationType": "Destination type",
-    "resetFilters": "Reset"
+    "resetFilters": "Reset",
+    "viewTransporterDetail": "View transporter details"
   },
   "reportBug": {
     "title": "Report a bug",

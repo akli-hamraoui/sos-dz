@@ -61,6 +61,17 @@ export default function PickupDetail() {
       <Link className="link" to={detailPath}>
         {isCollectionPoint ? t('takeCharge.viewCollectionPointDetail') : t('takeCharge.viewNeedDetail')}
       </Link>
+      {/* Same public position data already shown on the aggregate
+          Transporteurs map (Deliveries.jsx) -- a plain coordinates line
+          here rather than embedding a second map, since that map already
+          exists and is one click away via the nav. Nothing rendered at
+          all when there's no live ping or declared departure point. */}
+      {pickup.current_position && (
+        <p className="status">
+          {t('pickupDetail.currentPosition')}: {pickup.current_position.latitude.toFixed(4)}, {pickup.current_position.longitude.toFixed(4)}{' '}
+          {pickup.current_position.is_live ? `(${t('deliveries.liveMarkerLabel')})` : `(${t('deliveries.departureMarkerLabel')})`}
+        </p>
+      )}
 
       <PickupManager pickup={pickup} pickupToken={pickupTokens[id]} onChange={load} />
     </section>

@@ -5,7 +5,15 @@ import L from 'leaflet'
 import { useApp } from '../context/AppContext'
 import { api } from '../api'
 import { maskPhone, formatDate } from '../utils'
+import { fetchDrivingRoute } from '../routing'
 import { IconTruck } from '../icons'
+
+// Same green already used elsewhere for this app's own accent (the
+// Collecte FAB, "Prendre en charge" button, Home's privacy notice --
+// see index.css --collection-accent) -- reused here instead of the
+// previous grey/black truck so a courier marker reads as "SOS DZ's own"
+// rather than a generic dark pin.
+const TRUCK_GREEN = '#2f6b52'
 
 const STATUSES = ['en_route', 'delivered', 'cancelled']
 
@@ -52,6 +60,10 @@ export default function Deliveries() {
   const mapRef = useRef(null)
   const mapElRef = useRef(null)
   const markersRef = useRef([])
+  // The one trajectory line currently drawn (from clicking a transporter's
+  // marker) -- at most one at a time, cleared whenever markers are
+  // re-rendered or another marker is clicked, never left stacking up.
+  const routeLineRef = useRef(null)
 
   // Debounced so typing doesn't fire a request on every keystroke.
   useEffect(() => {
@@ -113,25 +125,32 @@ export default function Deliveries() {
       }
       const map = mapRef.current
       markersRef.current.forEach((m) => map.removeLayer(m))
+      // A marker click draws a fresh trajectory -- clear any leftover one
+      // from a previously clicked marker instead of stacking lines up.
+      if (routeLineRef.current) {
+        map.removeLayer(routeLineRef.current)
+        routeLineRef.current = null
+      }
       // Same truck-on-white-circle marker as the per-need live map
       // (NeedDetail.jsx) -- reads as "a delivery" at a glance, distinct
-      // from any other pin style in the app. The departure-only variant
+      // from any other pin style in the app. Green (this app's own accent,
+      // see TRUCK_GREEN above) for both variants; the departure-only one
       // (is_live false -- a declared starting point, not an actual live
-      // ping) is visually muted/dashed so it's never mistaken for a
-      // currently-tracked courier.
+      // ping) stays visually muted/dashed via CSS (.pickup-marker-pin-
+      // departure) so it's never mistaken for a currently-tracked courier.
       const truckSvg =
         '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="1.9" ' +
         'stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 7.5h11v8h-11Z"/><path d="M13.5 11h4l3 2.8v1.7h-7Z"/>' +
         '<circle cx="7" cy="18" r="1.7"/><circle cx="17" cy="18" r="1.7"/><path d="M2.5 16h2.8M15.5 16h.2M18.7 16H21"/></svg>'
       const truckIcon = L.divIcon({
         className: 'pickup-marker-icon',
-        html: `<span class="pickup-marker-pin">${truckSvg.replace('{color}', '#111')}</span>`,
+        html: `<span class="pickup-marker-pin">${truckSvg.replace('{color}', TRUCK_GREEN)}</span>`,
         iconSize: [30, 30],
         iconAnchor: [15, 15],
       })
       const departureIcon = L.divIcon({
         className: 'pickup-marker-icon pickup-marker-departure',
-        html: `<span class="pickup-marker-pin pickup-marker-pin-departure">${truckSvg.replace('{color}', '#888')}</span>`,
+        html: `<span class="pickup-marker-pin pickup-marker-pin-departure">${truckSvg.replace('{color}', TRUCK_GREEN)}</span>`,
         iconSize: [30, 30],
         iconAnchor: [15, 15],
       })
@@ -147,8 +166,36 @@ export default function Deliveries() {
           : t('deliveries.departureMarkerLabel') + (loc.departure_description ? ` (${loc.departure_description})` : '')
         marker.bindPopup(
           `<strong>${loc.responder_name}</strong><br>${t('deliveries.bringing')}: ${loc.content_brought || '—'}<br>` +
-            `<em>${statusLine}</em><br><a href="${destHref}">${destLabel}</a>`
+            `<em>${statusLine}</em><br><a href="/pickups/${loc.pickup_id}">${t('deliveries.viewTransporterDetail')}</a>` +
+            `<br><a href="${destHref}">${destLabel}</a>`
         )
+        // Trajectory to the destination on click -- silently skipped (no
+        // line, no error, the rest of the marker/popup still works) when
+        // the destination has no exact GPS coordinates, per spec: a need
+        // reported with only wilaya+description has none.
+        marker.on('click', () => {
+          if (routeLineRef.current) {
+            map.removeLayer(routeLineRef.current)
+            routeLineRef.current = null
+          }
+          if (loc.destination_latitude == null || loc.destination_longitude == null) return
+          const from = [loc.latitude, loc.longitude]
+          const dest = [loc.destination_latitude, loc.destination_longitude]
+          // Basic straight line first (always available, no network
+          // dependency), replaced by the real road-following route (same
+          // OSRM helper as NeedDetail's own live map) once/if it resolves.
+          const straight = L.polyline([from, dest], { color: TRUCK_GREEN, weight: 3, dashArray: '4,8' }).addTo(map)
+          routeLineRef.current = straight
+          fetchDrivingRoute(from, dest)
+            .then((route) => {
+              if (routeLineRef.current !== straight) return // superseded by another click/re-render meanwhile
+              map.removeLayer(straight)
+              routeLineRef.current = L.polyline(route.coordinates, { color: TRUCK_GREEN, weight: 4, dashArray: '1,10', lineCap: 'round' }).addTo(map)
+            })
+            .catch(() => {
+              /* routing service unreachable -- the basic straight line drawn above stays as-is */
+            })
+        })
         return marker
       })
       if (fitView) {
@@ -184,6 +231,7 @@ export default function Deliveries() {
     mapRef.current.remove()
     mapRef.current = null
     markersRef.current = []
+    routeLineRef.current = null
   }, [viewMode])
 
   return (

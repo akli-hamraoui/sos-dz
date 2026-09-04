@@ -209,7 +209,8 @@
     "title": "تفاصيل التوصيل",
     "notFound": "تعذر العثور على عملية الاستلام هذه.",
     "addDeparture": "+ إضافة مكان انطلاقي",
-    "editDeparture": "تعديل مكان انطلاقي"
+    "editDeparture": "تعديل مكان انطلاقي",
+    "currentPosition": "الموقع الحالي"
   },
   "takeCharge": {
     "title": "المساهمة في: {{need}}",
@@ -321,7 +322,8 @@
     "vehicle": "المركبة",
     "destination": "الوجهة",
     "filterByDestinationType": "نوع الوجهة",
-    "resetFilters": "إعادة تعيين"
+    "resetFilters": "إعادة تعيين",
+    "viewTransporterDetail": "عرض تفاصيل المتطوع"
   },
   "reportBug": {
     "title": "الإبلاغ عن خلل",

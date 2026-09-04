@@ -487,6 +487,19 @@ class Pickup(IdentityListingMixin, models.Model):
         self.responder_email = ""
         self.organization_or_person_name = ""
 
+    def latest_known_position(self):
+        """Latest live ping if location sharing is on, else the declared
+        departure point, else None -- same fallback PickupViewSet.
+        live_locations uses for the public map, reused here for this
+        pickup's own detail page (PickupPublicSerializer.current_position)."""
+        if self.location_sharing_active:
+            latest = self.location_pings.order_by("-recorded_at").first()
+            if latest:
+                return {"latitude": latest.latitude, "longitude": latest.longitude, "recorded_at": latest.recorded_at, "is_live": True}
+        if self.departure_latitude is not None:
+            return {"latitude": self.departure_latitude, "longitude": self.departure_longitude, "recorded_at": None, "is_live": False}
+        return None
+
     @property
     def needs_verification(self):
         """A pickup with no update in 24h is flagged 'to verify' (never deleted)."""

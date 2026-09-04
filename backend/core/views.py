@@ -510,6 +510,14 @@ class PickupViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retri
                 "content_brought": pickup.content_brought,
                 "latitude": latitude,
                 "longitude": longitude,
+                # Destination's own coordinates, when it has one set -- lets
+                # the map draw a trajectory line from the courier's current
+                # position to where they're headed. None (never a guessed
+                # fallback) when the need/collection point has no exact GPS,
+                # e.g. a need reported with only wilaya+description -- the
+                # frontend simply skips the trajectory in that case.
+                "destination_latitude": (pickup.need.latitude if pickup.need_id else pickup.collection_point.latitude),
+                "destination_longitude": (pickup.need.longitude if pickup.need_id else pickup.collection_point.longitude),
                 "recorded_at": recorded_at,
                 "is_live": is_live,
                 "departure_description": pickup.departure_description,

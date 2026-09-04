@@ -209,7 +209,8 @@
     "title": "Détails de la livraison",
     "notFound": "Cette prise en charge est introuvable.",
     "addDeparture": "+ Ajouter mon lieu de départ",
-    "editDeparture": "Modifier mon lieu de départ"
+    "editDeparture": "Modifier mon lieu de départ",
+    "currentPosition": "Position actuelle"
   },
   "takeCharge": {
     "title": "Prendre en charge : {{need}}",
@@ -321,7 +322,8 @@
     "vehicle": "Véhicule",
     "destination": "Destination",
     "filterByDestinationType": "Type de destination",
-    "resetFilters": "Réinitialiser"
+    "resetFilters": "Réinitialiser",
+    "viewTransporterDetail": "Voir les détails du transporteur"
   },
   "reportBug": {
     "title": "Signaler un bug",
