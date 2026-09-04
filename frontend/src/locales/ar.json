@@ -213,8 +213,7 @@
     "title": "تفاصيل التوصيل",
     "notFound": "تعذر العثور على عملية الاستلام هذه.",
     "addDeparture": "+ إضافة مكان انطلاقي",
-    "editDeparture": "تعديل مكان انطلاقي",
-    "currentPosition": "الموقع الحالي"
+    "editDeparture": "تعديل مكان انطلاقي"
   },
   "takeCharge": {
     "title": "المساهمة في: {{need}}",

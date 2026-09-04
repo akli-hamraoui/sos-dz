@@ -19,6 +19,28 @@ export function needIcon(L, urgencyColor, urgency) {
   })
 }
 
+const TRUCK_SVG =
+  '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="1.9" ' +
+  'stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 7.5h11v8h-11Z"/><path d="M13.5 11h4l3 2.8v1.7h-7Z"/>' +
+  '<circle cx="7" cy="18" r="1.7"/><circle cx="17" cy="18" r="1.7"/><path d="M2.5 16h2.8M15.5 16h.2M18.7 16H21"/></svg>'
+
+export const TRUCK_GREEN = '#2f6b52'
+
+// Same truck-on-white-circle marker used on the Transporteurs map
+// (Deliveries.jsx) and the per-need live map (NeedDetail.jsx) -- factored
+// out here for PickupDetail's single-position map so a third inline copy
+// of this SVG isn't needed. isLive=false gets the muted/dashed
+// pickup-marker-pin-departure styling (see index.css) so a declared
+// starting point is never mistaken for an actual live ping.
+export function truckIcon(L, isLive) {
+  return L.divIcon({
+    className: `pickup-marker-icon${isLive ? '' : ' pickup-marker-departure'}`,
+    html: `<span class="pickup-marker-pin${isLive ? '' : ' pickup-marker-pin-departure'}">${TRUCK_SVG.replace('{color}', TRUCK_GREEN)}</span>`,
+    iconSize: [30, 30],
+    iconAnchor: [15, 15],
+  })
+}
+
 export function collectionPointIcon(L) {
   return L.divIcon({
     className: 'cp-marker-icon',
