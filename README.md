@@ -91,6 +91,38 @@ cd backend
 python manage.py test core
 ```
 
+### Updating an existing checkout (pull + rebuild + restart)
+
+Whenever you've pulled new commits and want the whole local setup back up to date -- backend dependencies, migrations, and a fresh frontend build -- run this from the repo root (adjust paths if your checkout lives elsewhere):
+
+```bash
+git pull
+source backend-venv/bin/activate
+pip install -r backend/requirements.txt
+cd backend
+python manage.py migrate
+cd ../frontend
+npm install
+npm run build
+cd ..
+```
+
+Same thing as one copy-pasteable command:
+
+```bash
+git pull && source backend-venv/bin/activate && pip install -r backend/requirements.txt && (cd backend && python manage.py migrate) && (cd frontend && npm install && npm run build) && echo "Up to date -- (re)start the dev servers below."
+```
+
+Then (re)start both dev servers -- kill whatever's already running first so the new build/code is actually picked up:
+
+```bash
+pkill -f "manage.py runserver"; pkill -f "vite"
+(cd backend && source ../backend-venv/bin/activate && nohup python manage.py runserver > /tmp/sos-dz-backend.log 2>&1 &)
+(cd frontend && nohup npm run preview -- --port 4173 > /tmp/sos-dz-frontend.log 2>&1 &)
+```
+
+This restarts with the production-style build (`npm run preview`, matching the real PWA/service-worker behavior) on http://localhost:4173/, backend on http://localhost:8000/. For day-to-day development instead (hot-reload, no rebuild step needed), just run `npm run dev` in `frontend/` as shown below rather than build+preview.
+
 ## Frontend (React + Vite PWA)
 
 Requires Node.js 20+. The dev server proxies `/api` and `/media` to the Django backend, so run both at once.
@@ -125,7 +157,46 @@ Single monolithic Django project (Django + Django REST Framework), not microserv
 
 ## Deployment
 
-**Live at [sosdz.org](https://sosdz.org).** See [`DEPLOYMENT.md`](./DEPLOYMENT.md) for the exact VPS setup (Gunicorn + Nginx + systemd + Let's Encrypt) and the routine redeploy command, plus a temporary Railway/Render fallback.
+**Live at [sosdz.org](https://sosdz.org).** See [`DEPLOYMENT.md`](./DEPLOYMENT.md) for the exact first-time VPS setup (Gunicorn + Nginx + systemd + Let's Encrypt) and a temporary Railway/Render fallback.
+
+### Redeploying to the live server (SSH)
+
+The server already exists and is already set up (see `DEPLOYMENT.md` if you ever need to rebuild it from scratch) -- for a routine update after pushing to `main`, SSH in and pull + rebuild + restart everything:
+
+```bash
+ssh <your-ssh-user>@<vps-ip-or-host>
+cd /opt/sos-dz
+git pull
+source backend-venv/bin/activate
+pip install -r backend/requirements.txt
+cd backend
+python manage.py migrate
+python manage.py collectstatic --noinput
+cd ../frontend
+npm install
+npm run build
+cd ..
+sudo systemctl restart sos-dz-gunicorn
+```
+
+Same thing as one command once you're already SSH'd in and in `/opt/sos-dz`:
+
+```bash
+git pull && source backend-venv/bin/activate && pip install -r backend/requirements.txt && (cd backend && python manage.py migrate && python manage.py collectstatic --noinput) && (cd frontend && npm install && npm run build) && sudo systemctl restart sos-dz-gunicorn
+```
+
+`npm run build` regenerates `frontend/dist/`, which Nginx serves directly -- no restart needed for the frontend, only for Gunicorn (the Django backend). If `moderation-sidecar/package.json` changed, also run:
+
+```bash
+(cd moderation-sidecar && npm install --production) && sudo systemctl restart sos-dz-nsfwjs
+```
+
+Sanity-check after redeploying:
+
+```bash
+sudo systemctl status sos-dz-gunicorn --no-pager
+curl -sS https://sosdz.org/api/config/
+```
 
 ## Security notes
 
