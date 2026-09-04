@@ -138,9 +138,16 @@ class AppConfigurationView(APIView):
         data["needs_open_count"] = Need.objects.filter(
             overall_status__in=[Need.STATUS_OPEN, Need.STATUS_PARTIALLY_COVERED]
         ).count()
+        # country_code="" is the national/Algeria case (see
+        # CollectionPoint.country_code) -- without this filter an
+        # international point would inflate the *national* badge instead
+        # of (or as well as) its own.
         data["collection_points_active_count"] = CollectionPoint.objects.filter(
-            status=CollectionPoint.STATUS_ACTIVE
+            status=CollectionPoint.STATUS_ACTIVE, country_code=""
         ).count()
+        data["international_collection_points_active_count"] = CollectionPoint.objects.filter(
+            status=CollectionPoint.STATUS_ACTIVE
+        ).exclude(country_code="").count()
         data["deliveries_en_route_count"] = Pickup.objects.filter(status=Pickup.STATUS_EN_ROUTE).count()
         return Response(data)
 
