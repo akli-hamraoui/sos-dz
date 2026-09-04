@@ -781,6 +781,12 @@ class CollectionPointViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mix
                 | Q(location_description__icontains=search)
                 | Q(hours__icontains=search)
                 | Q(wilaya__name__icontains=search)
+                # country_name is always blank for a national point and
+                # wilaya always null for an international one, so this and
+                # the wilaya match above are never both relevant to the
+                # same row -- safe to search both unconditionally rather
+                # than branching on scope.
+                | Q(country_name__icontains=search)
             )
         return qs
 

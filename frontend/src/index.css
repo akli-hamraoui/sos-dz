@@ -650,6 +650,13 @@ textarea {
 /* --- Place autocomplete (Nominatim/OpenStreetMap suggestions) --- */
 .place-autocomplete {
   position: relative;
+  /* Only takes effect when this is a direct flex child (e.g. the
+     InternationalCollectionPoints.jsx toolbar's "go to a place" field,
+     alongside .search-input) -- ignored everywhere else (a <label>'s
+     block layout, as in CreateNeed.jsx/CreateCollectionPoint.jsx), so
+     matching .search-input's own sizing here is safe project-wide. */
+  flex: 1 1 220px;
+  min-width: 160px;
 }
 .place-autocomplete input,
 .place-autocomplete textarea {
@@ -1238,7 +1245,7 @@ fieldset {
      space-around distributes free space per item's own width instead,
      which visibly uneven-spaces items with different label lengths. */
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   align-items: center;
   padding: 8px 0 max(8px, env(safe-area-inset-bottom));
   /* Leaflet's own zoom/attribution controls default to z-index: 1000 in

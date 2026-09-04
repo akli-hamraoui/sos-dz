@@ -24,7 +24,7 @@ import InternationalCollectionPoints from './pages/InternationalCollectionPoints
 import CreateInternationalCollectionPoint from './pages/CreateInternationalCollectionPoint'
 import Deliveries from './pages/Deliveries'
 import BackButton from './components/BackButton'
-import { IconHome, IconBox, IconTruck, IconWarning, IconWifiOff, IconCheckCircle, IconMenu, IconClose } from './icons'
+import { IconHome, IconBox, IconGlobe, IconTruck, IconWarning, IconWifiOff, IconCheckCircle, IconMenu, IconClose } from './icons'
 
 // Small "this opens a map" cue on a bottom-nav icon -- Besoins/Points de
 // collecte/Livraisons all default to their map view (see each page's own
@@ -173,6 +173,12 @@ function BottomNav() {
           )}
         </span>
         <span className="nav-label-offset">{t('nav.collectionPointsShort')}</span>
+      </Link>
+      <Link to="/international-collection-points" className={isActive('/international-collection-points') ? 'active' : ''}>
+        <span className="icon">
+          <IconGlobe />
+        </span>
+        <span className="nav-label-offset">{t('nav.internationalCollectionPointsShort')}</span>
       </Link>
       <Link to="/deliveries" className={isActive('/deliveries') ? 'active' : ''}>
         <span className="icon">

@@ -134,22 +134,6 @@ export default function CreateCollectionPoint() {
         <label>
           {t('collectionPoints.pointName')} * <input type="text" value={form.point_name} onChange={set('point_name')} required {...validityProps} />
         </label>
-        <p className="hint">{t('createNeed.contactDetailsHint')}</p>
-        <label>
-          {t('collectionPoints.contactName')} <input type="text" value={form.contact_name} onChange={set('contact_name')} />
-        </label>
-        <label>
-          {t('collectionPoints.contactPhone')} <input type="tel" value={form.contact_phone} onChange={set('contact_phone')} />
-        </label>
-        <label>
-          {t('collectionPoints.otherPhones')}
-          <textarea rows={3} value={form.other_phones} onChange={set('other_phones')} placeholder={t('collectionPoints.otherPhonesPlaceholder')} />
-        </label>
-        <label>
-          {t('createNeed.recoveryCode')}{' '}
-          <input type="text" value={form.recovery_code} onChange={set('recovery_code')} placeholder={t('createNeed.recoveryCodePlaceholder')} minLength={6} {...validityProps} />
-          <span className="hint">{t('createNeed.recoveryCodeHint')}</span>
-        </label>
         <label>
           {t('collectionPoints.organization')} <input type="text" value={form.organization} onChange={set('organization')} />
         </label>
@@ -226,6 +210,32 @@ export default function CreateCollectionPoint() {
         {gpsStatus === 'error' && <p className="error">{t('createNeed.gpsError')}</p>}
         {form.latitude && !gpsStatus && <p>{t('createNeed.gpsCaptured', { lat: form.latitude, lon: form.longitude })}</p>}
         {error && <p className="error">{error}</p>}
+
+        {/* Contact/identity fields last, same convention as every other
+            form in the app (CreateNeed.jsx, TakeCharge.jsx) -- useful only
+            for managing/closing this listing later, not for finding it, so
+            it doesn't need to compete with the actually-descriptive fields
+            above for a reporter's attention. */}
+        <fieldset>
+          <legend>{t('createNeed.contactDetailsLegend')}</legend>
+          <p className="hint">{t('createNeed.contactDetailsHint')}</p>
+          <label>
+            {t('collectionPoints.contactName')} <input type="text" value={form.contact_name} onChange={set('contact_name')} />
+          </label>
+          <label>
+            {t('collectionPoints.contactPhone')} <input type="tel" value={form.contact_phone} onChange={set('contact_phone')} />
+          </label>
+          <label>
+            {t('collectionPoints.otherPhones')}
+            <textarea rows={3} value={form.other_phones} onChange={set('other_phones')} placeholder={t('collectionPoints.otherPhonesPlaceholder')} />
+          </label>
+          <label>
+            {t('createNeed.recoveryCode')}{' '}
+            <input type="text" value={form.recovery_code} onChange={set('recovery_code')} placeholder={t('createNeed.recoveryCodePlaceholder')} minLength={6} {...validityProps} />
+            <span className="hint">{t('createNeed.recoveryCodeHint')}</span>
+          </label>
+        </fieldset>
+
         <button type="submit" className="btn btn-primary">
           {t('collectionPoints.publish')}
         </button>

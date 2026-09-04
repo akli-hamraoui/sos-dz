@@ -168,6 +168,16 @@ export default function InternationalCollectionPoints() {
   return (
     <section className="needs-page">
       <p className="hint">{t('internationalCollectionPoints.intro')}</p>
+      {/* Redirect for the common mix-up (someone meaning to browse/create a
+          point actually located in Algeria, which belongs on the national
+          page instead) -- the flag makes it recognizable at a glance, same
+          idea as the equivalent redirect shown when the *create* form's
+          position turns out to be inside Algeria. */}
+      <p className="hint">
+        <Link className="link field-label-icon" to="/collection-points">
+          🇩🇿 {t('internationalCollectionPoints.goToNationalLink')}
+        </Link>
+      </p>
       <div className="toolbar">
         <PlaceAutocomplete
           value={goToPlace}
@@ -181,7 +191,7 @@ export default function InternationalCollectionPoints() {
           className="search-input"
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
-          placeholder={t('common.searchPlaceholder')}
+          placeholder={t('internationalCollectionPoints.searchPlaceholder')}
         />
         <label>
           {t('internationalCollectionPoints.filterByCountry')}
