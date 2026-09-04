@@ -6,7 +6,6 @@ export default function Home() {
   const { t } = useTranslation()
   return (
     <section className="home">
-      <img src="/logo-icon-wordmark.png" alt={t('common.brand')} className="home-logo" />
       <p className="home-privacy-notice">{t('home.privacyNotice')}</p>
       <p className="home-tagline">{t('home.tagline')}</p>
       <div className="home-actions">
