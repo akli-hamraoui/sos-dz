@@ -325,6 +325,9 @@
     "destination": "الوجهة",
     "filterByDestinationType": "نوع الوجهة",
     "resetFilters": "إعادة تعيين",
+    "filterByPosition": "تصفية حسب الموقع",
+    "positionWith": "له موقع",
+    "positionWithout": "بدون موقع",
     "viewTransporterDetail": "عرض تفاصيل المتطوع"
   },
   "reportBug": {

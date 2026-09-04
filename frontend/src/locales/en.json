@@ -325,6 +325,9 @@
     "destination": "Destination",
     "filterByDestinationType": "Destination type",
     "resetFilters": "Reset",
+    "filterByPosition": "Filter by position",
+    "positionWith": "Has a position",
+    "positionWithout": "No position",
     "viewTransporterDetail": "View transporter details"
   },
   "reportBug": {

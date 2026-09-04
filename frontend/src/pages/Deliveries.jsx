@@ -39,6 +39,11 @@ export default function Deliveries() {
   const [filterWilaya, setFilterWilaya] = useState('')
   const [filterStatus, setFilterStatus] = useState('en_route')
   const [filterDestinationType, setFilterDestinationType] = useState('')
+  // '' (both, default) | 'with' | 'without' -- whether this transporter
+  // currently has a known position (live ping or declared departure
+  // point), same locatedPickupIds truth already used for the list's
+  // "Position indisponible" badge and the map's unknown-position bubble.
+  const [filterPosition, setFilterPosition] = useState('')
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
   const [pickups, setPickups] = useState([])
@@ -51,12 +56,21 @@ export default function Deliveries() {
   // neither and so are never on the map at all (never "position
   // unavailable" purely by omission -- see the .noPosition list below).
   const [locatedPickupIds, setLocatedPickupIds] = useState(() => new Set())
+  // The position filter applied on top of the server-side-filtered
+  // `pickups` -- client-side, since locatedPickupIds is itself only known
+  // client-side (derived from the separate live-locations fetch below).
+  const filteredPickups = pickups.filter((p) => {
+    if (filterPosition === 'with') return locatedPickupIds.has(p.id)
+    if (filterPosition === 'without') return !locatedPickupIds.has(p.id)
+    return true
+  })
   // How many of the currently-filtered en_route deliveries have neither a
   // live ping nor a declared departure position -- shown as one grey
   // "count" bubble on the map (never as individual invented markers, see
   // renderLiveLocations below) so a courier count isn't silently missing
-  // from the map with no indication they exist at all.
-  const unknownPositionCount = pickups.filter((p) => p.status === 'en_route' && !locatedPickupIds.has(p.id)).length
+  // from the map with no indication they exist at all. Naturally 0 (bubble
+  // hidden) once filterPosition === 'with' excludes every unlocated one.
+  const unknownPositionCount = filteredPickups.filter((p) => p.status === 'en_route' && !locatedPickupIds.has(p.id)).length
   const mapRef = useRef(null)
   const mapElRef = useRef(null)
   const markersRef = useRef([])
@@ -82,11 +96,12 @@ export default function Deliveries() {
     setPickups(data.results || data)
   }, [filterWilaya, filterStatus, filterDestinationType, search])
 
-  const hasActiveFilters = !!(filterWilaya || filterDestinationType || searchInput || filterStatus !== 'en_route')
+  const hasActiveFilters = !!(filterWilaya || filterDestinationType || filterPosition || searchInput || filterStatus !== 'en_route')
   const resetFilters = () => {
     setFilterWilaya('')
     setFilterStatus('en_route')
     setFilterDestinationType('')
+    setFilterPosition('')
     setSearchInput('')
   }
 
@@ -107,8 +122,17 @@ export default function Deliveries() {
       }
       // Updated regardless of viewMode -- the list view's "no position"
       // flagging (below) needs this even when the map itself isn't mounted.
+      // Always computed from the full, unfiltered fetch (never invented
+      // from a filtered subset) since it's also this page's one source of
+      // truth for "does this pickup have a position at all".
       setLocatedPickupIds(new Set(locations.map((l) => l.pickup_id)))
       if (!mapElRef.current) return
+      // Every entry here inherently has a position (that's what this
+      // endpoint returns) -- filterPosition === 'without' means "only show
+      // transporters without one", which this map can't place individual
+      // pins for (no coordinates to place them at), so it shows none here
+      // and lets the unknown-position bubble below carry that count instead.
+      const locationsToRender = filterPosition === 'without' ? [] : locations
       if (!mapRef.current) {
         mapRef.current = L.map(mapElRef.current, {
           attributionControl: false,
@@ -154,7 +178,7 @@ export default function Deliveries() {
         iconSize: [30, 30],
         iconAnchor: [15, 15],
       })
-      markersRef.current = locations.map((loc) => {
+      markersRef.current = locationsToRender.map((loc) => {
         // Exactly one of the need_*/collection_point_* pairs is populated,
         // matching whichever this delivery is headed to/from -- see
         // PickupViewSet.live_locations.
@@ -199,17 +223,17 @@ export default function Deliveries() {
         return marker
       })
       if (fitView) {
-        if (locations.length > 1) {
-          map.fitBounds(L.latLngBounds(locations.map((l) => [l.latitude, l.longitude])).pad(0.3), { maxZoom: 13 })
-        } else if (locations.length === 1) {
-          map.setView([locations[0].latitude, locations[0].longitude], 13)
+        if (locationsToRender.length > 1) {
+          map.fitBounds(L.latLngBounds(locationsToRender.map((l) => [l.latitude, l.longitude])).pad(0.3), { maxZoom: 13 })
+        } else if (locationsToRender.length === 1) {
+          map.setView([locationsToRender[0].latitude, locationsToRender[0].longitude], 13)
         } else {
           map.setView([28.0, 2.6], 5) // whole-country fallback, nothing to frame yet
         }
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [t]
+    [t, filterPosition]
   )
 
   useEffect(() => {
@@ -280,6 +304,14 @@ export default function Deliveries() {
             <option value="collection_point">{t('needsList.collectionPointLabel')}</option>
           </select>
         </label>
+        <label>
+          {t('deliveries.filterByPosition')}
+          <select value={filterPosition} onChange={(e) => setFilterPosition(e.target.value)}>
+            <option value="">{t('needsList.all')}</option>
+            <option value="with">{t('deliveries.positionWith')}</option>
+            <option value="without">{t('deliveries.positionWithout')}</option>
+          </select>
+        </label>
         {hasActiveFilters && (
           <button type="button" className="btn" onClick={resetFilters}>
             {t('deliveries.resetFilters')}
@@ -311,9 +343,9 @@ export default function Deliveries() {
 
       {viewMode === 'list' && (
         <>
-          {pickups.length === 0 && <p>{t('deliveries.noDeliveries')}</p>}
+          {filteredPickups.length === 0 && <p>{t('deliveries.noDeliveries')}</p>}
           <div className="needs-list">
-            {pickups.map((p) => {
+            {filteredPickups.map((p) => {
               const isCollectionPoint = !!p.collection_point
               const destinationName = isCollectionPoint ? p.collection_point_name : p.need_title
               const destinationWilaya = isCollectionPoint ? p.collection_point_wilaya_name : p.need_wilaya_name
