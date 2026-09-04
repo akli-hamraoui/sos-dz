@@ -306,8 +306,6 @@
     "en": "English"
   },
   "deliveries": {
-    "filterByStatus": "Filtrer par statut",
-    "statusAll": "Tous les statuts",
     "noDeliveries": "Aucune livraison pour le moment.",
     "bringing": "Apporte",
     "responder": "Livreur/livreuse",
@@ -323,7 +321,6 @@
     "unknownPosition": "Position inconnue",
     "vehicle": "Véhicule",
     "destination": "Destination",
-    "filterByDestinationType": "Type de destination",
     "resetFilters": "Réinitialiser",
     "filterByPosition": "Filtrer par position",
     "positionWith": "Avec position",

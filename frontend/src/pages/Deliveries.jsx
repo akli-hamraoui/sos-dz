@@ -15,8 +15,6 @@ import { IconTruck } from '../icons'
 // rather than a generic dark pin.
 const TRUCK_GREEN = '#2f6b52'
 
-const STATUSES = ['en_route', 'delivered', 'cancelled']
-
 // Maps Pickup.responder_type values to the same labels already used at
 // take-charge time (TakeCharge.jsx) -- reused here as the closest existing
 // concept to "vehicle/type of transporter" rather than inventing a new label set.
@@ -37,8 +35,6 @@ export default function Deliveries() {
   const { t, i18n } = useTranslation()
   const { activeCampaignWilayas, pickupTokens } = useApp()
   const [filterWilaya, setFilterWilaya] = useState('')
-  const [filterStatus, setFilterStatus] = useState('en_route')
-  const [filterDestinationType, setFilterDestinationType] = useState('')
   // '' (both, default) | 'with' | 'without' -- whether this transporter
   // currently has a known position (live ping or declared departure
   // point), same locatedPickupIds truth already used for the list's
@@ -88,19 +84,15 @@ export default function Deliveries() {
   const load = useCallback(async () => {
     const params = new URLSearchParams()
     if (filterWilaya) params.set('wilaya', filterWilaya)
-    if (filterStatus) params.set('status', filterStatus)
-    if (filterDestinationType) params.set('destination_type', filterDestinationType)
     if (search) params.set('search', search)
     const qs = params.toString() ? `?${params.toString()}` : ''
     const data = await api(`/pickups/${qs}`)
     setPickups(data.results || data)
-  }, [filterWilaya, filterStatus, filterDestinationType, search])
+  }, [filterWilaya, search])
 
-  const hasActiveFilters = !!(filterWilaya || filterDestinationType || filterPosition || searchInput || filterStatus !== 'en_route')
+  const hasActiveFilters = !!(filterWilaya || filterPosition || searchInput)
   const resetFilters = () => {
     setFilterWilaya('')
-    setFilterStatus('en_route')
-    setFilterDestinationType('')
     setFilterPosition('')
     setSearchInput('')
   }
@@ -270,17 +262,6 @@ export default function Deliveries() {
           onChange={(e) => setSearchInput(e.target.value)}
           placeholder={t('deliveries.searchPlaceholder')}
         />
-        <label>
-          {t('deliveries.filterByStatus')}
-          <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
-            <option value="">{t('deliveries.statusAll')}</option>
-            {STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {t(`status.${s}`)}
-              </option>
-            ))}
-          </select>
-        </label>
         {/* Destination info -- wilaya here is the destination's wilaya
             (need/collection point), not the courier's current position,
             same as the search box above already matching destination
@@ -294,14 +275,6 @@ export default function Deliveries() {
                 {w.name}
               </option>
             ))}
-          </select>
-        </label>
-        <label>
-          {t('deliveries.filterByDestinationType')}
-          <select value={filterDestinationType} onChange={(e) => setFilterDestinationType(e.target.value)}>
-            <option value="">{t('needsList.all')}</option>
-            <option value="need">{t('takeCharge.resourceTypeNeed')}</option>
-            <option value="collection_point">{t('needsList.collectionPointLabel')}</option>
           </select>
         </label>
         <label>
