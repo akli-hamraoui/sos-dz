@@ -674,7 +674,23 @@ class CollectionPoint(models.Model):
     STATUS_ACTIVE, STATUS_CLOSED = "active", "closed"
     STATUS_CHOICES = [(STATUS_ACTIVE, "Active"), (STATUS_CLOSED, "Closed")]
 
-    wilaya = models.ForeignKey(Wilaya, on_delete=models.PROTECT, related_name="collection_points")
+    # Null only for an international point (see country_code below) -- a
+    # national one always has a wilaya, same as before.
+    wilaya = models.ForeignKey(Wilaya, on_delete=models.PROTECT, related_name="collection_points", null=True, blank=True)
+    # Blank means "national" (Algeria, uses wilaya above) -- the original
+    # and still by far the common case. A non-blank ISO 3166-1 alpha-2 code
+    # (never "DZ", enforced in CollectionPointCreateSerializer.validate)
+    # marks an international collection point instead: no wilaya, an exact
+    # latitude/longitude is mandatory (there's no wilaya centroid to fall
+    # back on), and it's created/browsed from a separate page
+    # (InternationalCollectionPoints.jsx) that never shows or is shown to
+    # couriers -- see Pickup.collection_point's own validation, which
+    # refuses to ever attach a delivery to one of these.
+    country_code = models.CharField(max_length=2, blank=True)
+    # Display snapshot captured at creation time (e.g. "France") rather
+    # than re-deriving a name from country_code on every read -- simpler
+    # than adding a Country lookup table for what's otherwise just a label.
+    country_name = models.CharField(max_length=100, blank=True)
     point_name = models.CharField(max_length=200)
     # Issued at creation, same shape as Need/Pickup's own access_token
     # (IdentityListingMixin) -- lets a creator "recover access" via
@@ -739,6 +755,10 @@ class CollectionPoint(models.Model):
         # Permanent stub -- see the access_token field comment above. Always
         # False since there is no anonymization concept for CollectionPoint.
         return False
+
+    @property
+    def is_international(self):
+        return bool(self.country_code)
 
     def regenerate_token(self):
         self.access_token = generate_token()

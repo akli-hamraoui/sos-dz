@@ -26,6 +26,8 @@ const MATCHERS = [
   { match: "Exactly one of 'need' or 'collection_point' must be set.", key: 'commentTargetInvalid' },
   { match: 'Replies cannot themselves be replied to (one level of nesting only).', key: 'commentReplyTooDeep' },
   { match: 'These coordinates fall outside Algeria and were rejected. Please use the wilaya + description fields instead.', key: 'coordinatesOutsideAlgeria' },
+  { match: 'An exact position (map pin) is required for an international collection point.', key: 'internationalPositionRequired' },
+  { match: "International collection points don't accept deliveries or couriers.", key: 'internationalNoDeliveries' },
   { match: 'The recovery code must be at least 6 characters long.', key: 'recoveryCodeTooShort' },
   { match: 'This recovery code is already in use. Please choose a different one.', key: 'recoveryCodeTaken' },
   { match: 'The app is currently in read-only mode. Existing data remains viewable.', key: 'readOnlyMode' },

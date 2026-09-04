@@ -83,16 +83,39 @@ export function isInAlgeria(lat, lon) {
 
 const NOMINATIM_BASE = 'https://nominatim.openstreetmap.org'
 
-// Free-text place search via Nominatim (OpenStreetMap), restricted to
-// Algeria. Best-effort only: any network/CORS failure just means no
-// suggestions show up -- the caller always keeps whatever the visitor
-// actually typed regardless (see components/PlaceAutocomplete.jsx), so a
-// place that isn't in OSM's data never blocks a report from going through.
-export async function searchPlaces(query, lang, signal) {
-  const url = `${NOMINATIM_BASE}/search?format=json&countrycodes=dz&addressdetails=0&limit=6&accept-language=${lang}&q=${encodeURIComponent(query)}`
+// Free-text place search via Nominatim (OpenStreetMap). Restricted to
+// Algeria by default (countryCode omitted) for every national form; pass an
+// ISO 3166-1 alpha-2 code to restrict to a different single country instead
+// (InternationalCollectionPoints.jsx's country filter), or the literal
+// string 'any' for a worldwide search with no restriction at all (that
+// page's own "go to a place/street" search, so typing "Paris" or a street
+// address works before a country is even picked). Best-effort only: any
+// network/CORS failure just means no suggestions show up -- the caller
+// always keeps whatever the visitor actually typed regardless (see
+// components/PlaceAutocomplete.jsx), so a place that isn't in OSM's data
+// never blocks a report from going through.
+export async function searchPlaces(query, lang, signal, countryCode = 'dz') {
+  const countryParam = countryCode === 'any' ? '' : `&countrycodes=${countryCode.toLowerCase()}`
+  const url = `${NOMINATIM_BASE}/search?format=json&addressdetails=0&limit=6&accept-language=${lang}${countryParam}&q=${encodeURIComponent(query)}`
   const resp = await fetch(url, { signal })
   if (!resp.ok) throw new Error('Place search failed')
   return resp.json()
+}
+
+// Geocodes a whole country (by its ISO code) to a bounding box, so
+// InternationalCollectionPoints.jsx can zoom its map to roughly the right
+// place as soon as a country is picked from the filter, before any
+// individual collection point or street search narrows it further.
+// Best-effort: the caller falls back to a world view on any failure.
+export async function geocodeCountryBounds(countryCode, lang) {
+  const url = `${NOMINATIM_BASE}/search?format=json&addressdetails=0&limit=1&featureType=country&accept-language=${lang}&countrycodes=${countryCode.toLowerCase()}&q=${encodeURIComponent(countryCode)}`
+  const resp = await fetch(url)
+  if (!resp.ok) throw new Error('Country geocode failed')
+  const data = await resp.json()
+  const hit = data[0]
+  if (!hit || !hit.boundingbox) return null
+  const [south, north, west, east] = hit.boundingbox.map(Number)
+  return { south, north, west, east }
 }
 
 // Reverse-geocodes a GPS position into a human-readable place name --

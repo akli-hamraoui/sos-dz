@@ -220,9 +220,22 @@ export default function CollectionPoints() {
             {t('needsList.map')}
           </button>
         </div>
-        <Link className="btn btn-primary" to="/collection-points/create">
-          {t('collectionPoints.addButton')}
-        </Link>
+        {/* Grouped and matched (equal flex share, wraps as a pair) rather
+            than two independently-sized buttons trailing the toolbar --
+            see .toolbar-actions. */}
+        <div className="toolbar-actions">
+          <Link className="btn btn-primary" to="/collection-points/create">
+            {t('collectionPoints.addButton')}
+          </Link>
+          {/* Entry point to the separate worldwide page (any country, no
+              Algeria restriction) -- see InternationalCollectionPoints.jsx.
+              A clearly distinct destination, not a filter on this page,
+              since it has its own map default (visitor position, no wilaya
+              concept) and never shows couriers/take-charge. */}
+          <Link className="btn" to="/international-collection-points">
+            {t('internationalCollectionPoints.navButton')}
+          </Link>
+        </div>
       </div>
 
       {viewMode === 'list' && (

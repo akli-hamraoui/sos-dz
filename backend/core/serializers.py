@@ -19,7 +19,7 @@ from core.models import (
     Wilaya,
 )
 from core.media_validation import validate_video_duration, validate_video_size
-from core.validators import check_recovery_code_available, validate_algeria_bounds, validate_social_url
+from core.validators import check_recovery_code_available, is_within_algeria_bounds, validate_algeria_bounds, validate_social_url
 
 
 class ModeratedPhotoMixin:
@@ -284,6 +284,8 @@ class PickupCreateSerializer(serializers.ModelSerializer):
     def validate_collection_point(self, collection_point):
         if collection_point.status != CollectionPoint.STATUS_ACTIVE:
             raise serializers.ValidationError("This collection point is closed.")
+        if collection_point.is_international:
+            raise serializers.ValidationError("International collection points don't accept deliveries or couriers.")
         return collection_point
 
     def validate_recovery_code(self, value):
@@ -581,24 +583,33 @@ class CommentCreateSerializer(serializers.ModelSerializer):
 
 
 class CollectionPointSerializer(serializers.ModelSerializer):
-    wilaya_name = serializers.CharField(source="wilaya.name", read_only=True)
+    # SerializerMethodField, not CharField(source="wilaya.name") -- an
+    # international point has no wilaya at all (see is_international below).
+    wilaya_name = serializers.SerializerMethodField()
     comments = serializers.SerializerMethodField()
     flyer_image = serializers.SerializerMethodField()
+    is_international = serializers.BooleanField(read_only=True)
     # Same "a listing carries its own pickups" convention as
     # NeedPublicSerializer -- lets a courier's take-charge/delivery from
     # this collection point (and its live tracking state) show up on the
-    # point's own detail page, same UI/logic as a Need's pickups.
+    # point's own detail page, same UI/logic as a Need's pickups. Always
+    # empty for an international point -- Pickup.collection_point rejects
+    # ever attaching a delivery to one (see PickupCreateSerializer).
     pickups = PickupPublicSerializer(many=True, read_only=True)
 
     class Meta:
         model = CollectionPoint
         fields = [
-            "id", "wilaya", "wilaya_name", "point_name", "contact_name", "contact_phone",
+            "id", "wilaya", "wilaya_name", "country_code", "country_name", "is_international",
+            "point_name", "contact_name", "contact_phone",
             "other_phones", "organization", "location_description", "latitude", "longitude", "hours",
             "accepted_donations", "status", "created_at", "comments", "pickups",
             "facebook_url", "tiktok_url", "instagram_url",
             "flyer_image", "flyer_moderation_status", "flyer_moderated_by",
         ]
+
+    def get_wilaya_name(self, obj):
+        return obj.wilaya.name if obj.wilaya_id else None
 
     def get_comments(self, obj):
         roots = obj.comments.filter(parent_comment__isnull=True)
@@ -618,10 +629,12 @@ class CollectionPointSerializer(serializers.ModelSerializer):
 
 
 class CollectionPointCreateSerializer(serializers.ModelSerializer):
+    wilaya = serializers.PrimaryKeyRelatedField(queryset=Wilaya.objects.all(), required=False, allow_null=True)
+
     class Meta:
         model = CollectionPoint
         fields = [
-            "wilaya", "point_name", "contact_name", "contact_phone", "other_phones",
+            "wilaya", "country_code", "country_name", "point_name", "contact_name", "contact_phone", "other_phones",
             "organization", "location_description", "latitude", "longitude", "hours",
             "accepted_donations", "facebook_url", "tiktok_url", "instagram_url", "flyer_image",
             "recovery_code",
@@ -641,8 +654,33 @@ class CollectionPointCreateSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         lat, lon = attrs.get("latitude"), attrs.get("longitude")
-        if lat is not None or lon is not None:
+        country_code = (attrs.get("country_code") or "").strip().upper()
+        if country_code:
+            # International (see CollectionPoint.country_code) -- created
+            # from a separate page (InternationalCollectionPoints.jsx) that
+            # never offers Algeria as a country choice in the first place;
+            # this is the server-side backstop against a direct API call.
+            if country_code == "DZ":
+                raise serializers.ValidationError("Algeria is not a valid country for an international collection point.")
+            if attrs.get("wilaya") is not None:
+                raise serializers.ValidationError("An international collection point cannot have a wilaya.")
+            if lat is None or lon is None:
+                raise serializers.ValidationError("An exact position (map pin) is required for an international collection point.")
+            if is_within_algeria_bounds(lat, lon):
+                # Distinct, matchable message (see apiErrors.js/the
+                # international create page) -- rendered with an actual
+                # link to the national create page, not just plain text.
+                raise serializers.ValidationError(
+                    {"latitude": ["This position is in Algeria. Please use the national collection points page instead."]}
+                )
+            attrs["country_code"] = country_code
+            attrs["country_name"] = (attrs.get("country_name") or "").strip() or country_code
+        else:
+            if attrs.get("wilaya") is None:
+                raise serializers.ValidationError("Wilaya is required for a national collection point.")
             validate_algeria_bounds(lat, lon)
+            attrs["country_code"] = ""
+            attrs["country_name"] = ""
         # contact_name/contact_phone are both optional, but a point with
         # neither and no recovery_code either would have absolutely no way
         # for its creator to prove ownership later (see matches_creator's
@@ -657,26 +695,38 @@ class CollectionPointCreateSerializer(serializers.ModelSerializer):
 
 
 class CollectionPointMapPinSerializer(serializers.ModelSerializer):
-    wilaya_name = serializers.CharField(source="wilaya.name", read_only=True)
+    wilaya_name = serializers.SerializerMethodField()
     display_latitude = serializers.SerializerMethodField()
     display_longitude = serializers.SerializerMethodField()
     has_exact_position = serializers.SerializerMethodField()
+    is_international = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = CollectionPoint
         fields = [
             "id", "point_name", "contact_name", "contact_phone", "organization", "hours",
-            "status", "wilaya_name", "display_latitude", "display_longitude", "has_exact_position",
+            "status", "wilaya_name", "country_name", "is_international",
+            "display_latitude", "display_longitude", "has_exact_position",
         ]
+
+    def get_wilaya_name(self, obj):
+        return obj.wilaya.name if obj.wilaya_id else None
 
     def get_has_exact_position(self, obj):
         return obj.latitude is not None
 
     def get_display_latitude(self, obj):
-        return obj.latitude if obj.latitude is not None else obj.wilaya.centroid_latitude
+        # International points always carry an exact position (enforced at
+        # creation, see CollectionPointCreateSerializer) -- no wilaya
+        # centroid to fall back on the way a national one would.
+        if obj.latitude is not None or obj.wilaya_id is None:
+            return obj.latitude
+        return obj.wilaya.centroid_latitude
 
     def get_display_longitude(self, obj):
-        return obj.longitude if obj.longitude is not None else obj.wilaya.centroid_longitude
+        if obj.longitude is not None or obj.wilaya_id is None:
+            return obj.longitude
+        return obj.wilaya.centroid_longitude
 
 
 class CollectionPointCloseSerializer(serializers.Serializer):

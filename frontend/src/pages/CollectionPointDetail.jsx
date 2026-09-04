@@ -91,14 +91,17 @@ export default function CollectionPointDetail() {
     <section className="detail-page">
       <div className="detail-title-row">
         <h2>{cp.point_name}</h2>
-        {cp.status === 'active' && (
+        {/* Never offered for an international point -- couriers/drivers
+            only ever operate in Algeria, and Pickup creation rejects one
+            targeting this kind of point server-side regardless. */}
+        {cp.status === 'active' && !cp.is_international && (
           <button className="btn btn-success" onClick={() => navigate(`/collection-points/${id}/take-charge`)}>
             {t('collectionPoints.takeChargeDelivery')}
           </button>
         )}
       </div>
       <span className="status">{t(`status.${cp.status}`)}</span>
-      <p>{cp.wilaya_name}</p>
+      <p>{cp.is_international ? cp.country_name : cp.wilaya_name}</p>
       <p>{cp.location_description}</p>
       {cp.latitude != null && cp.longitude != null ? (
         <p>
@@ -178,10 +181,17 @@ export default function CollectionPointDetail() {
           </div>
         ))}
 
-      {cp.status === 'active' && <h3>{t('needDetail.pickupsTitle', { count: cp.pickups.length })}</h3>}
-      {cp.pickups.map((p) => (
-        <PickupManager key={p.id} pickup={p} pickupToken={pickupTokens[p.id]} onChange={load} />
-      ))}
+      {/* Always empty for an international point -- no take-charge ever
+          possible, so this whole section (and its "(0)" count) is just
+          noise there and is skipped entirely. */}
+      {!cp.is_international && (
+        <>
+          {cp.status === 'active' && <h3>{t('needDetail.pickupsTitle', { count: cp.pickups.length })}</h3>}
+          {cp.pickups.map((p) => (
+            <PickupManager key={p.id} pickup={p} pickupToken={pickupTokens[p.id]} onChange={load} />
+          ))}
+        </>
+      )}
 
       {SOCIAL_NETWORKS.some(({ field }) => isSafeHttpUrl(cp[field])) && (
         <div className="social-links-section">

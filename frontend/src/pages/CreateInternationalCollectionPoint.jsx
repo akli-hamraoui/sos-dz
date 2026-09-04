@@ -1,15 +1,22 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useApp } from '../context/AppContext'
-import { api, apiUpload } from '../api'
-import { isInAlgeria, reverseGeocodePlace, validityMessageProps } from '../utils'
+import { apiUpload } from '../api'
+import { validityMessageProps } from '../utils'
 import { translateApiError } from '../apiErrors'
+import { countryOptions } from '../countries'
 import PlaceAutocomplete from '../components/PlaceAutocomplete'
-import { IconFacebook, IconTikTok, IconInstagram, IconCamera, IconTrash } from '../icons'
+import { IconFacebook, IconTikTok, IconInstagram, IconCamera, IconTrash, IconMapPin } from '../icons'
 
+// International counterpart to CreateCollectionPoint.jsx -- same fields
+// and identity/close logic (contact name/phone or recovery code, flyer,
+// social links), minus wilaya (replaced with a country picker) and minus
+// anything related to couriers/take-charge, which this kind of point never
+// offers (see CollectionPointDetail.jsx and Pickup's own server-side
+// rejection of a delivery targeting an international point).
 const DEFAULT_FORM = {
-  wilaya: '',
+  country_code: '',
   point_name: '',
   contact_name: '',
   contact_phone: '',
@@ -22,17 +29,27 @@ const DEFAULT_FORM = {
   facebook_url: '',
   tiktok_url: '',
   instagram_url: '',
+  latitude: null,
+  longitude: null,
 }
 
-export default function CreateCollectionPoint() {
+// Exact match with CollectionPointCreateSerializer.validate's own message
+// (backend/core/serializers.py) -- this one case gets a real <Link> to the
+// national create page rather than plain translated text, so it's special-
+// cased here instead of going through apiErrors.js's string-only matchers.
+const ALGERIA_POSITION_MESSAGE = 'This position is in Algeria. Please use the national collection points page instead.'
+
+export default function CreateInternationalCollectionPoint() {
   const { t, i18n } = useTranslation()
   const navigate = useNavigate()
-  const { activeCampaignWilayas, wilayas, config, refreshConfig, saveCpToken } = useApp()
+  const { config, saveCpToken } = useApp()
   const validityProps = validityMessageProps(t)
   const [form, setForm] = useState(DEFAULT_FORM)
   const [gpsStatus, setGpsStatus] = useState(null) // null | 'locating' | 'error'
-  const [error, setError] = useState('')
+  const [error, setError] = useState('') // string | 'ALGERIA_POSITION'
   const [flyer, setFlyer] = useState(null) // { file, previewUrl } | null
+
+  const countries = countryOptions(i18n.language)
 
   const addFlyer = (e) => {
     const file = e.target.files[0]
@@ -54,32 +71,9 @@ export default function CreateCollectionPoint() {
     }
     setGpsStatus('locating')
     navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        let { latitude, longitude } = pos.coords
-        // See CreateNeed.jsx for why: an admin testing from outside
-        // Algeria gets Algiers instead of a "coordinates outside
-        // Algeria" error on submit.
-        if (!isInAlgeria(latitude, longitude) && config.is_admin) {
-          const alger = wilayas.find((w) => w.name === 'Alger')
-          if (alger && alger.centroid_latitude != null) {
-            latitude = alger.centroid_latitude
-            longitude = alger.centroid_longitude
-          }
-        }
+      (pos) => {
         setGpsStatus(null)
-        setForm((f) => ({ ...f, latitude, longitude }))
-        try {
-          const suggestion = await api(`/wilayas/nearest/?lat=${latitude}&lon=${longitude}`)
-          setForm((f) => (f.wilaya ? f : { ...f, wilaya: suggestion.id }))
-        } catch {
-          /* best-effort */
-        }
-        try {
-          const place = await reverseGeocodePlace(latitude, longitude, i18n.language)
-          if (place) setForm((f) => ({ ...f, location_description: place }))
-        } catch {
-          /* best-effort only -- the field just stays whatever it already was */
-        }
+        setForm((f) => ({ ...f, latitude: pos.coords.latitude, longitude: pos.coords.longitude }))
       },
       () => setGpsStatus('error'),
       { timeout: 8000 }
@@ -95,22 +89,21 @@ export default function CreateCollectionPoint() {
     e.preventDefault()
     setError('')
     try {
+      const country = countries.find((c) => c.code === form.country_code)
       const formData = new FormData()
       Object.entries(form).forEach(([k, v]) => {
         if (v !== null && v !== undefined && v !== '') formData.append(k, v)
       })
+      if (country) formData.append('country_name', country.name)
       if (flyer) formData.append('flyer_image', flyer.file, flyer.file.name || 'flyer.jpg')
       const point = await apiUpload('/collection-points/', formData)
       saveCpToken(point.id, point.access_token)
-      refreshConfig()
       navigate(`/collection-points/${point.id}`)
     } catch (err) {
-      // Temporary diagnostic: a raw client-side failure (thrown before/
-      // instead of a proper API error -- network down, an unhandled JS
-      // exception, etc.) has no translated message and falls back to the
-      // generic apology, which hides the actual cause. Admins get the raw
-      // status/message appended so a bug can be diagnosed from a phone
-      // with no access to browser devtools.
+      if (err.data?.latitude?.[0] === ALGERIA_POSITION_MESSAGE) {
+        setError('ALGERIA_POSITION')
+        return
+      }
       const friendly = translateApiError(err, t)
       setError(config.is_admin ? `${friendly} [debug: status=${err.status ?? 'none'} message="${err.message}"]` : friendly)
     }
@@ -118,15 +111,20 @@ export default function CreateCollectionPoint() {
 
   return (
     <section className="form-page">
-      <h2>{t('collectionPoints.createTitle')}</h2>
+      <h2>{t('internationalCollectionPoints.createTitle')}</h2>
+      <p className="hint">
+        <Link className="link field-label-icon" to="/collection-points/create">
+          🇩🇿 {t('internationalCollectionPoints.goToNationalLink')}
+        </Link>
+      </p>
       <form onSubmit={submit}>
         <label>
-          {t('createNeed.wilaya')} *
-          <select value={form.wilaya} onChange={set('wilaya')} required {...validityProps}>
+          {t('internationalCollectionPoints.country')} *
+          <select value={form.country_code} onChange={set('country_code')} required {...validityProps}>
             <option value="">{t('createNeed.selectPlaceholder')}</option>
-            {activeCampaignWilayas.map((w) => (
-              <option key={w.id} value={w.id}>
-                {w.name}
+            {countries.map((c) => (
+              <option key={c.code} value={c.code}>
+                {c.name}
               </option>
             ))}
           </select>
@@ -147,6 +145,7 @@ export default function CreateCollectionPoint() {
               setGpsStatus(null)
               setForm((f) => ({ ...f, latitude: lat, longitude: lon }))
             }}
+            countryCode={form.country_code || 'any'}
             required
             onInvalid={validityProps.onInvalid}
           />
@@ -196,8 +195,8 @@ export default function CreateCollectionPoint() {
           <input type="url" value={form.instagram_url} onChange={set('instagram_url')} placeholder={t('collectionPoints.instagramPlaceholder')} />
         </label>
         <div className="gps-controls">
-          <button type="button" className="btn" onClick={useMyLocation} disabled={gpsStatus === 'locating'}>
-            {t('createNeed.useMyLocation')}
+          <button type="button" className="btn btn-icon" onClick={useMyLocation} disabled={gpsStatus === 'locating'}>
+            <IconMapPin width={16} height={16} strokeWidth={2} /> {t('createNeed.useMyLocation')}
           </button>
           {(gpsStatus === 'error' || form.latitude) && (
             <button type="button" className="link" onClick={clearLocation}>
@@ -205,11 +204,20 @@ export default function CreateCollectionPoint() {
             </button>
           )}
         </div>
-        {!config.is_admin && <p className="hint">{t('createNeed.gpsAlgeriaOnly')}</p>}
+        <p className="hint">{t('internationalCollectionPoints.exactPositionRequired')}</p>
         {gpsStatus === 'locating' && <p className="hint">{t('createNeed.gpsLocating')}</p>}
         {gpsStatus === 'error' && <p className="error">{t('createNeed.gpsError')}</p>}
         {form.latitude && !gpsStatus && <p>{t('createNeed.gpsCaptured', { lat: form.latitude, lon: form.longitude })}</p>}
-        {error && <p className="error">{error}</p>}
+        {error === 'ALGERIA_POSITION' ? (
+          <p className="error">
+            {t('internationalCollectionPoints.positionInAlgeria')}{' '}
+            <Link className="link" to="/collection-points/create">
+              {t('internationalCollectionPoints.positionInAlgeriaLink')}
+            </Link>
+          </p>
+        ) : (
+          error && <p className="error">{error}</p>
+        )}
 
         {/* Contact/identity fields last, same convention as every other
             form in the app (CreateNeed.jsx, TakeCharge.jsx) -- useful only

@@ -11,16 +11,23 @@ from django.core.validators import URLValidator
 from rest_framework import serializers
 
 
+def is_within_algeria_bounds(latitude, longitude):
+    """Plain boolean check, no exception -- shared by validate_algeria_bounds
+    below (national listings must be inside) and CollectionPointCreateSerializer
+    (an international point must be outside, see that file)."""
+    if latitude is None or longitude is None:
+        return False
+    box = settings.ALGERIA_BOUNDING_BOX
+    return box["lat_min"] <= latitude <= box["lat_max"] and box["lon_min"] <= longitude <= box["lon_max"]
+
+
 def validate_algeria_bounds(latitude, longitude):
     """Raises serializers.ValidationError if the pair falls outside Algeria.
     Callers should catch this and gracefully fall back to manual entry
     (wilaya + text description) rather than hard-failing the whole form."""
     if latitude is None or longitude is None:
         return
-    box = settings.ALGERIA_BOUNDING_BOX
-    if not (box["lat_min"] <= latitude <= box["lat_max"]) or not (
-        box["lon_min"] <= longitude <= box["lon_max"]
-    ):
+    if not is_within_algeria_bounds(latitude, longitude):
         raise serializers.ValidationError(
             "These coordinates fall outside Algeria and were rejected. "
             "Please use the wilaya + description fields instead."

@@ -20,9 +20,11 @@ import Legal from './pages/Legal'
 import CollectionPoints from './pages/CollectionPoints'
 import CreateCollectionPoint from './pages/CreateCollectionPoint'
 import CollectionPointDetail from './pages/CollectionPointDetail'
+import InternationalCollectionPoints from './pages/InternationalCollectionPoints'
+import CreateInternationalCollectionPoint from './pages/CreateInternationalCollectionPoint'
 import Deliveries from './pages/Deliveries'
 import BackButton from './components/BackButton'
-import { IconHome, IconBox, IconTruck, IconWarning, IconWifiOff, IconCheckCircle, IconMenu, IconClose } from './icons'
+import { IconHome, IconBox, IconGlobe, IconTruck, IconWarning, IconWifiOff, IconCheckCircle, IconMenu, IconClose } from './icons'
 
 // Small "this opens a map" cue on a bottom-nav icon -- Besoins/Points de
 // collecte/Livraisons all default to their map view (see each page's own
@@ -72,6 +74,8 @@ const PAGE_TITLE_KEYS = {
   '/create': 'nav.iNeedHelp',
   '/collection-points': 'nav.collectionPoints',
   '/collection-points/create': 'collectionPoints.createTitle',
+  '/international-collection-points': 'internationalCollectionPoints.navButton',
+  '/international-collection-points/create': 'internationalCollectionPoints.createTitle',
   '/deliveries': 'nav.deliveries',
   '/support': 'support.title',
   '/report-bug': 'reportBug.title',
@@ -168,7 +172,27 @@ function BottomNav() {
             <span className="nav-badge">{formatBadgeCount(config.collection_points_active_count)}</span>
           )}
         </span>
-        <span className="nav-label-offset">{t('nav.collectionPointsShort')}</span>
+        {/* Two explicit lines (not organic wrapping, which the rest of
+            this bar deliberately avoids -- see the historical note on
+            .bottom-nav a's own white-space: nowrap) so this tab and its
+            international sibling below read as a clearly labeled pair
+            rather than the cryptic single-word "Collectes" this used to
+            say before that sibling existed. */}
+        <span className="nav-label-offset nav-label-2line">
+          {t('nav.collectionPointsLine1')}
+          <br />
+          {t('nav.collectionPointsLine2')}
+        </span>
+      </Link>
+      <Link to="/international-collection-points" className={isActive('/international-collection-points') ? 'active' : ''}>
+        <span className="icon">
+          <IconGlobe />
+        </span>
+        <span className="nav-label-offset nav-label-2line">
+          {t('nav.internationalCollectionPointsLine1')}
+          <br />
+          {t('nav.internationalCollectionPointsLine2')}
+        </span>
       </Link>
       <Link to="/deliveries" className={isActive('/deliveries') ? 'active' : ''}>
         <span className="icon">
@@ -279,6 +303,8 @@ export default function App() {
           <Route path="/collection-points/create" element={<CreateCollectionPoint />} />
           <Route path="/collection-points/:id" element={<CollectionPointDetail />} />
           <Route path="/collection-points/:id/take-charge" element={<TakeCharge source="collection_point" />} />
+          <Route path="/international-collection-points" element={<InternationalCollectionPoints />} />
+          <Route path="/international-collection-points/create" element={<CreateInternationalCollectionPoint />} />
           <Route path="/deliveries" element={<Deliveries />} />
         </Routes>
       </main>
