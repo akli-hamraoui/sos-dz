@@ -309,14 +309,19 @@
     "responder": "Livreur/livreuse",
     "since": "depuis",
     "liveMapNote": "Positions partagées volontairement par les livreurs, mises à jour automatiquement.",
-    "searchPlaceholder": "Rechercher (nom, téléphone...)",
+    "searchPlaceholder": "Rechercher un transporteur (nom, téléphone, email, besoin, point de collecte...)",
     "yours": "La vôtre",
     "deliverToNeed": "Livrer un besoin",
     "deliverToCollectionPoint": "Livrer vers un point de collecte",
     "liveMarkerLabel": "Position en direct",
     "departureMarkerLabel": "Position de départ déclarée",
     "positionUnavailable": "Position indisponible",
-    "unknownPosition": "Position inconnue"
+    "unknownPosition": "Position inconnue",
+    "anonymizedResponder": "Transporteur anonymisé",
+    "vehicle": "Véhicule",
+    "destination": "Destination",
+    "filterByDestinationType": "Type de destination",
+    "resetFilters": "Réinitialiser"
   },
   "reportBug": {
     "title": "Signaler un bug",

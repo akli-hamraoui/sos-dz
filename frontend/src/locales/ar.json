@@ -309,14 +309,19 @@
     "responder": "المتطوع",
     "since": "منذ",
     "liveMapNote": "مواقع شاركها المتطوعون طواعية، تُحدَّث تلقائياً.",
-    "searchPlaceholder": "بحث (اسم، هاتف...)",
+    "searchPlaceholder": "بحث عن متطوع (اسم، هاتف، بريد إلكتروني، احتياج، نقطة تجميع...)",
     "yours": "توصيلتك",
     "deliverToNeed": "توصيل لاحتياج",
     "deliverToCollectionPoint": "توصيل إلى نقطة تجميع",
     "liveMarkerLabel": "موقع مباشر",
     "departureMarkerLabel": "موقع انطلاق مُعلَن",
     "positionUnavailable": "الموقع غير متوفر",
-    "unknownPosition": "موقع غير معروف"
+    "unknownPosition": "موقع غير معروف",
+    "anonymizedResponder": "متطوع مجهول الهوية",
+    "vehicle": "المركبة",
+    "destination": "الوجهة",
+    "filterByDestinationType": "نوع الوجهة",
+    "resetFilters": "إعادة تعيين"
   },
   "reportBug": {
     "title": "الإبلاغ عن خلل",

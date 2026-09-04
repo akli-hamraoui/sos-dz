@@ -9,6 +9,15 @@ import { IconTruck } from '../icons'
 
 const STATUSES = ['en_route', 'delivered', 'cancelled']
 
+// Maps Pickup.responder_type values to the same labels already used at
+// take-charge time (TakeCharge.jsx) -- reused here as the closest existing
+// concept to "vehicle/type of transporter" rather than inventing a new label set.
+const RESPONDER_TYPE_LABEL_KEYS = {
+  individual_volunteer: 'takeCharge.individualVolunteer',
+  organization: 'takeCharge.organization',
+  collective_truck: 'takeCharge.collectiveTruck',
+}
+
 // How often the live-locations map silently refreshes marker positions in
 // the background -- frequent enough to feel live, spaced out enough not
 // to hammer the server while every visitor's map tab sits open. Never
@@ -21,6 +30,7 @@ export default function Deliveries() {
   const { activeCampaignWilayas, pickupTokens } = useApp()
   const [filterWilaya, setFilterWilaya] = useState('')
   const [filterStatus, setFilterStatus] = useState('en_route')
+  const [filterDestinationType, setFilterDestinationType] = useState('')
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
   const [pickups, setPickups] = useState([])
@@ -53,11 +63,20 @@ export default function Deliveries() {
     const params = new URLSearchParams()
     if (filterWilaya) params.set('wilaya', filterWilaya)
     if (filterStatus) params.set('status', filterStatus)
+    if (filterDestinationType) params.set('destination_type', filterDestinationType)
     if (search) params.set('search', search)
     const qs = params.toString() ? `?${params.toString()}` : ''
     const data = await api(`/pickups/${qs}`)
     setPickups(data.results || data)
-  }, [filterWilaya, filterStatus, search])
+  }, [filterWilaya, filterStatus, filterDestinationType, search])
+
+  const hasActiveFilters = !!(filterWilaya || filterDestinationType || searchInput || filterStatus !== 'en_route')
+  const resetFilters = () => {
+    setFilterWilaya('')
+    setFilterStatus('en_route')
+    setFilterDestinationType('')
+    setSearchInput('')
+  }
 
   useEffect(() => {
     load().catch(() => {}) // offline/network failure -- offline banner already informs the user
@@ -170,6 +189,8 @@ export default function Deliveries() {
   return (
     <section className="needs-page">
       <div className="toolbar">
+        {/* Transporter info -- name/first name/full name/phone/email all
+            searched together server-side (PickupViewSet.get_queryset). */}
         <input
           type="search"
           className="search-input"
@@ -177,6 +198,21 @@ export default function Deliveries() {
           onChange={(e) => setSearchInput(e.target.value)}
           placeholder={t('deliveries.searchPlaceholder')}
         />
+        <label>
+          {t('deliveries.filterByStatus')}
+          <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
+            <option value="">{t('deliveries.statusAll')}</option>
+            {STATUSES.map((s) => (
+              <option key={s} value={s}>
+                {t(`status.${s}`)}
+              </option>
+            ))}
+          </select>
+        </label>
+        {/* Destination info -- wilaya here is the destination's wilaya
+            (need/collection point), not the courier's current position,
+            same as the search box above already matching destination
+            name/phone too (see PickupViewSet.get_queryset). */}
         <label>
           {t('needsList.filterByWilaya')}
           <select value={filterWilaya} onChange={(e) => setFilterWilaya(e.target.value)}>
@@ -189,16 +225,18 @@ export default function Deliveries() {
           </select>
         </label>
         <label>
-          {t('deliveries.filterByStatus')}
-          <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
-            <option value="">{t('deliveries.statusAll')}</option>
-            {STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {t(`status.${s}`)}
-              </option>
-            ))}
+          {t('deliveries.filterByDestinationType')}
+          <select value={filterDestinationType} onChange={(e) => setFilterDestinationType(e.target.value)}>
+            <option value="">{t('needsList.all')}</option>
+            <option value="need">{t('takeCharge.resourceTypeNeed')}</option>
+            <option value="collection_point">{t('needsList.collectionPointLabel')}</option>
           </select>
         </label>
+        {hasActiveFilters && (
+          <button type="button" className="btn" onClick={resetFilters}>
+            {t('deliveries.resetFilters')}
+          </button>
+        )}
         <div className="view-toggle">
           <button className={viewMode === 'list' ? 'active' : ''} onClick={() => setViewMode('list')}>
             {t('needsList.list')}
@@ -227,46 +265,62 @@ export default function Deliveries() {
         <>
           {pickups.length === 0 && <p>{t('deliveries.noDeliveries')}</p>}
           <div className="needs-list">
-            {pickups.map((p) => (
-              <Link
-                className="need-card"
-                to={p.need ? `/needs/${p.need}` : `/collection-points/${p.collection_point}`}
-                key={p.id}
-              >
-                <span className={`badge badge-status-${p.status}`}>{t(`status.${p.status}`)}</span>
-                {/* pickupTokens only ever holds pickups created in this exact
-                    browser (see AppContext) -- lets someone who just took
-                    charge of a delivery instantly spot it again in this
-                    list instead of hunting for the need/collection point it
-                    came from. */}
-                {!!pickupTokens[p.id] && <span className="badge badge-accent">{t('deliveries.yours')}</span>}
-                {/* En route with neither a live ping nor a declared
-                    departure position -- explicitly flagged rather than
-                    just silently missing from the map, per the "never let
-                    a courier look located when they're not" rule. */}
-                {p.status === 'en_route' && !locatedPickupIds.has(p.id) && (
-                  <span className="badge badge-muted">{t('deliveries.positionUnavailable')}</span>
-                )}
-                <h3>
-                  <IconTruck width={17} height={17} strokeWidth={1.9} className="truck-icon" /> {p.need_title || p.collection_point_name}
-                </h3>
-                <p>{p.need_wilaya_name || p.collection_point_wilaya_name}</p>
-                {!p.is_anonymized && (
+            {pickups.map((p) => {
+              const isCollectionPoint = !!p.collection_point
+              const destinationName = isCollectionPoint ? p.collection_point_name : p.need_title
+              const destinationWilaya = isCollectionPoint ? p.collection_point_wilaya_name : p.need_wilaya_name
+              const destinationTypeLabel = isCollectionPoint ? t('needsList.collectionPointLabel') : t('takeCharge.resourceTypeNeed')
+              return (
+                // Card's own click target is the transporter's own detail
+                // page (PickupDetail.jsx via /pickups/:id) -- previously
+                // this linked straight to the destination (need/collection
+                // point), which made every card read as "a listing of
+                // destinations" rather than "a list of transporters" (the
+                // destination's own name was the card's bold headline).
+                // PickupDetail itself still offers a "view destination"
+                // link for whoever wants to go there instead.
+                <Link className="need-card" to={`/pickups/${p.id}`} key={p.id}>
+                  <span className={`badge badge-status-${p.status}`}>{t(`status.${p.status}`)}</span>
+                  {/* pickupTokens only ever holds pickups created in this exact
+                      browser (see AppContext) -- lets someone who just took
+                      charge of a delivery instantly spot it again in this
+                      list instead of hunting for the need/collection point it
+                      came from. */}
+                  {!!pickupTokens[p.id] && <span className="badge badge-accent">{t('deliveries.yours')}</span>}
+                  {/* En route with neither a live ping nor a declared
+                      departure position -- explicitly flagged rather than
+                      just silently missing from the map, per the "never let
+                      a courier look located when they're not" rule. */}
+                  {p.status === 'en_route' && !locatedPickupIds.has(p.id) && (
+                    <span className="badge badge-muted">{t('deliveries.positionUnavailable')}</span>
+                  )}
+                  <h3>
+                    <IconTruck width={17} height={17} strokeWidth={1.9} className="truck-icon" />{' '}
+                    {p.is_anonymized ? t('deliveries.anonymizedResponder') : p.organization_or_person_name || p.responder_name}
+                  </h3>
+                  {!p.is_anonymized && p.responder_phone && <p className="status">{maskPhone(p.responder_phone)}</p>}
+                  {p.responder_type && RESPONDER_TYPE_LABEL_KEYS[p.responder_type] && (
+                    <p className="status">
+                      {t('deliveries.vehicle')}: {t(RESPONDER_TYPE_LABEL_KEYS[p.responder_type])}
+                    </p>
+                  )}
+                  {destinationName && (
+                    <p className="status">
+                      {t('deliveries.destination')} ({destinationTypeLabel}): {destinationName}
+                      {destinationWilaya ? ` — ${destinationWilaya}` : ''}
+                    </p>
+                  )}
+                  {p.content_brought && (
+                    <p className="status">
+                      {t('deliveries.bringing')}: {p.content_brought}
+                    </p>
+                  )}
                   <p className="status">
-                    {t('deliveries.responder')}: {p.organization_or_person_name || p.responder_name}
-                    {p.responder_phone && ` — ${maskPhone(p.responder_phone)}`}
+                    {t('deliveries.since')} {formatDate(p.pickup_date, i18n.language)}
                   </p>
-                )}
-                {p.content_brought && (
-                  <p className="status">
-                    {t('deliveries.bringing')}: {p.content_brought}
-                  </p>
-                )}
-                <p className="status">
-                  {t('deliveries.since')} {formatDate(p.pickup_date, i18n.language)}
-                </p>
-              </Link>
-            ))}
+                </Link>
+              )
+            })}
           </div>
         </>
       )}

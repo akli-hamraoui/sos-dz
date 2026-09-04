@@ -425,20 +425,36 @@ class PickupViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retri
         wilaya = self.request.query_params.get("wilaya")
         status_param = self.request.query_params.get("status")
         search = self.request.query_params.get("search")
+        # "need" / "collection_point" -- lets the Transporteurs page filter
+        # down to only couriers headed to one destination type, on top of
+        # the wilaya/status/search filters (all combinable, same AND-of-
+        # filters pattern as the rest of this queryset).
+        destination_type = self.request.query_params.get("destination_type")
         if wilaya:
+            # Destination wilaya, not the courier's current position --
+            # matches whichever of need/collection_point this pickup is
+            # headed to (see Pickup.need/collection_point above: exactly
+            # one is ever set).
             qs = qs.filter(Q(need__wilaya_id=wilaya) | Q(collection_point__wilaya_id=wilaya))
         if status_param:
             qs = qs.filter(status=status_param)
+        if destination_type == "need":
+            qs = qs.filter(need__isnull=False)
+        elif destination_type == "collection_point":
+            qs = qs.filter(collection_point__isnull=False)
         if search:
             qs = qs.filter(
                 Q(responder_name__icontains=search)
                 | Q(responder_phone__icontains=search)
+                | Q(responder_email__icontains=search)
                 | Q(content_brought__icontains=search)
                 | Q(organization_or_person_name__icontains=search)
                 | Q(need__title__icontains=search)
                 | Q(need__wilaya__name__icontains=search)
+                | Q(need__contact_phone__icontains=search)
                 | Q(collection_point__point_name__icontains=search)
                 | Q(collection_point__wilaya__name__icontains=search)
+                | Q(collection_point__contact_phone__icontains=search)
             )
         return qs
 

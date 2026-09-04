@@ -309,14 +309,19 @@
     "responder": "Responder",
     "since": "since",
     "liveMapNote": "Positions volunteered by couriers, updated automatically.",
-    "searchPlaceholder": "Search (name, phone...)",
+    "searchPlaceholder": "Search a courier (name, phone, email, need, collection point...)",
     "yours": "Yours",
     "deliverToNeed": "Deliver to a need",
     "deliverToCollectionPoint": "Deliver to a collection point",
     "liveMarkerLabel": "Live position",
     "departureMarkerLabel": "Declared departure position",
     "positionUnavailable": "Position unavailable",
-    "unknownPosition": "Unknown position"
+    "unknownPosition": "Unknown position",
+    "anonymizedResponder": "Anonymized courier",
+    "vehicle": "Vehicle",
+    "destination": "Destination",
+    "filterByDestinationType": "Destination type",
+    "resetFilters": "Reset"
   },
   "reportBug": {
     "title": "Report a bug",
