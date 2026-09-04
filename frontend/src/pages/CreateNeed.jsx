@@ -281,7 +281,11 @@ export default function CreateNeed() {
     setVideoModalOpen(false)
   }
 
-  const discardRecording = (kind) => {
+  // Same confirm-before-delete convention as CommentThread.jsx's own
+  // deleteComment -- a recording took real effort (speaking/filming) to
+  // produce, so a stray tap here shouldn't lose it silently.
+  const discardRecording = async (kind) => {
+    if (!(await showConfirm(t('common.delete') + '?'))) return
     if (kind === 'video') {
       if (videoBlobUrl) URL.revokeObjectURL(videoBlobUrl)
       setVideoBlob(null)
@@ -299,6 +303,15 @@ export default function CreateNeed() {
     if (!file || damagePhotos.length >= 3) return
     const compressed = await compressPhoto(file)
     setDamagePhotos((prev) => [...prev, { file: compressed, previewUrl: URL.createObjectURL(compressed) }])
+  }
+
+  // Same confirm-before-delete convention as discardRecording above.
+  const removeDamagePhoto = async (idx) => {
+    if (!(await showConfirm(t('common.delete') + '?'))) return
+    setDamagePhotos((prev) => {
+      URL.revokeObjectURL(prev[idx].previewUrl)
+      return prev.filter((_, i) => i !== idx)
+    })
   }
 
   const submit = async (e, skipDuplicateCheck) => {
@@ -483,7 +496,7 @@ export default function CreateNeed() {
                       <button type="button" className="gallery-thumb-btn" onClick={() => setLightbox({ src: p.previewUrl })}>
                         <img className="gallery-thumb" src={p.previewUrl} alt="" />
                       </button>
-                      <button type="button" className="link" onClick={() => setDamagePhotos((prev) => prev.filter((_, i) => i !== idx))}>
+                      <button type="button" className="link" onClick={() => removeDamagePhoto(idx)}>
                         <IconTrash width={14} height={14} strokeWidth={2} />
                       </button>
                     </div>

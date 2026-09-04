@@ -708,6 +708,15 @@ fieldset {
 .media-capture-card span {
   font-size: 12px;
   font-weight: 600;
+  /* Reserves room for 2 lines regardless of whether this card's own label
+     ("Message vocal", "Vidéo (20s max)", "Photo") actually wraps that far
+     -- without it, "Photo" (always 1 line) left its own Démarrer/Prendre
+     une photo button sitting higher than the other two cards' buttons,
+     whichever of those wrapped to 2 lines at the current viewport width. */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.4em;
 }
 .media-capture-card .btn {
   font-size: 12px;
