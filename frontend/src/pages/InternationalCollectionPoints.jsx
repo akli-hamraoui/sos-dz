@@ -175,7 +175,11 @@ export default function InternationalCollectionPoints() {
             .then((bounds) => {
               if (cancelled || mapRef.current !== map) return
               if (bounds) {
-                map.fitBounds(L.latLngBounds([bounds.south, bounds.west], [bounds.north, bounds.east]).pad(0.05), { maxZoom: 6 })
+                // maxZoom only caps how far this can zoom IN -- raised
+                // from 6 so a small country (Qatar, Singapore...) isn't
+                // left looking oddly distant just because a much bigger
+                // country's cap was applied uniformly to all of them.
+                map.fitBounds(L.latLngBounds([bounds.south, bounds.west], [bounds.north, bounds.east]).pad(0.05), { maxZoom: 8 })
               } else {
                 defaultZoom(map)
               }

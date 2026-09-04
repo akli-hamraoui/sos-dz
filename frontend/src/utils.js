@@ -1,3 +1,5 @@
+import { COUNTRY_MAINLAND_BOUNDS } from './countries'
+
 // Builds a wa.me link from a phone number as an admin would naturally type
 // it (local Algerian format, e.g. "0555 12 34 56") -- wa.me needs bare
 // digits in international format with no leading 0, so a local-format
@@ -108,6 +110,15 @@ export async function searchPlaces(query, lang, signal, countryCode = 'dz') {
 // individual collection point or street search narrows it further.
 // Best-effort: the caller falls back to a world view on any failure.
 export async function geocodeCountryBounds(countryCode, lang) {
+  // A handful of countries' real OSM boundary bundles in overseas
+  // territories thousands of km from the mainland (see
+  // COUNTRY_MAINLAND_BOUNDS in countries.js) -- Nominatim's own bounding
+  // box for those is technically correct but so wide it zooms out to
+  // nearly the whole planet, which just looks broken. Skip the network
+  // round trip entirely for those and use the curated extent instead.
+  if (COUNTRY_MAINLAND_BOUNDS[countryCode]) {
+    return COUNTRY_MAINLAND_BOUNDS[countryCode]
+  }
   // Uses Nominatim's structured-query `country=` field -- the field it
   // documents specifically for "look up a country by name" -- rather
   // than the free-text `q` search: `q` needs an actual place name (the
