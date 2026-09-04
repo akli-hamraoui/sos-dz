@@ -1943,6 +1943,25 @@ class InternationalCollectionPointTests(BaseAPITestCase):
         resp = self.client.get(f"/api/collection-points/{cp_resp.data['id']}/")
         self.assertEqual(resp.status_code, 200)
 
+    def test_international_search_matches_organization_name(self):
+        self.client.post("/api/collection-points/", self._payload(organization="Croissant Rouge Paris"), format="json")
+        self.client.post(
+            "/api/collection-points/",
+            self._payload(organization="Autre association", latitude=45.75, longitude=4.85),
+            format="json",
+        )
+        resp = self.client.get("/api/collection-points/?international=1&search=Croissant")
+        self.assertEqual(len(resp.data["results"]), 1)
+        self.assertEqual(resp.data["results"][0]["organization"], "Croissant Rouge Paris")
+
+    def test_international_search_does_not_match_location_description(self):
+        # Unlike the national search, the international one is scoped to
+        # point_name/organization only -- a match on the street/landmark
+        # text isn't useful for telling international points apart.
+        self.client.post("/api/collection-points/", self._payload(location_description="Near Gare du Nord"), format="json")
+        resp = self.client.get("/api/collection-points/?international=1&search=Gare")
+        self.assertEqual(len(resp.data["results"]), 0)
+
     def test_international_point_excluded_from_locations_by_default(self):
         self.client.post("/api/collection-points/", self._payload(), format="json")
         resp = self.client.get("/api/collection-points/locations/")

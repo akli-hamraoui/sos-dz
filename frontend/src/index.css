@@ -650,11 +650,17 @@ textarea {
 /* --- Place autocomplete (Nominatim/OpenStreetMap suggestions) --- */
 .place-autocomplete {
   position: relative;
-  /* Only takes effect when this is a direct flex child (e.g. the
-     InternationalCollectionPoints.jsx toolbar's "go to a place" field,
-     alongside .search-input) -- ignored everywhere else (a <label>'s
-     block layout, as in CreateNeed.jsx/CreateCollectionPoint.jsx), so
-     matching .search-input's own sizing here is safe project-wide. */
+}
+/* Sizing for the toolbar's row-flex context only (e.g.
+   InternationalCollectionPoints.jsx's "go to a place" field, alongside
+   .search-input). A <label> is itself flex-column (see `label` above),
+   so applying this bare on .place-autocomplete made 220px its *height*
+   basis there instead -- the wrong axis -- opening a ~160px dead gap
+   under every Lieu field in every form on the site (CreateNeed.jsx,
+   CreateCollectionPoint.jsx, CreateInternationalCollectionPoint.jsx...).
+   Scoping to .toolbar keeps the row sizing without touching label
+   layouts. */
+.toolbar .place-autocomplete {
   flex: 1 1 220px;
   min-width: 160px;
 }
