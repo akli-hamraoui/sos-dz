@@ -439,7 +439,7 @@ export default function CreateNeed() {
                   <button type="button" className="btn btn-icon record-btn" onClick={() => setVoicePlaybackOpen(true)}>
                     <IconPlay width={14} height={14} /> {t('createNeed.listenRecording')}
                   </button>
-                  <button type="button" className="btn btn-icon" onClick={() => discardRecording('voice')}>
+                  <button type="button" className="btn btn-icon record-btn" onClick={() => discardRecording('voice')}>
                     <IconTrash width={16} height={16} strokeWidth={2} /> {t('createNeed.discardRerecord')}
                   </button>
                 </>
@@ -461,7 +461,7 @@ export default function CreateNeed() {
                   <button type="button" className="btn btn-icon record-btn" onClick={() => setVideoPlaybackOpen(true)}>
                     <IconPlay width={14} height={14} /> {t('createNeed.watchRecording')}
                   </button>
-                  <button type="button" className="btn btn-icon" onClick={() => discardRecording('video')}>
+                  <button type="button" className="btn btn-icon record-btn" onClick={() => discardRecording('video')}>
                     <IconTrash width={16} height={16} strokeWidth={2} /> {t('createNeed.discardRerecord')}
                   </button>
                 </>
