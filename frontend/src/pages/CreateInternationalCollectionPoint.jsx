@@ -151,6 +151,24 @@ export default function CreateInternationalCollectionPoint() {
             onInvalid={validityProps.onInvalid}
           />
         </label>
+        {/* Right after the location field it fills in -- previously
+            stranded near the bottom of the form, well past several
+            unrelated fields, even though it only ever affects the Lieu
+            field above. */}
+        <div className="gps-controls">
+          <button type="button" className="btn btn-icon" onClick={useMyLocation} disabled={gpsStatus === 'locating'}>
+            <IconMapPin width={16} height={16} strokeWidth={2} /> {t('collectionPoints.useMyLocation')}
+          </button>
+          {(gpsStatus === 'error' || form.latitude) && (
+            <button type="button" className="link" onClick={clearLocation}>
+              {t('createNeed.clearGps')}
+            </button>
+          )}
+        </div>
+        <p className="hint">{t('internationalCollectionPoints.exactPositionRequired')}</p>
+        {gpsStatus === 'locating' && <p className="hint">{t('createNeed.gpsLocating')}</p>}
+        {gpsStatus === 'error' && <p className="error">{t('createNeed.gpsError')}</p>}
+        {form.latitude && !gpsStatus && <p>{t('createNeed.gpsCaptured', { lat: form.latitude, lon: form.longitude })}</p>}
         <label>
           {t('collectionPoints.hours')} <input type="text" value={form.hours} onChange={set('hours')} placeholder={t('collectionPoints.hoursPlaceholder')} />
         </label>
@@ -195,20 +213,6 @@ export default function CreateInternationalCollectionPoint() {
           </span>
           <input type="url" value={form.instagram_url} onChange={set('instagram_url')} placeholder={t('collectionPoints.instagramPlaceholder')} />
         </label>
-        <div className="gps-controls">
-          <button type="button" className="btn btn-icon" onClick={useMyLocation} disabled={gpsStatus === 'locating'}>
-            <IconMapPin width={16} height={16} strokeWidth={2} /> {t('createNeed.useMyLocation')}
-          </button>
-          {(gpsStatus === 'error' || form.latitude) && (
-            <button type="button" className="link" onClick={clearLocation}>
-              {t('createNeed.clearGps')}
-            </button>
-          )}
-        </div>
-        <p className="hint">{t('internationalCollectionPoints.exactPositionRequired')}</p>
-        {gpsStatus === 'locating' && <p className="hint">{t('createNeed.gpsLocating')}</p>}
-        {gpsStatus === 'error' && <p className="error">{t('createNeed.gpsError')}</p>}
-        {form.latitude && !gpsStatus && <p>{t('createNeed.gpsCaptured', { lat: form.latitude, lon: form.longitude })}</p>}
         {error === 'ALGERIA_POSITION' ? (
           <p className="error">
             {t('internationalCollectionPoints.positionInAlgeria')}{' '}

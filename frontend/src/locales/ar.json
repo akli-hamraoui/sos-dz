@@ -279,6 +279,7 @@
     "otherPhonesPlaceholder": "أرقام إضافية، رقم في كل سطر",
     "organization": "الجمعية (اختياري)",
     "locationDescription": "الموقع",
+    "useMyLocation": "استخدام موقعي الحالي كموقع نقطة التجميع",
     "hours": "أوقات العمل",
     "hoursPlaceholder": "مثال: من 8 صباحاً إلى 6 مساءً يومياً",
     "acceptedDonations": "التبرعات المقبولة (اختياري)",
