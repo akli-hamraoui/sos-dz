@@ -309,7 +309,7 @@ main {
      a fixed 60px bottom padding on .home only clears the nav for content
      *after* it (once scrolled that far), not for buttons/links sitting
      earlier on a page short enough that no scroll happens at all. */
-  padding: clamp(8px, 5svh, 140px) 20px clamp(16px, 6svh, 60px);
+  padding: clamp(4px, 10svh, 120px) 20px clamp(16px, 6svh, 60px);
   position: relative;
   /* z-index (any value, not just position) is what's needed for an element
      to actually establish a new stacking context -- without this, the
@@ -368,27 +368,11 @@ main {
   height: auto;
   margin-inline: auto;
 }
-/* Transparency notice: what's publicly visible on a listing, and why
-   (so bénévoles can reach the reporter) -- the app's own green accent
-   (same as the Collecte FAB/"Prendre en charge" button), not the
-   red/danger styling used for actual form errors. */
-.home-privacy-notice {
-  margin-block: 16px 0;
-  color: var(--collection-accent);
-  font-size: 11px;
-  font-weight: 400;
-  line-height: 1.5;
-  max-width: 420px;
-  margin-inline: auto;
-  /* The translation string carries its own \n line breaks (intro
-     sentence, then "* ..." bullet lines) -- render them as real breaks
-     instead of collapsing to one run-on line. */
-  white-space: pre-line;
-}
 .home-tagline {
   /* Sits over the background photo, same contrast need as
-     .home-about-link below. */
-  margin-block: 10px 0;
+     .home-about-link below. Tight against the logo right above it
+     (was 10px) now that nothing else sits between them. */
+  margin-block: 2px 0;
   color: var(--text);
   font-size: 15px;
   font-weight: 500;
@@ -405,7 +389,7 @@ main {
      centered in the action area below the logo on a tall screen --
      shrinks back down on a short one so they don't end up under the
      fixed bottom nav (see .home's own padding comment above). */
-  margin-block-start: clamp(16px, 5svh, 40px);
+  margin-block-start: clamp(16px, 8svh, 64px);
   max-width: 620px;
   margin-inline: auto;
 }
@@ -454,14 +438,10 @@ main {
     padding-top: 4px;
   }
   .home-logo {
-    width: 190px;
-  }
-  .home-privacy-notice {
-    margin-block-start: 4px;
-    font-size: 10px;
+    width: 150px;
   }
   .home-tagline {
-    margin-block-start: 4px;
+    margin-block-start: 0;
   }
   .home-actions {
     margin-block-start: 4px;

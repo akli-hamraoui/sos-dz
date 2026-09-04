@@ -7,7 +7,6 @@ export default function Home() {
   return (
     <section className="home">
       <img src="/logo-full.png" alt={t('common.brand')} className="home-logo" />
-      <p className="home-privacy-notice">{t('home.privacyNotice')}</p>
       <p className="home-tagline">{t('home.tagline')}</p>
       <div className="home-actions">
         <Link to="/create" className="btn btn-huge btn-icon home-btn-primary">
