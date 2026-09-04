@@ -1680,6 +1680,22 @@ class AppConfigurationEndpointTests(BaseAPITestCase):
         resp = self.client.get("/api/config/")
         self.assertEqual(resp.data["collection_points_active_count"], 2)
 
+    def test_collection_points_active_count_excludes_international(self):
+        # An international point (see InternationalCollectionPointTests)
+        # must inflate its own badge only, never the national one.
+        wilaya = Wilaya.objects.first()
+        CollectionPoint.objects.create(
+            status=CollectionPoint.STATUS_ACTIVE, point_name="National", contact_name="A", contact_phone="0555000000",
+            wilaya=wilaya, location_description="Somewhere",
+        )
+        CollectionPoint.objects.create(
+            status=CollectionPoint.STATUS_ACTIVE, point_name="International", contact_name="A", contact_phone="0555000000",
+            country_code="FR", country_name="France", location_description="Paris", latitude=48.85, longitude=2.35,
+        )
+        resp = self.client.get("/api/config/")
+        self.assertEqual(resp.data["collection_points_active_count"], 1)
+        self.assertEqual(resp.data["international_collection_points_active_count"], 1)
+
     def test_deliveries_en_route_count_excludes_delivered_and_cancelled(self):
         campaign = make_campaign()
         wilaya = campaign.authorized_wilayas.first()

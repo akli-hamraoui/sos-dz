@@ -5,6 +5,7 @@ import L from 'leaflet'
 import { useApp } from '../context/AppContext'
 import { api } from '../api'
 import { haversineKm, isInAlgeria } from '../utils'
+import { fetchDrivingRoute, ROUTE_COLOR } from '../routing'
 
 export default function CollectionPoints() {
   const { t } = useTranslation()
@@ -20,6 +21,10 @@ export default function CollectionPoints() {
   const mapRef = useRef(null)
   const mapElRef = useRef(null)
   const markersRef = useRef([])
+  // The one trajectory line currently drawn (from clicking a point's own
+  // marker) -- at most one at a time, same convention as Deliveries.jsx's
+  // own courier-to-destination route line.
+  const routeLineRef = useRef(null)
 
   // Debounced so typing doesn't fire a request on every keystroke.
   useEffect(() => {
@@ -93,6 +98,41 @@ export default function CollectionPoints() {
     }
   }
 
+  // Draws a trajectory from the visitor's current position to a clicked
+  // collection point -- same pattern as Deliveries.jsx's own
+  // courier-to-destination route: an immediate straight line (no network
+  // dependency), replaced by the real road-following route once/if OSRM
+  // resolves. Does nothing (no line, no error) if geolocation is
+  // denied/unavailable, same best-effort convention as smartZoom above.
+  const drawRouteToPoint = (map, destLat, destLon) => {
+    if (routeLineRef.current) {
+      map.removeLayer(routeLineRef.current)
+      routeLineRef.current = null
+    }
+    if (!navigator.geolocation) return
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const from = [pos.coords.latitude, pos.coords.longitude]
+        const dest = [destLat, destLon]
+        const straight = L.polyline([from, dest], { color: ROUTE_COLOR, weight: 3, dashArray: '4,8' }).addTo(map)
+        routeLineRef.current = straight
+        map.fitBounds(L.latLngBounds([from, dest]).pad(0.3), { maxZoom: 13 })
+        fetchDrivingRoute(from, dest)
+          .then((route) => {
+            if (routeLineRef.current !== straight) return // superseded by another click/re-render meanwhile
+            map.removeLayer(straight)
+            routeLineRef.current = L.polyline(route.coordinates, { color: ROUTE_COLOR, weight: 4, dashArray: '1,10', lineCap: 'round' }).addTo(map)
+            map.fitBounds(L.latLngBounds(route.coordinates).pad(0.3), { maxZoom: 13 })
+          })
+          .catch(() => {
+            /* routing service unreachable -- the basic straight line drawn above stays as-is */
+          })
+      },
+      () => {},
+      { timeout: 8000 }
+    )
+  }
+
   useEffect(() => {
     if (viewMode !== 'map') return
     let cancelled = false
@@ -141,6 +181,12 @@ export default function CollectionPoints() {
         }
         const map = mapRef.current
         markersRef.current.forEach((m) => map.removeLayer(m))
+        // A marker click draws a fresh trajectory -- clear any leftover one
+        // from a previously clicked marker instead of stacking lines up.
+        if (routeLineRef.current) {
+          map.removeLayer(routeLineRef.current)
+          routeLineRef.current = null
+        }
         const markers = []
 
         const cpsWithPos = cpPins.filter((p) => p.display_latitude != null && p.display_longitude != null)
@@ -158,6 +204,12 @@ export default function CollectionPoints() {
             iconAnchor: [15, 15],
           })
           const marker = L.marker([p.display_latitude, p.display_longitude], { icon }).addTo(map)
+          // Trajectory from the visitor's own position to this point on
+          // click -- same OSRM-backed red line as Deliveries.jsx's own
+          // courier-to-destination route. Silently does nothing if
+          // geolocation is denied/unavailable, same best-effort convention
+          // as every other geolocation use in this app.
+          marker.on('click', () => drawRouteToPoint(map, p.display_latitude, p.display_longitude))
           const gpsNote = p.has_exact_position ? '' : `<br><em>${t('common.noExactGpsPosition')}</em>`
           marker.bindPopup(
             `<strong>${p.point_name}</strong><br>${p.contact_name}${p.organization ? '<br>' + p.organization : ''}` +
@@ -189,6 +241,7 @@ export default function CollectionPoints() {
     mapRef.current.remove()
     mapRef.current = null
     markersRef.current = []
+    routeLineRef.current = null
   }, [viewMode])
 
   return (

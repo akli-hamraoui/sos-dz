@@ -187,6 +187,9 @@ function BottomNav() {
       <Link to="/international-collection-points" className={isActive('/international-collection-points') ? 'active' : ''}>
         <span className="icon">
           <IconGlobe />
+          {!!config.international_collection_points_active_count && (
+            <span className="nav-badge">{formatBadgeCount(config.international_collection_points_active_count)}</span>
+          )}
         </span>
         <span className="nav-label-offset nav-label-2line">
           {t('nav.internationalCollectionPointsLine1')}
