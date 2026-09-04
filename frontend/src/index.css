@@ -783,6 +783,22 @@ fieldset {
   flex-wrap: wrap;
   gap: 10px;
 }
+/* Groups the toolbar's trailing action button(s) (add / go-to-
+   international-or-national) as one unit instead of each sizing to its
+   own content independently -- keeps them level with each other and with
+   the rest of the row, and lets the pair wrap onto its own full-width
+   line together on narrow screens rather than breaking unevenly between
+   the two buttons. */
+.toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1 1 100%;
+}
+.toolbar-actions .btn {
+  flex: 1 1 200px;
+  text-align: center;
+}
 .search-input {
   flex: 1 1 220px;
   min-width: 160px;
@@ -1294,6 +1310,15 @@ fieldset {
    badge to clear). */
 .nav-label-offset {
   margin-block-start: 3px;
+}
+/* Deliberately breaks onto 2 lines (an explicit <br>, not organic wrap --
+   see .bottom-nav a's own nowrap comment above) for the Collecte
+   Algérie/Internationale pair specifically -- a touch smaller and
+   tighter-leaded than the other single-line labels so two lines still
+   fit this column's width/height without crowding its neighbors. */
+.nav-label-2line {
+  font-size: 9px;
+  line-height: 1.15;
 }
 .bottom-nav .icon {
   display: flex;

@@ -212,9 +212,14 @@ export default function InternationalCollectionPoints() {
             {t('needsList.map')}
           </button>
         </div>
-        <Link className="btn btn-primary" to="/international-collection-points/create">
-          {t('internationalCollectionPoints.addButton')}
-        </Link>
+        {/* Same .toolbar-actions wrapper as CollectionPoints.jsx's own
+            action-button pair, for consistent alignment/wrap behavior
+            even though this page only ever has the one button. */}
+        <div className="toolbar-actions">
+          <Link className="btn btn-primary" to="/international-collection-points/create">
+            {t('internationalCollectionPoints.addButton')}
+          </Link>
+        </div>
       </div>
 
       {viewMode === 'list' && (

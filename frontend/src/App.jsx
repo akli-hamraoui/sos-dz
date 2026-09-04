@@ -172,13 +172,27 @@ function BottomNav() {
             <span className="nav-badge">{formatBadgeCount(config.collection_points_active_count)}</span>
           )}
         </span>
-        <span className="nav-label-offset">{t('nav.collectionPointsShort')}</span>
+        {/* Two explicit lines (not organic wrapping, which the rest of
+            this bar deliberately avoids -- see the historical note on
+            .bottom-nav a's own white-space: nowrap) so this tab and its
+            international sibling below read as a clearly labeled pair
+            rather than the cryptic single-word "Collectes" this used to
+            say before that sibling existed. */}
+        <span className="nav-label-offset nav-label-2line">
+          {t('nav.collectionPointsLine1')}
+          <br />
+          {t('nav.collectionPointsLine2')}
+        </span>
       </Link>
       <Link to="/international-collection-points" className={isActive('/international-collection-points') ? 'active' : ''}>
         <span className="icon">
           <IconGlobe />
         </span>
-        <span className="nav-label-offset">{t('nav.internationalCollectionPointsShort')}</span>
+        <span className="nav-label-offset nav-label-2line">
+          {t('nav.internationalCollectionPointsLine1')}
+          <br />
+          {t('nav.internationalCollectionPointsLine2')}
+        </span>
       </Link>
       <Link to="/deliveries" className={isActive('/deliveries') ? 'active' : ''}>
         <span className="icon">
