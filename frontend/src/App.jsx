@@ -13,6 +13,7 @@ import Recover from './pages/Recover'
 import Support from './pages/Support'
 import ReportBug from './pages/ReportBug'
 import About from './pages/About'
+import Legal from './pages/Legal'
 import CollectionPoints from './pages/CollectionPoints'
 import CreateCollectionPoint from './pages/CreateCollectionPoint'
 import CollectionPointDetail from './pages/CollectionPointDetail'
@@ -51,6 +52,7 @@ const PAGE_TITLE_KEYS = {
   '/support': 'support.title',
   '/report-bug': 'reportBug.title',
   '/about': 'about.title',
+  '/legal': 'legal.title',
   '/recover': 'recover.title',
 }
 
@@ -208,6 +210,7 @@ export default function App() {
           <Route path="/support" element={<Support />} />
           <Route path="/report-bug" element={<ReportBug />} />
           <Route path="/about" element={<About />} />
+          <Route path="/legal" element={<Legal />} />
           <Route path="/collection-points" element={<CollectionPoints />} />
           <Route path="/collection-points/create" element={<CreateCollectionPoint />} />
           <Route path="/collection-points/:id" element={<CollectionPointDetail />} />
@@ -239,11 +242,14 @@ export default function App() {
             copy right under the action buttons (far more visible there
             than this footer, which sits at the very bottom of the
             screen); skip it here on that one route to avoid a duplicate. */}
-        {location.pathname !== '/' && (
-          <p className="footer-links">
-            <Link to="/about">{t('nav.about')}</Link>
-          </p>
-        )}
+        <p className="footer-links">
+          {location.pathname !== '/' && (
+            <>
+              <Link to="/about">{t('nav.about')}</Link>{' · '}
+            </>
+          )}
+          <Link to="/legal">{t('nav.legal')}</Link>
+        </p>
       </footer>
 
       <BottomNav />

@@ -50,6 +50,7 @@
     "menu": "Menu",
     "reportBug": "Report a bug",
     "about": "About us",
+    "legal": "Legal notice",
     "djangoAdmin": "Administration"
   },
   "home": {
@@ -266,6 +267,56 @@
     "contactLink": "A question or a suggestion? Contact the admin.",
     "whatsappHeading": "Contact us on WhatsApp",
     "whatsappComingSoon": "WhatsApp: number coming soon."
+  },
+  "legal": {
+    "title": "Legal Notice, Terms of Use & Terms of Sale",
+    "editor": {
+      "title": "Site publisher",
+      "p1": "This site is published and developed on a personal, volunteer basis, with no commercial entity or association behind it, by",
+      "contact": "Contact:"
+    },
+    "project": {
+      "title": "The project",
+      "p1": "SOS DZ is a free, open-source, citizen-run application, built out of solidarity to help coordinate mutual aid during disasters (wildfires, earthquakes, floods, etc.) in Algeria. It does not perform any disaster detection: it is only used to coordinate humanitarian aid once a crisis has been declared by the relevant authorities.",
+      "p2": "The project is entirely free, ad-free, and does not sell or resell any personal data to third parties."
+    },
+    "openSource": {
+      "title": "Source code",
+      "p1": "The full source code is public, under the MIT license, available on GitHub:",
+      "p2": "Anyone can review the code, verify how it works, or contribute to it."
+    },
+    "hosting": {
+      "title": "Hosting",
+      "provider": "Host: Contabo GmbH",
+      "country": "Server country: Germany",
+      "domain": "Domain name: sosdz.org"
+    },
+    "cgu": {
+      "title": "Terms of Use",
+      "intro": "These Terms of Use define the terms of access to and use of the sosdz.org website (the \"Site\").",
+      "article1Title": "Article 1 — Access to the Site",
+      "article1Body": "Access to the Site is free and open to everyone. No account creation is required to report a need, offer help, or track a delivery.",
+      "article2Title": "Article 2 — Use of the service",
+      "article2Body": "The Site is used to coordinate mutual aid strictly in the context of a declared disaster. It is not a medical emergency service: in case of immediate danger, contact the relevant official emergency services directly.",
+      "article3Title": "Article 3 — Content published by users",
+      "article3Body": "Each user is solely responsible for the information they publish. Content that is clearly abusive, dangerous, or inappropriate may be moderated or removed without notice.",
+      "article4Title": "Article 4 — Limitation of liability",
+      "article4Body": "The Site is provided \"as is\", without any warranty as to its availability or accuracy. The creator cannot be held liable for any direct or indirect damage resulting from the use, unavailability, or malfunction of the Site.",
+      "article5Title": "Article 5 — Personal data",
+      "article5Body": "The Site is designed to keep the collection of personal data to a strict minimum (no user account, anonymization of sensitive information). The exact details of data processing can be found in the public source code.",
+      "article6Title": "Article 6 — Changes to these Terms",
+      "article6Body": "These Terms of Use may be changed at any time, in particular to follow the evolution of the project."
+    },
+    "cgv": {
+      "title": "Terms of Sale",
+      "body": "SOS DZ does not sell any product or service. No commercial transaction takes place on this Site: no paid features, no subscriptions, no advertising. These Terms of Sale are mentioned for information purposes only and do not actually apply, since the Site has no commercial activity."
+    },
+    "solidarity": {
+      "title": "A solidarity project, not a company",
+      "p1": "This project was built on a volunteer basis by a single developer, out of solidarity with people affected by disasters in Algeria, with no profit motive whatsoever.",
+      "p2": "If an association or organization in Algeria wants to take over, continue, or deploy this project on the ground, you can contact me directly: I can give you access to the project's code and data, and help you deploy it in Algeria.",
+      "contact": "Contact:"
+    }
   },
   "apiErrors": {
     "generic": "Something went wrong. Please try again, or contact the admin if this persists.",
