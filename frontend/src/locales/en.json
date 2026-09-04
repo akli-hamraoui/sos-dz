@@ -382,6 +382,7 @@
       "article5Body": "The Site is designed to keep the collection of personal data to a strict minimum (no user account, anonymization of sensitive information). The exact details of data processing can be found in the public source code.",
       "article6Title": "Article 6 — Security and vulnerabilities",
       "article6Body": "The Site's software dependencies are regularly scanned for known vulnerabilities (notably via Snyk), and patched as soon as a fix is available.",
+      "article6Https": "All communication between your browser and the Site is encrypted over HTTPS (TLS). The certificate is issued by Let's Encrypt, a free, non-profit certificate authority run by the Internet Security Research Group (ISRG), and renews automatically every 90 days.",
       "article6LinkLabel": "Repository security status (Snyk):",
       "article7Title": "Article 7 — Changes to these Terms",
       "article7Body": "These Terms of Use may be changed at any time, in particular to follow the evolution of the project."

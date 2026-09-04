@@ -43,12 +43,15 @@ export default function Legal() {
           <h4>{t(`legal.cgu.article${n}Title`)}</h4>
           <p>{t(`legal.cgu.article${n}Body`)}</p>
           {n === 6 && (
-            <p>
-              {t('legal.cgu.article6LinkLabel')}{' '}
-              <a href={SNYK_TEST_URL} target="_blank" rel="noopener noreferrer">
-                <img src={SNYK_BADGE_URL} alt="Snyk" />
-              </a>
-            </p>
+            <>
+              <p>{t('legal.cgu.article6Https')}</p>
+              <p>
+                {t('legal.cgu.article6LinkLabel')}{' '}
+                <a href={SNYK_TEST_URL} target="_blank" rel="noopener noreferrer">
+                  <img src={SNYK_BADGE_URL} alt="Snyk" />
+                </a>
+              </p>
+            </>
           )}
         </div>
       ))}
