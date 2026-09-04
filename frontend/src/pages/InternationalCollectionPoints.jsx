@@ -4,8 +4,7 @@ import { useTranslation } from 'react-i18next'
 import L from 'leaflet'
 import { api } from '../api'
 import { geocodeCountryBounds } from '../utils'
-import PlaceAutocomplete from '../components/PlaceAutocomplete'
-import CountrySelect from '../components/CountrySelect'
+import CountryOrPlaceSearch from '../components/CountryOrPlaceSearch'
 
 // Worldwide counterpart to CollectionPoints.jsx -- same map/list page, no
 // wilaya (there is none outside Algeria) and no Algeria restriction on
@@ -21,13 +20,15 @@ export default function InternationalCollectionPoints() {
   const [filterCountry, setFilterCountry] = useState('')
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
-  const [goToPlace, setGoToPlace] = useState('')
-  // True once a "go to a place" suggestion has actually been picked --
-  // the country filter is disabled and reset to "all" while this holds,
-  // since a place search elsewhere in the world would otherwise silently
-  // conflict with it (see flyTo below). Clearing the place field again
-  // re-enables it.
-  const [placeSelected, setPlaceSelected] = useState(false)
+  // True once a place (as opposed to a country) has been picked from the
+  // combined search field -- there's no country filter active in that
+  // case, but the map has still been moved away from its default view,
+  // so the "reset filters" link still needs to show and undo it.
+  const [placeActive, setPlaceActive] = useState(false)
+  // Bumped on every reset so the field below remounts with a blank
+  // query -- it manages its own typed text internally (see
+  // CountryOrPlaceSearch), so this is the only way to clear it from here.
+  const [locationFieldKey, setLocationFieldKey] = useState(0)
   const [points, setPoints] = useState([])
   const [viewMode, setViewMode] = useState('map')
   const [mapHasNothing, setMapHasNothing] = useState(false)
@@ -53,23 +54,23 @@ export default function InternationalCollectionPoints() {
     load().catch(() => {}) // offline/network failure -- offline banner already informs the user
   }, [load])
 
-  // A street/place picked from the "go to a place" search recenters the
-  // map -- it never touches the search box above, but it does clear and
-  // disable the country filter: a place found anywhere in the world would
-  // otherwise silently conflict with a still-selected country, e.g. the
-  // map jumping to Tokyo while "Filtrer par pays: France" stays showing.
+  // A place picked from the combined search field recenters the map --
+  // it never touches the association-name search box, but it does clear
+  // any active country filter: a place found anywhere in the world would
+  // otherwise silently conflict with it, e.g. the map jumping to Tokyo
+  // while the list stays filtered to "France".
   const flyTo = ({ lat, lon }, zoom = 12) => {
     setFilterCountry('')
-    setPlaceSelected(true)
+    setPlaceActive(true)
     if (mapRef.current) mapRef.current.setView([lat, lon], zoom)
   }
 
-  const hasActiveFilter = Boolean(filterCountry || searchInput || goToPlace)
+  const hasActiveFilter = Boolean(filterCountry || searchInput || placeActive)
   const resetFilters = () => {
     setFilterCountry('')
     setSearchInput('')
-    setGoToPlace('')
-    setPlaceSelected(false)
+    setPlaceActive(false)
+    setLocationFieldKey((k) => k + 1)
   }
 
   // No country picked and no place searched yet: default to the visitor's
@@ -215,18 +216,19 @@ export default function InternationalCollectionPoints() {
         </Link>
       </p>
       <div className="toolbar">
-        <PlaceAutocomplete
-          value={goToPlace}
-          onChange={(v) => {
-            setGoToPlace(v)
-            // Clearing the place field by hand re-enables the country
-            // filter -- only an actual pick (flyTo) disables it.
-            if (v.trim() === '') setPlaceSelected(false)
-          }}
-          onSelectPlace={flyTo}
-          countryCode={filterCountry || 'any'}
-          placeholder={t('internationalCollectionPoints.goToPlacePlaceholder')}
-        />
+        <label>
+          {t('internationalCollectionPoints.locationLabel')}
+          <CountryOrPlaceSearch
+            key={locationFieldKey}
+            lang={i18n.language}
+            placeholder={t('internationalCollectionPoints.locationPlaceholder')}
+            onSelectCountry={(code) => {
+              setFilterCountry(code)
+              setPlaceActive(false)
+            }}
+            onSelectPlace={flyTo}
+          />
+        </label>
         <input
           type="search"
           className="search-input"
@@ -234,17 +236,6 @@ export default function InternationalCollectionPoints() {
           onChange={(e) => setSearchInput(e.target.value)}
           placeholder={t('internationalCollectionPoints.searchPlaceholder')}
         />
-        <label>
-          {t('internationalCollectionPoints.filterByCountry')}
-          <CountrySelect
-            value={filterCountry}
-            onChange={setFilterCountry}
-            lang={i18n.language}
-            placeholder={t('needsList.all')}
-            allLabel={t('needsList.all')}
-            disabled={placeSelected}
-          />
-        </label>
         {/* Only shown once a filter is actually active -- a discreet text
             link rather than a full button, since resetting isn't a
             primary action on this toolbar. */}
