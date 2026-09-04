@@ -142,9 +142,6 @@
   "needsList": {
     "filterByWilaya": "Filter by wilaya",
     "all": "All",
-    "filterByType": "Show",
-    "typeAll": "All",
-    "typeNeeds": "Family needs",
     "list": "List",
     "map": "Map",
     "noActiveNeeds": "No active needs right now.",
@@ -318,7 +315,6 @@
     "departureMarkerLabel": "Declared departure position",
     "positionUnavailable": "Position unavailable",
     "unknownPosition": "Unknown position",
-    "anonymizedResponder": "Anonymized courier",
     "vehicle": "Vehicle",
     "destination": "Destination",
     "filterByDestinationType": "Destination type",

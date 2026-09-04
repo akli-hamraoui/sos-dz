@@ -344,9 +344,14 @@ export default function Deliveries() {
                   )}
                   <h3>
                     <IconTruck width={17} height={17} strokeWidth={1.9} className="truck-icon" />{' '}
-                    {p.is_anonymized ? t('deliveries.anonymizedResponder') : p.organization_or_person_name || p.responder_name}
+                    {p.organization_or_person_name || p.responder_name}
                   </h3>
-                  {!p.is_anonymized && p.responder_phone && <p className="status">{maskPhone(p.responder_phone)}</p>}
+                  {/* Once anonymized, responder_phone is already a masked
+                      value straight from the backend (e.g. "XXXXXXXXXX",
+                      see core/anonymization.py) -- real anonymization, not
+                      UI-layer hiding, so it's safe/expected to display as-is
+                      rather than needing an is_anonymized guard here. */}
+                  {p.responder_phone && <p className="status">{maskPhone(p.responder_phone)}</p>}
                   {p.responder_type && RESPONDER_TYPE_LABEL_KEYS[p.responder_type] && (
                     <p className="status">
                       {t('deliveries.vehicle')}: {t(RESPONDER_TYPE_LABEL_KEYS[p.responder_type])}

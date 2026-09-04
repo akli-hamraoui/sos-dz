@@ -19,18 +19,10 @@ function statusLabel(t, s) {
 // that's needed rather than a second asset.
 const NEED_SOS_ICON = '<img src="/icons/need-marker-sos.png" width="18" height="18" alt="" style="filter:invert(1)" />'
 
-const CP_BOX_SVG =
-  '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
-  '<path d="M3.5 7.5 12 3l8.5 4.5v9L12 21l-8.5-4.5v-9Z"/><path d="M3.5 7.5 12 12l8.5-4.5"/><path d="M12 12v9"/></svg>'
-
 export default function NeedsList() {
   const { t } = useTranslation()
   const { activeCampaignWilayas } = useApp()
   const [filterWilaya, setFilterWilaya] = useState('')
-  // '' (both, default) | 'needs' | 'collection_points' -- only affects the
-  // map (the list view stays needs-only, unaffected, since that's a
-  // different card layout per type).
-  const [filterType, setFilterType] = useState('')
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
   const [needs, setNeeds] = useState([])
@@ -111,14 +103,30 @@ export default function NeedsList() {
       }
       zoomToConcernedWilayas(map)
     }
+    // Safety net: getCurrentPosition's own `timeout: 3000` is meant to
+    // guarantee one of the two callbacks fires within 3s, but that's not
+    // honored by every browser/environment (confirmed: neither callback
+    // ever fired, even well past 3s, in a headless Chromium with no
+    // geolocation permission granted) -- without this, the map would be
+    // stuck with no view/zoom ever set, and Leaflet never actually paints
+    // any marker onto an un-viewed map. `settle` ensures doZoom runs
+    // exactly once regardless of which path (real callback or fallback)
+    // gets there first.
+    let settled = false
+    const settle = (userLatLng) => {
+      if (settled) return
+      settled = true
+      doZoom(userLatLng)
+    }
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        (pos) => doZoom([pos.coords.latitude, pos.coords.longitude]),
-        () => doZoom(null),
+        (pos) => settle([pos.coords.latitude, pos.coords.longitude]),
+        () => settle(null),
         { timeout: 3000 }
       )
+      setTimeout(() => settle(null), 3500)
     } else {
-      doZoom(null)
+      settle(null)
     }
   }
 
@@ -132,27 +140,23 @@ export default function NeedsList() {
       if (filterWilaya) params.set('wilaya', filterWilaya)
       if (search) params.set('search', search)
       const qs = params.toString() ? `?${params.toString()}` : ''
-      const wantNeeds = filterType === '' || filterType === 'needs'
-      const wantPoints = filterType === '' || filterType === 'collection_points'
       let needPins = []
-      let cpPins = []
       try {
-        ;[needPins, cpPins] = await Promise.all([
-          wantNeeds ? api(`/needs/locations/${qs}`) : Promise.resolve([]),
-          wantPoints ? api(`/collection-points/locations/${qs}`) : Promise.resolve([]),
-        ])
+        // This is the SOS/Besoins map specifically -- needs only, never
+        // collection points (those get their own map on CollectionPoints.jsx,
+        // and both together on the combined "Je veux aider" map/HelpMap.jsx).
+        needPins = await api(`/needs/locations/${qs}`)
       } catch {
         return // offline/network failure -- offline banner already informs the user
       }
       if (cancelled) return
 
       const needsWithPos = needPins.filter((p) => p.display_latitude != null && p.display_longitude != null)
-      const cpsWithPos = cpPins.filter((p) => p.display_latitude != null && p.display_longitude != null)
       // The map itself is always shown (see below) -- this only controls
       // whether a supplementary "nothing yet" hint is shown alongside it,
       // e.g. right after a campaign starts before any need has been
       // reported yet.
-      setMapHasNothing(needsWithPos.length === 0 && cpsWithPos.length === 0)
+      setMapHasNothing(needsWithPos.length === 0)
 
       // activeCampaignWilayas can settle in more than one wave while
       // campaigns/wilayas are still loading, re-running this whole effect
@@ -205,26 +209,8 @@ export default function NeedsList() {
           markers.push(marker)
         })
 
-        cpsWithPos.forEach((p) => {
-          // Same box-on-a-pin marker used everywhere else for collection
-          // points (CollectionPoints.jsx's own map).
-          const icon = L.divIcon({
-            className: 'cp-marker-icon',
-            html: `<span class="cp-marker-pin">${CP_BOX_SVG}</span>`,
-            iconSize: [30, 30],
-            iconAnchor: [15, 15],
-          })
-          const marker = L.marker([p.display_latitude, p.display_longitude], { icon }).addTo(map)
-          const gpsNote = p.has_exact_position ? '' : `<br><em>${t('common.noExactGpsPosition')}</em>`
-          marker.bindPopup(
-            `<strong>${p.point_name}</strong><br>${p.contact_name}${p.organization ? '<br>' + p.organization : ''}` +
-              `${p.hours ? '<br>' + p.hours : ''}<br>${p.wilaya_name}${gpsNote}<br><a href="/collection-points/${p.id}">${t('common.open')}</a>`
-          )
-          markers.push(marker)
-        })
-
         markersRef.current = markers
-        const allPoints = [...needsWithPos, ...cpsWithPos].map((p) => [p.display_latitude, p.display_longitude])
+        const allPoints = needsWithPos.map((p) => [p.display_latitude, p.display_longitude])
         smartZoom(map, allPoints, filterWilaya)
       })
     })()
@@ -237,7 +223,7 @@ export default function NeedsList() {
     // finish loading, in case that response lands after this effect's
     // first run already captured an empty fallback list.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewMode, filterWilaya, search, filterType, activeCampaignWilayas])
+  }, [viewMode, filterWilaya, search, activeCampaignWilayas])
 
   // Switching to "Liste" unmounts the #main-map div (see the JSX below),
   // but without this the Leaflet instance in mapRef.current kept pointing
@@ -274,16 +260,6 @@ export default function NeedsList() {
             ))}
           </select>
         </label>
-        {viewMode === 'map' && (
-          <label>
-            {t('needsList.filterByType')}
-            <select value={filterType} onChange={(e) => setFilterType(e.target.value)}>
-              <option value="">{t('needsList.typeAll')}</option>
-              <option value="needs">{t('needsList.typeNeeds')}</option>
-              <option value="collection_points">{t('nav.collectionPoints')}</option>
-            </select>
-          </label>
-        )}
         <div className="view-toggle">
           <button className={viewMode === 'list' ? 'active' : ''} onClick={() => setViewMode('list')}>
             {t('needsList.list')}
@@ -324,19 +300,17 @@ export default function NeedsList() {
         <div className="map-wrap">
           {mapHasNothing && <p className="hint">{t('needsList.noActiveNeeds')}</p>}
           <div id="main-map" ref={mapElRef} style={{ height: 600 }} />
-          {filterType !== 'collection_points' && (
-            <div className="legend">
-              <span className="legend-item">
-                <span className="legend-dot" style={{ background: urgencyColor('critical') }} />
-                {t('urgency.critical')}
-              </span>
-              <span className="legend-item">
-                <span className="legend-dot" style={{ background: urgencyColor('medium') }} />
-                {t('urgency.medium')}
-              </span>
-              <span className="legend-note">{t('needsList.legendNote')}</span>
-            </div>
-          )}
+          <div className="legend">
+            <span className="legend-item">
+              <span className="legend-dot" style={{ background: urgencyColor('critical') }} />
+              {t('urgency.critical')}
+            </span>
+            <span className="legend-item">
+              <span className="legend-dot" style={{ background: urgencyColor('medium') }} />
+              {t('urgency.medium')}
+            </span>
+            <span className="legend-note">{t('needsList.legendNote')}</span>
+          </div>
         </div>
       )}
     </section>

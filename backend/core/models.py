@@ -5,6 +5,8 @@ from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
+from core.anonymization import mask_identity_name, mask_identity_phone
+
 
 def generate_token():
     """32-char random access token. Not hashed: it's a temporary access key
@@ -352,11 +354,11 @@ class Need(IdentityListingMixin, models.Model):
         }
 
     def anonymize_identity_fields(self):
-        self.contact_name = "Anonymized"
-        self.contact_phone = ""
-        self.other_phones = ""
+        self.contact_name = mask_identity_name(self.contact_name)
+        self.contact_phone = mask_identity_phone(self.contact_phone)
+        self.other_phones = mask_identity_phone(self.other_phones)
         self.contact_email = ""
-        self.organization_or_person_name = ""
+        self.organization_or_person_name = mask_identity_name(self.organization_or_person_name)
 
     def record_edit(self):
         self.edit_history = (self.edit_history or []) + [timezone.now().isoformat()]
@@ -482,10 +484,10 @@ class Pickup(IdentityListingMixin, models.Model):
         }
 
     def anonymize_identity_fields(self):
-        self.responder_name = "Anonymized"
-        self.responder_phone = ""
+        self.responder_name = mask_identity_name(self.responder_name)
+        self.responder_phone = mask_identity_phone(self.responder_phone)
         self.responder_email = ""
-        self.organization_or_person_name = ""
+        self.organization_or_person_name = mask_identity_name(self.organization_or_person_name)
 
     def latest_known_position(self):
         """Latest live ping if location sharing is on, else the declared

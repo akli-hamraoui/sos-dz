@@ -142,9 +142,6 @@
   "needsList": {
     "filterByWilaya": "تصفية حسب الولاية",
     "all": "الكل",
-    "filterByType": "عرض",
-    "typeAll": "الكل",
-    "typeNeeds": "احتياجات العائلات",
     "list": "قائمة",
     "map": "خريطة",
     "noActiveNeeds": "لا توجد احتياجات نشطة حالياً.",
@@ -318,7 +315,6 @@
     "departureMarkerLabel": "موقع انطلاق مُعلَن",
     "positionUnavailable": "الموقع غير متوفر",
     "unknownPosition": "موقع غير معروف",
-    "anonymizedResponder": "متطوع مجهول الهوية",
     "vehicle": "المركبة",
     "destination": "الوجهة",
     "filterByDestinationType": "نوع الوجهة",

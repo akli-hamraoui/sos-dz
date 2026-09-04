@@ -291,7 +291,13 @@ main {
      header, on both short and tall phones -- a fixed px value would be
      too little on a tall screen and too much on a short one. Capped so
      it doesn't push content off-screen on very tall/desktop viewports. */
-  padding: clamp(20px, 12svh, 140px) 20px 60px;
+  /* Shrinks with viewport height (both the top padding here and the two
+     margins below) so a short phone screen never pushes "Je veux aider"/
+     "Qui sommes-nous" down into the fixed bottom nav's own screen area --
+     a fixed 60px bottom padding on .home only clears the nav for content
+     *after* it (once scrolled that far), not for buttons/links sitting
+     earlier on a page short enough that no scroll happens at all. */
+  padding: clamp(8px, 5svh, 140px) 20px clamp(16px, 6svh, 60px);
   position: relative;
   /* z-index (any value, not just position) is what's needed for an element
      to actually establish a new stacking context -- without this, the
@@ -323,9 +329,14 @@ main {
   /* A tighter ellipse (was 95%/34%, edge-to-edge enough to read as a
      rectangle) with more room given to the fade-out band, so all four
      sides visibly round off and dissolve rather than getting cropped by
-     .home's own bounding box. */
-  mask-image: radial-gradient(ellipse 62% 30% at center 12%, #000 20%, transparent 92%);
-  -webkit-mask-image: radial-gradient(ellipse 62% 30% at center 12%, #000 20%, transparent 92%);
+     .home's own bounding box. Center pushed down from 12% to 25% (was
+     still ~28% opaque right at the box's own top edge at 12%, reading as
+     a visible straight-edged rectangle top rather than a soft round
+     fade -- confirmed on a real short-viewport screenshot) so the fade
+     is most of the way to transparent well before it ever reaches the
+     top edge. */
+  mask-image: radial-gradient(ellipse 62% 35% at center 25%, #000 15%, transparent 90%);
+  -webkit-mask-image: radial-gradient(ellipse 62% 35% at center 25%, #000 15%, transparent 90%);
   opacity: 0.34;
   pointer-events: none;
 }
@@ -379,8 +390,10 @@ main {
   justify-content: center;
   gap: 16px;
   /* Slightly lower than before (was 32px) so the two buttons sit better
-     centered in the action area below the logo -- logo/.home untouched. */
-  margin-block-start: 48px;
+     centered in the action area below the logo on a tall screen --
+     shrinks back down on a short one so they don't end up under the
+     fixed bottom nav (see .home's own padding comment above). */
+  margin-block-start: clamp(16px, 5svh, 40px);
   max-width: 620px;
   margin-inline: auto;
 }
@@ -411,11 +424,39 @@ main {
   /* Sits over the background photo, so it needs real contrast -- the
      footer's own muted #777 all but disappears there. */
   display: inline-block;
-  margin-block-start: 28px;
+  margin-block-start: clamp(6px, 2.5svh, 24px);
   color: var(--text);
   font-weight: 600;
   font-size: 14px;
   text-decoration: underline;
+}
+/* A short phone viewport (confirmed down to 320x568, the smallest still
+   in real use) needs more compacting than the clamp()s above alone can
+   give without also shrinking the still-plenty-tall ones -- otherwise
+   "Je veux aider"/"Qui sommes-nous" end up under the fixed bottom nav
+   (see the padding comment on .home above for why padding-bottom alone
+   can't fix this). Verified this combination clears the bottom nav at
+   320x568 through 1280x800. */
+@media (max-height: 620px) {
+  .home {
+    padding-top: 4px;
+  }
+  .home-logo {
+    width: 190px;
+  }
+  .home-privacy-notice {
+    margin-block-start: 4px;
+    font-size: 10px;
+  }
+  .home-tagline {
+    margin-block-start: 4px;
+  }
+  .home-actions {
+    margin-block-start: 4px;
+  }
+  .home-about-link {
+    margin-block-start: 2px;
+  }
 }
 
 /* --- Buttons --- */

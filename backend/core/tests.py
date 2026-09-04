@@ -3,6 +3,7 @@ from django.core.cache import cache
 from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
 
+from core.anonymization import mask_identity_name, mask_identity_phone
 from core.models import AdminContactPhone, AppConfiguration, Campaign, CollectionPoint, DisasterType, Need, Pickup, ProgressUpdate, TranslationOverride, Wilaya
 
 
@@ -761,7 +762,7 @@ class AnonymizationTests(BaseAPITestCase):
         self.need_id = resp.data["id"]
         self.token = resp.data["access_token"]
 
-    def test_anonymize_clears_other_phones_too(self):
+    def test_anonymize_masks_other_phones_too(self):
         self.client.post(f"/api/needs/{self.need_id}/anonymize/", {"access_token": self.token}, format="json")
         resp = self.client.post(
             f"/api/needs/{self.need_id}/anonymize/",
@@ -770,7 +771,9 @@ class AnonymizationTests(BaseAPITestCase):
         )
         self.assertEqual(resp.status_code, 200)
         need = Need.objects.get(pk=self.need_id)
-        self.assertEqual(need.other_phones, "")
+        # Every original digit destroyed (never recoverable), but not blanked
+        # outright -- see core/anonymization.py for why.
+        self.assertEqual(need.other_phones, "XXXXXXXXXX")
 
     def test_self_service_anonymize_requires_confirmation_when_active(self):
         resp = self.client.post(
@@ -787,7 +790,7 @@ class AnonymizationTests(BaseAPITestCase):
         self.assertEqual(resp.status_code, 200)
         need = Need.objects.get(pk=self.need_id)
         self.assertTrue(need.is_anonymized)
-        self.assertEqual(need.contact_name, "Anonymized")
+        self.assertEqual(need.contact_name, "K**** B*****")  # "Karim Benali", masked -- see core/anonymization.py
         self.assertEqual(need.title, NEED_PAYLOAD["title"])  # untouched
 
     def test_anonymize_is_idempotent_a_repeat_call_never_undoes_it(self):
@@ -809,7 +812,7 @@ class AnonymizationTests(BaseAPITestCase):
         self.assertEqual(resp.data["detail"], "Already anonymized.")
         need.refresh_from_db()
         self.assertTrue(need.is_anonymized)
-        self.assertEqual(need.contact_name, "Anonymized")
+        self.assertEqual(need.contact_name, "K**** B*****")
         self.assertEqual(need.pii_obfuscated_at, first_obfuscated_at)  # untouched by the repeat call
 
     def test_anonymize_no_warning_when_cancelled(self):
@@ -830,8 +833,8 @@ class AnonymizationTests(BaseAPITestCase):
             format="json",
         )
         resp = self.client.get(f"/api/needs/{self.need_id}/")
-        self.assertEqual(resp.data["contact_name"], "Anonymized")
-        self.assertEqual(resp.data["contact_phone"], "")
+        self.assertEqual(resp.data["contact_name"], "K**** B*****")
+        self.assertEqual(resp.data["contact_phone"], "XXXXXXXXXX")
 
         admin_user = get_user_model().objects.create_superuser("admin2", "a2@example.com", "pw123456!")
         from django.test import Client as DjangoClient
@@ -859,6 +862,75 @@ class AnonymizationTests(BaseAPITestCase):
         self.campaign.save()
         need = Need.objects.get(pk=self.need_id)
         self.assertFalse(need.is_anonymized)  # stopping the campaign alone must NOT anonymize
+
+
+class AnonymizationMaskingTests(TestCase):
+    """Unit coverage for core/anonymization.py's two helpers -- the actual
+    replacement for the old "Anonymized"/"" wipe (see
+    IdentityListingMixin.anonymize_identity_fields on Need and Pickup)."""
+
+    def test_mask_identity_name_keeps_first_letter_per_word(self):
+        self.assertEqual(mask_identity_name("Ahmed Hamraoui"), "A**** H*******")
+        self.assertEqual(mask_identity_name("Sami"), "S***")
+        self.assertEqual(mask_identity_name(""), "")
+        self.assertEqual(mask_identity_name(None), None)
+
+    def test_mask_identity_phone_replaces_every_digit(self):
+        self.assertEqual(mask_identity_phone("0655112233"), "XXXXXXXXXX")
+        self.assertEqual(mask_identity_phone("+213655112233"), "+XXXXXXXXXXXX")
+        self.assertEqual(mask_identity_phone("+213 655 11 22 33"), "+XXX XXX XX XX XX")
+        self.assertEqual(mask_identity_phone(""), "")
+        self.assertEqual(mask_identity_phone(None), None)
+
+
+class PickupAnonymizationMaskingTests(BaseAPITestCase):
+    """Same real-data masking as AnonymizationTests above, for the Pickup
+    (transporteur) side of anonymize -- previously untested at this level."""
+
+    def setUp(self):
+        super().setUp()
+        self.campaign = make_campaign()
+        self.wilaya = self.campaign.authorized_wilayas.first()
+        resp = self.client.post(
+            "/api/needs/", dict(NEED_PAYLOAD, campaign=self.campaign.pk, wilaya=self.wilaya.pk), format="json"
+        )
+        self.need_id = resp.data["id"]
+        resp = self.client.post(
+            "/api/pickups/",
+            {
+                "need": self.need_id,
+                "responder_type": "individual_volunteer",
+                "responder_name": "Ahmed Hamraoui",
+                "responder_phone": "0655112233",
+                "organization_or_person_name": "Croissant Rouge",
+            },
+            format="json",
+        )
+        self.pickup_id = resp.data["id"]
+        self.token = resp.data["access_token"]
+
+    def test_anonymize_masks_name_and_phone_instead_of_wiping_them(self):
+        resp = self.client.post(
+            f"/api/pickups/{self.pickup_id}/anonymize/", {"access_token": self.token, "confirm": True}, format="json"
+        )
+        self.assertEqual(resp.status_code, 200, resp.content)
+        pickup = Pickup.objects.get(pk=self.pickup_id)
+        self.assertTrue(pickup.is_anonymized)
+        self.assertEqual(pickup.responder_name, "A**** H*******")
+        self.assertEqual(pickup.responder_phone, "XXXXXXXXXX")
+        self.assertEqual(pickup.organization_or_person_name, "C******** R****")
+        # Never the old literal placeholder -- real masking, not a generic
+        # untranslated stand-in string.
+        self.assertNotEqual(pickup.responder_name, "Anonymized")
+
+    def test_anonymized_pickup_still_appears_correctly_on_public_endpoints(self):
+        self.client.post(
+            f"/api/pickups/{self.pickup_id}/anonymize/", {"access_token": self.token, "confirm": True}, format="json"
+        )
+        resp = self.client.get(f"/api/pickups/{self.pickup_id}/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data["responder_name"], "A**** H*******")
+        self.assertEqual(resp.data["responder_phone"], "XXXXXXXXXX")
 
 
 class MapAndLocationPrivacyTests(BaseAPITestCase):
