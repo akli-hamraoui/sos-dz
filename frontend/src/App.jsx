@@ -6,6 +6,7 @@ import { setLanguage, getStoredLanguage } from './i18n'
 import { getCsrfToken } from './api'
 import { formatBadgeCount } from './utils'
 import Home from './pages/Home'
+import Help from './pages/Help'
 import CreateNeed from './pages/CreateNeed'
 import NeedsList from './pages/NeedsList'
 import NeedDetail from './pages/NeedDetail'
@@ -66,6 +67,7 @@ function LanguageSwitcher() {
 const PAGE_TITLE_KEYS = {
   '/': 'nav.home',
   '/needs': 'nav.needs',
+  '/help': 'home.iWantToHelp',
   '/create': 'nav.iNeedHelp',
   '/collection-points': 'nav.collectionPoints',
   '/collection-points/create': 'collectionPoints.createTitle',
@@ -108,10 +110,11 @@ function TopNavLinks({ isActive, isAdmin }) {
       </Link>
       {/* Mirrors the Home page's two CTAs (J'ai besoin d'aide / Je veux
           aider) so the same pair of entry points is reachable from every
-          page, not just the homepage -- same destination as "Besoins"
-          above, just the "I want to help" framing for someone who doesn't
-          think of it as browsing a list. */}
-      <Link to="/needs" className={isActive('/needs') ? 'active' : ''}>
+          page, not just the homepage. Its own route (/help, Help.jsx) --
+          previously this pointed at /needs, same as "Besoins" above, which
+          made both nav items light up together on that page since they
+          shared one isActive() check. */}
+      <Link to="/help" className={isActive('/help') ? 'active' : ''}>
         {t('home.iWantToHelp')}
       </Link>
       <Link to="/support" className={isActive('/support') ? 'active' : ''}>
@@ -251,6 +254,7 @@ export default function App() {
           <Route path="/" element={<Home />} />
           <Route path="/create" element={<CreateNeed />} />
           <Route path="/needs" element={<NeedsList />} />
+          <Route path="/help" element={<Help />} />
           <Route path="/needs/:id" element={<NeedDetail />} />
           <Route path="/pickups/:id" element={<PickupDetail />} />
           <Route path="/needs/:id/take-charge" element={<TakeCharge />} />

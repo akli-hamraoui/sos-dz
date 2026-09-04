@@ -16,7 +16,7 @@ export default function Home() {
           <img src="/icons/need-marker-sos.png" width={22} height={22} alt="" style={{ filter: 'invert(1)', flexShrink: 0 }} />
           {t('home.iNeedHelp')}
         </Link>
-        <Link to="/needs" className="btn btn-huge btn-icon home-btn-outline">
+        <Link to="/help" className="btn btn-huge btn-icon home-btn-outline">
           <IconNeeds width={22} height={22} strokeWidth={2} /> {t('home.iWantToHelp')}
         </Link>
       </div>

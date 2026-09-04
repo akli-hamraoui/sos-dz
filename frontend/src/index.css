@@ -1171,6 +1171,15 @@ fieldset {
   position: relative;
 }
 
+/* Section headers on the combined "Je veux aider" list (Help.jsx) --
+   keeps needs and collection points visually separated instead of
+   reading as one mixed, undifferentiated list. */
+.help-section-heading {
+  margin-block: 24px 8px;
+}
+.help-section-heading:first-of-type {
+  margin-block-start: 8px;
+}
 .legend {
   display: flex;
   flex-wrap: wrap;

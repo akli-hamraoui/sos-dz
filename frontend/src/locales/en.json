@@ -150,6 +150,12 @@
     "legendNote": "— pins without exact GPS sit at the wilaya's approximate centroid (\"no exact GPS position\")",
     "addButton": "+ I need help"
   },
+  "help": {
+    "instructions": "Please choose a collection point or a need to help with on the map, or use the list or filters.",
+    "needsHeading": "Needs",
+    "collectionPointsHeading": "Collection points",
+    "nothingToShow": "Nothing to show right now."
+  },
   "needDetail": {
     "contact": "Contact",
     "editedOn": "edited on {{date}}",

@@ -150,6 +150,12 @@
     "legendNote": "— les points sans GPS exact sont placés au centre approximatif de la wilaya (« sans position GPS exacte »)",
     "addButton": "+ J'ai besoin d'aide"
   },
+  "help": {
+    "instructions": "Veuillez choisir sur la carte un point de collecte ou un SOS à aider, ou utiliser la liste ou les filtres.",
+    "needsHeading": "Besoins",
+    "collectionPointsHeading": "Points de collecte",
+    "nothingToShow": "Rien à afficher pour le moment."
+  },
   "needDetail": {
     "contact": "Contact",
     "editedOn": "modifié le {{date}}",
