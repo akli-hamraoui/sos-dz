@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { IconBox, IconGlobe } from '../icons'
+import { IconAlgeriaFlag, IconGlobeColor } from '../icons'
 
 export default function Home() {
   const { t } = useTranslation()
@@ -13,22 +13,23 @@ export default function Home() {
       <img src="/logo-full.png" alt={t('common.brand')} className="home-logo" />
       <p className="home-tagline">{t('home.tagline')}</p>
       <div className="home-actions">
-        <Link to="/create" className="btn btn-huge btn-icon home-btn-primary">
-          {/* Same SOS mark used for need pins/the footer FAB elsewhere in
-              the app -- the icon the user already associates with "need".
-              Masked (not a plain <img>) so it can be tinted an exact
-              muted red via background-color, rather than the white the
-              button used to show -- a filter-based tint (invert/hue-
-              rotate) can't hit a precise, deliberately-desaturated color
-              reliably. */}
-          <span className="icon-sos-red" aria-hidden="true" />
-          {t('home.iNeedHelp')}
-        </Link>
         <Link to="/collection-points" className="btn btn-huge btn-icon home-btn-outline">
-          <IconBox width={22} height={22} strokeWidth={1.75} /> {t('home.collectionPointsAlgeria')}
+          <IconAlgeriaFlag /> {t('home.collectionPointsAlgeria')}
         </Link>
         <Link to="/international-collection-points" className="btn btn-huge btn-icon home-btn-outline">
-          <IconGlobe width={22} height={22} strokeWidth={1.75} /> {t('home.collectionPointsInternational')}
+          <IconGlobeColor /> {t('home.collectionPointsInternational')}
+        </Link>
+        {/* Last/bottom by design -- moved from first to last, and from
+            black to red (not too dark), per explicit request. */}
+        <Link to="/create" className="btn btn-huge btn-icon home-btn-sos">
+          {/* Same SOS mark used for need pins/the footer FAB elsewhere in
+              the app. Masked (not a plain <img>) so it can be tinted an
+              exact color via background-color -- white here, for contrast
+              against this button's own red background (it was a muted red
+              on the previous black button; that same red would disappear
+              against a red button, so it flipped to white instead). */}
+          <span className="icon-sos" aria-hidden="true" />
+          {t('home.iNeedHelp')}
         </Link>
       </div>
       {/* The footer also carries this link (it's the only entry point to

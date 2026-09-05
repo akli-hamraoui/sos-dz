@@ -428,22 +428,24 @@ main {
     flex-basis: 100%;
   }
 }
-.btn.home-btn-primary {
-  background: var(--accent);
+.btn.home-btn-sos {
+  /* Red, but not too dark -- a clear, legible red rather than a near-
+     black brick red or a neon one. */
+  background: #e5484d;
   color: #fff;
-  border: 1px solid var(--accent);
+  border: 1px solid #d33d42;
   border-radius: 999px;
 }
-.icon-sos-red {
+.icon-sos {
   display: inline-block;
   width: 22px;
   height: 22px;
   flex-shrink: 0;
-  /* Muted, deliberately not a vivid/bright red -- reads as "alert" without
-     shouting. background-color + mask-image tints the source PNG (a
-     solid black shape on a transparent background) to this exact color,
-     which a CSS filter chain (invert/hue-rotate) can't do reliably. */
-  background-color: #a3403f;
+  /* White, for contrast against this button's own red background.
+     background-color + mask-image tints the source PNG (a solid black
+     shape on a transparent background) to this exact color, which a CSS
+     filter chain (invert/hue-rotate) can't do reliably. */
+  background-color: #fff;
   -webkit-mask-image: url('/icons/need-marker-sos.png');
   mask-image: url('/icons/need-marker-sos.png');
   -webkit-mask-size: contain;
