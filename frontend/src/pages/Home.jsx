@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { IconNeeds } from '../icons'
+import { IconBox, IconGlobe } from '../icons'
 
 export default function Home() {
   const { t } = useTranslation()
@@ -15,12 +15,20 @@ export default function Home() {
       <div className="home-actions">
         <Link to="/create" className="btn btn-huge btn-icon home-btn-primary">
           {/* Same SOS mark used for need pins/the footer FAB elsewhere in
-              the app -- the icon the user already associates with "need". */}
-          <img src="/icons/need-marker-sos.png" width={22} height={22} alt="" style={{ filter: 'invert(1)', flexShrink: 0 }} />
+              the app -- the icon the user already associates with "need".
+              Masked (not a plain <img>) so it can be tinted an exact
+              muted red via background-color, rather than the white the
+              button used to show -- a filter-based tint (invert/hue-
+              rotate) can't hit a precise, deliberately-desaturated color
+              reliably. */}
+          <span className="icon-sos-red" aria-hidden="true" />
           {t('home.iNeedHelp')}
         </Link>
-        <Link to="/help" className="btn btn-huge btn-icon home-btn-outline">
-          <IconNeeds width={22} height={22} strokeWidth={2} /> {t('home.iWantToHelp')}
+        <Link to="/collection-points" className="btn btn-huge btn-icon home-btn-outline">
+          <IconBox width={22} height={22} strokeWidth={1.75} /> {t('home.collectionPointsAlgeria')}
+        </Link>
+        <Link to="/international-collection-points" className="btn btn-huge btn-icon home-btn-outline">
+          <IconGlobe width={22} height={22} strokeWidth={1.75} /> {t('home.collectionPointsInternational')}
         </Link>
       </div>
       {/* The footer also carries this link (it's the only entry point to

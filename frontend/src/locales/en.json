@@ -75,8 +75,10 @@
   "home": {
     "privacyNotice": "Information from associations, aid requests and couriers (name, phone, address, collection points) is public so volunteers can contact you.\n* Phone numbers are not required.\n* You can anonymize your information at any time.",
     "tagline": "Coordinating relief following the wildfires in Algeria.",
-    "iNeedHelp": "I need help",
+    "iNeedHelp": "Send an SOS",
     "iWantToHelp": "I want to help",
+    "collectionPointsAlgeria": "Collection points in Algeria",
+    "collectionPointsInternational": "International collection points",
     "summary": "SOSDZ is a free, community-run platform that coordinates emergency relief in Algeria in response to natural disasters, particularly wildfires. It's built for anyone in Algeria who needs help (food, water, shelter, medical care) and for anyone who wants to help, whether in Algeria or from abroad. There are three ways to use it: report a need, offer your help as a volunteer or delivery driver, or set up a donation collection point near you.",
     "faqHeading": "Frequently asked questions",
     "faq": [
