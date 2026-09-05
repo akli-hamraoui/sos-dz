@@ -13,10 +13,10 @@ export default function Home() {
       <img src="/logo-full.png" alt={t('common.brand')} className="home-logo" />
       <p className="home-tagline">{t('home.tagline')}</p>
       <div className="home-actions">
-        <Link to="/collection-points" className="btn btn-huge btn-icon home-btn-outline">
+        <Link to="/collection-points" className="btn btn-icon home-btn-outline home-btn-compact">
           <IconAlgeriaFlag /> {t('home.collectionPointsAlgeria')}
         </Link>
-        <Link to="/international-collection-points" className="btn btn-huge btn-icon home-btn-outline">
+        <Link to="/international-collection-points" className="btn btn-icon home-btn-outline home-btn-compact">
           <IconGlobeColor /> {t('home.collectionPointsInternational')}
         </Link>
         {/* Last/bottom by design -- moved from first to last, and from

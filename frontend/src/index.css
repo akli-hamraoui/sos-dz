@@ -461,6 +461,18 @@ main {
   border: 1.5px solid var(--accent);
   border-radius: 999px;
 }
+/* Used instead of .btn-huge on the two collection-point buttons -- their
+   labels are long enough to wrap to two lines, which under .btn-huge's
+   22px padding/18px font made them noticeably taller/bulkier than the
+   single-line SOS button using the same class. Smaller padding/font here
+   brings a two-line button back down to roughly the same height as the
+   SOS button's one line. */
+.home-btn-compact {
+  padding: 14px 18px;
+  border-radius: 16px;
+  font-size: 15px;
+  font-weight: 600;
+}
 .home-about-link {
   /* Sits over the background photo, so it needs real contrast -- the
      footer's own muted #777 all but disappears there. */
