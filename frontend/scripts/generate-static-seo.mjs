@@ -1,32 +1,45 @@
-// Runs after `vite build` (see package.json's "build" script). Bakes a
-// distinct title/description/canonical/OG/Twitter block into a static
-// dist/<route>/index.html for each of the routes below, so a crawler that
-// never runs the app's JS (WhatsApp/Facebook/Twitter link previews, a
-// non-JS Googlebot fallback fetch) still sees per-page values instead of
-// just the homepage's -- the app itself also sets these client-side per
-// route/language once it hydrates (see src/components/Seo.jsx), which is
-// what a real browser uses, but that does nothing for a dumb crawler.
+// Runs after `vite build` (see package.json's "build" script). Two jobs,
+// both driven by the same SEO_ROUTES list (src/seoRoutes.js) and the same
+// fr.json copy the client-side <Seo> component uses, so there is exactly
+// one place that knows "these are the site's indexable pages" and one
+// place that knows what each one says:
 //
-// Only the French copy is baked in here (fr.json) -- the app has no
-// distinct URL per language (it switches client-side, via localStorage),
-// so there is no separate crawlable URL to bake an English/Arabic variant
-// into. French is what a fresh visitor with no stored preference actually
-// gets, so it's the honest default for a static snapshot.
+// 1. Bakes a distinct title/description/canonical/OG/Twitter block into a
+//    static dist/<route>/index.html per route, so a crawler that never
+//    runs the app's JS (WhatsApp/Facebook/Twitter link previews, a non-JS
+//    Googlebot fallback fetch) still sees per-page values instead of just
+//    the homepage's -- the app itself also sets these client-side per
+//    route/language once it hydrates (see src/components/Seo.jsx), which
+//    is what a real browser uses, but that does nothing for a crawler.
+// 2. (Re)generates dist/sitemap.xml from the same data, including the
+//    Google image-sitemap extension (a caption/title per URL) and a
+//    lastmod set to this actual build date -- richer, and always in sync
+//    with the real page copy, unlike a hand-maintained static XML file
+//    that silently goes stale the moment a description changes elsewhere.
+//    There is deliberately no static frontend/public/sitemap.xml anymore;
+//    this is the only place it's produced.
 //
-// No new dependency: this is plain string substitution against the exact
-// `<!-- SEO:START --> ... <!-- SEO:END -->` block already in
-// frontend/index.html (and therefore in the built dist/index.html too,
-// since Vite copies static HTML through unchanged) -- deliberately not a
-// real browser render (Playwright etc.), since every value used here is
+// Only the French copy is baked in (fr.json) -- the app has no distinct
+// URL per language (it switches client-side, via localStorage), so there
+// is no separate crawlable URL to bake an English/Arabic variant into,
+// and no per-language field in the sitemap protocol (or its image
+// extension) to put one in either. French is what a fresh visitor with
+// no stored preference actually gets, so it's the honest default for a
+// static snapshot.
+//
+// No new dependency: this is plain string/template generation, not a
+// real browser render (Playwright etc.) -- every value used here is
 // already known at build time from fr.json, not something that needs a
 // live page load to compute.
 
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
+import { readFileSync, writeFileSync, mkdirSync, rmSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
+import { SEO_ROUTES } from '../src/seoRoutes.js'
 
 const SITE_URL = 'https://sosdz.org'
 const OG_IMAGE = `${SITE_URL}/og-image.png`
+const BUILD_DATE = new Date().toISOString().slice(0, 10)
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url))
 const frontendDir = path.resolve(scriptDir, '..')
@@ -35,30 +48,17 @@ const shellPath = path.join(distDir, 'index.html')
 
 const fr = JSON.parse(readFileSync(path.join(frontendDir, 'src/locales/fr.json'), 'utf8'))
 
-// "/" is deliberately not listed here -- the built dist/index.html
-// already carries the homepage's own block (that's what's hand-written in
-// frontend/index.html), so there's nothing to regenerate for it.
-const ROUTES = [
-  { urlPath: '/needs', dir: 'needs', key: 'needsList' },
-  { urlPath: '/help', dir: 'help', key: 'help' },
-  { urlPath: '/collection-points', dir: 'collection-points', key: 'collectionPoints' },
-  { urlPath: '/international-collection-points', dir: 'international-collection-points', key: 'internationalCollectionPoints' },
-  { urlPath: '/deliveries', dir: 'deliveries', key: 'deliveries' },
-  { urlPath: '/about', dir: 'about', key: 'about' },
-  { urlPath: '/legal', dir: 'legal', key: 'legal' },
-]
-
-function escapeHtml(value) {
-  return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+function escapeXml(value) {
+  return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;')
 }
 
 function seoBlock({ title, description, canonicalUrl }) {
-  const t = escapeHtml(title)
-  const d = escapeHtml(description)
+  const t = escapeXml(title)
+  const d = escapeXml(description)
   return `<!-- SEO:START -->
     <title>${t}</title>
     <meta name="description" content="${d}" />
-    <meta name="keywords" content="${escapeHtml(fr.seo.keywords)}" />
+    <meta name="keywords" content="${escapeXml(fr.seo.keywords)}" />
     <link rel="canonical" href="${canonicalUrl}" />
     <link rel="alternate" hreflang="x-default" href="${canonicalUrl}" />
     <meta property="og:type" content="website" />
@@ -79,6 +79,29 @@ function seoBlock({ title, description, canonicalUrl }) {
     <!-- SEO:END -->`
 }
 
+function sitemapXml() {
+  const urls = SEO_ROUTES.map((route) => {
+    const seo = fr.seo[route.key]
+    const loc = `${SITE_URL}${route.urlPath}`
+    return `  <url>
+    <loc>${loc}</loc>
+    <lastmod>${BUILD_DATE}</lastmod>
+    <changefreq>${route.changefreq}</changefreq>
+    <priority>${route.priority}</priority>
+    <image:image>
+      <image:loc>${OG_IMAGE}</image:loc>
+      <image:title>${escapeXml(seo.title)}</image:title>
+      <image:caption>${escapeXml(seo.description)}</image:caption>
+    </image:image>
+  </url>`
+  })
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+${urls.join('\n')}
+</urlset>
+`
+}
+
 const shell = readFileSync(shellPath, 'utf8')
 const seoBlockPattern = /<!-- SEO:START -->[\s\S]*?<!-- SEO:END -->/
 
@@ -86,8 +109,10 @@ if (!seoBlockPattern.test(shell)) {
   throw new Error(`Could not find the <!-- SEO:START -->...<!-- SEO:END --> block in ${shellPath}`)
 }
 
+// "/" is skipped here -- the built dist/index.html already carries the
+// homepage's own block (that's what's hand-written in frontend/index.html).
 let written = 0
-for (const route of ROUTES) {
+for (const route of SEO_ROUTES.filter((r) => r.dir)) {
   const seo = fr.seo[route.key]
   const canonicalUrl = `${SITE_URL}${route.urlPath}`
   const html = shell.replace(seoBlockPattern, seoBlock({ title: seo.title, description: seo.description, canonicalUrl }))
@@ -97,4 +122,11 @@ for (const route of ROUTES) {
   written += 1
 }
 
-console.log(`generate-static-seo: wrote ${written} route(s) under ${path.relative(frontendDir, distDir)}/ (plus the homepage, already baked into index.html).`)
+// vite build already copied public/sitemap.xml (if one exists) through
+// unchanged -- remove it first so a stale copy can never linger if this
+// script fails before reaching the write below.
+const sitemapPath = path.join(distDir, 'sitemap.xml')
+rmSync(sitemapPath, { force: true })
+writeFileSync(sitemapPath, sitemapXml())
+
+console.log(`generate-static-seo: wrote ${written} route(s) under ${path.relative(frontendDir, distDir)}/ (plus the homepage, already baked into index.html) and regenerated sitemap.xml.`)

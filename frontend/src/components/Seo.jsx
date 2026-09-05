@@ -1,32 +1,21 @@
 import { Helmet } from 'react-helmet-async'
 import { useLocation, matchPath } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { SEO_ROUTES } from '../seoRoutes'
 
 const SITE_URL = 'https://sosdz.org'
 const OG_IMAGE = `${SITE_URL}/og-image.png`
 const OG_LOCALE = { fr: 'fr_FR', ar: 'ar_DZ', en: 'en_US' }
 
-// Maps each indexable route to its "seo.<key>" translation namespace (see
-// locales/*.json) -- anything not listed here (create/detail/take-charge
-// flows, etc.) falls back to "seo.default" rather than getting a fully
-// bespoke title/description, since those pages aren't meant to be
-// individually indexed or shared (see the sitemap, which only lists the
-// routes below).
-const SEO_ROUTES = [
-  { path: '/', key: 'home' },
-  { path: '/needs', key: 'needsList' },
-  { path: '/help', key: 'help' },
-  { path: '/collection-points', key: 'collectionPoints' },
-  { path: '/international-collection-points', key: 'internationalCollectionPoints' },
-  { path: '/deliveries', key: 'deliveries' },
-  { path: '/about', key: 'about' },
-  { path: '/legal', key: 'legal' },
-]
-
 export default function Seo() {
   const { pathname } = useLocation()
   const { t, i18n } = useTranslation()
-  const matched = SEO_ROUTES.find((r) => matchPath({ path: r.path, end: true }, pathname))
+  // Anything not in SEO_ROUTES (create/detail/take-charge flows, etc.)
+  // falls back to "seo.default" rather than a fully bespoke title/
+  // description, since those pages aren't meant to be individually
+  // indexed or shared (see the generated sitemap, which only lists
+  // SEO_ROUTES' own pages).
+  const matched = SEO_ROUTES.find((r) => matchPath({ path: r.urlPath, end: true }, pathname))
   const base = `seo.${matched ? matched.key : 'default'}`
   const title = t(`${base}.title`)
   const description = t(`${base}.description`)
