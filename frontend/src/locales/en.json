@@ -28,7 +28,8 @@
     "adminContact": "Admin contact",
     "searchPlaceholder": "Search (name, description...)",
     "adminModeBadge": "Admin mode",
-    "adminLogout": "log out"
+    "adminLogout": "log out",
+    "nonOfficialFooterNote": "Unofficial site, developed and deployed by a volunteer."
   },
   "validation": {
     "required": "This field is required.",
@@ -387,6 +388,7 @@
     "p1": "SOS DZ is a community-run, volunteer, open-source platform built to coordinate mutual aid around wildfires in Algeria: report a need, offer help, and track deliveries in real time.",
     "p2": "The project isn't affiliated with any administration or official organization -- it's a free, ad-free citizen tool designed to stay usable even on a weak connection.",
     "p3": "The source code is public; anyone can review how it works or contribute.",
+    "p4": "SOSDZ is an open-source project, developed and deployed voluntarily by Akli HAMRAOUI, an Algerian volunteer, to help coordinate humanitarian aid in Algeria during natural disasters. This is not an official or government platform -- it's an independent citizen initiative.",
     "contactLink": "A question or a suggestion? Contact the admin.",
     "whatsappHeading": "Contact us on WhatsApp",
     "whatsappComingSoon": "WhatsApp: number coming soon."
@@ -400,7 +402,8 @@
     "project": {
       "title": "The project",
       "p1": "SOS DZ is a free, open-source, citizen-run application, built out of solidarity to help coordinate mutual aid during disasters (wildfires, earthquakes, floods, etc.) in Algeria. It does not perform any disaster detection: it is only used to coordinate humanitarian aid once a crisis has been declared by the relevant authorities.",
-      "p2": "The project is entirely free, ad-free, and does not sell or resell any personal data to third parties."
+      "p2": "The project is entirely free, ad-free, and does not sell or resell any personal data to third parties.",
+      "p3": "SOS DZ is not an official or government platform: it is an independent citizen initiative, developed and deployed by a volunteer."
     },
     "openSource": {
       "title": "Source code",

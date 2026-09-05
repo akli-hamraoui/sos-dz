@@ -315,6 +315,7 @@ export default function App() {
       </main>
 
       <footer>
+        <p className="footer-disclaimer">{t('common.nonOfficialFooterNote')}</p>
         {(config.contact_phones.length > 0 || config.admin_contact_email) && (
           <p>
             {t('common.adminContact')}:{' '}

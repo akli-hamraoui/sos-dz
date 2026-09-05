@@ -18,6 +18,7 @@ export default function Legal() {
       <h3>{t('legal.project.title')}</h3>
       <p>{t('legal.project.p1')}</p>
       <p>{t('legal.project.p2')}</p>
+      <p>{t('legal.project.p3')}</p>
 
       <h3>{t('legal.openSource.title')}</h3>
       <p>
