@@ -28,7 +28,8 @@
     "adminContact": "Contact admin",
     "searchPlaceholder": "Rechercher (nom, description...)",
     "adminModeBadge": "Mode admin",
-    "adminLogout": "se déconnecter"
+    "adminLogout": "se déconnecter",
+    "nonOfficialFooterNote": "Site non-officiel, développé et déployé par un bénévole."
   },
   "validation": {
     "required": "Ce champ est obligatoire.",
@@ -387,6 +388,7 @@
     "p1": "SOS DZ est une plateforme communautaire, bénévole et open-source, créée pour coordonner l'entraide autour des feux de forêt en Algérie : signaler un besoin, proposer de l'aide, et suivre les livraisons en temps réel.",
     "p2": "Le projet n'est affilié à aucune administration ni organisation officielle -- c'est un outil citoyen, gratuit et sans publicité, pensé pour rester simple à utiliser même en connexion faible.",
     "p3": "Le code source est public ; toute personne peut vérifier son fonctionnement ou contribuer.",
+    "p4": "SOSDZ est un projet open source développé et déployé bénévolement par Akli HAMRAOUI, un bénévole algérien, pour faciliter la coordination de l'aide humanitaire en Algérie lors de catastrophes naturelles. Ce site n'est pas une plateforme officielle ou gouvernementale -- c'est une initiative citoyenne indépendante.",
     "contactLink": "Une question, une suggestion ? Contactez l'admin.",
     "whatsappHeading": "Nous contacter sur WhatsApp",
     "whatsappComingSoon": "WhatsApp : numéro à venir."
@@ -400,7 +402,8 @@
     "project": {
       "title": "Le projet",
       "p1": "SOS DZ est une application citoyenne, gratuite et open-source, créée par solidarité pour aider à coordonner l'entraide en cas de catastrophe (feux de forêt, séismes, inondations, etc.) en Algérie. Elle ne fait aucune détection de catastrophe : elle sert uniquement à coordonner l'aide humanitaire une fois une crise déclarée par les autorités compétentes.",
-      "p2": "Le projet est entièrement gratuit, sans publicité, et ne vend ni ne revend aucune donnée personnelle à des tiers."
+      "p2": "Le projet est entièrement gratuit, sans publicité, et ne vend ni ne revend aucune donnée personnelle à des tiers.",
+      "p3": "SOS DZ n'est pas une plateforme officielle ni gouvernementale : il s'agit d'une initiative citoyenne indépendante, développée et déployée par un bénévole."
     },
     "openSource": {
       "title": "Code source",
