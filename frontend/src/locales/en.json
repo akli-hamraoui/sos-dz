@@ -75,7 +75,27 @@
     "privacyNotice": "Information from associations, aid requests and couriers (name, phone, address, collection points) is public so volunteers can contact you.\n* Phone numbers are not required.\n* You can anonymize your information at any time.",
     "tagline": "Coordinating relief following the wildfires in Algeria.",
     "iNeedHelp": "I need help",
-    "iWantToHelp": "I want to help"
+    "iWantToHelp": "I want to help",
+    "summary": "SOSDZ is a free, community-run platform that coordinates emergency relief in Algeria in response to natural disasters, particularly wildfires. It's built for anyone in Algeria who needs help (food, water, shelter, medical care) and for anyone who wants to help, whether in Algeria or from abroad. There are three ways to use it: report a need, offer your help as a volunteer or delivery driver, or set up a donation collection point near you.",
+    "faqHeading": "Frequently asked questions",
+    "faq": [
+      {
+        "q": "What is SOSDZ?",
+        "a": "SOSDZ is a community-run, volunteer platform that coordinates emergency relief in Algeria: it lets you report a need, offer help, or find a donation collection point, anywhere in the country."
+      },
+      {
+        "q": "How do I request help in Algeria through SOSDZ?",
+        "a": "Click \"I need help\" on the homepage, describe your need (food, water, shelter, medical care...) and your location -- nearby volunteers can then see it and offer help."
+      },
+      {
+        "q": "How can I volunteer for disaster relief in Algeria?",
+        "a": "Click \"I want to help\" on the homepage to browse nearby reported needs, take charge of a delivery, or become a volunteer driver."
+      },
+      {
+        "q": "How do I set up a donation collection point on SOSDZ?",
+        "a": "From the \"Collection Points\" page, click \"Add a collection point\" and fill in the location, opening hours, and accepted donations -- there's also an option for a collection point abroad."
+      }
+    ]
   },
   "status": {
     "open": "open",

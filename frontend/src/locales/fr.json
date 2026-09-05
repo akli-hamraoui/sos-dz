@@ -75,7 +75,27 @@
     "privacyNotice": "Les informations des associations, demandes d'aide et transporteurs (nom, téléphone, adresse, points de collecte) sont publiques pour permettre aux bénévoles de vous contacter.\n* Le téléphone n'est pas obligatoire.\n* Vous pouvez anonymiser vos informations à tout moment.",
     "tagline": "Coordination de l'aide suite aux feux de forêt en Algérie.",
     "iNeedHelp": "J'ai besoin d'aide",
-    "iWantToHelp": "Je veux aider"
+    "iWantToHelp": "Je veux aider",
+    "summary": "SOSDZ est une plateforme communautaire et gratuite qui coordonne l'aide d'urgence en Algérie face aux catastrophes naturelles, notamment les feux de forêt. Elle s'adresse à toute personne en Algérie ayant besoin d'aide (nourriture, eau, abri, soins) et à toute personne souhaitant aider, en Algérie ou depuis l'étranger. Trois façons de l'utiliser : signaler un besoin, proposer votre aide en tant que bénévole ou transporteur, ou mettre en place un point de collecte de dons près de chez vous.",
+    "faqHeading": "Questions fréquentes",
+    "faq": [
+      {
+        "q": "Qu'est-ce que SOSDZ ?",
+        "a": "SOSDZ est une plateforme communautaire et bénévole qui coordonne l'aide d'urgence en Algérie : elle permet de signaler un besoin, de proposer de l'aide, ou de trouver un point de collecte de dons, partout dans le pays."
+      },
+      {
+        "q": "Comment demander de l'aide en Algérie via SOSDZ ?",
+        "a": "Cliquez sur \"J'ai besoin d'aide\" depuis la page d'accueil, décrivez votre besoin (nourriture, eau, abri, soins...) et votre localisation : les bénévoles à proximité peuvent alors le voir et proposer leur aide."
+      },
+      {
+        "q": "Comment devenir bénévole pour l'aide d'urgence en Algérie ?",
+        "a": "Cliquez sur \"Je veux aider\" depuis la page d'accueil pour consulter les besoins signalés près de chez vous, prendre en charge une livraison, ou devenir transporteur bénévole."
+      },
+      {
+        "q": "Comment créer un point de collecte de dons sur SOSDZ ?",
+        "a": "Depuis la page \"Points de collecte\", cliquez sur \"Ajouter un point de collecte\" et renseignez le lieu, les horaires et les dons acceptés -- une option existe aussi pour un point de collecte à l'étranger."
+      }
+    ]
   },
   "status": {
     "open": "ouvert",
