@@ -246,6 +246,9 @@ export default function CollectionPoints() {
 
   return (
     <section className="needs-page">
+      {/* Real, visible descriptive text -- search engines can't read
+          meaning from the map/markers alone. */}
+      <p className="page-intro">{t('seo.collectionPoints.description')}</p>
       <div className="toolbar">
         <input
           type="search"

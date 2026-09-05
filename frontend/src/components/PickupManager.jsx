@@ -265,7 +265,7 @@ export default function PickupManager({ pickup, pickupToken, onChange, onLocatio
             <div className="photo-thumb" key={photo.id}>
               {photo.image ? (
                 <button type="button" className="gallery-thumb-btn" onClick={() => setLightbox({ src: photo.image })}>
-                  <img className="gallery-thumb" src={photo.image} alt="" />
+                  <img className="gallery-thumb" src={photo.image} alt={t('common.photoAlt')} />
                 </button>
               ) : (
                 <ModerationBadge t={t} status={photo.moderation_status} moderatedBy={photo.moderated_by} />
@@ -309,7 +309,7 @@ export default function PickupManager({ pickup, pickupToken, onChange, onLocatio
               <div className="photo-thumbs">
                 {deliveryPhotos.map((ph, idx) => (
                   <div className="photo-thumb" key={idx}>
-                    <img src={ph.previewUrl} alt="" />
+                    <img src={ph.previewUrl} alt={t('common.photoAlt')} />
                     <button type="button" className="link" onClick={() => setDeliveryPhotos((d) => d.filter((_, i) => i !== idx))}>
                       {t('createNeed.remove')}
                     </button>
@@ -342,7 +342,7 @@ export default function PickupManager({ pickup, pickupToken, onChange, onLocatio
           <button type="button" className="lightbox-close" onClick={() => setLightbox(null)} aria-label={t('needDetail.closeLightbox')}>
             ×
           </button>
-          <img src={lightbox.src} alt="" onClick={(e) => e.stopPropagation()} />
+          <img src={lightbox.src} alt={t('common.photoAlt')} onClick={(e) => e.stopPropagation()} />
         </div>
       )}
     </div>

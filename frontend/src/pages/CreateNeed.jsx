@@ -494,7 +494,7 @@ export default function CreateNeed() {
                   {damagePhotos.map((p, idx) => (
                     <div className="photo-thumb" key={idx}>
                       <button type="button" className="gallery-thumb-btn" onClick={() => setLightbox({ src: p.previewUrl })}>
-                        <img className="gallery-thumb" src={p.previewUrl} alt="" />
+                        <img className="gallery-thumb" src={p.previewUrl} alt={t('common.photoAlt')} />
                       </button>
                       <button type="button" className="link" onClick={() => removeDamagePhoto(idx)}>
                         <IconTrash width={14} height={14} strokeWidth={2} />
@@ -650,7 +650,7 @@ export default function CreateNeed() {
           <button type="button" className="lightbox-close" onClick={() => setLightbox(null)} aria-label={t('needDetail.closeLightbox')}>
             ×
           </button>
-          <img src={lightbox.src} alt="" onClick={(e) => e.stopPropagation()} />
+          <img src={lightbox.src} alt={t('common.photoAlt')} onClick={(e) => e.stopPropagation()} />
         </div>
       )}
     </section>

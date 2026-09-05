@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && node scripts/generate-static-seo.mjs",
     "lint": "oxlint",
     "preview": "vite preview"
   },
@@ -17,6 +17,7 @@
     "leaflet-gesture-handling": "^1.2.2",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
+    "react-helmet-async": "^3.0.0",
     "react-i18next": "^17.0.12",
     "react-router-dom": "^7.18.3"
   },

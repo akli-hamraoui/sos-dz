@@ -1,6 +1,8 @@
 {
   "common": {
     "brand": "SOS DZ",
+    "photoAlt": "Attached photo",
+    "flyerAlt": "Collection point flyer",
     "loading": "Loading...",
     "save": "Save",
     "ok": "OK",
@@ -466,5 +468,44 @@
     "payloadTooLarge": "The file you sent is too large. Reduce its size and try again.",
     "invalidSocialUrlField": "Please enter a valid {{network}} link starting with http:// or https://",
     "genericFieldError": "Please check the form fields and try again."
+  },
+  "seo": {
+    "keywords": "emergency help Algeria, natural disaster, Kabylie wildfire, volunteering Algeria, donation collection point, Algeria solidarity",
+    "default": {
+      "title": "SOSDZ — Emergency Relief Coordination in Algeria",
+      "description": "SOSDZ coordinates emergency relief across Algeria: report a need, offer help, or find a nearby donation collection point."
+    },
+    "home": {
+      "title": "SOSDZ — Emergency Relief Coordination in Algeria",
+      "description": "SOSDZ coordinates emergency relief across Algeria: report a need, offer help, or find a nearby donation collection point, anywhere in the country."
+    },
+    "needsList": {
+      "title": "Reported Needs — SOSDZ",
+      "description": "Browse the emergency needs reported across Algeria (food, water, shelter, medical care) and offer help directly from the map or list view."
+    },
+    "help": {
+      "title": "I Want to Help — SOSDZ",
+      "description": "Volunteer or become a delivery driver for SOSDZ: help respond to urgent needs reported across Algeria, deliver donations, or offer your support."
+    },
+    "collectionPoints": {
+      "title": "Donation Collection Points in Algeria — SOSDZ",
+      "description": "Find a donation collection point near you in Algeria: accepted donations, opening hours, contact details, and location on an interactive map."
+    },
+    "internationalCollectionPoints": {
+      "title": "International Collection Points — SOSDZ",
+      "description": "Donation collection points for Algeria located abroad: associations, opening hours, accepted donations, and locations worldwide."
+    },
+    "deliveries": {
+      "title": "Volunteer Drivers — SOSDZ",
+      "description": "Follow the volunteer drivers delivering collected donations to collection points and people in need across Algeria in real time."
+    },
+    "about": {
+      "title": "About Us — SOSDZ",
+      "description": "Learn about SOSDZ, the citizen-run platform coordinating emergency relief in Algeria: our mission, how it works, and our team."
+    },
+    "legal": {
+      "title": "Legal Notice — SOSDZ",
+      "description": "Legal notice, data protection, and terms of use for the SOSDZ emergency relief coordination platform in Algeria."
+    }
   }
 }
