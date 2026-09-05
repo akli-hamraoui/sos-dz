@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { IconNeeds } from '../icons'
+import { IconAlgeriaFlag, IconGlobeColor, IconMapPin } from '../icons'
 
 export default function Home() {
   const { t } = useTranslation()
@@ -13,14 +13,31 @@ export default function Home() {
       <img src="/logo-full.png" alt={t('common.brand')} className="home-logo" />
       <p className="home-tagline">{t('home.tagline')}</p>
       <div className="home-actions">
-        <Link to="/create" className="btn btn-huge btn-icon home-btn-primary">
-          {/* Same SOS mark used for need pins/the footer FAB elsewhere in
-              the app -- the icon the user already associates with "need". */}
-          <img src="/icons/need-marker-sos.png" width={22} height={22} alt="" style={{ filter: 'invert(1)', flexShrink: 0 }} />
-          {t('home.iNeedHelp')}
+        <Link to="/collection-points" className="btn btn-icon home-btn-outline home-btn-compact">
+          <IconAlgeriaFlag /> {t('home.collectionPointsAlgeria')}
+          {/* Small trailing cue that this leads to a map view (both
+              collection-point pages default to their map -- see each
+              page's own viewMode state), same IconMapPin glyph already
+              used elsewhere in the app for this, just smaller than the
+              flag/globe so it reads as a subordinate hint, not a second
+              equally-weighted icon. */}
+          <IconMapPin width={16} height={16} strokeWidth={1.75} className="home-btn-map-hint" />
         </Link>
-        <Link to="/help" className="btn btn-huge btn-icon home-btn-outline">
-          <IconNeeds width={22} height={22} strokeWidth={2} /> {t('home.iWantToHelp')}
+        <Link to="/international-collection-points" className="btn btn-icon home-btn-outline home-btn-compact">
+          <IconGlobeColor /> {t('home.collectionPointsInternational')}
+          <IconMapPin width={16} height={16} strokeWidth={1.75} className="home-btn-map-hint" />
+        </Link>
+        {/* Last/bottom by design -- moved from first to last, and from
+            black to red (not too dark), per explicit request. */}
+        <Link to="/create" className="btn btn-huge btn-icon home-btn-sos">
+          {/* Same SOS mark used for need pins/the footer FAB elsewhere in
+              the app. Masked (not a plain <img>) so it can be tinted an
+              exact color via background-color -- white here, for contrast
+              against this button's own red background (it was a muted red
+              on the previous black button; that same red would disappear
+              against a red button, so it flipped to white instead). */}
+          <span className="icon-sos" aria-hidden="true" />
+          {t('home.iNeedHelp')}
         </Link>
       </div>
       {/* The footer also carries this link (it's the only entry point to
