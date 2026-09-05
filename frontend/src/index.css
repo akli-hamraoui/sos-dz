@@ -458,6 +458,27 @@ main {
   max-width: 480px;
   margin-inline: auto;
 }
+.home-faq {
+  margin-block-start: 32px;
+  max-width: 560px;
+  margin-inline: auto;
+  text-align: start;
+}
+.home-faq-item {
+  margin-block-start: 16px;
+}
+.home-faq-item h3 {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+.home-faq-item p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
 /* A short phone viewport (confirmed down to 320x568, the smallest still
    in real use) needs more compacting than the clamp()s above alone can
    give without also shrinking the still-plenty-tall ones -- otherwise
@@ -481,7 +502,8 @@ main {
   .home-about-link {
     margin-block-start: 2px;
   }
-  .home-description {
+  .home-description,
+  .home-faq {
     display: none;
   }
 }

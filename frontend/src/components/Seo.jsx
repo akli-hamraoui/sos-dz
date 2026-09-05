@@ -54,11 +54,48 @@ export default function Seo() {
         <script type="application/ld+json">
           {JSON.stringify({
             '@context': 'https://schema.org',
-            '@type': 'NGO',
+            // Plain Organization, not NGO/NonprofitOrganization: the About
+            // page itself is explicit that SOSDZ "isn't affiliated with
+            // any administration or official organization" -- it's a
+            // volunteer-run community tool, not a registered nonprofit
+            // entity, so claiming NGO status would misrepresent it (and
+            // risk a schema/visible-content mismatch under Google's own
+            // structured-data policy).
+            '@type': 'Organization',
             name: 'SOSDZ',
             url: SITE_URL,
-            logo: `${SITE_URL}/logo-full.png`,
+            // Square icon-only mark, not the wide text lockup -- matches
+            // Google's own Organization logo guidance (roughly square,
+            // >=112x112; logo.png is 800x800).
+            logo: `${SITE_URL}/logo.png`,
             description,
+            // The only genuine public link the site itself already
+            // surfaces (see Legal.jsx) -- not inventing social profiles
+            // that don't exist.
+            sameAs: ['https://github.com/akli-hamraoui/sos-dz'],
+          })}
+        </script>
+      )}
+      {matched?.key === 'home' && (
+        <script type="application/ld+json">
+          {JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'FAQPage',
+            // Built from the exact same "home.faq" translations rendered
+            // as visible text on the page itself (see Home.jsx) -- the
+            // markup must match what a visitor actually sees, per
+            // Google's structured-data policy. Note: Google retired FAQ
+            // rich results from Search entirely as of May 2026 (this
+            // markup no longer produces the old dropdown snippet for
+            // anyone) -- this is included as a best-effort, no-guaranteed-
+            // effect signal for AI systems that read structured data as a
+            // clarity/trust signal, not for a search feature that still
+            // exists.
+            mainEntity: t('home.faq', { returnObjects: true }).map((item) => ({
+              '@type': 'Question',
+              name: item.q,
+              acceptedAnswer: { '@type': 'Answer', text: item.a },
+            })),
           })}
         </script>
       )}

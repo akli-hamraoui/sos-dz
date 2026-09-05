@@ -32,12 +32,31 @@ export default function Home() {
       <Link to="/about" className="home-about-link">
         {t('nav.about')}
       </Link>
-      {/* Real, visible descriptive text -- search engines can't read
-          meaning from the icons/photo above alone. Sits below the fold
-          content already on the page, so it doesn't affect the button
-          positions above (tuned to stay visible on short/tablet
-          viewports -- see index.css's .home rules). */}
-      <p className="home-description">{t('seo.home.description')}</p>
+      {/* Real, visible descriptive text -- search engines (and AI
+          summarizers, which read the same crawled HTML) can't read
+          meaning from the icons/photo above alone. A single, self-
+          contained paragraph covering what SOSDZ is, the problem it
+          solves, who it's for, and the three ways to use it -- exactly
+          the kind of summary both classic search snippets and AI
+          summaries tend to lift verbatim. Sits below the fold content
+          already on the page, so it doesn't affect the button positions
+          above (tuned to stay visible on short/tablet viewports -- see
+          index.css's .home rules). */}
+      <p className="home-description">{t('home.summary')}</p>
+      {/* FAQPage structured data (see Seo.jsx) must match visible page
+          content -- Google's own structured-data policy requires this,
+          and it's the honest thing to do regardless. This is that
+          visible copy; Seo.jsx reads the exact same "home.faq"
+          translation array so the two can never drift apart. */}
+      <section className="home-faq" aria-labelledby="home-faq-heading">
+        <h2 id="home-faq-heading" className="page-title">{t('home.faqHeading')}</h2>
+        {t('home.faq', { returnObjects: true }).map((item) => (
+          <div className="home-faq-item" key={item.q}>
+            <h3>{item.q}</h3>
+            <p>{item.a}</p>
+          </div>
+        ))}
+      </section>
     </section>
   )
 }

@@ -2,48 +2,34 @@
 <html lang="fr">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- favicon.svg (a generic gradient placeholder, not the real SOS DZ
+         mark) intentionally isn't linked here -- browsers that support SVG
+         favicons prefer them over everything below, which would show the
+         wrong icon in the tab even with the real ones present. -->
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-    <!-- Everything between SEO:START/SEO:END is a per-page fallback, read
-         by anything that fetches raw HTML without running the app's JS
-         (WhatsApp/Facebook/Twitter link-preview crawlers, a non-JS
-         Googlebot fallback fetch). The React app itself overrides all of
-         this per-route/per-language once it hydrates (see
-         src/components/Seo.jsx) -- but that only helps a real browser,
-         not a dumb crawler, so scripts/generate-static-seo.mjs (run as
-         part of `npm run build`) replaces this exact block with each
-         route's own values in the built dist/<route>/index.html, keeping
-         this file itself as just the homepage's copy (and the template
-         the script clones for every other route). og-image.png is the
-         SOS DZ logo lockup flattened onto white and padded to Facebook's
-         recommended 1.91:1 ratio (source logo has a transparent
-         background, which social crawlers render unpredictably). -->
+    <!-- Everything between SEO:START/SEO:END (including the homepage's
+         own copy) is unconditionally regenerated at build time by
+         scripts/generate-static-seo.mjs, from src/locales/fr.json --
+         `npm run build` always overwrites what's here. It matters
+         because this raw HTML (not the client-rendered result) is what
+         anything that never runs the app's JS actually sees: WhatsApp/
+         Facebook/Twitter link-preview crawlers, a non-JS Googlebot
+         fallback fetch, or an AI crawler that doesn't execute JS at all.
+         A real browser (or a JS-executing crawler like Googlebot) gets
+         the same values, plus per-route/per-language ones, from
+         src/components/Seo.jsx once React hydrates -- but that does
+         nothing for the crawlers above, hence baking a copy in here too.
+         What follows is only ever seen by someone running `vite build`
+         directly without the postbuild script -- an edge case, but a
+         real title/description is a safer fallback than a placeholder. -->
     <!-- SEO:START -->
     <title>SOS DZ — Coordination de l'aide d'urgence en Algérie</title>
     <meta name="description" content="SOSDZ coordonne l'aide d'urgence en Algérie : signalez un besoin, proposez votre aide ou trouvez un point de collecte près de chez vous, partout au pays." />
-    <meta name="keywords" content="aide urgence Algérie, catastrophe naturelle, incendie Kabylie, bénévolat Algérie, point de collecte, solidarité Algérie" />
-    <link rel="canonical" href="https://sosdz.org/" />
-    <link rel="alternate" hreflang="x-default" href="https://sosdz.org/" />
-    <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="SOSDZ" />
-    <meta property="og:title" content="SOS DZ — Coordination de l'aide d'urgence en Algérie" />
-    <meta property="og:description" content="SOSDZ coordonne l'aide d'urgence en Algérie : signalez un besoin, proposez votre aide ou trouvez un point de collecte près de chez vous, partout au pays." />
-    <meta property="og:url" content="https://sosdz.org/" />
-    <meta property="og:image" content="https://sosdz.org/og-image.png" />
-    <meta property="og:image:width" content="2172" />
-    <meta property="og:image:height" content="1137" />
-    <meta property="og:locale" content="fr_FR" />
-    <meta property="og:locale:alternate" content="ar_DZ" />
-    <meta property="og:locale:alternate" content="en_US" />
-
-    <!-- Twitter/X falls back to Open Graph tags for everything except
-         card type, which has no OG equivalent. -->
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="SOS DZ — Coordination de l'aide d'urgence en Algérie" />
-    <meta name="twitter:description" content="SOSDZ coordonne l'aide d'urgence en Algérie : signalez un besoin, proposez votre aide ou trouvez un point de collecte près de chez vous, partout au pays." />
-    <meta name="twitter:image" content="https://sosdz.org/og-image.png" />
-    <script type="application/ld+json">{"@context":"https://schema.org","@type":"NGO","name":"SOSDZ","url":"https://sosdz.org","logo":"https://sosdz.org/logo-full.png","description":"SOSDZ coordonne l'aide d'urgence en Algérie : signalez un besoin, proposez votre aide ou trouvez un point de collecte près de chez vous, partout au pays."}</script>
     <!-- SEO:END -->
 
     <!-- The static SEO block above is a fallback for crawlers that never
