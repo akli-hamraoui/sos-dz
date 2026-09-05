@@ -170,6 +170,43 @@ export function IconGlobe(props) {
   )
 }
 
+// Real-color icons -- deliberately not stroke/currentColor like the rest of
+// this file's flat monochrome language above. Used only for the two Home
+// page collection-point buttons, where a recognizable colored flag/globe
+// was explicitly asked for rather than a plain line icon.
+export function IconAlgeriaFlag({ width = 22, height = 22, ...props }) {
+  return (
+    <svg width={width} height={height} viewBox="0 0 30 20" {...props}>
+      <rect x="0" y="0" width="15" height="20" fill="#006233" />
+      <rect x="15" y="0" width="15" height="20" fill="#ffffff" />
+      <path
+        fillRule="evenodd"
+        fill="#D21034"
+        d="M 19,10 m -5,0 a 5,5 0 1,0 10,0 a 5,5 0 1,0 -10,0
+           M 20.5,10 m -4,0 a 4,4 0 1,1 8,0 a 4,4 0 1,1 -8,0"
+      />
+      <path
+        fill="#D21034"
+        d="M17.3,10 l0.55,-1.7 0.55,1.7 1.8,0 -1.45,1.05 0.55,1.7 -1.45,-1.05 -1.45,1.05 0.55,-1.7 -1.45,-1.05 Z"
+      />
+    </svg>
+  )
+}
+
+export function IconGlobeColor({ width = 22, height = 22, ...props }) {
+  return (
+    <svg width={width} height={height} viewBox="0 0 24 24" {...props}>
+      <circle cx="12" cy="12" r="10" fill="#3b82c4" />
+      <path fill="#4caf6d" d="M4 9c1-2 3-3 5-2s2 3 1 4-3 0-4 1-3 0-2-3z" />
+      <path fill="#4caf6d" d="M14 4c2 0 3 2 2 3s-3 0-4-1 0-2 2-2z" />
+      <path fill="#4caf6d" d="M15 14c2-1 4 0 4 2s-2 3-4 3-3-1-3-2 1-2 3-3z" />
+      <path fill="#4caf6d" d="M6 15c1-1 3-1 3 1s-1 3-3 2-1-2 0-3z" />
+      <ellipse cx="12" cy="12" rx="10" ry="4" fill="none" stroke="#ffffff" strokeWidth="0.6" opacity="0.5" />
+      <ellipse cx="12" cy="12" rx="4" ry="10" fill="none" stroke="#ffffff" strokeWidth="0.6" opacity="0.5" />
+    </svg>
+  )
+}
+
 export function IconTruck(props) {
   return (
     <svg {...base} {...props}>

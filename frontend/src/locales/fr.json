@@ -75,8 +75,10 @@
   "home": {
     "privacyNotice": "Les informations des associations, demandes d'aide et transporteurs (nom, téléphone, adresse, points de collecte) sont publiques pour permettre aux bénévoles de vous contacter.\n* Le téléphone n'est pas obligatoire.\n* Vous pouvez anonymiser vos informations à tout moment.",
     "tagline": "Coordination de l'aide suite aux feux de forêt en Algérie.",
-    "iNeedHelp": "J'ai besoin d'aide",
+    "iNeedHelp": "Lancer un SOS",
     "iWantToHelp": "Je veux aider",
+    "collectionPointsAlgeria": "Points de collecte en Algérie",
+    "collectionPointsInternational": "Points de collecte internationaux",
     "summary": "SOSDZ est une plateforme communautaire et gratuite qui coordonne l'aide d'urgence en Algérie face aux catastrophes naturelles, notamment les feux de forêt. Elle s'adresse à toute personne en Algérie ayant besoin d'aide (nourriture, eau, abri, soins) et à toute personne souhaitant aider, en Algérie ou depuis l'étranger. Trois façons de l'utiliser : signaler un besoin, proposer votre aide en tant que bénévole ou transporteur, ou mettre en place un point de collecte de dons près de chez vous.",
     "faqHeading": "Questions fréquentes",
     "faq": [
