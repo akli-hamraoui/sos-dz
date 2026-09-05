@@ -435,6 +435,12 @@ main {
   color: #fff;
   border: 1px solid #d33d42;
   border-radius: 999px;
+  /* Explicit shared floor with .home-btn-compact below, rather than
+     relying on padding/font-size alone to coincidentally match --
+     measured heights actually varied 44-68px depending on whether a
+     button's label wrapped to one or two lines, which padding/font
+     tuning alone can't reliably control. */
+  min-height: 68px;
 }
 .icon-sos {
   display: inline-block;
@@ -472,6 +478,14 @@ main {
   border-radius: 16px;
   font-size: 15px;
   font-weight: 600;
+  min-height: 68px;
+}
+/* Small trailing "this opens a map" cue on the two collection-point
+   buttons -- muted/smaller than the flag/globe icon so it reads as a
+   subordinate hint, not a second equally-weighted icon. */
+.home-btn-map-hint {
+  color: var(--text-muted);
+  flex-shrink: 0;
 }
 .home-about-link {
   /* Sits over the background photo, so it needs real contrast -- the
