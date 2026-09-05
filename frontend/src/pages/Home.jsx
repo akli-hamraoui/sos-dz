@@ -6,6 +6,10 @@ export default function Home() {
   const { t } = useTranslation()
   return (
     <section className="home">
+      {/* Visually hidden -- the logo image above already conveys this to
+          sighted visitors, but search engines and screen readers need
+          real text, not just an image, to know what this page is. */}
+      <h1 className="sr-only">{t('seo.home.title')}</h1>
       <img src="/logo-full.png" alt={t('common.brand')} className="home-logo" />
       <p className="home-tagline">{t('home.tagline')}</p>
       <div className="home-actions">
@@ -28,6 +32,12 @@ export default function Home() {
       <Link to="/about" className="home-about-link">
         {t('nav.about')}
       </Link>
+      {/* Real, visible descriptive text -- search engines can't read
+          meaning from the icons/photo above alone. Sits below the fold
+          content already on the page, so it doesn't affect the button
+          positions above (tuned to stay visible on short/tablet
+          viewports -- see index.css's .home rules). */}
+      <p className="home-description">{t('seo.home.description')}</p>
     </section>
   )
 }

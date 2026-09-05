@@ -1,6 +1,8 @@
 {
   "common": {
     "brand": "SOS DZ",
+    "photoAlt": "Photo jointe",
+    "flyerAlt": "Affiche du point de collecte",
     "loading": "Chargement...",
     "save": "Enregistrer",
     "ok": "OK",
@@ -466,5 +468,44 @@
     "payloadTooLarge": "Le fichier envoyé est trop volumineux. Réduisez sa taille et réessayez.",
     "invalidSocialUrlField": "Merci d'indiquer un lien {{network}} valide, commençant par http:// ou https://",
     "genericFieldError": "Merci de vérifier les champs du formulaire et réessayer."
+  },
+  "seo": {
+    "keywords": "aide urgence Algérie, catastrophe naturelle, incendie Kabylie, bénévolat Algérie, point de collecte, solidarité Algérie",
+    "default": {
+      "title": "SOSDZ — Coordination de l'aide d'urgence en Algérie",
+      "description": "SOSDZ coordonne l'aide d'urgence en Algérie : signalez un besoin, proposez votre aide ou trouvez un point de collecte de dons près de chez vous."
+    },
+    "home": {
+      "title": "SOSDZ — Coordination de l'aide d'urgence en Algérie",
+      "description": "SOSDZ coordonne l'aide d'urgence en Algérie : signalez un besoin, proposez votre aide ou trouvez un point de collecte près de chez vous, partout au pays."
+    },
+    "needsList": {
+      "title": "Besoins signalés — SOSDZ",
+      "description": "Consultez les besoins d'urgence signalés en Algérie (nourriture, eau, abri, soins) et proposez votre aide directement depuis la carte ou la liste."
+    },
+    "help": {
+      "title": "Je veux aider — SOSDZ",
+      "description": "Devenez bénévole ou transporteur pour SOSDZ : aidez à répondre aux besoins urgents signalés en Algérie, livrez des dons ou proposez votre soutien."
+    },
+    "collectionPoints": {
+      "title": "Points de collecte en Algérie — SOSDZ",
+      "description": "Trouvez un point de collecte de dons près de chez vous en Algérie : dons acceptés, horaires d'ouverture, contact et localisation sur une carte interactive."
+    },
+    "internationalCollectionPoints": {
+      "title": "Points de collecte internationaux — SOSDZ",
+      "description": "Points de collecte de dons pour l'Algérie situés à l'étranger : associations, horaires, dons acceptés et localisation partout dans le monde."
+    },
+    "deliveries": {
+      "title": "Transporteurs bénévoles — SOSDZ",
+      "description": "Suivez en direct les transporteurs bénévoles qui livrent les dons collectés aux points de collecte et aux personnes dans le besoin partout en Algérie."
+    },
+    "about": {
+      "title": "Qui sommes-nous — SOSDZ",
+      "description": "Découvrez SOSDZ, la plateforme citoyenne de coordination de l'aide d'urgence en Algérie : notre mission, notre fonctionnement et notre équipe."
+    },
+    "legal": {
+      "title": "Mentions légales — SOSDZ",
+      "description": "Mentions légales, protection des données et conditions d'utilisation de la plateforme SOSDZ de coordination de l'aide d'urgence en Algérie."
+    }
   }
 }

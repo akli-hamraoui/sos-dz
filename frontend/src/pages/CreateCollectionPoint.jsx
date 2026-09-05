@@ -191,7 +191,7 @@ export default function CreateCollectionPoint() {
             <div className="photo-thumbs">
               <div className="photo-thumb">
                 <button type="button" className="flyer-thumb-btn" onClick={() => setLightbox({ src: flyer.previewUrl })}>
-                  <img className="flyer-thumb" src={flyer.previewUrl} alt="" />
+                  <img className="flyer-thumb" src={flyer.previewUrl} alt={t('common.flyerAlt')} />
                 </button>
                 <button type="button" className="link" onClick={removeFlyer}>
                   <IconTrash width={14} height={14} strokeWidth={2} />
@@ -260,7 +260,7 @@ export default function CreateCollectionPoint() {
           <button type="button" className="lightbox-close" onClick={() => setLightbox(null)} aria-label={t('needDetail.closeLightbox')}>
             ×
           </button>
-          <img src={lightbox.src} alt="" onClick={(e) => e.stopPropagation()} />
+          <img src={lightbox.src} alt={t('common.flyerAlt')} onClick={(e) => e.stopPropagation()} />
         </div>
       )}
     </section>

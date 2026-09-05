@@ -327,7 +327,7 @@ export default function NeedDetail() {
             <div className="photo-thumb" key={photo.id}>
               {photo.image ? (
                 <button type="button" className="gallery-thumb-btn" onClick={() => setLightbox({ src: photo.image })}>
-                  <img className="gallery-thumb" src={photo.image} alt="" />
+                  <img className="gallery-thumb" src={photo.image} alt={t('common.photoAlt')} />
                 </button>
               ) : (
                 <ModerationBadge t={t} status={photo.moderation_status} moderatedBy={photo.moderated_by} />
@@ -429,7 +429,7 @@ export default function NeedDetail() {
           <button type="button" className="lightbox-close" onClick={() => setLightbox(null)} aria-label={t('needDetail.closeLightbox')}>
             ×
           </button>
-          <img src={lightbox.src} alt="" onClick={(e) => e.stopPropagation()} />
+          <img src={lightbox.src} alt={t('common.photoAlt')} onClick={(e) => e.stopPropagation()} />
         </div>
       )}
     </section>

@@ -24,6 +24,7 @@ import InternationalCollectionPoints from './pages/InternationalCollectionPoints
 import CreateInternationalCollectionPoint from './pages/CreateInternationalCollectionPoint'
 import Deliveries from './pages/Deliveries'
 import BackButton from './components/BackButton'
+import Seo from './components/Seo'
 import { IconHome, IconBox, IconGlobe, IconTruck, IconWarning, IconWifiOff, IconCheckCircle, IconMenu, IconClose } from './icons'
 
 // Small "this opens a map" cue on a bottom-nav icon -- Besoins/Points de
@@ -287,6 +288,7 @@ export default function App() {
       )}
 
       <main>
+        <Seo />
         {location.pathname !== '/' && <BackButton />}
         <PageTitle />
         <Routes>

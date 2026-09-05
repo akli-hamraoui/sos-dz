@@ -138,7 +138,7 @@ export default function CollectionPointDetail() {
                   meant for video/audio -- a poster image doesn't need to
                   take up to 70vh of the page by default. */}
               <button type="button" className="flyer-thumb-btn" onClick={() => setLightbox({ src: cp.flyer_image })}>
-                <img className="flyer-thumb" src={cp.flyer_image} alt="" />
+                <img className="flyer-thumb" src={cp.flyer_image} alt={t('common.flyerAlt')} />
               </button>
               <br />
               <button className="link" onClick={reportFlyer}>
@@ -222,7 +222,7 @@ export default function CollectionPointDetail() {
           <button type="button" className="lightbox-close" onClick={() => setLightbox(null)} aria-label={t('needDetail.closeLightbox')}>
             ×
           </button>
-          <img src={lightbox.src} alt="" onClick={(e) => e.stopPropagation()} />
+          <img src={lightbox.src} alt={t('common.flyerAlt')} onClick={(e) => e.stopPropagation()} />
         </div>
       )}
     </section>

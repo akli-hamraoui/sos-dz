@@ -19,6 +19,23 @@
   box-sizing: border-box;
 }
 
+/* Visually hidden but still readable by screen readers/search engines --
+   for headings/labels that need real text content for accessibility and
+   SEO (e.g. a page's <h1>) without duplicating what a logo/icon already
+   shows sighted visitors. Standard clip-based pattern, not `display:none`
+   (which screen readers and crawlers alike would just skip). */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -147,6 +164,13 @@ a {
   text-transform: uppercase;
   letter-spacing: 0.08em;
   margin-block: 0 10px;
+}
+.page-intro {
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.5;
+  max-width: 640px;
+  margin-block: 0 16px;
 }
 .back-btn {
   display: inline-flex;
@@ -426,6 +450,14 @@ main {
   font-size: 14px;
   text-decoration: underline;
 }
+.home-description {
+  margin-block-start: clamp(24px, 8svh, 64px);
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+  max-width: 480px;
+  margin-inline: auto;
+}
 /* A short phone viewport (confirmed down to 320x568, the smallest still
    in real use) needs more compacting than the clamp()s above alone can
    give without also shrinking the still-plenty-tall ones -- otherwise
@@ -448,6 +480,9 @@ main {
   }
   .home-about-link {
     margin-block-start: 2px;
+  }
+  .home-description {
+    display: none;
   }
 }
 

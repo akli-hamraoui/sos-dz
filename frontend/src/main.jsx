@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
+import { HelmetProvider } from 'react-helmet-async'
 import './index.css'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -26,12 +27,14 @@ import { DialogProvider } from './context/DialogContext.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <BrowserRouter>
-      <DialogProvider>
-        <AppProvider>
-          <App />
-        </AppProvider>
-      </DialogProvider>
-    </BrowserRouter>
+    <HelmetProvider>
+      <BrowserRouter>
+        <DialogProvider>
+          <AppProvider>
+            <App />
+          </AppProvider>
+        </DialogProvider>
+      </BrowserRouter>
+    </HelmetProvider>
   </StrictMode>
 )
