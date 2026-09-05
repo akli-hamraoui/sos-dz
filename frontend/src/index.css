@@ -419,14 +419,19 @@ main {
 }
 .home-actions .btn {
   box-sizing: border-box;
-  text-align: center;
-  justify-content: center;
-  flex: 1 1 220px;
-}
-@media (max-width: 480px) {
-  .home-actions .btn {
-    flex-basis: 100%;
-  }
+  /* Always one full-width button per row (not just under 480px) --
+     wrapping into a row of 2 sharing the width against a 3rd alone
+     spanning the full width on its own row (the previous behavior on
+     wider screens) is exactly what made the three buttons visibly
+     different sizes; this guarantees identical width everywhere, not
+     just matching height. */
+  flex: 1 1 100%;
+  text-align: start;
+  /* Icon pinned to the start edge with the label following it, instead
+     of the icon+label sitting as one centered block -- flex-start
+     honors the flex container's direction, so this is still the start
+     side (right in RTL) rather than always literally the left. */
+  justify-content: flex-start;
 }
 .btn.home-btn-sos {
   /* Red, but not too dark -- a clear, legible red rather than a near-
@@ -545,6 +550,20 @@ main {
   }
   .home-actions {
     margin-block-start: 4px;
+    gap: 8px;
+  }
+  /* The three buttons are always full-width/stacked now (see
+     .home-actions .btn), which on a short-but-wide viewport (the
+     car-tablet dashboard case) takes more vertical room than the
+     previous 2-buttons-share-a-row layout did -- min-height alone
+     doesn't shrink them here since each button's own padding already
+     produces a taller natural height than that floor, so padding itself
+     needs overriding too. Confirmed this combination clears the bottom
+     nav at 900x350 (the shortest car-tablet case tested) through
+     900x400. */
+  .home-actions .btn {
+    padding: 8px 14px;
+    min-height: 44px;
   }
   .home-about-link {
     margin-block-start: 2px;
