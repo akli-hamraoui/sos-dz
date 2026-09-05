@@ -40,7 +40,22 @@ export default defineConfig({
         // anything under it ("/admin/...") -- a trailing-slash-only regex
         // let "/admin" (no slash) fall through to the app shell instead of
         // reaching Django's own slash-redirect.
-        navigateFallbackDenylist: [/^\/admin($|\/)/, /^\/static($|\/)/, /^\/media($|\/)/],
+        //
+        // /sitemap.xml and /robots.txt are real static files too (see
+        // public/), not SPA routes -- without denylisting them, anyone
+        // whose browser already has an older service worker installed
+        // (i.e. basically every returning visitor, which is the whole
+        // point of a PWA) gets served the cached app shell instead of the
+        // actual file when opening either URL directly. Confirmed live:
+        // works in a private tab (no service worker yet, goes straight to
+        // network) but not in a normal tab with the SW already active.
+        navigateFallbackDenylist: [
+          /^\/admin($|\/)/,
+          /^\/static($|\/)/,
+          /^\/media($|\/)/,
+          /^\/sitemap\.xml$/,
+          /^\/robots\.txt$/,
+        ],
         // Cache already-loaded data/app-shell for offline browsing; API
         // writes (POST/PATCH/DELETE) are handled separately by our own
         // IndexedDB queue (src/offlineQueue.js), not by the service worker.
