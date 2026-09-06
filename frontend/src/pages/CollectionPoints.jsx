@@ -22,6 +22,18 @@ export default function CollectionPoints() {
   // this is deliberately not persisted.
   const [viewMode, setViewMode] = useState('map')
   const [mapHasNothing, setMapHasNothing] = useState(false)
+  // Prototype of a tap-to-activate map, replacing the old two-finger-to-
+  // pan gesture handling (confirmed awkward on mobile -- reported live).
+  // The map starts "asleep" (dragging/zoom all disabled) so a single
+  // finger over it scrolls the *page* exactly like plain text would --
+  // no gesture conflict, nothing to explain. A transparent overlay (see
+  // JSX below) sits over the whole map while asleep and turns the very
+  // first tap anywhere on it (including on a marker) into "wake up"
+  // rather than a marker click or a drag; once active, dragging/zoom are
+  // enabled like a normal map and a small chip offers an explicit way to
+  // put it back to sleep, so scrolling past it with one finger still
+  // works afterwards too.
+  const [mapActive, setMapActive] = useState(false)
   // null (nothing yet) | { distanceKm, durationMin } | 'unavailable' (OSRM
   // unreachable) | 'too-far' (beyond the 100km cutoff, see drawRouteToPoint)
   const [routeInfo, setRouteInfo] = useState(null)
@@ -210,10 +222,15 @@ export default function CollectionPoints() {
         if (!mapRef.current) {
           mapRef.current = L.map(mapElRef.current, {
             attributionControl: false,
-            gestureHandling: true,
-            gestureHandlingOptions: {
-              text: { touch: t('map.gestureTouch'), scroll: t('map.gestureScroll'), scrollMac: t('map.gestureScrollMac') },
-            },
+            // Starts fully "asleep" -- see mapActive above -- so a single
+            // finger over the map scrolls the page like anything else on
+            // it, with no special gesture to learn. activateMap enables
+            // all of these once the map is explicitly tapped.
+            dragging: false,
+            touchZoom: false,
+            scrollWheelZoom: false,
+            doubleClickZoom: false,
+            boxZoom: false,
           })
           // Standard OpenStreetMap raster tiles -- see NeedsList.jsx for why
           // (CartoDB's free tier now requires an API key).
@@ -376,7 +393,34 @@ export default function CollectionPoints() {
     youAreHereRef.current = null
     routeLineRef.current = null
     setRouteInfo(null)
+    setMapActive(false)
   }, [viewMode])
+
+  // Wakes the map from its initial "asleep" state (see mapActive above)
+  // -- called by the full-cover overlay's own tap, never by anything
+  // inside the map itself, so this is the only path that turns dragging
+  // on.
+  const activateMap = () => {
+    const map = mapRef.current
+    if (!map) return
+    map.dragging.enable()
+    map.touchZoom.enable()
+    map.scrollWheelZoom.enable()
+    map.doubleClickZoom.enable()
+    map.boxZoom.enable()
+    setMapActive(true)
+  }
+
+  const deactivateMap = () => {
+    const map = mapRef.current
+    if (!map) return
+    map.dragging.disable()
+    map.touchZoom.disable()
+    map.scrollWheelZoom.disable()
+    map.doubleClickZoom.disable()
+    map.boxZoom.disable()
+    setMapActive(false)
+  }
 
   return (
     <section className="needs-page">
@@ -456,6 +500,16 @@ export default function CollectionPoints() {
           {mapHasNothing && <p className="hint">{t('collectionPoints.noPointsYet')}</p>}
           <div className="map-frame">
             <div id="cp-map" ref={mapElRef} style={{ height: 600 }} />
+            {!mapActive && (
+              <div className="map-activate-overlay" onClick={activateMap} role="button" tabIndex={0} aria-label={t('map.tapToInteract')}>
+                <span className="map-activate-hint">{t('map.tapToInteract')}</span>
+              </div>
+            )}
+            {mapActive && (
+              <button type="button" className="map-deactivate-btn" onClick={deactivateMap}>
+                {t('map.exitMapInteraction')}
+              </button>
+            )}
             <button type="button" className="locate-btn" onClick={recenterOnMe} aria-label={t('map.recenterOnMe')} title={t('map.recenterOnMe')}>
               <IconLocate width={18} height={18} />
             </button>
