@@ -445,11 +445,19 @@ class Command(BaseCommand):
         # different extension).
         photos_by_stem = {p.stem.lower(): p for p in photos_dir.iterdir()} if photos_dir.is_dir() else {}
 
+        self.stdout.write(f"{len(rows)} lignes à traiter (geocodage {'désactivé' if options['no_geocode'] else 'en direct via Nominatim, throttlé à ~1/s'})...\n")
         results = []
         for idx, row in enumerate(rows, start=1):
-            results.append(self._evaluate_row(idx, row, wilaya_by_name, geocoder, photos_dir, photos_by_stem, csv_path.name))
+            # Printed as each row finishes, not buffered until the end --
+            # live Nominatim geocoding is rate-limited to ~1 request/s (see
+            # NominatimClient), so a run against 80+ rows can take several
+            # minutes; without per-row output that looks exactly like a
+            # hang instead of steady, expected progress.
+            r = self._evaluate_row(idx, row, wilaya_by_name, geocoder, photos_dir, photos_by_stem, csv_path.name)
+            results.append(r)
+            self._print_row(r)
 
-        self._print_report(results)
+        self._print_summary(results)
         self._write_report_csv(results, options.get("report_csv") or (csv_path.parent / "import_report.csv"))
 
         if options["apply"]:
@@ -581,18 +589,21 @@ class Command(BaseCommand):
 
     # -- reporting -----------------------------------------------------------
 
-    def _print_report(self, results):
+    def _print_row(self, r):
+        gps = f"{r.latitude:.4f},{r.longitude:.4f}" if r.latitude is not None else "-"
+        img = "oui" if r.image_found else "non"
+        kind = "INTL" if r.international else "NAT "
+        self.stdout.write(
+            f"[{r.index:3}] {kind} {r.code or '------':>6} {r.status:14} "
+            f"{r.location_label or '-':20.20} gps={gps:20} image={img} "
+            f"{r.point_name[:40]!r} {('- ' + r.reason) if r.reason else ''}"
+        )
+        self.stdout.flush()
+
+    def _print_summary(self, results):
         counts = {}
         for r in results:
             counts[r.status] = counts.get(r.status, 0) + 1
-            gps = f"{r.latitude:.4f},{r.longitude:.4f}" if r.latitude is not None else "-"
-            img = "oui" if r.image_found else "non"
-            kind = "INTL" if r.international else "NAT "
-            self.stdout.write(
-                f"[{r.index:3}] {kind} {r.code or '------':>6} {r.status:14} "
-                f"{r.location_label or '-':20.20} gps={gps:20} image={img} "
-                f"{r.point_name[:40]!r} {('- ' + r.reason) if r.reason else ''}"
-            )
         self.stdout.write("")
         self.stdout.write(self.style.SUCCESS(f"Total: {len(results)} lignes -- " + ", ".join(f"{k}={v}" for k, v in counts.items())))
 
