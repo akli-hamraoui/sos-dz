@@ -6,7 +6,7 @@ import { useDialog } from '../context/DialogContext'
 import { api } from '../api'
 import { geocodeCountryBounds, getCurrentPosition, haversineKm, RECENTER_BOX_METERS } from '../utils'
 import { fetchDrivingRoute, COLLECTION_POINT_ROUTE_COLOR } from '../routing'
-import { countryFlagEmoji } from '../mapMarkers'
+import { countryFlagEmoji, formatApproxKm } from '../mapMarkers'
 import CountryOrPlaceSearch from '../components/CountryOrPlaceSearch'
 import { IconLocate } from '../icons'
 
@@ -250,7 +250,7 @@ export default function InternationalCollectionPoints() {
           // whatever was known back when this marker was first built.
           marker.bindPopup(() => {
             const distanceNote = myPosRef.current
-              ? `<br>${t('map.approxDistance', { km: haversineKm(myPosRef.current, [p.display_latitude, p.display_longitude]).toFixed(1) })}`
+              ? `<br>${t('map.approxDistance', { km: formatApproxKm(haversineKm(myPosRef.current, [p.display_latitude, p.display_longitude])) })}`
               : ''
             return (
               `<strong>${p.point_name} ${countryFlagEmoji(p.country_code)}</strong><br>${p.contact_name}${p.organization ? '<br>' + p.organization : ''}` +
