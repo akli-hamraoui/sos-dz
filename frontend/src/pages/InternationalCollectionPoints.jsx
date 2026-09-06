@@ -6,6 +6,7 @@ import { useDialog } from '../context/DialogContext'
 import { api } from '../api'
 import { geocodeCountryBounds, getCurrentPosition, haversineKm, RECENTER_BOX_METERS } from '../utils'
 import { fetchDrivingRoute, COLLECTION_POINT_ROUTE_COLOR } from '../routing'
+import { countryFlagEmoji } from '../mapMarkers'
 import CountryOrPlaceSearch from '../components/CountryOrPlaceSearch'
 import { IconLocate } from '../icons'
 
@@ -230,7 +231,7 @@ export default function InternationalCollectionPoints() {
           // geolocation is denied/unavailable.
           marker.on('click', () => drawRouteToPoint(map, p.display_latitude, p.display_longitude))
           marker.bindPopup(
-            `<strong>${p.point_name}</strong><br>${p.contact_name}${p.organization ? '<br>' + p.organization : ''}` +
+            `<strong>${p.point_name} ${countryFlagEmoji(p.country_code)}</strong><br>${p.contact_name}${p.organization ? '<br>' + p.organization : ''}` +
               `${p.hours ? '<br>' + p.hours : ''}<br>${p.country_name || ''}<br><a href="/collection-points/${p.id}">${t('common.open')}</a>`
           )
           markers.push(marker)

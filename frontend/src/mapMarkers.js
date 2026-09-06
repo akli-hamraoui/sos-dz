@@ -50,6 +50,16 @@ export function collectionPointIcon(L) {
   })
 }
 
+// A CollectionPoint's own country_code is blank for a national (Algeria)
+// point (see CollectionPoint.country_code, backend) rather than "DZ" --
+// default to it here so every collection point popup gets a flag, not
+// just international ones.
+export function countryFlagEmoji(countryCode) {
+  const code = (countryCode || 'DZ').toUpperCase()
+  if (!/^[A-Z]{2}$/.test(code)) return ''
+  return String.fromCodePoint(...[...code].map((c) => 127397 + c.charCodeAt(0)))
+}
+
 export function needPopupHtml(t, p, statusLabel) {
   const gpsNote = p.has_exact_position ? '' : `<br><em>${t('common.noExactGpsPosition')}</em>`
   const urgencyPrefix = p.urgency !== 'medium' ? `${t(`urgency.${p.urgency}`)} — ` : ''
@@ -62,7 +72,7 @@ export function needPopupHtml(t, p, statusLabel) {
 export function collectionPointPopupHtml(t, p) {
   const gpsNote = p.has_exact_position ? '' : `<br><em>${t('common.noExactGpsPosition')}</em>`
   return (
-    `<strong>${p.point_name}</strong><br>${p.contact_name}${p.organization ? '<br>' + p.organization : ''}` +
+    `<strong>${p.point_name} ${countryFlagEmoji(p.country_code)}</strong><br>${p.contact_name}${p.organization ? '<br>' + p.organization : ''}` +
     `${p.hours ? '<br>' + p.hours : ''}<br>${p.wilaya_name}${gpsNote}<br><a href="/collection-points/${p.id}">${t('common.open')}</a>`
   )
 }
