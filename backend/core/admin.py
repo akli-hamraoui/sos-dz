@@ -1,6 +1,8 @@
 from django.conf import settings
 from django.contrib import admin
 from django.utils import timezone
+from django.utils.html import format_html
+from django.utils.safestring import mark_safe
 
 from core.models import (
     AdminContactPhone,
@@ -29,6 +31,37 @@ from core.models import (
 # maintained, fr/en/ar React frontend -- not this backend's own "/"
 # (there is none worth visiting; see config/urls.py).
 admin.site.site_url = settings.FRONTEND_URL
+
+# Static button HTML, no dynamic value inside it at all (the value to copy
+# is read from the DOM at click time via previousElementSibling, see
+# copyable_token_field below) -- deliberately not run through format_html,
+# which would otherwise need every literal '{'/'}' in this inline JS
+# doubled just to survive its str.format() call.
+_COPY_ICON_BUTTON = mark_safe(
+    '<button type="button" title="Copy" style="cursor:pointer;border:1px solid #ccc;'
+    'background:#fff;border-radius:4px;padding:3px 6px;line-height:1;vertical-align:middle;'
+    'display:inline-flex;align-items:center;margin-inline-start:8px;" '
+    "onclick=\"var b=this;navigator.clipboard.writeText(b.previousElementSibling.textContent)"
+    ".then(function(){var o=b.innerHTML;b.innerHTML='&#10003;';"
+    "setTimeout(function(){b.innerHTML=o;},1500);});\">"
+    '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" '
+    'fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+    '<rect x="9" y="9" width="11" height="11" rx="2"></rect>'
+    '<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>'
+    "</svg></button>"
+)
+
+
+def copyable_token_field(value):
+    """A read-only access_token value with an inline copy-icon button next
+    to it, for Django Admin only -- lets an admin copy-paste it straight
+    into a support reply (see core/audit's "second recovery path": a
+    creator who lost their token can be handed a fresh one this way)
+    instead of manually selecting the plain text."""
+    if not value:
+        return "—"
+    code_html = format_html('<code style="user-select:all;">{}</code>', value)
+    return code_html + _COPY_ICON_BUTTON
 
 
 @admin.register(Wilaya)
@@ -136,9 +169,13 @@ class NeedAdmin(admin.ModelAdmin):
     # their own equivalent queue on DamagePhotoAdmin/DeliveryPhotoAdmin.
     list_filter = ["urgency", "overall_status", "wilaya", "campaign", "video_moderation_status"]
     search_fields = ["title", "contact_name", "contact_phone"]
-    readonly_fields = ["access_token", "location_viewer_share_token", "covered_quantity", "overall_status", "edit_history", "pii_obfuscated_at", "obfuscated_by"]
+    readonly_fields = ["access_token_copy", "location_viewer_share_token", "covered_quantity", "overall_status", "edit_history", "pii_obfuscated_at", "obfuscated_by"]
     actions = [anonymize_selected, approve_video, reject_video]
     inlines = [PickupInline]
+
+    @admin.display(description="Access token")
+    def access_token_copy(self, obj):
+        return copyable_token_field(obj.access_token)
 
     def is_anonymized_display(self, obj):
         return obj.is_anonymized
@@ -151,8 +188,12 @@ class PickupAdmin(admin.ModelAdmin):
     list_display = ["id", "need", "collection_point", "responder_type", "responder_name", "status", "is_anonymized_display", "created_at"]
     list_filter = ["status", "responder_type"]
     search_fields = ["responder_name", "responder_phone"]
-    readonly_fields = ["access_token", "pii_obfuscated_at", "obfuscated_by"]
+    readonly_fields = ["access_token_copy", "pii_obfuscated_at", "obfuscated_by"]
     actions = [anonymize_selected]
+
+    @admin.display(description="Access token")
+    def access_token_copy(self, obj):
+        return copyable_token_field(obj.access_token)
 
     def is_anonymized_display(self, obj):
         return obj.is_anonymized
@@ -398,8 +439,12 @@ class CollectionPointAdmin(admin.ModelAdmin):
     # access and contacted support (core.models.SupportRequest,
     # category=general / "coordonnées oubliées"), as a second recovery path
     # alongside the self-service name+phone/code one.
-    readonly_fields = ["access_token"]
+    readonly_fields = ["access_token_copy"]
     actions = [approve_flyer, reject_flyer]
+
+    @admin.display(description="Access token")
+    def access_token_copy(self, obj):
+        return copyable_token_field(obj.access_token)
 
 
 @admin.register(Comment)
