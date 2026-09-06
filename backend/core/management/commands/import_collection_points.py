@@ -276,6 +276,7 @@ class RowResult:
     point_name: str
     international: bool
     status: str  # would_create | duplicate | excluded | manual_review | error
+    source: str = ""  # input CSV filename this row came from -- lets reports from separate batches be told apart once merged
     reason: str = ""
     location_label: str = ""  # wilaya name or country name, for the report
     latitude: float = None
@@ -423,7 +424,7 @@ class Command(BaseCommand):
 
         results = []
         for idx, row in enumerate(rows, start=1):
-            results.append(self._evaluate_row(idx, row, wilaya_by_name, geocoder, photos_dir))
+            results.append(self._evaluate_row(idx, row, wilaya_by_name, geocoder, photos_dir, csv_path.name))
 
         self._print_report(results)
         self._write_report_csv(results, options.get("report_csv") or (csv_path.parent / "import_report.csv"))
@@ -466,14 +467,14 @@ class Command(BaseCommand):
 
     # -- per-row evaluation --------------------------------------------------
 
-    def _evaluate_row(self, idx, row, wilaya_by_name, geocoder, photos_dir):
+    def _evaluate_row(self, idx, row, wilaya_by_name, geocoder, photos_dir, source_name):
         code = (row.get(RECOVERY_CODE_FIELD) or "").strip()
         point_name = (row.get("nom_point") or "").strip()
         international = normalize(row.get("international")) == "true"
 
         hit = fundraising_hit(row)
         if hit:
-            return RowResult(idx, code, point_name, international, "excluded",
+            return RowResult(idx, code, point_name, international, "excluded", source=source_name,
                               reason=f"Mention d'un lien de collecte d'argent en ligne détectée ('{hit}').")
 
         flyer_name = (row.get(FLYER_FIELD) or "").strip()
@@ -518,35 +519,35 @@ class Command(BaseCommand):
         if international:
             iso, country_name, lat, lon, source, note = resolve_international(row, geocoder, self.stdout)
             if note:
-                return RowResult(idx, code, point_name, True, "manual_review", reason=note,
+                return RowResult(idx, code, point_name, True, "manual_review", source=source_name, reason=note,
                                   location_label=country_name, image_found=image_found, flyer_path=flyer_path)
             existing = _find_existing_point(code, common["organization"], country_name, True)
             if existing:
-                return RowResult(idx, code, point_name, True, "duplicate",
+                return RowResult(idx, code, point_name, True, "duplicate", source=source_name,
                                   reason=f"Existe déjà (id={existing.id}).", location_label=country_name,
                                   image_found=image_found, flyer_path=flyer_path)
             common["country_code"] = iso
             common["country_name"] = country_name
             common["latitude"] = lat
             common["longitude"] = lon
-            return RowResult(idx, code, point_name, True, "would_create",
+            return RowResult(idx, code, point_name, True, "would_create", source=source_name,
                               location_label=country_name, latitude=lat, longitude=lon,
                               geocode_source=source, image_found=image_found,
                               payload=common, flyer_path=flyer_path)
         else:
             wilaya, lat, lon, source, note = resolve_national(row, wilaya_by_name, geocoder, self.stdout)
             if wilaya is None:
-                return RowResult(idx, code, point_name, False, "manual_review", reason=note,
+                return RowResult(idx, code, point_name, False, "manual_review", source=source_name, reason=note,
                                   location_label=ville, image_found=image_found, flyer_path=flyer_path)
             existing = _find_existing_point(code, common["organization"], wilaya.name, False)
             if existing:
-                return RowResult(idx, code, point_name, False, "duplicate",
+                return RowResult(idx, code, point_name, False, "duplicate", source=source_name,
                                   reason=f"Existe déjà (id={existing.id}).", location_label=wilaya.name,
                                   image_found=image_found, flyer_path=flyer_path)
             common["wilaya"] = wilaya.pk
             common["latitude"] = lat
             common["longitude"] = lon
-            return RowResult(idx, code, point_name, False, "would_create",
+            return RowResult(idx, code, point_name, False, "would_create", source=source_name,
                               location_label=wilaya.name, latitude=lat, longitude=lon,
                               geocode_source=(source or ("wilaya_centroid" if lat is None else source)),
                               image_found=image_found, payload=common, flyer_path=flyer_path)
@@ -573,12 +574,12 @@ class Command(BaseCommand):
         with open(out_path, "w", encoding="utf-8", newline="") as f:
             writer = csv.writer(f)
             writer.writerow([
-                "index", "code", "point_name", "international", "status", "reason",
+                "source", "index", "code", "point_name", "international", "status", "reason",
                 "location", "latitude", "longitude", "geocode_source", "image_found",
             ])
             for r in results:
                 writer.writerow([
-                    r.index, r.code, r.point_name, r.international, r.status, r.reason,
+                    r.source, r.index, r.code, r.point_name, r.international, r.status, r.reason,
                     r.location_label, r.latitude, r.longitude, r.geocode_source, r.image_found,
                 ])
         self.stdout.write(f"Rapport détaillé écrit dans {out_path}")
