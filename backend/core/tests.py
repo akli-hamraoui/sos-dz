@@ -1929,6 +1929,15 @@ class CollectionPointTests(BaseAPITestCase):
         )
         self.assertEqual(resp.status_code, 400)
 
+    def test_access_token_visible_to_admin(self):
+        """Same as NeedAdmin/PickupAdmin -- an admin must be able to read
+        this and relay it to a creator who lost access and contacted
+        support, as a second recovery path alongside the self-service
+        name+phone/code one."""
+        from core.admin import CollectionPointAdmin
+
+        self.assertIn("access_token", CollectionPointAdmin.readonly_fields)
+
 
 INTERNATIONAL_COLLECTION_POINT_PAYLOAD = {
     "country_code": "FR",

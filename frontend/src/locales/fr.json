@@ -275,10 +275,13 @@
     "stillNotWorking": "Toujours bloqué ? Contactez le support admin",
     "forgotCode": "Code oublié ? Utiliser mon nom et téléphone",
     "useCodeInstead": "J'ai un code de récupération",
+    "haveTokenInstead": "J'ai déjà mon jeton d'accès",
     "noContextHint": "Cette page s'utilise depuis le bouton « Récupérer l'accès » sur la page d'un besoin ou d'une prise en charge précis. Si vous ne retrouvez plus ce lien, cherchez votre annonce dans la liste des besoins ci-dessous.",
     "codeLabel": "Code de récupération",
     "nameLabel": "Nom complet",
-    "phoneLabel": "Téléphone"
+    "phoneLabel": "Téléphone",
+    "tokenLabel": "Jeton d'accès",
+    "tokenHint": "Affiché une seule fois lors de la création de cette annonce. Si vous avez contacté le support admin et qu'on vous en a communiqué un, collez-le ici."
   },
   "support": {
     "title": "Retrouver mon annonce ou livraison / contacter l'admin",

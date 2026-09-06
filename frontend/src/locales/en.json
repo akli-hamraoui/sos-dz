@@ -275,10 +275,13 @@
     "stillNotWorking": "Still not working? Contact admin support",
     "forgotCode": "Forgot your code? Use your name and phone instead",
     "useCodeInstead": "I have a recovery code",
+    "haveTokenInstead": "I already have my access token",
     "noContextHint": "This page is meant to be opened from the \"Recover access\" button on a specific need or pickup's own page. If you lost that link, search for your listing in the needs list below.",
     "codeLabel": "Recovery code",
     "nameLabel": "Full name",
-    "phoneLabel": "Phone"
+    "phoneLabel": "Phone",
+    "tokenLabel": "Access token",
+    "tokenHint": "Shown once when you created this listing. If you contacted admin support and they gave you one, paste it here."
   },
   "support": {
     "title": "Find my listing or delivery / contact admin",
