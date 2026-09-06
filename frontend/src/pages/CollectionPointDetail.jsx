@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { useDialog } from '../context/DialogContext'
 import { useApp } from '../context/AppContext'
 import { api } from '../api'
-import { maskPhone, googleMapsUrl } from '../utils'
+import { maskPhone, googleMapsDirectionsUrl, getCurrentPosition } from '../utils'
 import { translateApiError } from '../apiErrors'
 import CommentThread from '../components/CommentThread'
 import ModerationBadge from '../components/ModerationBadge'
@@ -105,9 +105,23 @@ export default function CollectionPointDetail() {
       <p>{cp.location_description}</p>
       {cp.latitude != null && cp.longitude != null ? (
         <p>
-          <a className="link field-label-icon" href={googleMapsUrl(cp.latitude, cp.longitude)} target="_blank" rel="noopener noreferrer">
+          {/* Captures the visitor's own position first (best-effort, same
+              3s-timeout convention as the map pages' "recenter on me") so
+              Google Maps opens straight into turn-by-turn directions with
+              both ends already known, instead of a bare destination pin
+              that leaves Maps to resolve "your location" itself. Falls
+              back to a destination-only link on denial/timeout -- Maps
+              then asks for the origin the way it always did. */}
+          <button
+            type="button"
+            className="link field-label-icon"
+            onClick={async () => {
+              const origin = await getCurrentPosition()
+              window.open(googleMapsDirectionsUrl(cp.latitude, cp.longitude, origin), '_blank', 'noopener,noreferrer')
+            }}
+          >
             <IconMapPin width={16} height={16} strokeWidth={2} /> {t('common.openInMaps')}
-          </a>
+          </button>
         </p>
       ) : (
         <p className="hint">{t('common.noExactGpsPosition')}</p>
