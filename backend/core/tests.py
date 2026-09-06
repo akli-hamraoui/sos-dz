@@ -3268,3 +3268,76 @@ class VideoDurationValidationTests(TestCase):
         video = SimpleUploadedFile("clip.webm", b"fake-video-bytes", content_type="video/webm")
         with patch("core.media_validation.ffprobe_available", return_value=False):
             validate_video_duration(video)  # should not raise
+
+
+class AuditTrailTests(BaseAPITestCase):
+    """core.audit.AuditMixin: audit_created_at/audit_updated_at/
+    audit_creator_ip/audit_editor_ip, retrofitted onto every table."""
+
+    def setUp(self):
+        super().setUp()
+        self.campaign = make_campaign()
+        self.wilaya = self.campaign.authorized_wilayas.first()
+
+    def _payload(self):
+        return dict(NEED_PAYLOAD, campaign=self.campaign.pk, wilaya=self.wilaya.pk)
+
+    def test_create_stamps_creation_and_update_fields_from_the_request_ip(self):
+        resp = self.client.post("/api/needs/", self._payload(), format="json", REMOTE_ADDR="41.100.0.5")
+        self.assertEqual(resp.status_code, 201)
+        need = Need.objects.get(pk=resp.data["id"])
+        self.assertIsNotNone(need.audit_created_at)
+        self.assertIsNotNone(need.audit_updated_at)
+        # USE_TZ=True (settings.py) -- Django always stores/returns these as
+        # UTC-aware, regardless of TIME_ZONE ("Africa/Algiers").
+        self.assertEqual(need.audit_created_at.utcoffset().total_seconds(), 0)
+        self.assertEqual(need.audit_creator_ip, "41.100.0.5")
+        self.assertEqual(need.audit_editor_ip, "41.100.0.5")
+
+    def test_edit_moves_updated_fields_but_leaves_created_fields_untouched(self):
+        create_resp = self.client.post("/api/needs/", self._payload(), format="json", REMOTE_ADDR="41.100.0.5")
+        need_id, token = create_resp.data["id"], create_resp.data["access_token"]
+        need = Need.objects.get(pk=need_id)
+        original_created_at, original_creator_ip = need.audit_created_at, need.audit_creator_ip
+
+        edit_resp = self.client.patch(
+            f"/api/needs/{need_id}/",
+            {"title": "New title", "access_token": token},
+            format="json",
+            REMOTE_ADDR="9.9.9.9",
+        )
+        self.assertEqual(edit_resp.status_code, 200)
+        need.refresh_from_db()
+        # Creation snapshot never moves once set...
+        self.assertEqual(need.audit_created_at, original_created_at)
+        self.assertEqual(need.audit_creator_ip, original_creator_ip)
+        # ...only the editor snapshot reflects the most recent write.
+        self.assertGreater(need.audit_updated_at, original_created_at)
+        self.assertEqual(need.audit_editor_ip, "9.9.9.9")
+
+    def test_write_with_no_bound_request_ip_leaves_ip_columns_null(self):
+        """A management command, a data migration, a test creating rows
+        directly via the ORM -- no request, so no IP to attribute the write
+        to. Dates are still stamped (timezone.now() has no such dependency),
+        only the IP columns stay NULL."""
+        need = Need.objects.create(
+            campaign=self.campaign,
+            wilaya=self.wilaya,
+            title="Direct ORM create",
+            contact_name="X",
+            contact_phone="0555000002",
+        )
+        self.assertIsNotNone(need.audit_created_at)
+        self.assertIsNone(need.audit_creator_ip)
+        self.assertIsNone(need.audit_editor_ip)
+
+    def test_pre_existing_rows_added_by_the_audit_migration_stay_null(self):
+        """The migration that added these columns (core/migrations/
+        0031_...) is a plain ALTER TABLE ADD COLUMN with no backfill --
+        seed rows created by earlier migrations (e.g. the 58 Wilaya rows)
+        must come back with every audit_* column NULL."""
+        wilaya = Wilaya.objects.exclude(pk=self.wilaya.pk).first()
+        self.assertIsNone(wilaya.audit_created_at)
+        self.assertIsNone(wilaya.audit_updated_at)
+        self.assertIsNone(wilaya.audit_creator_ip)
+        self.assertIsNone(wilaya.audit_editor_ip)

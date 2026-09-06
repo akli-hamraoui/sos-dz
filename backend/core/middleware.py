@@ -1,3 +1,6 @@
+from core.audit import current_request_ip
+
+
 def get_client_ip(request):
     """Best-effort client IP extraction, respecting the Nginx reverse proxy
     in front of Django (see DEPLOYMENT.md: a single hop, over a unix
@@ -26,11 +29,19 @@ def get_client_ip(request):
 
 
 class RequestClientIPMiddleware:
-    """Attaches request.client_ip for use by geo-restriction and rate limiting."""
+    """Attaches request.client_ip for use by geo-restriction and rate
+    limiting, and binds the same IP into the contextvar AuditMixin.save()
+    reads (core/audit.py) so every model write during this request/response
+    cycle is attributed to it. Reset in `finally` so a sync worker thread
+    reused for a later, unrelated request never inherits a stale IP."""
 
     def __init__(self, get_response):
         self.get_response = get_response
 
     def __call__(self, request):
         request.client_ip = get_client_ip(request)
-        return self.get_response(request)
+        token = current_request_ip.set(request.client_ip or None)
+        try:
+            return self.get_response(request)
+        finally:
+            current_request_ip.reset(token)
