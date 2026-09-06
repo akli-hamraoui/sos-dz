@@ -25,6 +25,17 @@ export default function CollectionPoints() {
   // null (nothing yet) | { distanceKm, durationMin } | 'unavailable' (OSRM
   // unreachable) | 'too-far' (beyond the 100km cutoff, see drawRouteToPoint)
   const [routeInfo, setRouteInfo] = useState(null)
+  // Visitor's own position, prefetched once on mount purely to show an
+  // approximate straight-line distance in each point's own popup (see
+  // addPointMarker below) -- a ref (not state) since every popup is bound
+  // with a content *function* (Leaflet re-evaluates it fresh on every
+  // open, not just once at bind time -- see leaflet-src.js's own
+  // _updateContent), so resolving later needs no re-render or effect
+  // re-run of its own -- it just shows up next time a popup is opened. A
+  // separate, best-effort concern from drawRouteToPoint's own on-click
+  // geolocation call (that one draws the actual route + drives the 100km
+  // cutoff); this one only ever adds one extra line of text to a popup.
+  const myPosRef = useRef(null)
   const mapRef = useRef(null)
   const mapElRef = useRef(null)
   const markersRef = useRef([])
@@ -43,6 +54,12 @@ export default function CollectionPoints() {
     const timer = setTimeout(() => setSearch(searchInput.trim()), 300)
     return () => clearTimeout(timer)
   }, [searchInput])
+
+  useEffect(() => {
+    getCurrentPosition().then((pos) => {
+      myPosRef.current = pos
+    })
+  }, [])
 
   const hasActiveFilters = !!(filterWilaya || searchInput)
   const resetFilters = () => {
@@ -244,10 +261,19 @@ export default function CollectionPoints() {
           // as every other geolocation use in this app.
           marker.on('click', () => drawRouteToPoint(map, p.display_latitude, p.display_longitude))
           const gpsNote = p.has_exact_position ? '' : `<br><em>${t('common.noExactGpsPosition')}</em>`
-          marker.bindPopup(
-            `<strong>${p.point_name} ${countryFlagEmoji(p.country_code)}</strong><br>${p.contact_name}${p.organization ? '<br>' + p.organization : ''}` +
-              `${p.hours ? '<br>' + p.hours : ''}<br>${p.wilaya_name}${gpsNote}<br><a href="/collection-points/${p.id}">${t('common.open')}</a>`
-          )
+          // A function, not a plain string -- Leaflet re-evaluates it on
+          // every popup open (see myPosRef above), so it always reflects
+          // whatever position is known *at open time* rather than freezing
+          // whatever was known back when this marker was first built.
+          marker.bindPopup(() => {
+            const distanceNote = myPosRef.current
+              ? `<br>${t('map.approxDistance', { km: haversineKm(myPosRef.current, [p.display_latitude, p.display_longitude]).toFixed(1) })}`
+              : ''
+            return (
+              `<strong>${p.point_name} ${countryFlagEmoji(p.country_code)}</strong><br>${p.contact_name}${p.organization ? '<br>' + p.organization : ''}` +
+              `${p.hours ? '<br>' + p.hours : ''}<br>${p.wilaya_name}${gpsNote}${distanceNote}<br><a href="/collection-points/${p.id}">${t('common.open')}</a>`
+            )
+          })
           markers.push(marker)
         }
 

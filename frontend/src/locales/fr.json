@@ -49,7 +49,8 @@
     "youAreHere": "Vous êtes ici",
     "routeDistance": "Itinéraire estimé : {{km}} km · {{min}} min",
     "routeUnavailable": "Itinéraire indisponible pour l'instant (service de routage injoignable).",
-    "tooFarForRoute": "Ce point est à plus de 100 km -- trop loin pour une estimation d'itinéraire en voiture."
+    "tooFarForRoute": "Ce point est à plus de 100 km -- trop loin pour une estimation d'itinéraire en voiture.",
+    "approxDistance": "Environ {{km}} km depuis votre position"
   },
   "readOnly": {
     "banner": "L'application est actuellement en mode lecture seule. Les données existantes restent consultables."
