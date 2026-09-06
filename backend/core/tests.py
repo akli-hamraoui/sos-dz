@@ -1873,6 +1873,62 @@ class CollectionPointTests(BaseAPITestCase):
         )
         self.assertEqual(resp.status_code, 403)
 
+    def test_edit_with_access_token(self):
+        create_resp = self.client.post("/api/collection-points/", self._payload(), format="json")
+        resp = self.client.patch(
+            f"/api/collection-points/{create_resp.data['id']}/",
+            {"hours": "9am-5pm", "access_token": create_resp.data["access_token"]},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.assertEqual(resp.data["hours"], "9am-5pm")
+
+    def test_edit_with_matching_name_phone_same_fallback_as_close(self):
+        create_resp = self.client.post("/api/collection-points/", self._payload(), format="json")
+        resp = self.client.patch(
+            f"/api/collection-points/{create_resp.data['id']}/",
+            {
+                "hours": "9am-5pm",
+                "contact_name": COLLECTION_POINT_PAYLOAD["contact_name"],
+                "contact_phone": COLLECTION_POINT_PAYLOAD["contact_phone"],
+            },
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 200, resp.content)
+
+    def test_edit_rejected_with_wrong_token_or_identity(self):
+        create_resp = self.client.post("/api/collection-points/", self._payload(), format="json")
+        resp = self.client.patch(
+            f"/api/collection-points/{create_resp.data['id']}/",
+            {"hours": "9am-5pm", "access_token": "wrong"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 403)
+
+    def test_edit_rejects_changing_wilaya_or_country_code(self):
+        """Not in the editable-fields allowlist -- flipping national vs.
+        international is a different creation flow with its own
+        validation, not a simple field edit."""
+        other_wilaya = Wilaya.objects.exclude(pk=self.wilaya.pk).first()
+        create_resp = self.client.post("/api/collection-points/", self._payload(), format="json")
+        resp = self.client.patch(
+            f"/api/collection-points/{create_resp.data['id']}/",
+            {"wilaya": other_wilaya.pk, "country_code": "FR", "access_token": create_resp.data["access_token"]},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.assertEqual(resp.data["wilaya"], self.wilaya.pk)
+        self.assertFalse(resp.data["is_international"])
+
+    def test_edit_validates_social_urls(self):
+        create_resp = self.client.post("/api/collection-points/", self._payload(), format="json")
+        resp = self.client.patch(
+            f"/api/collection-points/{create_resp.data['id']}/",
+            {"facebook_url": "javascript:alert(1)", "access_token": create_resp.data["access_token"]},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 400)
+
 
 INTERNATIONAL_COLLECTION_POINT_PAYLOAD = {
     "country_code": "FR",
@@ -2026,6 +2082,66 @@ class InternationalCollectionPointGeoRestrictionTests(BaseAPITestCase):
             REMOTE_ADDR="8.8.8.8",
         )
         self.assertEqual(resp.status_code, 403)
+
+    def test_international_edit_bypasses_algeria_ip_restriction(self):
+        """Same reasoning as create() -- editing one's own international
+        point is expected to happen from outside Algeria too, unlike a
+        national point (see test_national_edit_still_blocked below)."""
+        config = AppConfiguration.get_solo()
+        config.geo_restrict_writes_to_algeria = True
+        config.save()
+        create_resp = self.client.post("/api/collection-points/", self._payload(), format="json", REMOTE_ADDR="8.8.8.8")
+        resp = self.client.patch(
+            f"/api/collection-points/{create_resp.data['id']}/",
+            {"hours": "9am-5pm", "access_token": create_resp.data["access_token"]},
+            format="json",
+            REMOTE_ADDR="8.8.8.8",
+        )
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.assertEqual(resp.data["hours"], "9am-5pm")
+
+    def test_national_edit_still_blocked_by_algeria_ip_restriction(self):
+        config = AppConfiguration.get_solo()
+        config.geo_restrict_writes_to_algeria = False
+        config.save()
+        create_resp = self.client.post(
+            "/api/collection-points/",
+            dict(COLLECTION_POINT_PAYLOAD, wilaya=Wilaya.objects.first().pk),
+            format="json",
+        )
+        config.geo_restrict_writes_to_algeria = True
+        config.save()
+        resp = self.client.patch(
+            f"/api/collection-points/{create_resp.data['id']}/",
+            {"hours": "9am-5pm", "access_token": create_resp.data["access_token"]},
+            format="json",
+            REMOTE_ADDR="8.8.8.8",
+        )
+        self.assertEqual(resp.status_code, 403)
+
+    def test_edit_from_a_different_country_stamps_only_editor_country(self):
+        """The France-from-abroad scenario: audit_creator_country stays
+        whatever it was at creation, only audit_editor_country moves to
+        reflect who just edited it -- same convention as Need (see
+        AuditTrailTests), exercised here through a real international
+        CollectionPoint edit rather than only at the model layer."""
+        from unittest.mock import patch
+
+        with patch("core.middleware.resolve_country_code", return_value="FR"):
+            create_resp = self.client.post("/api/collection-points/", self._payload(), format="json", REMOTE_ADDR="41.100.0.5")
+        point_id, token = create_resp.data["id"], create_resp.data["access_token"]
+
+        with patch("core.middleware.resolve_country_code", return_value="DZ"):
+            edit_resp = self.client.patch(
+                f"/api/collection-points/{point_id}/",
+                {"hours": "9am-5pm", "access_token": token},
+                format="json",
+                REMOTE_ADDR="41.200.0.1",
+            )
+        self.assertEqual(edit_resp.status_code, 200, edit_resp.content)
+        point = CollectionPoint.objects.get(pk=point_id)
+        self.assertEqual(point.audit_creator_country, "FR")
+        self.assertEqual(point.audit_editor_country, "DZ")
 
 
 class CollectionPointAccessRecoveryTests(BaseAPITestCase):

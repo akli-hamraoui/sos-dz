@@ -32,6 +32,7 @@ from core.models import (
     Wilaya,
 )
 from core.permissions import read_only_block, write_guard
+from core.validators import validate_social_url
 from core.serializers import (
     AnonymizeSerializer,
     AppConfigurationPublicSerializer,
@@ -747,6 +748,20 @@ class ContentReportViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
         return Response(self.get_serializer(report).data, status=status.HTTP_201_CREATED)
 
 
+def collection_point_identity_authorized(request, point):
+    """Admin, a matching access_token, or (same fallback close() has always
+    offered) the creator's own name+phone or recovery code -- shared so
+    partial_update() below gives a creator who lost their access_token the
+    same way back in that close() already does, rather than a stricter,
+    token-only check for editing than for closing."""
+    if is_admin_request(request) or owner_authorized(request, point):
+        return True
+    serializer = CollectionPointCloseSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    d = serializer.validated_data
+    return point.matches_code(d.get("code")) if d.get("code") else point.matches_creator(d.get("contact_name"), d.get("contact_phone"))
+
+
 class CollectionPointViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.RetrieveModelMixin):
     queryset = CollectionPoint.objects.select_related("wilaya").prefetch_related(
         "comments__replies", "pickups__progress_updates", "pickups__delivery_photos"
@@ -830,6 +845,47 @@ class CollectionPointViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mix
         out["access_token"] = point.access_token
         return Response(out, status=status.HTTP_201_CREATED)
 
+    def partial_update(self, request, *args, **kwargs):
+        point = self.get_object()
+        # Same reasoning as create()/close() above: editing one's own
+        # international point is expected to happen from outside Algeria too.
+        block_reason = read_only_block(request) if point.is_international else write_guard(request)
+        if block_reason:
+            return Response({"detail": block_reason}, status=status.HTTP_403_FORBIDDEN)
+        if not collection_point_identity_authorized(request, point):
+            return Response(
+                {"detail": "Not authorized: this access token doesn't match this collection point (or provide the matching name/phone/recovery code)."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        data = request.data
+        # Deliberately excludes wilaya/country_code (would flip national vs.
+        # international -- a different creation flow with its own
+        # validation, not a simple field edit) and latitude/longitude/
+        # flyer_image (re-validating a moved pin or re-moderating a new
+        # flyer is more than this endpoint takes on for now) -- same
+        # curated-allowlist approach as NeedViewSet.partial_update.
+        editable_fields = [
+            "point_name", "contact_name", "contact_phone", "other_phones",
+            "organization", "location_description", "hours",
+            "description", "accepted_donations",
+        ]
+        changed = False
+        for f in editable_fields:
+            if f in data:
+                setattr(point, f, data[f])
+                changed = True
+        for f in ("facebook_url", "tiktok_url", "instagram_url"):
+            if f in data:
+                setattr(point, f, validate_social_url(data[f]))
+                changed = True
+
+        if changed:
+            point.save()
+            log_admin_action(request, "edited collection point", point)
+
+        return Response(CollectionPointSerializer(point, context={"request": request}).data)
+
     @action(detail=False, methods=["get"], url_path="locations")
     def locations(self, request):
         """Public: pins for the SAME main map as Need pins (Wave 1) -- a
@@ -845,15 +901,8 @@ class CollectionPointViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mix
         block_reason = read_only_block(request) if point.is_international else write_guard(request)
         if block_reason:
             return Response({"detail": block_reason}, status=status.HTTP_403_FORBIDDEN)
-        if is_admin_request(request) or owner_authorized(request, point):
-            pass  # admin override, or a recovered access_token, needs no re-matching
-        else:
-            serializer = CollectionPointCloseSerializer(data=request.data)
-            serializer.is_valid(raise_exception=True)
-            d = serializer.validated_data
-            matched = point.matches_code(d.get("code")) if d.get("code") else point.matches_creator(d.get("contact_name"), d.get("contact_phone"))
-            if not matched:
-                return Response({"detail": "Name/phone (or recovery code) don't match this collection point's contact."}, status=status.HTTP_403_FORBIDDEN)
+        if not collection_point_identity_authorized(request, point):
+            return Response({"detail": "Name/phone (or recovery code) don't match this collection point's contact."}, status=status.HTTP_403_FORBIDDEN)
         point.status = CollectionPoint.STATUS_CLOSED
         point.save(update_fields=["status"])
         log_admin_action(request, "closed collection point", point)
