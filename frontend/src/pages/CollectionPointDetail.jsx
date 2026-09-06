@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useDialog } from '../context/DialogContext'
@@ -34,6 +34,20 @@ export default function CollectionPointDetail() {
   const [lightbox, setLightbox] = useState(null) // { src } for a full-size flyer preview
 
   const isOwner = !!cpTokens[id]
+  // Fetched eagerly in the background on mount, not awaited at click time
+  // (see the Maps button below) -- a browser's "this navigation was
+  // directly triggered by the user" activation window is short-lived
+  // (a few seconds) and does not survive an async gap of unpredictable
+  // length (a fresh GPS fix can take several seconds, denial can take
+  // even longer to time out). A navigation issued after that window has
+  // expired is no longer treated as user-initiated, which is exactly the
+  // kind of thing that makes Android's Maps-app handoff intermittently
+  // fail into a blank tab -- fast fix, works; slow fix, blank. Prefetching
+  // means the click handler itself is purely synchronous, so by the time
+  // anyone actually taps the button (they've had the page open at least a
+  // few seconds already, reading the details), the position is very
+  // likely already sitting here, ready or not.
+  const originRef = useRef(null)
 
   const load = useCallback(async () => {
     setCp(await api(`/collection-points/${id}/`))
@@ -42,6 +56,12 @@ export default function CollectionPointDetail() {
   useEffect(() => {
     load().catch(() => {}) // offline/network failure -- offline banner already informs the user
   }, [load])
+
+  useEffect(() => {
+    getCurrentPosition().then((origin) => {
+      originRef.current = origin
+    })
+  }, [])
 
   const reportFlyer = async () => {
     const reason = await showPrompt(t('needDetail.reportContent') + '?')
@@ -105,29 +125,27 @@ export default function CollectionPointDetail() {
       <p>{cp.location_description}</p>
       {cp.latitude != null && cp.longitude != null ? (
         <p>
-          {/* Captures the visitor's own position first (best-effort, same
-              3s-timeout convention as the map pages' "recenter on me") so
-              Google Maps opens straight into turn-by-turn directions with
-              both ends already known, instead of a bare destination pin
-              that leaves Maps to resolve "your location" itself. Falls
-              back to a destination-only link on denial/timeout -- Maps
-              then asks for the origin the way it always did.
-              Navigates the CURRENT tab (no window.open) once the position
-              resolves -- opening a blank tab synchronously and setting its
-              location later looked right, but several mobile browsers
-              (iOS Safari, some Android in-app webviews) silently refuse an
-              async-delayed redirect on a window opened that way, leaving
-              a permanently blank tab. A same-tab location change isn't
-              subject to that popup-style restriction -- the trade-off is
-              this leaves the SOS DZ page (the phone's back button returns
-              to it, same as any outbound link). */}
+          {/* Uses the visitor's own position (prefetched in the background,
+              see originRef above) as the directions' origin when it's
+              already available, so Google Maps opens straight into
+              turn-by-turn directions with both ends already known, instead
+              of a bare destination pin that leaves Maps to resolve "your
+              location" itself -- falls back to a destination-only link
+              when it isn't (denied/timed out/not resolved yet), in which
+              case Maps just asks for the origin the way it always did.
+              Navigates the CURRENT tab (no window.open/target=_blank): a
+              new tab opened for this consistently ended up stuck on
+              "about:blank" on Android Chrome (confirmed live) instead of
+              ever reaching Maps. The trade-off is this leaves the SOS DZ
+              page (the phone's back button returns to it, same as any
+              outbound link). Deliberately synchronous -- no await/.then()
+              in the click handler itself, see originRef's own comment
+              for why. */}
           <button
             type="button"
             className="link field-label-icon"
             onClick={() => {
-              getCurrentPosition().then((origin) => {
-                window.location.href = googleMapsDirectionsUrl(cp.latitude, cp.longitude, origin)
-              })
+              window.location.href = googleMapsDirectionsUrl(cp.latitude, cp.longitude, originRef.current)
             }}
           >
             <IconMapPin width={16} height={16} strokeWidth={2} /> {t('common.openInMaps')}
