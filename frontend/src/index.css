@@ -1333,6 +1333,32 @@ fieldset {
   position: relative;
 }
 
+/* "Recenter on my location" button, on every browsable map (see
+   utils.js's getCurrentPosition + each page's recenterOnMe). Bottom-left:
+   clear of Leaflet's own zoom control (top-left), its attribution
+   (bottom-right), and Deliveries.jsx's .unknown-position-chip (top-right) --
+   no page has anything else in that corner. */
+.locate-btn {
+  position: absolute;
+  bottom: 12px;
+  inset-inline-start: 12px;
+  z-index: 1200; /* above Leaflet's own zoom/attribution controls (1000) */
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  color: #333;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+.locate-btn:hover {
+  background: #f2f2f2;
+}
+
 /* Section headers on the combined "Je veux aider" list (Help.jsx) --
    keeps needs and collection points visually separated instead of
    reading as one mixed, undifferentiated list. */

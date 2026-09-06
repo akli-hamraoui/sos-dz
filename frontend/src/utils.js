@@ -54,6 +54,40 @@ export function formatDate(iso, locale) {
   )
 }
 
+// "Center on my location" map buttons frame a fixed 100km radius around the
+// visitor. Leaflet's LatLng.toBounds(sizeInMeters) places each edge
+// sizeInMeters/2 away from the point, so 200000 here means 100km in every
+// direction: L.latLng(lat, lon).toBounds(RECENTER_BOX_METERS).
+export const RECENTER_BOX_METERS = 200000
+
+// Promise-wrapped geolocation lookup shared by every "recenter on my
+// position" map button. `getCurrentPosition`'s own `timeout` option isn't
+// honored by every browser (confirmed in NeedsList.jsx/Help.jsx's smartZoom,
+// where neither callback ever fired) -- the manual setTimeout race below
+// guarantees this always resolves within ~3.5s regardless. Resolves to
+// null (never rejects) on denial/unavailability/timeout so callers can
+// stay best-effort/silent, matching the rest of the app's geolocation UX.
+export function getCurrentPosition() {
+  return new Promise((resolve) => {
+    if (!navigator.geolocation) {
+      resolve(null)
+      return
+    }
+    let settled = false
+    const settle = (value) => {
+      if (settled) return
+      settled = true
+      resolve(value)
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => settle([pos.coords.latitude, pos.coords.longitude]),
+      () => settle(null),
+      { timeout: 3000 }
+    )
+    setTimeout(() => settle(null), 3500)
+  })
+}
+
 export function haversineKm([lat1, lon1], [lat2, lon2]) {
   const R = 6371
   const dLat = ((lat2 - lat1) * Math.PI) / 180

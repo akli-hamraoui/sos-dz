@@ -4,8 +4,9 @@ import { useTranslation } from 'react-i18next'
 import L from 'leaflet'
 import { useApp } from '../context/AppContext'
 import { api } from '../api'
-import { urgencyColor, haversineKm, isInAlgeria } from '../utils'
+import { urgencyColor, haversineKm, isInAlgeria, getCurrentPosition, RECENTER_BOX_METERS } from '../utils'
 import { needIcon, collectionPointIcon, needPopupHtml, collectionPointPopupHtml } from '../mapMarkers'
+import { IconLocate } from '../icons'
 
 function statusLabel(t, s) {
   return t(`status.${s}`, s)
@@ -37,6 +38,12 @@ export default function Help() {
     const timer = setTimeout(() => setSearch(searchInput.trim()), 300)
     return () => clearTimeout(timer)
   }, [searchInput])
+
+  const hasActiveFilters = !!(filterWilaya || searchInput)
+  const resetFilters = () => {
+    setFilterWilaya('')
+    setSearchInput('')
+  }
 
   const loadList = useCallback(async () => {
     const params = new URLSearchParams()
@@ -180,6 +187,14 @@ export default function Help() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewMode, filterWilaya, search, activeCampaignWilayas])
 
+  const recenterOnMe = async () => {
+    const map = mapRef.current
+    if (!map) return
+    const pos = await getCurrentPosition()
+    if (!pos) return // denied/unavailable/timed out -- best-effort, silent
+    map.fitBounds(L.latLng(pos[0], pos[1]).toBounds(RECENTER_BOX_METERS))
+  }
+
   // Switching to "Liste" unmounts the map div -- see NeedsList.jsx for why
   // the Leaflet instance must be torn down here too.
   useEffect(() => {
@@ -213,6 +228,11 @@ export default function Help() {
             ))}
           </select>
         </label>
+        {hasActiveFilters && (
+          <button type="button" className="btn" onClick={resetFilters}>
+            {t('needsList.resetFilters')}
+          </button>
+        )}
         <div className="view-toggle">
           <button className={viewMode === 'list' ? 'active' : ''} onClick={() => setViewMode('list')}>
             {t('needsList.list')}
@@ -267,7 +287,12 @@ export default function Help() {
       {viewMode === 'map' && (
         <div className="map-wrap">
           {mapHasNothing && <p className="hint">{t('help.nothingToShow')}</p>}
-          <div id="help-map" ref={mapElRef} style={{ height: 600 }} />
+          <div className="map-frame">
+            <div id="help-map" ref={mapElRef} style={{ height: 600 }} />
+            <button type="button" className="locate-btn" onClick={recenterOnMe} aria-label={t('map.recenterOnMe')} title={t('map.recenterOnMe')}>
+              <IconLocate width={18} height={18} />
+            </button>
+          </div>
           <div className="legend">
             <span className="legend-item">
               <span className="legend-dot" style={{ background: urgencyColor('critical') }} />
