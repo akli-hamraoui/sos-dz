@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import L from 'leaflet'
 import { useApp } from '../context/AppContext'
+import { useDialog } from '../context/DialogContext'
 import { api } from '../api'
 import { haversineKm, isInAlgeria, getCurrentPosition, RECENTER_BOX_METERS } from '../utils'
 import { fetchDrivingRoute, COLLECTION_POINT_ROUTE_COLOR } from '../routing'
@@ -11,6 +12,7 @@ import { IconLocate } from '../icons'
 export default function CollectionPoints() {
   const { t } = useTranslation()
   const { activeCampaignWilayas } = useApp()
+  const { showAlert } = useDialog()
   const [filterWilaya, setFilterWilaya] = useState('')
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
@@ -286,7 +288,15 @@ export default function CollectionPoints() {
     const map = mapRef.current
     if (!map) return
     const pos = await getCurrentPosition()
-    if (!pos) return // denied/unavailable/timed out -- best-effort, silent
+    // Unlike the passive/automatic geolocation attempts elsewhere on this
+    // page (smartZoom's own best-effort default view), this button is a
+    // deliberate tap -- staying silent on failure just looks broken (most
+    // commonly: location access was denied for this site previously, so
+    // the browser won't even show the permission prompt again this time).
+    if (!pos) {
+      showAlert(t('map.locationUnavailable'))
+      return
+    }
     map.fitBounds(L.latLng(pos[0], pos[1]).toBounds(RECENTER_BOX_METERS))
   }
 

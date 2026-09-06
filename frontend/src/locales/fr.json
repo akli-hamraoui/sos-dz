@@ -44,7 +44,8 @@
     "gestureTouch": "Utilisez deux doigts pour déplacer la carte",
     "gestureScroll": "Utilisez Ctrl + molette pour zoomer sur la carte",
     "gestureScrollMac": "Utilisez ⌘ + molette pour zoomer sur la carte",
-    "recenterOnMe": "Centrer sur ma position"
+    "recenterOnMe": "Centrer sur ma position",
+    "locationUnavailable": "Impossible d'accéder à votre position. Vérifiez que la localisation est autorisée pour ce site dans les réglages de votre navigateur, et que le GPS/la localisation est activé(e) sur votre appareil."
   },
   "readOnly": {
     "banner": "L'application est actuellement en mode lecture seule. Les données existantes restent consultables."

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import L from 'leaflet'
+import { useDialog } from '../context/DialogContext'
 import { api } from '../api'
 import { geocodeCountryBounds, getCurrentPosition, RECENTER_BOX_METERS } from '../utils'
 import { fetchDrivingRoute, COLLECTION_POINT_ROUTE_COLOR } from '../routing'
@@ -19,6 +20,7 @@ import { IconLocate } from '../icons'
 // per spec.
 export default function InternationalCollectionPoints() {
   const { t, i18n } = useTranslation()
+  const { showAlert } = useDialog()
   const [filterCountry, setFilterCountry] = useState('')
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
@@ -308,7 +310,13 @@ export default function InternationalCollectionPoints() {
     const map = mapRef.current
     if (!map) return
     const pos = await getCurrentPosition()
-    if (!pos) return // denied/unavailable/timed out -- best-effort, silent
+    // See CollectionPoints.jsx's own recenterOnMe -- an explicit tap
+    // deserves feedback on failure, unlike the passive default-view
+    // geolocation attempt elsewhere on this page.
+    if (!pos) {
+      showAlert(t('map.locationUnavailable'))
+      return
+    }
     const [lat, lon] = pos
     if (youAreHereRef.current) {
       map.removeLayer(youAreHereRef.current)

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import L from 'leaflet'
 import { useApp } from '../context/AppContext'
+import { useDialog } from '../context/DialogContext'
 import { api } from '../api'
 import { urgencyColor, haversineKm, isInAlgeria, getCurrentPosition, RECENTER_BOX_METERS } from '../utils'
 import { IconLocate } from '../icons'
@@ -23,6 +24,7 @@ const NEED_SOS_ICON = '<img src="/icons/need-marker-sos.png" width="18" height="
 export default function NeedsList() {
   const { t } = useTranslation()
   const { activeCampaignWilayas } = useApp()
+  const { showAlert } = useDialog()
   const [filterWilaya, setFilterWilaya] = useState('')
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
@@ -236,7 +238,12 @@ export default function NeedsList() {
     const map = mapRef.current
     if (!map) return
     const pos = await getCurrentPosition()
-    if (!pos) return // denied/unavailable/timed out -- best-effort, silent
+    // See CollectionPoints.jsx's own recenterOnMe -- an explicit tap
+    // deserves feedback on failure.
+    if (!pos) {
+      showAlert(t('map.locationUnavailable'))
+      return
+    }
     map.fitBounds(L.latLng(pos[0], pos[1]).toBounds(RECENTER_BOX_METERS))
   }
 
