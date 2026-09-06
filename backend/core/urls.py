@@ -11,6 +11,7 @@ from core.views import (
     PickupViewSet,
     SupportRequestViewSet,
     TranslationOverridesView,
+    VersionView,
     WilayaViewSet,
 )
 from django.urls import path
@@ -29,4 +30,5 @@ router.register("comments", CommentViewSet, basename="comment")
 urlpatterns = router.urls + [
     path("config/", AppConfigurationView.as_view(), name="app-configuration"),
     path("translations/", TranslationOverridesView.as_view(), name="translation-overrides"),
+    path("version/", VersionView.as_view(), name="version"),
 ]

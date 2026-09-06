@@ -1,3 +1,6 @@
+import subprocess
+
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.test import TestCase, override_settings
@@ -1722,6 +1725,28 @@ class AppConfigurationEndpointTests(BaseAPITestCase):
         response = django_client.get(f"/admin/core/appconfiguration/{config.pk}/change/")
         # max_num=5 with 5 existing rows leaves no empty "extra" form to add a 6th.
         self.assertEqual(response.context["inline_admin_formsets"][0].formset.extra_forms, [])
+
+
+class VersionEndpointTests(BaseAPITestCase):
+    def test_returns_current_head_commit(self):
+        from core.views import _git_version
+
+        _git_version.cache_clear()
+        resp = self.client.get("/api/version/")
+        self.assertEqual(resp.status_code, 200)
+        expected = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=settings.REPO_ROOT).decode().strip()
+        self.assertEqual(resp.data["commit"], expected)
+        self.assertEqual(resp.data["commit_short"], expected[:7])
+        self.assertTrue(resp.data["commit_date"])
+
+    def test_cached_across_requests(self):
+        from core.views import _git_version
+
+        _git_version.cache_clear()
+        first = self.client.get("/api/version/").data
+        second = self.client.get("/api/version/").data
+        self.assertEqual(first, second)
+        self.assertEqual(_git_version.cache_info().hits, 1)
 
 
 class TranslationOverridesTests(BaseAPITestCase):

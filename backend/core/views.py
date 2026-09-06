@@ -1,3 +1,6 @@
+import subprocess
+from functools import lru_cache
+
 from django.db.models import Prefetch, Q
 from django.shortcuts import get_object_or_404
 from rest_framework import mixins, status, viewsets
@@ -113,6 +116,46 @@ class CampaignViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets
         if self.request.query_params.get("active_only") == "1":
             qs = qs.filter(status=Campaign.STATUS_ACTIVE)
         return qs
+
+
+@lru_cache(maxsize=1)
+def _git_version():
+    # Deploys here are a manual `git pull` + rebuild on the VPS (see
+    # DEPLOYMENT.md step 6) with nothing else surfacing whether it actually
+    # ran -- this lets a redeploy be confirmed by comparing this endpoint's
+    # commit against `git log -1` on GitHub, instead of guessing from bug
+    # reports whether a merged fix ever reached the live server. Cached for
+    # the process lifetime since it can't change without a restart, which
+    # is already how a redeploy takes effect here (systemctl restart).
+    from django.conf import settings
+
+    try:
+        commit = (
+            subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=settings.REPO_ROOT, stderr=subprocess.DEVNULL)
+            .decode()
+            .strip()
+        )
+        commit_date = (
+            subprocess.check_output(
+                ["git", "show", "-s", "--format=%cI", "HEAD"], cwd=settings.REPO_ROOT, stderr=subprocess.DEVNULL
+            )
+            .decode()
+            .strip()
+        )
+    except (subprocess.CalledProcessError, FileNotFoundError, OSError):
+        return {"commit": None, "commit_short": None, "commit_date": None}
+
+    return {"commit": commit, "commit_short": commit[:7], "commit_date": commit_date}
+
+
+class VersionView(APIView):
+    """Public endpoint exposing the backend's currently running git commit
+    -- see _git_version above for why this exists."""
+
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        return Response(_git_version())
 
 
 class AppConfigurationView(APIView):
