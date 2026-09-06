@@ -705,7 +705,7 @@ class CollectionPointMapPinSerializer(serializers.ModelSerializer):
         model = CollectionPoint
         fields = [
             "id", "point_name", "contact_name", "contact_phone", "organization", "hours",
-            "status", "wilaya_name", "country_name", "is_international",
+            "status", "wilaya", "wilaya_name", "country_code", "country_name", "is_international",
             "display_latitude", "display_longitude", "has_exact_position",
         ]
 

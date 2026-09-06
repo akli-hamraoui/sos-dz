@@ -26,9 +26,14 @@ cities show up in future CSVs. A national row still works with only a
 wilaya even with no coordinates at all (the public map falls back to the
 wilaya's own centroid, see CollectionPointMapPinSerializer), but an
 international row cannot be created without a real lat/lon --
-CollectionPointCreateSerializer.validate requires one unconditionally, so
-a row with only a country and no resolvable city is flagged
-"manual_review" rather than silently invented.
+CollectionPointCreateSerializer.validate requires one unconditionally. A
+row that never had a city to begin with (only a country) is therefore
+"ignored" outright, per spec -- it's not queued for manual follow-up,
+just skipped. A row that DID name a city but couldn't be geocoded (not in
+OFFLINE_CITY_COORDS, Nominatim unreachable or found nothing) is instead
+"manual_review": that one is still plausibly fixable (wrong spelling, or a
+town worth adding to the table), so it's surfaced rather than silently
+dropped. Either way, nothing is ever created with an invented position.
 
 Every row that mentions CCP, PayPal, Cotizup, a "cagnotte", or another
 online money-collection platform/link in ANY column is excluded outright,
@@ -275,7 +280,7 @@ class RowResult:
     code: str
     point_name: str
     international: bool
-    status: str  # would_create | duplicate | excluded | manual_review | error
+    status: str  # would_create | duplicate | excluded | manual_review | ignored | error
     source: str = ""  # input CSV filename this row came from -- lets reports from separate batches be told apart once merged
     reason: str = ""
     location_label: str = ""  # wilaya name or country name, for the report
@@ -354,19 +359,25 @@ def resolve_national(row, wilaya_by_name, geocoder, stdout):
 
 def resolve_international(row, geocoder, stdout):
     """Returns (country_code, country_name, latitude, longitude,
-    geocode_source, note). latitude/longitude are None (never invented)
-    when nothing better than "country" is known -- the caller must then
-    treat the row as manual_review since the model requires an exact
-    position for an international point."""
+    geocode_source, note, no_city). latitude/longitude are None (never
+    invented) when nothing better than "country" is known -- the model
+    requires an exact position for an international point, so such a row
+    can never be created. `no_city` distinguishes why: True when there was
+    never a city to work with in the first place (per spec, that row is
+    simply ignored rather than queued for manual follow-up); False when a
+    city WAS given but geocoding still failed (something an admin could
+    plausibly still fix -- a bad spelling, or a town worth adding to
+    OFFLINE_CITY_COORDS -- so that case stays manual_review)."""
     pays = (row.get("pays") or "").strip()
     ville = (row.get("ville") or "").strip()
     adresse = (row.get("adresse") or "").strip()
+    has_city = bool(ville) and normalize("non précisée") not in normalize(ville) and normalize(ville) != normalize(pays)
 
     iso = COUNTRY_NAME_TO_ISO.get(normalize(pays))
     if not iso:
-        return None, pays, None, None, "", f"Pays '{pays}' non reconnu -- code ISO à assigner manuellement."
+        return None, pays, None, None, "", f"Pays '{pays}' non reconnu -- code ISO à assigner manuellement.", False
     if iso == "DZ":
-        return None, pays, None, None, "", "Un point international ne peut pas être en Algérie (donnée incohérente)."
+        return None, pays, None, None, "", "Un point international ne peut pas être en Algérie (donnée incohérente).", False
 
     lat = lon = None
     source = ""
@@ -377,7 +388,7 @@ def resolve_international(row, geocoder, stdout):
             source = "nominatim"
 
     if lat is None:
-        candidates = city_query_candidates(ville) if ville and "non précisée" not in normalize(ville) else []
+        candidates = city_query_candidates(ville) if has_city else []
         for candidate in candidates:
             key = (normalize(candidate), iso)
             hit = geocoder.search(f"{candidate}, {pays}", country_code=iso)
@@ -392,11 +403,14 @@ def resolve_international(row, geocoder, stdout):
 
     note = ""
     if lat is None:
-        note = (
-            "Aucune position exacte trouvée (ville inconnue ou non géocodable) -- "
-            "un point international exige un pin GPS exact, impossible à créer automatiquement."
-        )
-    return iso, pays, lat, lon, source, note
+        if not has_city:
+            note = f"Pays '{pays}' seul, aucune ville -- ligne ignorée (position GPS exacte impossible à obtenir)."
+        else:
+            note = (
+                "Aucune position exacte trouvée (ville inconnue ou non géocodable) -- "
+                "un point international exige un pin GPS exact, impossible à créer automatiquement."
+            )
+    return iso, pays, lat, lon, source, note, (lat is None and not has_city)
 
 
 class Command(BaseCommand):
@@ -517,9 +531,10 @@ class Command(BaseCommand):
         common["location_description"] = adresse or ville or (row.get("pays") or "").strip() or "Adresse non précisée"
 
         if international:
-            iso, country_name, lat, lon, source, note = resolve_international(row, geocoder, self.stdout)
+            iso, country_name, lat, lon, source, note, no_city = resolve_international(row, geocoder, self.stdout)
             if note:
-                return RowResult(idx, code, point_name, True, "manual_review", source=source_name, reason=note,
+                status = "ignored" if no_city else "manual_review"
+                return RowResult(idx, code, point_name, True, status, source=source_name, reason=note,
                                   location_label=country_name, image_found=image_found, flyer_path=flyer_path)
             existing = _find_existing_point(code, common["organization"], country_name, True)
             if existing:
@@ -612,19 +627,22 @@ class Command(BaseCommand):
         excluded = sum(1 for r in results if r.status == "excluded")
         duplicates = sum(1 for r in results if r.status == "duplicate")
         manual = sum(1 for r in results if r.status == "manual_review")
+        ignored = sum(1 for r in results if r.status == "ignored")
         AuditLog.objects.create(
             admin_user=None,
             action="bulk import collection points (summary)",
             target_description=(
                 f"{created_national} national(aux), {created_international} international(aux), "
-                f"{duplicates} déjà existants (ignorés), {excluded} exclus (lien de collecte d'argent), "
+                f"{duplicates} déjà existants (doublons), {excluded} exclus (lien de collecte d'argent), "
+                f"{ignored} ignorés (pays seul, sans ville ni position possible), "
                 f"{manual} à traiter manuellement, {errors} en erreur"
             ),
             reason=f"source={csv_path.name}",
         )
         self.stdout.write(self.style.SUCCESS(
             f"\nCréés: {created_national} national(aux) + {created_international} international(aux). "
-            f"Ignorés (doublons): {duplicates}. Exclus: {excluded}. À traiter manuellement: {manual}. Erreurs: {errors}."
+            f"Doublons: {duplicates}. Exclus: {excluded}. Ignorés (pays sans ville): {ignored}. "
+            f"À traiter manuellement: {manual}. Erreurs: {errors}."
         ))
 
     def _create_point(self, r):
