@@ -34,6 +34,13 @@ export default function NeedDetail() {
   const [anonymizingNeed, setAnonymizingNeed] = useState(false)
   const mapElRef = useRef(null)
   const mapRef = useRef(null)
+  // Fetched eagerly in the background on mount, not awaited at click time
+  // (see the Maps button below) -- see CollectionPointDetail.jsx's own
+  // originRef for why: a navigation issued after the browser's short-lived
+  // "this was directly triggered by the user" activation window expires is
+  // no longer treated as user-initiated, which is exactly what makes
+  // Android's Maps-app handoff intermittently fail into a blank tab.
+  const originRef = useRef(null)
 
   const isNeedOwner = needTokens[id] && needTokens[id].access_token
   const viewerToken = searchParams.get('viewer')
@@ -46,6 +53,12 @@ export default function NeedDetail() {
   useEffect(() => {
     load().catch(() => {}) // offline/network failure -- offline banner already informs the user
   }, [load])
+
+  useEffect(() => {
+    getCurrentPosition().then((origin) => {
+      originRef.current = origin
+    })
+  }, [])
 
   const checkLiveMapAccess = useCallback(async () => {
     // Always ask the backend rather than gating the request on a locally
@@ -282,16 +295,19 @@ export default function NeedDetail() {
       {need.position_accuracy === 'exact' && need.latitude != null && need.longitude != null ? (
         <p>
           {/* See CollectionPointDetail.jsx for why this navigates the
-              current tab instead of opening a new one -- an async-delayed
-              redirect on a window.open()'d tab is silently dropped by
-              several mobile browsers, leaving a permanently blank tab. */}
+              current tab instead of opening a new one (a window.open()'d
+              tab consistently got stuck on "about:blank" on Android
+              Chrome), and why the click handler itself is synchronous,
+              reading the prefetched originRef rather than awaiting
+              getCurrentPosition() here (a navigation issued after the
+              browser's short user-activation window expires is no longer
+              treated as user-initiated, which intermittently broke the
+              Maps-app handoff depending on how long the GPS fix took). */}
           <button
             type="button"
             className="link field-label-icon"
             onClick={() => {
-              getCurrentPosition().then((origin) => {
-                window.location.href = googleMapsDirectionsUrl(need.latitude, need.longitude, origin)
-              })
+              window.location.href = googleMapsDirectionsUrl(need.latitude, need.longitude, originRef.current)
             }}
           >
             <IconMapPin width={16} height={16} strokeWidth={2} /> {t('common.openInMaps')}
