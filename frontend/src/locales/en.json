@@ -45,7 +45,8 @@
     "gestureScroll": "Use ctrl + scroll to zoom the map",
     "gestureScrollMac": "Use ⌘ + scroll to zoom the map",
     "recenterOnMe": "Center on my location",
-    "locationUnavailable": "Couldn't access your location. Check that location access is allowed for this site in your browser settings, and that GPS/location is turned on for your device."
+    "locationUnavailable": "Couldn't access your location. Check that location access is allowed for this site in your browser settings, and that GPS/location is turned on for your device.",
+    "youAreHere": "You are here"
   },
   "readOnly": {
     "banner": "The app is currently in read-only mode. Existing data remains viewable."
@@ -348,7 +349,6 @@
     "noPointsYet": "No international collection points listed yet.",
     "locationLabel": "Location",
     "locationPlaceholder": "City or country (e.g. Paris, France)",
-    "youAreHere": "You are here",
     "resetFilters": "Reset filters",
     "addButton": "+ Add an international collection point",
     "createTitle": "Create an international collection point",

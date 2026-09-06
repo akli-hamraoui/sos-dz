@@ -139,7 +139,7 @@ export default function InternationalCollectionPoints() {
           fillColor: '#3b82f6',
           fillOpacity: 0.9,
         }).addTo(map)
-        marker.bindPopup(t('internationalCollectionPoints.youAreHere')).openPopup()
+        marker.bindPopup(t('map.youAreHere')).openPopup()
         youAreHereRef.current = marker
       },
       () => map.setView([20, 10], 2),
@@ -329,7 +329,7 @@ export default function InternationalCollectionPoints() {
       fillColor: '#3b82f6',
       fillOpacity: 0.9,
     }).addTo(map)
-    marker.bindPopup(t('internationalCollectionPoints.youAreHere'))
+    marker.bindPopup(t('map.youAreHere'))
     youAreHereRef.current = marker
     map.fitBounds(L.latLng(lat, lon).toBounds(RECENTER_BOX_METERS))
   }
