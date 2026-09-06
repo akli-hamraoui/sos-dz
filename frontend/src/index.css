@@ -1357,6 +1357,21 @@ fieldset {
   position: relative;
 }
 
+/* Marker popup content (mapMarkers.js and each map page's own bindPopup
+   calls) is a plain HTML string with <br> between fields -- break-word so
+   a long point/need name can't force the popup past its own maxWidth (see
+   main.jsx's L.Popup.mergeOptions), and give the <br>-separated lines
+   enough line-height to read as a clear stacked list on a small screen
+   instead of a cramped block. */
+.leaflet-popup-content {
+  overflow-wrap: break-word;
+  line-height: 1.5;
+}
+.leaflet-popup-content a {
+  display: inline-block;
+  margin-block-start: 4px;
+}
+
 /* "Recenter on my location" button, on every browsable map (see
    utils.js's getCurrentPosition + each page's recenterOnMe). Top-right:
    clear of Leaflet's own zoom control (top-left) and its attribution

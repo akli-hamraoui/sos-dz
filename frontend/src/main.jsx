@@ -12,6 +12,16 @@ import 'leaflet/dist/leaflet.css'
 // exposed explicitly here before the plugin loads, or the whole app
 // crashes at startup with "L is not defined".
 window.L = L
+// Every marker popup app-wide (see mapMarkers.js and each map page's own
+// bindPopup calls) is a plain HTML string with <br>-separated fields --
+// Leaflet's default maxWidth (300px) leaves almost no room to auto-pan on
+// a narrow phone screen once a marker sits near the map container's own
+// edge (a Europe-wide map's westernmost point, a marker near the screen's
+// left border, etc.), so the popup's left side can render running off the
+// visible viewport entirely -- confirmed live: reported as an unreadable,
+// cut-off popup. A smaller maxWidth and a wider auto-pan margin keep every
+// popup fully on-screen regardless of where its marker sits.
+L.Popup.mergeOptions({ maxWidth: 260, autoPanPadding: [16, 16] })
 // Registers the `gestureHandling` map option used on every Leaflet map in
 // this app (see NeedsList/CollectionPoints/NeedDetail): a single finger on
 // a mobile touchscreen pans the *page*, not the map -- panning the map
