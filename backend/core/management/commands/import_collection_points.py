@@ -435,10 +435,19 @@ class Command(BaseCommand):
         geocoder = NominatimClient(stdout=self.stdout)
         if options["no_geocode"]:
             geocoder._unavailable = True
+        # Indexed by filename stem (lowercased, extension stripped): the CSV
+        # sometimes names a flyer with the wrong extension (e.g.
+        # "flyer_016.jpg" in the CSV for an actual flyer_016.webp file in
+        # the zip) -- matching on the stem alone still finds it instead of
+        # silently dropping the image, per spec ("si le fichier référencé
+        # n'existe pas... crée le point sans image" -- that's for a flyer
+        # that's genuinely missing, not one that's just named with a
+        # different extension).
+        photos_by_stem = {p.stem.lower(): p for p in photos_dir.iterdir()} if photos_dir.is_dir() else {}
 
         results = []
         for idx, row in enumerate(rows, start=1):
-            results.append(self._evaluate_row(idx, row, wilaya_by_name, geocoder, photos_dir, csv_path.name))
+            results.append(self._evaluate_row(idx, row, wilaya_by_name, geocoder, photos_dir, photos_by_stem, csv_path.name))
 
         self._print_report(results)
         self._write_report_csv(results, options.get("report_csv") or (csv_path.parent / "import_report.csv"))
@@ -481,7 +490,7 @@ class Command(BaseCommand):
 
     # -- per-row evaluation --------------------------------------------------
 
-    def _evaluate_row(self, idx, row, wilaya_by_name, geocoder, photos_dir, source_name):
+    def _evaluate_row(self, idx, row, wilaya_by_name, geocoder, photos_dir, photos_by_stem, source_name):
         code = (row.get(RECOVERY_CODE_FIELD) or "").strip()
         point_name = (row.get("nom_point") or "").strip()
         international = normalize(row.get("international")) == "true"
@@ -492,8 +501,11 @@ class Command(BaseCommand):
                               reason=f"Mention d'un lien de collecte d'argent en ligne détectée ('{hit}').")
 
         flyer_name = (row.get(FLYER_FIELD) or "").strip()
-        flyer_path = (photos_dir / flyer_name) if flyer_name else None
-        image_found = bool(flyer_path and flyer_path.exists())
+        flyer_path = None
+        if flyer_name:
+            exact = photos_dir / flyer_name
+            flyer_path = exact if exact.exists() else photos_by_stem.get(Path(flyer_name).stem.lower())
+        image_found = flyer_path is not None
 
         description = (row.get("description") or "").strip()
         flyer_text = (row.get("texte_complet_flyer") or "").strip()
