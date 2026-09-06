@@ -1,4 +1,5 @@
-from core.audit import current_request_ip
+from core.audit import current_request_country, current_request_ip
+from core.geoip import resolve_country_code
 
 
 def get_client_ip(request):
@@ -30,18 +31,29 @@ def get_client_ip(request):
 
 class RequestClientIPMiddleware:
     """Attaches request.client_ip for use by geo-restriction and rate
-    limiting, and binds the same IP into the contextvar AuditMixin.save()
-    reads (core/audit.py) so every model write during this request/response
-    cycle is attributed to it. Reset in `finally` so a sync worker thread
-    reused for a later, unrelated request never inherits a stale IP."""
+    limiting, and binds the same IP (plus the country it resolves to) into
+    the contextvars AuditMixin.save() reads (core/audit.py) so every model
+    write during this request/response cycle is attributed to them. Reset
+    in `finally` so a sync worker thread reused for a later, unrelated
+    request never inherits a stale IP/country.
+
+    The country is resolved once here rather than separately inside every
+    individual save() -- a single write (e.g. creating a Need) can cascade
+    into several saves within one request, and the country can't change
+    mid-request. Same resolve_country_code() lookup already used for the
+    Algeria-only write restriction (core.permissions.geo_restriction_block),
+    so both features rely on the same MaxMind GeoLite2 database (README
+    "GeoIP setup") -- best-effort, None when it isn't installed."""
 
     def __init__(self, get_response):
         self.get_response = get_response
 
     def __call__(self, request):
         request.client_ip = get_client_ip(request)
-        token = current_request_ip.set(request.client_ip or None)
+        ip_token = current_request_ip.set(request.client_ip or None)
+        country_token = current_request_country.set(resolve_country_code(request.client_ip))
         try:
             return self.get_response(request)
         finally:
-            current_request_ip.reset(token)
+            current_request_ip.reset(ip_token)
+            current_request_country.reset(country_token)

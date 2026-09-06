@@ -3272,7 +3272,8 @@ class VideoDurationValidationTests(TestCase):
 
 class AuditTrailTests(BaseAPITestCase):
     """core.audit.AuditMixin: audit_created_at/audit_updated_at/
-    audit_creator_ip/audit_editor_ip, retrofitted onto every table."""
+    audit_creator_ip/audit_editor_ip/audit_creator_country/
+    audit_editor_country, retrofitted onto every table."""
 
     def setUp(self):
         super().setUp()
@@ -3315,11 +3316,54 @@ class AuditTrailTests(BaseAPITestCase):
         self.assertGreater(need.audit_updated_at, original_created_at)
         self.assertEqual(need.audit_editor_ip, "9.9.9.9")
 
+    def test_create_stamps_country_resolved_from_the_request_ip(self):
+        """No GeoLite2 database is installed in this dev/test environment
+        (see core/geoip.py's own warning, confirmed at the top of a test
+        run) -- resolve_country_code is mocked here to simulate a real
+        lookup succeeding, the same way other tests in this file mock
+        ffprobe/NSFWJS for dependencies this environment doesn't have."""
+        from unittest.mock import patch
+
+        with patch("core.middleware.resolve_country_code", return_value="FR"):
+            resp = self.client.post("/api/needs/", self._payload(), format="json", REMOTE_ADDR="41.100.0.5")
+        self.assertEqual(resp.status_code, 201)
+        need = Need.objects.get(pk=resp.data["id"])
+        self.assertEqual(need.audit_creator_country, "FR")
+        self.assertEqual(need.audit_editor_country, "FR")
+
+    def test_edit_from_a_different_country_moves_only_the_editor_country(self):
+        from unittest.mock import patch
+
+        with patch("core.middleware.resolve_country_code", return_value="FR"):
+            create_resp = self.client.post("/api/needs/", self._payload(), format="json", REMOTE_ADDR="41.100.0.5")
+        need_id, token = create_resp.data["id"], create_resp.data["access_token"]
+
+        with patch("core.middleware.resolve_country_code", return_value="DZ"):
+            edit_resp = self.client.patch(
+                f"/api/needs/{need_id}/",
+                {"title": "New title", "access_token": token},
+                format="json",
+                REMOTE_ADDR="41.200.0.1",
+            )
+        self.assertEqual(edit_resp.status_code, 200)
+        need = Need.objects.get(pk=need_id)
+        self.assertEqual(need.audit_creator_country, "FR")
+        self.assertEqual(need.audit_editor_country, "DZ")
+
+    def test_country_stays_null_when_it_cannot_be_resolved(self):
+        """The real behavior in this environment (no GeoLite2 database) --
+        resolve_country_code itself already returns None, unmocked."""
+        resp = self.client.post("/api/needs/", self._payload(), format="json", REMOTE_ADDR="41.100.0.5")
+        self.assertEqual(resp.status_code, 201)
+        need = Need.objects.get(pk=resp.data["id"])
+        self.assertIsNone(need.audit_creator_country)
+        self.assertIsNone(need.audit_editor_country)
+
     def test_write_with_no_bound_request_ip_leaves_ip_columns_null(self):
         """A management command, a data migration, a test creating rows
-        directly via the ORM -- no request, so no IP to attribute the write
-        to. Dates are still stamped (timezone.now() has no such dependency),
-        only the IP columns stay NULL."""
+        directly via the ORM -- no request, so no IP (or country) to
+        attribute the write to. Dates are still stamped (timezone.now()
+        has no such dependency), only the IP/country columns stay NULL."""
         need = Need.objects.create(
             campaign=self.campaign,
             wilaya=self.wilaya,
@@ -3330,6 +3374,8 @@ class AuditTrailTests(BaseAPITestCase):
         self.assertIsNotNone(need.audit_created_at)
         self.assertIsNone(need.audit_creator_ip)
         self.assertIsNone(need.audit_editor_ip)
+        self.assertIsNone(need.audit_creator_country)
+        self.assertIsNone(need.audit_editor_country)
 
     def test_pre_existing_rows_added_by_the_audit_migration_stay_null(self):
         """The migration that added these columns (core/migrations/

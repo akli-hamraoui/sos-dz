@@ -11,20 +11,39 @@ from django.utils import timezone
 # directly via the ORM) rather than raising.
 current_request_ip = contextvars.ContextVar("current_request_ip", default=None)
 
+# Resolved once per request (RequestClientIPMiddleware, from the same IP as
+# current_request_ip above) via core.geoip.resolve_country_code -- the same
+# MaxMind GeoLite2 lookup already used for the Algeria-only write
+# restriction. Bound alongside the IP rather than re-resolved on every
+# individual model save() within the request: a single write (e.g.
+# creating a Need) can cascade into several saves in one request (Need
+# itself, then Campaign/recompute_status...), and the country can't change
+# mid-request anyway. None whenever it can't be resolved -- no bound
+# request, a private/local IP, or the GeoLite2 database isn't installed
+# (see core/geoip.py; matches this project's existing best-effort
+# convention rather than blocking the write).
+current_request_country = contextvars.ContextVar("current_request_country", default=None)
+
 
 class AuditMixin(models.Model):
     """Generic creator/editor audit trail retrofitted onto every table.
 
     Deliberately not a history table: an edit simply overwrites
-    audit_updated_at/audit_editor_ip in place, there is no separate log of
-    past edits (see AuditLog for the unrelated, pre-existing admin-action
-    log, which this does not replace).
+    audit_updated_at/audit_editor_ip/audit_editor_country in place, there
+    is no separate log of past edits (see AuditLog for the unrelated,
+    pre-existing admin-action log, which this does not replace).
 
-    All four columns are nullable specifically so this can be added to
+    All six columns are nullable specifically so this can be added to
     tables that already have rows: the migration adds them with no
     backfill, so every pre-existing row stays NULL forever unless/until
     it is itself next saved -- only rows created or edited from this
-    point on ever get a non-NULL value here.
+    point on ever get a non-NULL value here. The country columns are
+    additionally best-effort even for brand-new rows: a write from
+    outside Algeria is expected and allowed for international collection
+    points (see CollectionPoint.country_code) even while the general
+    geo-restriction is on, and the GeoLite2 database is itself optional
+    infrastructure (README "GeoIP setup") -- either case just leaves the
+    column NULL rather than blocking the write or guessing.
 
     Named audit_* rather than e.g. created_at/updated_at because several
     models already declare their own domain timestamp field under one of
@@ -44,6 +63,11 @@ class AuditMixin(models.Model):
     audit_updated_at = models.DateTimeField(null=True, blank=True, editable=False)
     audit_creator_ip = models.GenericIPAddressField(null=True, blank=True, editable=False)
     audit_editor_ip = models.GenericIPAddressField(null=True, blank=True, editable=False)
+    # ISO 3166-1 alpha-2 (e.g. "DZ", "FR") -- same code shape as
+    # CollectionPoint.country_code, resolved from the IP above rather than
+    # user-submitted.
+    audit_creator_country = models.CharField(max_length=2, null=True, blank=True, editable=False)
+    audit_editor_country = models.CharField(max_length=2, null=True, blank=True, editable=False)
 
     class Meta:
         abstract = True
@@ -52,13 +76,16 @@ class AuditMixin(models.Model):
         is_new = self._state.adding
         now = timezone.now()
         ip = current_request_ip.get()
-        touched_fields = ["audit_updated_at", "audit_editor_ip"]
+        country = current_request_country.get()
+        touched_fields = ["audit_updated_at", "audit_editor_ip", "audit_editor_country"]
         self.audit_updated_at = now
         self.audit_editor_ip = ip
+        self.audit_editor_country = country
         if is_new:
             self.audit_created_at = now
             self.audit_creator_ip = ip
-            touched_fields += ["audit_created_at", "audit_creator_ip"]
+            self.audit_creator_country = country
+            touched_fields += ["audit_created_at", "audit_creator_ip", "audit_creator_country"]
         # A caller that restricts the write to specific columns via
         # update_fields must still get these ones persisted -- otherwise
         # they'd be silently skipped by that same restriction (Django only
