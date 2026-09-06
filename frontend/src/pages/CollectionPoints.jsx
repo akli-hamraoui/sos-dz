@@ -24,6 +24,11 @@ export default function CollectionPoints() {
   const mapRef = useRef(null)
   const mapElRef = useRef(null)
   const markersRef = useRef([])
+  // Blue "you are here" dot -- only ever placed by an explicit tap of the
+  // recenter-on-me button below (unlike InternationalCollectionPoints.jsx,
+  // this page's own smartZoom default view never drops one automatically,
+  // since it already has a wilaya-based fallback view that doesn't need it).
+  const youAreHereRef = useRef(null)
   // The one trajectory line currently drawn (from clicking a point's own
   // marker) -- at most one at a time, same convention as Deliveries.jsx's
   // own courier-to-destination route line.
@@ -190,6 +195,10 @@ export default function CollectionPoints() {
         }
         const map = mapRef.current
         markersRef.current.forEach((m) => map.removeLayer(m))
+        if (youAreHereRef.current) {
+          map.removeLayer(youAreHereRef.current)
+          youAreHereRef.current = null
+        }
         // A marker click draws a fresh trajectory -- clear any leftover one
         // from a previously clicked marker instead of stacking lines up.
         if (routeLineRef.current) {
@@ -297,7 +306,24 @@ export default function CollectionPoints() {
       showAlert(t('map.locationUnavailable'))
       return
     }
-    map.fitBounds(L.latLng(pos[0], pos[1]).toBounds(RECENTER_BOX_METERS))
+    const [lat, lon] = pos
+    // Same blue "you are here" dot as InternationalCollectionPoints.jsx's
+    // own recenterOnMe -- was missing here, so a recenter looked like it
+    // silently did nothing extra beyond the pan/zoom on this page specifically.
+    if (youAreHereRef.current) {
+      map.removeLayer(youAreHereRef.current)
+      youAreHereRef.current = null
+    }
+    const marker = L.circleMarker([lat, lon], {
+      radius: 8,
+      color: '#2563eb',
+      weight: 2,
+      fillColor: '#3b82f6',
+      fillOpacity: 0.9,
+    }).addTo(map)
+    marker.bindPopup(t('map.youAreHere'))
+    youAreHereRef.current = marker
+    map.fitBounds(L.latLng(lat, lon).toBounds(RECENTER_BOX_METERS))
   }
 
   // See NeedsList.jsx for why this is needed: without it, switching back
@@ -307,6 +333,7 @@ export default function CollectionPoints() {
     mapRef.current.remove()
     mapRef.current = null
     markersRef.current = []
+    youAreHereRef.current = null
     routeLineRef.current = null
   }, [viewMode])
 
