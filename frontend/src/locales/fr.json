@@ -486,7 +486,7 @@
     "pickupAnonymizeConfirm": "Cette prise en charge est toujours active. Vos coordonnées seront supprimées, les autres ne pourront plus vous contacter à ce sujet. Confirmez pour continuer.",
     "notAuthorizedPickupUpdates": "Non autorisé : seul le bénévole propriétaire de cette prise en charge peut publier des mises à jour.",
     "notAuthorizedPickupPosition": "Non autorisé : seul le bénévole propriétaire de cette prise en charge peut envoyer sa position.",
-    "nameDontMatchCollectionPoint": "Le nom/téléphone ne correspond pas au contact de ce point de collecte.",
+    "notAuthorizedCollectionPoint": "Non autorisé : ce jeton d'accès ne correspond pas à ce point de collecte (ou indiquez le nom/téléphone/code de récupération correspondant).",
     "notAuthorizedDeleteComment": "Non autorisé à supprimer ce commentaire.",
     "videoDurationUnverifiable": "La durée de la vidéo n'a pas pu être vérifiée côté serveur, elle ne peut donc pas être acceptée. Réessayez, ou contactez le support si cela persiste.",
     "tooManyPhotos": "Maximum 3 photos autorisées.",

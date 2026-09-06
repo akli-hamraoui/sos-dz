@@ -748,6 +748,12 @@ class ContentReportViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
         return Response(self.get_serializer(report).data, status=status.HTTP_201_CREATED)
 
 
+COLLECTION_POINT_NOT_AUTHORIZED_MESSAGE = (
+    "Not authorized: this access token doesn't match this collection point "
+    "(or provide the matching name/phone/recovery code)."
+)
+
+
 def collection_point_identity_authorized(request, point):
     """Admin, a matching access_token, or (same fallback close() has always
     offered) the creator's own name+phone or recovery code -- shared so
@@ -854,7 +860,7 @@ class CollectionPointViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mix
             return Response({"detail": block_reason}, status=status.HTTP_403_FORBIDDEN)
         if not collection_point_identity_authorized(request, point):
             return Response(
-                {"detail": "Not authorized: this access token doesn't match this collection point (or provide the matching name/phone/recovery code)."},
+                {"detail": COLLECTION_POINT_NOT_AUTHORIZED_MESSAGE},
                 status=status.HTTP_403_FORBIDDEN,
             )
 
@@ -902,7 +908,7 @@ class CollectionPointViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mix
         if block_reason:
             return Response({"detail": block_reason}, status=status.HTTP_403_FORBIDDEN)
         if not collection_point_identity_authorized(request, point):
-            return Response({"detail": "Name/phone (or recovery code) don't match this collection point's contact."}, status=status.HTTP_403_FORBIDDEN)
+            return Response({"detail": COLLECTION_POINT_NOT_AUTHORIZED_MESSAGE}, status=status.HTTP_403_FORBIDDEN)
         point.status = CollectionPoint.STATUS_CLOSED
         point.save(update_fields=["status"])
         log_admin_action(request, "closed collection point", point)
