@@ -47,6 +47,8 @@
     "recenterOnMe": "Center on my location",
     "tapToInteract": "👆 Tap to move the map",
     "exitMapInteraction": "✕ Exit map",
+    "viewFullscreen": "View map fullscreen",
+    "exitFullscreen": "Exit fullscreen",
     "locationUnavailable": "Couldn't access your location. Check that location access is allowed for this site in your browser settings, and that GPS/location is turned on for your device.",
     "youAreHere": "You are here",
     "routeDistance": "Estimated route: {{km}} km · {{min}} min",

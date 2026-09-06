@@ -8,7 +8,7 @@ import { api } from '../api'
 import { haversineKm, isInAlgeria, getCurrentPosition, RECENTER_BOX_METERS } from '../utils'
 import { fetchDrivingRoute, COLLECTION_POINT_ROUTE_COLOR } from '../routing'
 import { countryFlagEmoji, formatApproxKm } from '../mapMarkers'
-import { IconLocate } from '../icons'
+import { IconLocate, IconExpand, IconClose } from '../icons'
 
 export default function CollectionPoints() {
   const { t } = useTranslation()
@@ -34,6 +34,15 @@ export default function CollectionPoints() {
   // put it back to sleep, so scrolling past it with one finger still
   // works afterwards too.
   const [mapActive, setMapActive] = useState(false)
+  // Prototype, solution 2: an escape hatch alongside tap-to-activate --
+  // reuses this same Leaflet map/markers instance (no second map to keep
+  // in sync), just resized into a fixed full-viewport overlay (see the
+  // .map-frame-fullscreen CSS + the invalidateSize effect below) for
+  // serious exploring (zooming across the whole country, comparing far-
+  // apart points) with zero gesture ambiguity, since it owns the entire
+  // screen. Always fully interactive on entry -- no tap-to-activate step
+  // needed once you've deliberately asked for fullscreen.
+  const [fullscreen, setFullscreen] = useState(false)
   // null (nothing yet) | { distanceKm, durationMin } | 'unavailable' (OSRM
   // unreachable) | 'too-far' (beyond the 100km cutoff, see drawRouteToPoint)
   const [routeInfo, setRouteInfo] = useState(null)
@@ -394,6 +403,7 @@ export default function CollectionPoints() {
     routeLineRef.current = null
     setRouteInfo(null)
     setMapActive(false)
+    setFullscreen(false)
   }, [viewMode])
 
   // Wakes the map from its initial "asleep" state (see mapActive above)
@@ -421,6 +431,43 @@ export default function CollectionPoints() {
     map.boxZoom.disable()
     setMapActive(false)
   }
+
+  const enterFullscreen = () => {
+    activateMap()
+    setFullscreen(true)
+  }
+  const exitFullscreen = () => {
+    setFullscreen(false)
+    deactivateMap()
+  }
+
+  // The container's on-screen size changes (inline height 600 <-> fixed
+  // full-viewport) purely via CSS (see .map-frame-fullscreen), which
+  // Leaflet has no way to notice on its own -- invalidateSize() forces it
+  // to re-measure, or tiles render into the old size/position and the map
+  // looks clipped or blank in one of the two modes. The rAF (rather than
+  // calling it immediately) waits for the class toggle to actually paint
+  // first, since invalidateSize reads the container's live layout.
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+    const rafId = requestAnimationFrame(() => map.invalidateSize())
+    return () => cancelAnimationFrame(rafId)
+  }, [fullscreen])
+
+  // Fullscreen mode covers the whole viewport -- the page behind it has
+  // no business scrolling while it's up (confirmed the alternative is
+  // disorienting: the map staying fixed while the page silently scrolls
+  // underneath it). Restored unconditionally on unmount too, in case this
+  // page is left with fullscreen still open (viewMode switch, navigation).
+  useEffect(() => {
+    if (!fullscreen) return
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = previousOverflow
+    }
+  }, [fullscreen])
 
   return (
     <section className="needs-page">
@@ -498,16 +545,32 @@ export default function CollectionPoints() {
       {viewMode === 'map' && (
         <div className="map-wrap">
           {mapHasNothing && <p className="hint">{t('collectionPoints.noPointsYet')}</p>}
-          <div className="map-frame">
-            <div id="cp-map" ref={mapElRef} style={{ height: 600 }} />
-            {!mapActive && (
+          <div className={fullscreen ? 'map-frame map-frame-fullscreen' : 'map-frame'}>
+            <div id="cp-map" ref={mapElRef} style={{ height: fullscreen ? '100%' : 600 }} />
+            {!mapActive && !fullscreen && (
               <div className="map-activate-overlay" onClick={activateMap} role="button" tabIndex={0} aria-label={t('map.tapToInteract')}>
                 <span className="map-activate-hint">{t('map.tapToInteract')}</span>
               </div>
             )}
-            {mapActive && (
+            {mapActive && !fullscreen && (
               <button type="button" className="map-deactivate-btn" onClick={deactivateMap}>
                 {t('map.exitMapInteraction')}
+              </button>
+            )}
+            {!fullscreen && (
+              <button
+                type="button"
+                className="expand-btn"
+                onClick={enterFullscreen}
+                aria-label={t('map.viewFullscreen')}
+                title={t('map.viewFullscreen')}
+              >
+                <IconExpand width={18} height={18} />
+              </button>
+            )}
+            {fullscreen && (
+              <button type="button" className="exit-fullscreen-btn" onClick={exitFullscreen} aria-label={t('map.exitFullscreen')} title={t('map.exitFullscreen')}>
+                <IconClose width={20} height={20} />
               </button>
             )}
             <button type="button" className="locate-btn" onClick={recenterOnMe} aria-label={t('map.recenterOnMe')} title={t('map.recenterOnMe')}>

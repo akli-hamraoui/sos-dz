@@ -112,6 +112,14 @@ export function IconLocate(props) {
   )
 }
 
+export function IconExpand(props) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5" />
+    </svg>
+  )
+}
+
 export function IconMic(props) {
   return (
     <svg {...base} {...props}>
