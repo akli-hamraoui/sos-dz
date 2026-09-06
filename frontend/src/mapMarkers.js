@@ -60,6 +60,19 @@ export function countryFlagEmoji(countryCode) {
   return String.fromCodePoint(...[...code].map((c) => 127397 + c.charCodeAt(0)))
 }
 
+// A precise one-decimal figure (e.g. "30.7") reads fine for a nearby point,
+// but the international map's points can be genuinely anywhere on Earth --
+// a false precision like "20300.0" for an antipodal point is both harder to
+// read and not meaningfully more accurate than a round "~20k" would be at
+// that distance. Only the popup's own distance line (see CollectionPoints.jsx/
+// InternationalCollectionPoints.jsx) uses this; drawRouteToPoint's own
+// resolved-route distance stays as-is (always well under 1000km, since it
+// never even runs past the 100km cutoff).
+export function formatApproxKm(km) {
+  if (km >= 1000) return `~${Math.round(km / 1000)}k`
+  return km.toFixed(1)
+}
+
 export function needPopupHtml(t, p, statusLabel) {
   const gpsNote = p.has_exact_position ? '' : `<br><em>${t('common.noExactGpsPosition')}</em>`
   const urgencyPrefix = p.urgency !== 'medium' ? `${t(`urgency.${p.urgency}`)} — ` : ''
