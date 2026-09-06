@@ -1929,14 +1929,21 @@ class CollectionPointTests(BaseAPITestCase):
         )
         self.assertEqual(resp.status_code, 400)
 
-    def test_access_token_visible_to_admin(self):
+    def test_access_token_visible_to_admin_with_copy_button(self):
         """Same as NeedAdmin/PickupAdmin -- an admin must be able to read
         this and relay it to a creator who lost access and contacted
         support, as a second recovery path alongside the self-service
-        name+phone/code one."""
+        name+phone/code one. Rendered with a copy-icon button (see
+        copyable_token_field) rather than the raw field, hence the
+        dedicated access_token_copy display method."""
         from core.admin import CollectionPointAdmin
 
-        self.assertIn("access_token", CollectionPointAdmin.readonly_fields)
+        self.assertIn("access_token_copy", CollectionPointAdmin.readonly_fields)
+        point = CollectionPoint.objects.create(**self._payload(wilaya=self.wilaya))
+        modeladmin = CollectionPointAdmin(CollectionPoint, _admin_site())
+        rendered = str(modeladmin.access_token_copy(point))
+        self.assertIn(point.access_token, rendered)
+        self.assertIn("<button", rendered)
 
 
 INTERNATIONAL_COLLECTION_POINT_PAYLOAD = {
@@ -3512,3 +3519,39 @@ class AuditTrailTests(BaseAPITestCase):
         self.assertIsNone(wilaya.audit_updated_at)
         self.assertIsNone(wilaya.audit_creator_ip)
         self.assertIsNone(wilaya.audit_editor_ip)
+
+
+class AdminTokenCopyButtonTests(BaseAPITestCase):
+    """core.admin.copyable_token_field: access_token shown in Django Admin
+    (Need/Pickup/CollectionPoint) must render with a copy-icon button, not
+    just the raw value -- see CollectionPointTests.
+    test_access_token_visible_to_admin_with_copy_button for the
+    CollectionPoint case."""
+
+    def setUp(self):
+        super().setUp()
+        self.campaign = make_campaign()
+        self.wilaya = self.campaign.authorized_wilayas.first()
+
+    def test_need_access_token_has_copy_button(self):
+        from core.admin import NeedAdmin
+
+        need = Need.objects.create(
+            campaign=self.campaign, wilaya=self.wilaya, title="x", contact_name="X", contact_phone="0555000003"
+        )
+        modeladmin = NeedAdmin(Need, _admin_site())
+        rendered = str(modeladmin.access_token_copy(need))
+        self.assertIn(need.access_token, rendered)
+        self.assertIn("<button", rendered)
+
+    def test_pickup_access_token_has_copy_button(self):
+        from core.admin import PickupAdmin
+
+        need = Need.objects.create(
+            campaign=self.campaign, wilaya=self.wilaya, title="x", contact_name="X", contact_phone="0555000004"
+        )
+        pickup = Pickup.objects.create(need=need, responder_type=Pickup.RESPONDER_INDIVIDUAL, responder_name="Y")
+        modeladmin = PickupAdmin(Pickup, _admin_site())
+        rendered = str(modeladmin.access_token_copy(pickup))
+        self.assertIn(pickup.access_token, rendered)
+        self.assertIn("<button", rendered)
