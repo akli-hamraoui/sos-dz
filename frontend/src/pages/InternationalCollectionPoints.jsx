@@ -48,6 +48,14 @@ export default function InternationalCollectionPoints() {
   // marker) -- at most one at a time, same convention as Deliveries.jsx's
   // own courier-to-destination route line.
   const routeLineRef = useRef(null)
+  // Visitor's own position, prefetched once on mount purely to show an
+  // approximate straight-line distance in each point's own popup (see the
+  // marker-load effect below) -- see CollectionPoints.jsx's own myPosRef
+  // for why this is a ref (popups are bound with a content *function*,
+  // re-evaluated fresh on every open, rather than a frozen string) and a
+  // separate, best-effort concern from drawRouteToPoint's own on-click
+  // geolocation call.
+  const myPosRef = useRef(null)
 
   // Draws a trajectory from the visitor's current position to a clicked
   // collection point -- same pattern as Deliveries.jsx's own
@@ -99,6 +107,12 @@ export default function InternationalCollectionPoints() {
     const timer = setTimeout(() => setSearch(searchInput.trim()), 300)
     return () => clearTimeout(timer)
   }, [searchInput])
+
+  useEffect(() => {
+    getCurrentPosition().then((pos) => {
+      myPosRef.current = pos
+    })
+  }, [])
 
   const load = useCallback(async () => {
     const params = new URLSearchParams({ international: '1' })
@@ -230,10 +244,19 @@ export default function InternationalCollectionPoints() {
           // courier-to-destination route. Silently does nothing if
           // geolocation is denied/unavailable.
           marker.on('click', () => drawRouteToPoint(map, p.display_latitude, p.display_longitude))
-          marker.bindPopup(
-            `<strong>${p.point_name} ${countryFlagEmoji(p.country_code)}</strong><br>${p.contact_name}${p.organization ? '<br>' + p.organization : ''}` +
-              `${p.hours ? '<br>' + p.hours : ''}<br>${p.country_name || ''}<br><a href="/collection-points/${p.id}">${t('common.open')}</a>`
-          )
+          // A function, not a plain string -- Leaflet re-evaluates it on
+          // every popup open (see myPosRef above), so it always reflects
+          // whatever position is known *at open time* rather than freezing
+          // whatever was known back when this marker was first built.
+          marker.bindPopup(() => {
+            const distanceNote = myPosRef.current
+              ? `<br>${t('map.approxDistance', { km: haversineKm(myPosRef.current, [p.display_latitude, p.display_longitude]).toFixed(1) })}`
+              : ''
+            return (
+              `<strong>${p.point_name} ${countryFlagEmoji(p.country_code)}</strong><br>${p.contact_name}${p.organization ? '<br>' + p.organization : ''}` +
+              `${p.hours ? '<br>' + p.hours : ''}<br>${p.country_name || ''}${distanceNote}<br><a href="/collection-points/${p.id}">${t('common.open')}</a>`
+            )
+          })
           markers.push(marker)
         }
 

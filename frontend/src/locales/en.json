@@ -49,7 +49,8 @@
     "youAreHere": "You are here",
     "routeDistance": "Estimated route: {{km}} km · {{min}} min",
     "routeUnavailable": "Route unavailable right now (routing service unreachable).",
-    "tooFarForRoute": "This point is more than 100km away -- too far for a driving route estimate."
+    "tooFarForRoute": "This point is more than 100km away -- too far for a driving route estimate.",
+    "approxDistance": "About {{km}} km from your location"
   },
   "readOnly": {
     "banner": "The app is currently in read-only mode. Existing data remains viewable."
