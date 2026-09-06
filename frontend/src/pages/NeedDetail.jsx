@@ -281,18 +281,16 @@ export default function NeedDetail() {
       {need.location_description && <p>{need.location_description}</p>}
       {need.position_accuracy === 'exact' && need.latitude != null && need.longitude != null ? (
         <p>
-          {/* See CollectionPointDetail.jsx for why window.open() happens
-              synchronously in the click handler, before the geolocation
-              await -- doing it after would risk the same "opens Maps'
-              desktop-style web layout instead of the app" issue this is
-              meant to fix. */}
+          {/* See CollectionPointDetail.jsx for why this navigates the
+              current tab instead of opening a new one -- an async-delayed
+              redirect on a window.open()'d tab is silently dropped by
+              several mobile browsers, leaving a permanently blank tab. */}
           <button
             type="button"
             className="link field-label-icon"
             onClick={() => {
-              const win = window.open('', '_blank', 'noopener,noreferrer')
               getCurrentPosition().then((origin) => {
-                if (win) win.location.href = googleMapsDirectionsUrl(need.latitude, need.longitude, origin)
+                window.location.href = googleMapsDirectionsUrl(need.latitude, need.longitude, origin)
               })
             }}
           >

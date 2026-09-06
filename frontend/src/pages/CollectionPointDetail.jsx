@@ -112,19 +112,21 @@ export default function CollectionPointDetail() {
               that leaves Maps to resolve "your location" itself. Falls
               back to a destination-only link on denial/timeout -- Maps
               then asks for the origin the way it always did.
-              The empty window.open() happens synchronously, right in the
-              click handler -- opening it only after the geolocation await
-              below would lose the browser's "this came from a direct tap"
-              trust, which is what lets Android hand the link to the Maps
-              app itself instead of falling back to loading Maps' desktop-
-              style web layout inside the browser. */}
+              Navigates the CURRENT tab (no window.open) once the position
+              resolves -- opening a blank tab synchronously and setting its
+              location later looked right, but several mobile browsers
+              (iOS Safari, some Android in-app webviews) silently refuse an
+              async-delayed redirect on a window opened that way, leaving
+              a permanently blank tab. A same-tab location change isn't
+              subject to that popup-style restriction -- the trade-off is
+              this leaves the SOS DZ page (the phone's back button returns
+              to it, same as any outbound link). */}
           <button
             type="button"
             className="link field-label-icon"
             onClick={() => {
-              const win = window.open('', '_blank', 'noopener,noreferrer')
               getCurrentPosition().then((origin) => {
-                if (win) win.location.href = googleMapsDirectionsUrl(cp.latitude, cp.longitude, origin)
+                window.location.href = googleMapsDirectionsUrl(cp.latitude, cp.longitude, origin)
               })
             }}
           >
