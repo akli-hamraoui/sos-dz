@@ -1398,6 +1398,109 @@ fieldset {
   background: #f2f2f2;
 }
 
+/* Prototype: tap-to-activate map (CollectionPoints.jsx), replacing the old
+   two-finger-to-pan gesture handling. While asleep, this transparent
+   overlay covers the whole map so a single finger scrolls the *page* like
+   plain content, with a small pill hint that the map itself is tappable.
+   z-index sits between Leaflet's own controls (1000) and .locate-btn
+   (1200) -- so .locate-btn stays reachable (an explicit single tap, not a
+   drag, so it never conflicts with page scroll) while the zoom control
+   and map body stay blocked until activated. */
+.map-activate-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-block-end: 16px;
+  cursor: pointer;
+}
+.map-activate-hint {
+  background: rgba(17, 17, 17, 0.82);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 16px;
+  border-radius: 999px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+.map-deactivate-btn {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1200;
+  background: rgba(17, 17, 17, 0.82);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* Prototype, solution 2: expand the map into a full-viewport overlay --
+   sits just left of .locate-btn (top-right corner), same treatment as
+   .locate-btn itself so the two read as a matched pair of map controls. */
+.expand-btn {
+  position: absolute;
+  top: 12px;
+  inset-inline-end: 54px; /* .locate-btn's own 34px width + 12px gap + 8px */
+  z-index: 1200;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  color: #333;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+.expand-btn:hover {
+  background: #f2f2f2;
+}
+
+/* .map-frame's own position:relative + height come from the inline 600px
+   #cp-map div in normal mode -- fullscreen overrides both to cover the
+   whole viewport instead, regardless of scroll position. #cp-map's own
+   height switches to 100% inline (see CollectionPoints.jsx) since an
+   inline style can't be beaten by a class alone. */
+.map-frame-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 2000; /* above the topbar/bottom nav, this *is* the whole screen now */
+  height: 100vh;
+}
+.exit-fullscreen-btn {
+  position: absolute;
+  top: 12px;
+  /* .locate-btn keeps its usual 12px spot in fullscreen too (recentering
+     is just as useful full-screen) -- sit just to its left instead of on
+     top of it, same offset .expand-btn itself uses when not fullscreen. */
+  inset-inline-end: 54px;
+  z-index: 1200;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  color: #333;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+.exit-fullscreen-btn:hover {
+  background: #f2f2f2;
+}
+
 /* Section headers on the combined "Je veux aider" list (Help.jsx) --
    keeps needs and collection points visually separated instead of
    reading as one mixed, undifferentiated list. */
