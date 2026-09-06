@@ -8,7 +8,7 @@ import { api } from '../api'
 import { haversineKm, isInAlgeria, getCurrentPosition, RECENTER_BOX_METERS } from '../utils'
 import { fetchDrivingRoute, COLLECTION_POINT_ROUTE_COLOR } from '../routing'
 import { countryFlagEmoji, formatApproxKm } from '../mapMarkers'
-import { IconLocate, IconExpand, IconClose } from '../icons'
+import { IconLocate, IconExpand, IconClose, IconGlobeColor } from '../icons'
 
 export default function CollectionPoints() {
   const { t } = useTranslation()
@@ -43,6 +43,15 @@ export default function CollectionPoints() {
   // screen. Always fully interactive on entry -- no tap-to-activate step
   // needed once you've deliberately asked for fullscreen.
   const [fullscreen, setFullscreen] = useState(false)
+  // True once we've positively resolved the visitor's position as outside
+  // Algeria (either on the default-view geolocation attempt in smartZoom,
+  // or an explicit recenterOnMe tap) -- this page only ever shows Algeria
+  // (its own points, wilaya-based fallback view, etc.), so rather than
+  // silently failing to find anything nearby, a link to the dedicated
+  // worldwide page surfaces right on the map. Left false (not guessed at)
+  // when geolocation is simply denied/unavailable -- only a *positive*
+  // outside-Algeria fix should trigger this, per the reported request.
+  const [showInternationalLink, setShowInternationalLink] = useState(false)
   // null (nothing yet) | { distanceKm, durationMin } | 'unavailable' (OSRM
   // unreachable) | 'too-far' (beyond the 100km cutoff, see drawRouteToPoint)
   const [routeInfo, setRouteInfo] = useState(null)
@@ -117,6 +126,7 @@ export default function CollectionPoints() {
 
   const smartZoom = (map, mapPoints, wilayaId) => {
     if (wilayaId) {
+      setShowInternationalLink(false) // a specific wilaya was picked -- not a geolocation-driven view anymore
       const selected = activeCampaignWilayas.find((w) => String(w.id) === String(wilayaId))
       if (mapPoints.length === 0) {
         if (selected && selected.centroid_latitude != null) {
@@ -130,9 +140,13 @@ export default function CollectionPoints() {
       return
     }
     // No wilaya filter: show the visitor's actual position if they're
-    // genuinely in Algeria, otherwise zoom to the concerned wilayas.
+    // genuinely in Algeria, otherwise zoom to the concerned wilayas --
+    // this page never shows anywhere else, so a *resolved* (not merely
+    // denied/unavailable) position outside Algeria also surfaces the
+    // international link (see showInternationalLink above).
     const doZoom = (userLatLng) => {
       if (userLatLng && isInAlgeria(userLatLng[0], userLatLng[1])) {
+        setShowInternationalLink(false)
         const nearby = mapPoints.filter((pt) => haversineKm(userLatLng, pt) <= 50)
         if (nearby.length) {
           map.fitBounds(L.latLngBounds(nearby).pad(0.3), { maxZoom: 11 })
@@ -141,6 +155,7 @@ export default function CollectionPoints() {
         }
         return
       }
+      if (userLatLng) setShowInternationalLink(true)
       zoomToConcernedWilayas(map)
     }
     if (navigator.geolocation) {
@@ -373,6 +388,16 @@ export default function CollectionPoints() {
       return
     }
     const [lat, lon] = pos
+    // This page only ever shows Algeria -- jumping the view to wherever a
+    // foreign position actually is would just show unrelated OSM tiles
+    // with no points on them. Surface the international-page link instead
+    // of moving the map there (same signal as smartZoom's own default-view
+    // check above), and leave the current Algeria view untouched.
+    if (!isInAlgeria(lat, lon)) {
+      setShowInternationalLink(true)
+      return
+    }
+    setShowInternationalLink(false)
     // Same blue "you are here" dot as InternationalCollectionPoints.jsx's
     // own recenterOnMe -- was missing here, so a recenter looked like it
     // silently did nothing extra beyond the pan/zoom on this page specifically.
@@ -404,6 +429,7 @@ export default function CollectionPoints() {
     setRouteInfo(null)
     setMapActive(false)
     setFullscreen(false)
+    setShowInternationalLink(false)
   }, [viewMode])
 
   // Wakes the map from its initial "asleep" state (see mapActive above)
@@ -576,6 +602,12 @@ export default function CollectionPoints() {
             <button type="button" className="locate-btn" onClick={recenterOnMe} aria-label={t('map.recenterOnMe')} title={t('map.recenterOnMe')}>
               <IconLocate width={18} height={18} />
             </button>
+            {showInternationalLink && (
+              <Link to="/international-collection-points" className="map-international-link">
+                <IconGlobeColor width={18} height={18} />
+                {t('collectionPoints.viewInternationalOnMap')}
+              </Link>
+            )}
           </div>
           {routeInfo === 'too-far' && <p className="hint">{t('map.tooFarForRoute')}</p>}
           {routeInfo === 'unavailable' && <p className="hint">{t('map.routeUnavailable')}</p>}

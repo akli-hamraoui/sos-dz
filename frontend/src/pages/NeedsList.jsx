@@ -6,7 +6,7 @@ import { useApp } from '../context/AppContext'
 import { useDialog } from '../context/DialogContext'
 import { api } from '../api'
 import { urgencyColor, haversineKm, isInAlgeria, getCurrentPosition, RECENTER_BOX_METERS } from '../utils'
-import { IconLocate } from '../icons'
+import { IconLocate, IconExpand, IconClose } from '../icons'
 
 function statusLabel(t, s) {
   return t(`status.${s}`, s)
@@ -35,6 +35,13 @@ export default function NeedsList() {
   // manual switch).
   const [viewMode, setViewMode] = useState('map')
   const [mapHasNothing, setMapHasNothing] = useState(false)
+  // Tap-to-activate map -- see CollectionPoints.jsx's own mapActive for
+  // the full rationale (replaces the old two-finger-to-pan gesture
+  // handling, reported awkward on mobile). Starts "asleep" so a single
+  // finger scrolls the page; the first tap wakes it.
+  const [mapActive, setMapActive] = useState(false)
+  // Fullscreen expand -- see CollectionPoints.jsx's own fullscreen.
+  const [fullscreen, setFullscreen] = useState(false)
   const mapRef = useRef(null)
   const mapElRef = useRef(null)
   const markersRef = useRef([])
@@ -180,10 +187,14 @@ export default function NeedsList() {
         if (!mapRef.current) {
           mapRef.current = L.map(mapElRef.current, {
             attributionControl: false,
-            gestureHandling: true,
-            gestureHandlingOptions: {
-              text: { touch: t('map.gestureTouch'), scroll: t('map.gestureScroll'), scrollMac: t('map.gestureScrollMac') },
-            },
+            // Starts fully "asleep" -- see mapActive above -- so a single
+            // finger over the map scrolls the page like anything else on
+            // it. activateMap enables all of these once explicitly tapped.
+            dragging: false,
+            touchZoom: false,
+            scrollWheelZoom: false,
+            doubleClickZoom: false,
+            boxZoom: false,
           })
           // Standard OpenStreetMap raster tiles: free with no API key
           // required (unlike CartoDB's basemaps.cartocdn.com, which
@@ -259,7 +270,58 @@ export default function NeedsList() {
     mapRef.current.remove()
     mapRef.current = null
     markersRef.current = []
+    setMapActive(false)
+    setFullscreen(false)
   }, [viewMode])
+
+  // See CollectionPoints.jsx's own activateMap/deactivateMap/
+  // enterFullscreen/exitFullscreen for the full rationale.
+  const activateMap = () => {
+    const map = mapRef.current
+    if (!map) return
+    map.dragging.enable()
+    map.touchZoom.enable()
+    map.scrollWheelZoom.enable()
+    map.doubleClickZoom.enable()
+    map.boxZoom.enable()
+    setMapActive(true)
+  }
+
+  const deactivateMap = () => {
+    const map = mapRef.current
+    if (!map) return
+    map.dragging.disable()
+    map.touchZoom.disable()
+    map.scrollWheelZoom.disable()
+    map.doubleClickZoom.disable()
+    map.boxZoom.disable()
+    setMapActive(false)
+  }
+
+  const enterFullscreen = () => {
+    activateMap()
+    setFullscreen(true)
+  }
+  const exitFullscreen = () => {
+    setFullscreen(false)
+    deactivateMap()
+  }
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+    const rafId = requestAnimationFrame(() => map.invalidateSize())
+    return () => cancelAnimationFrame(rafId)
+  }, [fullscreen])
+
+  useEffect(() => {
+    if (!fullscreen) return
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = previousOverflow
+    }
+  }, [fullscreen])
 
   return (
     <section className="needs-page">
@@ -326,8 +388,34 @@ export default function NeedsList() {
       {viewMode === 'map' && (
         <div className="map-wrap">
           {mapHasNothing && <p className="hint">{t('needsList.noActiveNeeds')}</p>}
-          <div className="map-frame">
-            <div id="main-map" ref={mapElRef} style={{ height: 600 }} />
+          <div className={fullscreen ? 'map-frame map-frame-fullscreen' : 'map-frame'}>
+            <div id="main-map" ref={mapElRef} style={{ height: fullscreen ? '100%' : 600 }} />
+            {!mapActive && !fullscreen && (
+              <div className="map-activate-overlay" onClick={activateMap} role="button" tabIndex={0} aria-label={t('map.tapToInteract')}>
+                <span className="map-activate-hint">{t('map.tapToInteract')}</span>
+              </div>
+            )}
+            {mapActive && !fullscreen && (
+              <button type="button" className="map-deactivate-btn" onClick={deactivateMap}>
+                {t('map.exitMapInteraction')}
+              </button>
+            )}
+            {!fullscreen && (
+              <button
+                type="button"
+                className="expand-btn"
+                onClick={enterFullscreen}
+                aria-label={t('map.viewFullscreen')}
+                title={t('map.viewFullscreen')}
+              >
+                <IconExpand width={18} height={18} />
+              </button>
+            )}
+            {fullscreen && (
+              <button type="button" className="exit-fullscreen-btn" onClick={exitFullscreen} aria-label={t('map.exitFullscreen')} title={t('map.exitFullscreen')}>
+                <IconClose width={20} height={20} />
+              </button>
+            )}
             <button type="button" className="locate-btn" onClick={recenterOnMe} aria-label={t('map.recenterOnMe')} title={t('map.recenterOnMe')}>
               <IconLocate width={18} height={18} />
             </button>

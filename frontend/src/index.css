@@ -1398,25 +1398,40 @@ fieldset {
   background: #f2f2f2;
 }
 
-/* Prototype: tap-to-activate map (CollectionPoints.jsx), replacing the old
-   two-finger-to-pan gesture handling. While asleep, this transparent
-   overlay covers the whole map so a single finger scrolls the *page* like
-   plain content, with a small pill hint that the map itself is tappable.
-   z-index sits between Leaflet's own controls (1000) and .locate-btn
-   (1200) -- so .locate-btn stays reachable (an explicit single tap, not a
-   drag, so it never conflicts with page scroll) while the zoom control
-   and map body stay blocked until activated. */
+/* Tap-to-activate map (CollectionPoints.jsx, NeedsList.jsx, Deliveries.jsx),
+   replacing the old two-finger-to-pan gesture handling. While asleep, this
+   transparent overlay covers the whole map so a single finger scrolls the
+   *page* like plain content -- it only ever handles the tap that wakes the
+   map (see each page's own activateMap); the overlay itself carries no
+   visible content any more (that's .map-activate-hint below). z-index sits
+   between Leaflet's own controls (1000) and .locate-btn (1200) -- so
+   .locate-btn stays reachable (an explicit single tap, not a drag, so it
+   never conflicts with page scroll) while the zoom control and map body
+   stay blocked until activated. */
 .map-activate-overlay {
   position: absolute;
   inset: 0;
   z-index: 1100;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  padding-block-end: 16px;
   cursor: pointer;
 }
-.map-activate-hint {
+/* .map-activate-hint and .map-deactivate-btn are fixed to the *viewport*,
+   not the map -- confirmed live: anchoring them inside the map's own box
+   (a tall 600px container, or fullscreen) could leave them scrolled out of
+   view, or drifting as if they were part of the map itself. Pinned just
+   above .bottom-nav instead (same fixed bottom-of-screen spot regardless
+   of where the map's own box currently sits, and never moves as the map
+   pans/zooms underneath), sized to clear .bottom-nav's own height
+   (roughly icon + label + its own top/bottom padding) plus the safe-area
+   inset .bottom-nav itself pads for. Still a child of .map-activate-overlay
+   in the DOM (position:fixed only escapes layout, not event bubbling), so
+   tapping the hint pill still reaches the overlay's own onClick. */
+.map-activate-hint,
+.map-deactivate-btn {
+  position: fixed;
+  bottom: calc(84px + env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1300;
   background: rgba(17, 17, 17, 0.82);
   color: #fff;
   font-size: 13px;
@@ -1424,22 +1439,38 @@ fieldset {
   padding: 8px 16px;
   border-radius: 999px;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  white-space: nowrap;
 }
 .map-deactivate-btn {
+  border: none;
+  cursor: pointer;
+}
+
+/* Collection-point pages only ever show Algeria (national) -- when the
+   visitor's own position resolves to somewhere else, this links out to
+   the dedicated worldwide page instead of the map silently finding
+   nothing nearby (see showInternationalLink, CollectionPoints.jsx).
+   Centered top: the zoom control (top-left) and locate/expand buttons
+   (top-right) leave that spot clear. */
+.map-international-link {
   position: absolute;
-  bottom: 16px;
+  top: 12px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 1200;
-  background: rgba(17, 17, 17, 0.82);
-  color: #fff;
-  font-size: 13px;
-  font-weight: 500;
-  border: none;
-  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #fff;
+  border: 1px solid var(--border);
+  padding: 6px 14px;
   border-radius: 999px;
-  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: #111;
+  text-decoration: none;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  white-space: nowrap;
 }
 
 /* Prototype, solution 2: expand the map into a full-viewport overlay --

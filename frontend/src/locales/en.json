@@ -309,6 +309,7 @@
     "title": "Collection points",
     "addButton": "+ Add a collection point in Algeria",
     "noPointsYet": "No collection points listed for this wilaya yet.",
+    "viewInternationalOnMap": "View international points",
     "hoursNotSpecified": "hours not specified",
     "createTitle": "Add a collection point",
     "pointName": "Point name",
