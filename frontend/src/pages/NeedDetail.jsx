@@ -435,9 +435,9 @@ export default function NeedDetail() {
           <div className="map-wrap">
             <div id="need-detail-map" ref={mapElRef} style={{ height: 420 }} />
           </div>
-          {routeInfo === 'unavailable' && <p className="hint">{t('needDetail.routeUnavailable')}</p>}
+          {routeInfo === 'unavailable' && <p className="hint">{t('map.routeUnavailable')}</p>}
           {routeInfo && routeInfo !== 'unavailable' && (
-            <p className="status">{t('needDetail.routeDistance', { km: routeInfo.distanceKm.toFixed(1), min: Math.round(routeInfo.durationMin) })}</p>
+            <p className="status">{t('map.routeDistance', { km: routeInfo.distanceKm.toFixed(1), min: Math.round(routeInfo.durationMin) })}</p>
           )}
         </>
       ) : (

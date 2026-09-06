@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import L from 'leaflet'
 import { useDialog } from '../context/DialogContext'
 import { api } from '../api'
-import { geocodeCountryBounds, getCurrentPosition, RECENTER_BOX_METERS } from '../utils'
+import { geocodeCountryBounds, getCurrentPosition, haversineKm, RECENTER_BOX_METERS } from '../utils'
 import { fetchDrivingRoute, COLLECTION_POINT_ROUTE_COLOR } from '../routing'
 import CountryOrPlaceSearch from '../components/CountryOrPlaceSearch'
 import { IconLocate } from '../icons'
@@ -36,6 +36,9 @@ export default function InternationalCollectionPoints() {
   const [points, setPoints] = useState([])
   const [viewMode, setViewMode] = useState('map')
   const [mapHasNothing, setMapHasNothing] = useState(false)
+  // null (nothing yet) | { distanceKm, durationMin } | 'unavailable' (OSRM
+  // unreachable) | 'too-far' (beyond the 100km cutoff, see drawRouteToPoint)
+  const [routeInfo, setRouteInfo] = useState(null)
   const mapRef = useRef(null)
   const mapElRef = useRef(null)
   const markersRef = useRef([])
@@ -56,11 +59,23 @@ export default function InternationalCollectionPoints() {
       map.removeLayer(routeLineRef.current)
       routeLineRef.current = null
     }
+    setRouteInfo(null)
     if (!navigator.geolocation) return
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const from = [pos.coords.latitude, pos.coords.longitude]
         const dest = [destLat, destLon]
+        // Beyond ~100km, drawing a line across half the world isn't a
+        // realistic "drive there" prompt (this page is worldwide, so this
+        // matters even more than on CollectionPoints.jsx's own national
+        // version) -- skip the route/distance entirely rather than
+        // plotting one anyway. The point's own popup with name/contact/
+        // hours still shows regardless; this only ever gates the route
+        // line and distance readout.
+        if (haversineKm(from, dest) > 100) {
+          setRouteInfo('too-far')
+          return
+        }
         const straight = L.polyline([from, dest], { color: COLLECTION_POINT_ROUTE_COLOR, weight: 3, dashArray: '4,8' }).addTo(map)
         routeLineRef.current = straight
         map.fitBounds(L.latLngBounds([from, dest]).pad(0.3), { maxZoom: 13 })
@@ -70,10 +85,9 @@ export default function InternationalCollectionPoints() {
             map.removeLayer(straight)
             routeLineRef.current = L.polyline(route.coordinates, { color: COLLECTION_POINT_ROUTE_COLOR, weight: 4, dashArray: '1,10', lineCap: 'round' }).addTo(map)
             map.fitBounds(L.latLngBounds(route.coordinates).pad(0.3), { maxZoom: 13 })
+            setRouteInfo({ distanceKm: route.distanceKm, durationMin: route.durationMin })
           })
-          .catch(() => {
-            /* routing service unreachable -- the basic straight line drawn above stays as-is */
-          })
+          .catch(() => setRouteInfo('unavailable'))
       },
       () => {},
       { timeout: 8000 }
@@ -194,6 +208,7 @@ export default function InternationalCollectionPoints() {
           map.removeLayer(routeLineRef.current)
           routeLineRef.current = null
         }
+        setRouteInfo(null)
         const markers = []
 
         const withPos = pins.filter((p) => p.display_latitude != null && p.display_longitude != null)
@@ -301,6 +316,7 @@ export default function InternationalCollectionPoints() {
     markersRef.current = []
     youAreHereRef.current = null
     routeLineRef.current = null
+    setRouteInfo(null)
   }, [viewMode])
 
   // Same "you are here" marker as defaultZoom above, but on demand rather
@@ -422,6 +438,11 @@ export default function InternationalCollectionPoints() {
               <IconLocate width={18} height={18} />
             </button>
           </div>
+          {routeInfo === 'too-far' && <p className="hint">{t('map.tooFarForRoute')}</p>}
+          {routeInfo === 'unavailable' && <p className="hint">{t('map.routeUnavailable')}</p>}
+          {routeInfo && routeInfo !== 'unavailable' && routeInfo !== 'too-far' && (
+            <p className="status">{t('map.routeDistance', { km: routeInfo.distanceKm.toFixed(1), min: Math.round(routeInfo.durationMin) })}</p>
+          )}
         </div>
       )}
     </section>

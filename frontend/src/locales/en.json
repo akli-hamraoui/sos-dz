@@ -46,7 +46,10 @@
     "gestureScrollMac": "Use ⌘ + scroll to zoom the map",
     "recenterOnMe": "Center on my location",
     "locationUnavailable": "Couldn't access your location. Check that location access is allowed for this site in your browser settings, and that GPS/location is turned on for your device.",
-    "youAreHere": "You are here"
+    "youAreHere": "You are here",
+    "routeDistance": "Estimated route: {{km}} km · {{min}} min",
+    "routeUnavailable": "Route unavailable right now (routing service unreachable).",
+    "tooFarForRoute": "This point is more than 100km away -- too far for a driving route estimate."
   },
   "readOnly": {
     "banner": "The app is currently in read-only mode. Existing data remains viewable."
@@ -223,8 +226,6 @@
     "removedByModeration": "removed by moderation",
     "removed": "removed",
     "reportContent": "Report this content",
-    "routeDistance": "Estimated route: {{km}} km · {{min}} min",
-    "routeUnavailable": "Route unavailable right now (routing service unreachable).",
     "moderationBadge": {
       "systemApproved": "Automatically approved",
       "adminApproved": "Approved by admin",

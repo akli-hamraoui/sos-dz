@@ -46,7 +46,10 @@
     "gestureScrollMac": "Utilisez ⌘ + molette pour zoomer sur la carte",
     "recenterOnMe": "Centrer sur ma position",
     "locationUnavailable": "Impossible d'accéder à votre position. Vérifiez que la localisation est autorisée pour ce site dans les réglages de votre navigateur, et que le GPS/la localisation est activé(e) sur votre appareil.",
-    "youAreHere": "Vous êtes ici"
+    "youAreHere": "Vous êtes ici",
+    "routeDistance": "Itinéraire estimé : {{km}} km · {{min}} min",
+    "routeUnavailable": "Itinéraire indisponible pour l'instant (service de routage injoignable).",
+    "tooFarForRoute": "Ce point est à plus de 100 km -- trop loin pour une estimation d'itinéraire en voiture."
   },
   "readOnly": {
     "banner": "L'application est actuellement en mode lecture seule. Les données existantes restent consultables."
@@ -223,8 +226,6 @@
     "removedByModeration": "supprimé par la modération",
     "removed": "supprimé",
     "reportContent": "Signaler ce contenu",
-    "routeDistance": "Itinéraire estimé : {{km}} km · {{min}} min",
-    "routeUnavailable": "Itinéraire indisponible pour l'instant (service de routage injoignable).",
     "moderationBadge": {
       "systemApproved": "Validé automatiquement",
       "adminApproved": "Validé par l'admin",
