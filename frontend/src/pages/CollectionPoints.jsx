@@ -21,6 +21,9 @@ export default function CollectionPoints() {
   // this is deliberately not persisted.
   const [viewMode, setViewMode] = useState('map')
   const [mapHasNothing, setMapHasNothing] = useState(false)
+  // null (nothing yet) | { distanceKm, durationMin } | 'unavailable' (OSRM
+  // unreachable) | 'too-far' (beyond the 100km cutoff, see drawRouteToPoint)
+  const [routeInfo, setRouteInfo] = useState(null)
   const mapRef = useRef(null)
   const mapElRef = useRef(null)
   const markersRef = useRef([])
@@ -123,11 +126,21 @@ export default function CollectionPoints() {
       map.removeLayer(routeLineRef.current)
       routeLineRef.current = null
     }
+    setRouteInfo(null)
     if (!navigator.geolocation) return
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const from = [pos.coords.latitude, pos.coords.longitude]
         const dest = [destLat, destLon]
+        // Beyond ~100km, drawing a line across half the country isn't a
+        // realistic "drive there" prompt -- skip the route/distance
+        // entirely rather than plotting one anyway (the point's own
+        // popup with name/contact/hours still shows regardless; this
+        // only ever gates the route line and distance readout).
+        if (haversineKm(from, dest) > 100) {
+          setRouteInfo('too-far')
+          return
+        }
         const straight = L.polyline([from, dest], { color: COLLECTION_POINT_ROUTE_COLOR, weight: 3, dashArray: '4,8' }).addTo(map)
         routeLineRef.current = straight
         map.fitBounds(L.latLngBounds([from, dest]).pad(0.3), { maxZoom: 13 })
@@ -137,10 +150,9 @@ export default function CollectionPoints() {
             map.removeLayer(straight)
             routeLineRef.current = L.polyline(route.coordinates, { color: COLLECTION_POINT_ROUTE_COLOR, weight: 4, dashArray: '1,10', lineCap: 'round' }).addTo(map)
             map.fitBounds(L.latLngBounds(route.coordinates).pad(0.3), { maxZoom: 13 })
+            setRouteInfo({ distanceKm: route.distanceKm, durationMin: route.durationMin })
           })
-          .catch(() => {
-            /* routing service unreachable -- the basic straight line drawn above stays as-is */
-          })
+          .catch(() => setRouteInfo('unavailable'))
       },
       () => {},
       { timeout: 8000 }
@@ -205,6 +217,7 @@ export default function CollectionPoints() {
           map.removeLayer(routeLineRef.current)
           routeLineRef.current = null
         }
+        setRouteInfo(null)
         const markers = []
 
         const cpsWithPos = cpPins.filter((p) => p.display_latitude != null && p.display_longitude != null)
@@ -335,6 +348,7 @@ export default function CollectionPoints() {
     markersRef.current = []
     youAreHereRef.current = null
     routeLineRef.current = null
+    setRouteInfo(null)
   }, [viewMode])
 
   return (
@@ -419,6 +433,11 @@ export default function CollectionPoints() {
               <IconLocate width={18} height={18} />
             </button>
           </div>
+          {routeInfo === 'too-far' && <p className="hint">{t('map.tooFarForRoute')}</p>}
+          {routeInfo === 'unavailable' && <p className="hint">{t('map.routeUnavailable')}</p>}
+          {routeInfo && routeInfo !== 'unavailable' && routeInfo !== 'too-far' && (
+            <p className="status">{t('map.routeDistance', { km: routeInfo.distanceKm.toFixed(1), min: Math.round(routeInfo.durationMin) })}</p>
+          )}
         </div>
       )}
     </section>
