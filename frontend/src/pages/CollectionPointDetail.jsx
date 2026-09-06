@@ -111,13 +111,21 @@ export default function CollectionPointDetail() {
               both ends already known, instead of a bare destination pin
               that leaves Maps to resolve "your location" itself. Falls
               back to a destination-only link on denial/timeout -- Maps
-              then asks for the origin the way it always did. */}
+              then asks for the origin the way it always did.
+              The empty window.open() happens synchronously, right in the
+              click handler -- opening it only after the geolocation await
+              below would lose the browser's "this came from a direct tap"
+              trust, which is what lets Android hand the link to the Maps
+              app itself instead of falling back to loading Maps' desktop-
+              style web layout inside the browser. */}
           <button
             type="button"
             className="link field-label-icon"
-            onClick={async () => {
-              const origin = await getCurrentPosition()
-              window.open(googleMapsDirectionsUrl(cp.latitude, cp.longitude, origin), '_blank', 'noopener,noreferrer')
+            onClick={() => {
+              const win = window.open('', '_blank', 'noopener,noreferrer')
+              getCurrentPosition().then((origin) => {
+                if (win) win.location.href = googleMapsDirectionsUrl(cp.latitude, cp.longitude, origin)
+              })
             }}
           >
             <IconMapPin width={16} height={16} strokeWidth={2} /> {t('common.openInMaps')}
