@@ -197,10 +197,11 @@ export default function CollectionPoints() {
         const markers = []
 
         const cpsWithPos = cpPins.filter((p) => p.display_latitude != null && p.display_longitude != null)
-        cpsWithPos.forEach((p) => {
-          // See NeedsList.jsx: a box-on-a-pin marker (same package icon
-          // used for collection points everywhere else) instead of a
-          // plain black square glyph.
+
+        // See NeedsList.jsx: a box-on-a-pin marker (same package icon
+        // used for collection points everywhere else) instead of a
+        // plain black square glyph.
+        const addPointMarker = (p) => {
           const icon = L.divIcon({
             className: 'cp-marker-icon',
             html:
@@ -222,6 +223,46 @@ export default function CollectionPoints() {
             `<strong>${p.point_name}</strong><br>${p.contact_name}${p.organization ? '<br>' + p.organization : ''}` +
               `${p.hours ? '<br>' + p.hours : ''}<br>${p.wilaya_name}${gpsNote}<br><a href="/collection-points/${p.id}">${t('common.open')}</a>`
           )
+          markers.push(marker)
+        }
+
+        // Points with no precise address all fall back to the same wilaya
+        // centroid -- plotting one marker per point would stack them
+        // exactly on top of each other. Group those by their (shared)
+        // fallback position and show one bubble with a count instead;
+        // clicking it filters the list down to that wilaya rather than
+        // opening N indistinguishable pins. A point with an exact address
+        // (or the only one at its fallback position) still gets its own
+        // regular pin, unchanged.
+        const exactPins = cpsWithPos.filter((p) => p.has_exact_position)
+        const approxGroups = new Map()
+        cpsWithPos
+          .filter((p) => !p.has_exact_position)
+          .forEach((p) => {
+            const key = `${p.display_latitude.toFixed(3)},${p.display_longitude.toFixed(3)}`
+            if (!approxGroups.has(key)) approxGroups.set(key, [])
+            approxGroups.get(key).push(p)
+          })
+
+        exactPins.forEach(addPointMarker)
+        approxGroups.forEach((group, key) => {
+          if (group.length === 1) {
+            addPointMarker(group[0])
+            return
+          }
+          const [lat, lon] = key.split(',').map(Number)
+          const bubbleIcon = L.divIcon({
+            className: 'cp-marker-icon',
+            html: `<span class="cp-bubble">${group.length}</span>`,
+            iconSize: [34, 34],
+            iconAnchor: [17, 17],
+          })
+          const marker = L.marker([lat, lon], { icon: bubbleIcon, zIndexOffset: 500 }).addTo(map)
+          marker.bindTooltip(`${t('common.approxLocationLabel')}<br>${t('common.approxLocationPopup', { count: group.length })}`)
+          marker.on('click', () => {
+            if (group[0].wilaya != null) setFilterWilaya(String(group[0].wilaya))
+            setViewMode('list')
+          })
           markers.push(marker)
         })
 

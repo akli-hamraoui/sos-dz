@@ -24,6 +24,8 @@
     "showFullNumber": "afficher le numéro complet",
     "hideNumber": "masquer le numéro",
     "noExactGpsPosition": "sans position GPS exacte",
+    "approxLocationLabel": "Pas d'adresse précise disponible",
+    "approxLocationPopup": "{{count}} points sans adresse précise ici — cliquer pour voir la liste",
     "openInMaps": "Voir sur Google Maps",
     "adminContact": "Contact admin",
     "searchPlaceholder": "Rechercher (nom, description...)",

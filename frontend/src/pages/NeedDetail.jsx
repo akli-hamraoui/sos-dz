@@ -5,7 +5,7 @@ import L from 'leaflet'
 import { useApp } from '../context/AppContext'
 import { useDialog } from '../context/DialogContext'
 import { api } from '../api'
-import { maskPhone, formatDate, googleMapsUrl } from '../utils'
+import { maskPhone, formatDate, googleMapsDirectionsUrl, getCurrentPosition } from '../utils'
 import { translateApiError } from '../apiErrors'
 import { IconMapPin } from '../icons'
 import { fetchDrivingRoute } from '../routing'
@@ -281,9 +281,23 @@ export default function NeedDetail() {
       {need.location_description && <p>{need.location_description}</p>}
       {need.position_accuracy === 'exact' && need.latitude != null && need.longitude != null ? (
         <p>
-          <a className="link field-label-icon" href={googleMapsUrl(need.latitude, need.longitude)} target="_blank" rel="noopener noreferrer">
+          {/* See CollectionPointDetail.jsx for why window.open() happens
+              synchronously in the click handler, before the geolocation
+              await -- doing it after would risk the same "opens Maps'
+              desktop-style web layout instead of the app" issue this is
+              meant to fix. */}
+          <button
+            type="button"
+            className="link field-label-icon"
+            onClick={() => {
+              const win = window.open('', '_blank', 'noopener,noreferrer')
+              getCurrentPosition().then((origin) => {
+                if (win) win.location.href = googleMapsDirectionsUrl(need.latitude, need.longitude, origin)
+              })
+            }}
+          >
             <IconMapPin width={16} height={16} strokeWidth={2} /> {t('common.openInMaps')}
-          </a>
+          </button>
         </p>
       ) : (
         <p className="hint">{t('common.noExactGpsPosition')}</p>

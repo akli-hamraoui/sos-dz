@@ -195,7 +195,8 @@ export default function InternationalCollectionPoints() {
         const markers = []
 
         const withPos = pins.filter((p) => p.display_latitude != null && p.display_longitude != null)
-        withPos.forEach((p) => {
+
+        const addPointMarker = (p) => {
           const icon = L.divIcon({
             className: 'cp-marker-icon',
             html:
@@ -215,6 +216,47 @@ export default function InternationalCollectionPoints() {
             `<strong>${p.point_name}</strong><br>${p.contact_name}${p.organization ? '<br>' + p.organization : ''}` +
               `${p.hours ? '<br>' + p.hours : ''}<br>${p.country_name || ''}<br><a href="/collection-points/${p.id}">${t('common.open')}</a>`
           )
+          markers.push(marker)
+        }
+
+        // Several points geocoded to only a city center (no precise
+        // street address) land on the exact same fallback position --
+        // group those into one bubble with a count instead of stacking
+        // identical pins, same idea as CollectionPoints.jsx's own
+        // national map. Clicking the bubble filters the list to that
+        // country rather than opening indistinguishable pins one by one.
+        const exactPins = withPos.filter((p) => p.has_exact_position)
+        const approxGroups = new Map()
+        withPos
+          .filter((p) => !p.has_exact_position)
+          .forEach((p) => {
+            const key = `${p.display_latitude.toFixed(3)},${p.display_longitude.toFixed(3)}`
+            if (!approxGroups.has(key)) approxGroups.set(key, [])
+            approxGroups.get(key).push(p)
+          })
+
+        exactPins.forEach(addPointMarker)
+        approxGroups.forEach((group, key) => {
+          if (group.length === 1) {
+            addPointMarker(group[0])
+            return
+          }
+          const [lat, lon] = key.split(',').map(Number)
+          const bubbleIcon = L.divIcon({
+            className: 'cp-marker-icon',
+            html: `<span class="cp-bubble">${group.length}</span>`,
+            iconSize: [34, 34],
+            iconAnchor: [17, 17],
+          })
+          const marker = L.marker([lat, lon], { icon: bubbleIcon, zIndexOffset: 500 }).addTo(map)
+          marker.bindTooltip(`${t('common.approxLocationLabel')}<br>${t('common.approxLocationPopup', { count: group.length })}`)
+          marker.on('click', () => {
+            if (group[0].country_code) {
+              setFilterCountry(group[0].country_code)
+              setPlaceActive(false)
+            }
+            setViewMode('list')
+          })
           markers.push(marker)
         })
 

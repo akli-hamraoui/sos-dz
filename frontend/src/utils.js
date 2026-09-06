@@ -12,11 +12,19 @@ export function whatsappLink(phone) {
   return `https://wa.me/${intl}`
 }
 
-// Google's documented "always works" link format -- opens the Google Maps
-// app if installed (iOS/Android), else the web version. No API key needed
-// since this is a plain search deep-link, not the JS/embed API.
-export function googleMapsUrl(lat, lon) {
-  return `https://www.google.com/maps/search/?api=1&query=${lat},${lon}`
+// Google's documented "always works" directions deep-link -- opens the
+// Google Maps app if installed (iOS/Android), else the web version, and
+// straight into turn-by-turn navigation instead of just a pin. No API key
+// needed since this is a plain deep-link, not the JS/embed API. `origin`
+// is set to the visitor's own captured position (see getCurrentPosition
+// below) so Maps doesn't have to re-resolve "your location" itself once
+// it opens (that's the "Votre position" field not finding a GPS fix that
+// a bare destination-only link leaves to chance) -- omitted entirely when
+// the visitor's position couldn't be captured (denied/unavailable/timed
+// out), in which case Maps just falls back to asking for it itself.
+export function googleMapsDirectionsUrl(destLat, destLon, origin) {
+  const originParam = origin ? `&origin=${origin[0]},${origin[1]}` : ''
+  return `https://www.google.com/maps/dir/?api=1${originParam}&destination=${destLat},${destLon}&travelmode=driving`
 }
 
 // Bottom-nav notification badge text: exact under 100, rounded down to the
