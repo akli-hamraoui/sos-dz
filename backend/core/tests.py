@@ -1873,6 +1873,71 @@ class CollectionPointTests(BaseAPITestCase):
         )
         self.assertEqual(resp.status_code, 403)
 
+    def test_edit_with_access_token(self):
+        create_resp = self.client.post("/api/collection-points/", self._payload(), format="json")
+        resp = self.client.patch(
+            f"/api/collection-points/{create_resp.data['id']}/",
+            {"hours": "9am-5pm", "access_token": create_resp.data["access_token"]},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.assertEqual(resp.data["hours"], "9am-5pm")
+
+    def test_edit_with_matching_name_phone_same_fallback_as_close(self):
+        create_resp = self.client.post("/api/collection-points/", self._payload(), format="json")
+        resp = self.client.patch(
+            f"/api/collection-points/{create_resp.data['id']}/",
+            {
+                "hours": "9am-5pm",
+                "contact_name": COLLECTION_POINT_PAYLOAD["contact_name"],
+                "contact_phone": COLLECTION_POINT_PAYLOAD["contact_phone"],
+            },
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 200, resp.content)
+
+    def test_edit_rejected_with_wrong_token_or_identity(self):
+        create_resp = self.client.post("/api/collection-points/", self._payload(), format="json")
+        resp = self.client.patch(
+            f"/api/collection-points/{create_resp.data['id']}/",
+            {"hours": "9am-5pm", "access_token": "wrong"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 403)
+
+    def test_edit_rejects_changing_wilaya_or_country_code(self):
+        """Not in the editable-fields allowlist -- flipping national vs.
+        international is a different creation flow with its own
+        validation, not a simple field edit."""
+        other_wilaya = Wilaya.objects.exclude(pk=self.wilaya.pk).first()
+        create_resp = self.client.post("/api/collection-points/", self._payload(), format="json")
+        resp = self.client.patch(
+            f"/api/collection-points/{create_resp.data['id']}/",
+            {"wilaya": other_wilaya.pk, "country_code": "FR", "access_token": create_resp.data["access_token"]},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.assertEqual(resp.data["wilaya"], self.wilaya.pk)
+        self.assertFalse(resp.data["is_international"])
+
+    def test_edit_validates_social_urls(self):
+        create_resp = self.client.post("/api/collection-points/", self._payload(), format="json")
+        resp = self.client.patch(
+            f"/api/collection-points/{create_resp.data['id']}/",
+            {"facebook_url": "javascript:alert(1)", "access_token": create_resp.data["access_token"]},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 400)
+
+    def test_access_token_visible_to_admin(self):
+        """Same as NeedAdmin/PickupAdmin -- an admin must be able to read
+        this and relay it to a creator who lost access and contacted
+        support, as a second recovery path alongside the self-service
+        name+phone/code one."""
+        from core.admin import CollectionPointAdmin
+
+        self.assertIn("access_token", CollectionPointAdmin.readonly_fields)
+
 
 INTERNATIONAL_COLLECTION_POINT_PAYLOAD = {
     "country_code": "FR",
@@ -2026,6 +2091,66 @@ class InternationalCollectionPointGeoRestrictionTests(BaseAPITestCase):
             REMOTE_ADDR="8.8.8.8",
         )
         self.assertEqual(resp.status_code, 403)
+
+    def test_international_edit_bypasses_algeria_ip_restriction(self):
+        """Same reasoning as create() -- editing one's own international
+        point is expected to happen from outside Algeria too, unlike a
+        national point (see test_national_edit_still_blocked below)."""
+        config = AppConfiguration.get_solo()
+        config.geo_restrict_writes_to_algeria = True
+        config.save()
+        create_resp = self.client.post("/api/collection-points/", self._payload(), format="json", REMOTE_ADDR="8.8.8.8")
+        resp = self.client.patch(
+            f"/api/collection-points/{create_resp.data['id']}/",
+            {"hours": "9am-5pm", "access_token": create_resp.data["access_token"]},
+            format="json",
+            REMOTE_ADDR="8.8.8.8",
+        )
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.assertEqual(resp.data["hours"], "9am-5pm")
+
+    def test_national_edit_still_blocked_by_algeria_ip_restriction(self):
+        config = AppConfiguration.get_solo()
+        config.geo_restrict_writes_to_algeria = False
+        config.save()
+        create_resp = self.client.post(
+            "/api/collection-points/",
+            dict(COLLECTION_POINT_PAYLOAD, wilaya=Wilaya.objects.first().pk),
+            format="json",
+        )
+        config.geo_restrict_writes_to_algeria = True
+        config.save()
+        resp = self.client.patch(
+            f"/api/collection-points/{create_resp.data['id']}/",
+            {"hours": "9am-5pm", "access_token": create_resp.data["access_token"]},
+            format="json",
+            REMOTE_ADDR="8.8.8.8",
+        )
+        self.assertEqual(resp.status_code, 403)
+
+    def test_edit_from_a_different_country_stamps_only_editor_country(self):
+        """The France-from-abroad scenario: audit_creator_country stays
+        whatever it was at creation, only audit_editor_country moves to
+        reflect who just edited it -- same convention as Need (see
+        AuditTrailTests), exercised here through a real international
+        CollectionPoint edit rather than only at the model layer."""
+        from unittest.mock import patch
+
+        with patch("core.middleware.resolve_country_code", return_value="FR"):
+            create_resp = self.client.post("/api/collection-points/", self._payload(), format="json", REMOTE_ADDR="41.100.0.5")
+        point_id, token = create_resp.data["id"], create_resp.data["access_token"]
+
+        with patch("core.middleware.resolve_country_code", return_value="DZ"):
+            edit_resp = self.client.patch(
+                f"/api/collection-points/{point_id}/",
+                {"hours": "9am-5pm", "access_token": token},
+                format="json",
+                REMOTE_ADDR="41.200.0.1",
+            )
+        self.assertEqual(edit_resp.status_code, 200, edit_resp.content)
+        point = CollectionPoint.objects.get(pk=point_id)
+        self.assertEqual(point.audit_creator_country, "FR")
+        self.assertEqual(point.audit_editor_country, "DZ")
 
 
 class CollectionPointAccessRecoveryTests(BaseAPITestCase):
@@ -3268,3 +3393,122 @@ class VideoDurationValidationTests(TestCase):
         video = SimpleUploadedFile("clip.webm", b"fake-video-bytes", content_type="video/webm")
         with patch("core.media_validation.ffprobe_available", return_value=False):
             validate_video_duration(video)  # should not raise
+
+
+class AuditTrailTests(BaseAPITestCase):
+    """core.audit.AuditMixin: audit_created_at/audit_updated_at/
+    audit_creator_ip/audit_editor_ip/audit_creator_country/
+    audit_editor_country, retrofitted onto every table."""
+
+    def setUp(self):
+        super().setUp()
+        self.campaign = make_campaign()
+        self.wilaya = self.campaign.authorized_wilayas.first()
+
+    def _payload(self):
+        return dict(NEED_PAYLOAD, campaign=self.campaign.pk, wilaya=self.wilaya.pk)
+
+    def test_create_stamps_creation_and_update_fields_from_the_request_ip(self):
+        resp = self.client.post("/api/needs/", self._payload(), format="json", REMOTE_ADDR="41.100.0.5")
+        self.assertEqual(resp.status_code, 201)
+        need = Need.objects.get(pk=resp.data["id"])
+        self.assertIsNotNone(need.audit_created_at)
+        self.assertIsNotNone(need.audit_updated_at)
+        # USE_TZ=True (settings.py) -- Django always stores/returns these as
+        # UTC-aware, regardless of TIME_ZONE ("Africa/Algiers").
+        self.assertEqual(need.audit_created_at.utcoffset().total_seconds(), 0)
+        self.assertEqual(need.audit_creator_ip, "41.100.0.5")
+        self.assertEqual(need.audit_editor_ip, "41.100.0.5")
+
+    def test_edit_moves_updated_fields_but_leaves_created_fields_untouched(self):
+        create_resp = self.client.post("/api/needs/", self._payload(), format="json", REMOTE_ADDR="41.100.0.5")
+        need_id, token = create_resp.data["id"], create_resp.data["access_token"]
+        need = Need.objects.get(pk=need_id)
+        original_created_at, original_creator_ip = need.audit_created_at, need.audit_creator_ip
+
+        edit_resp = self.client.patch(
+            f"/api/needs/{need_id}/",
+            {"title": "New title", "access_token": token},
+            format="json",
+            REMOTE_ADDR="9.9.9.9",
+        )
+        self.assertEqual(edit_resp.status_code, 200)
+        need.refresh_from_db()
+        # Creation snapshot never moves once set...
+        self.assertEqual(need.audit_created_at, original_created_at)
+        self.assertEqual(need.audit_creator_ip, original_creator_ip)
+        # ...only the editor snapshot reflects the most recent write.
+        self.assertGreater(need.audit_updated_at, original_created_at)
+        self.assertEqual(need.audit_editor_ip, "9.9.9.9")
+
+    def test_create_stamps_country_resolved_from_the_request_ip(self):
+        """No GeoLite2 database is installed in this dev/test environment
+        (see core/geoip.py's own warning, confirmed at the top of a test
+        run) -- resolve_country_code is mocked here to simulate a real
+        lookup succeeding, the same way other tests in this file mock
+        ffprobe/NSFWJS for dependencies this environment doesn't have."""
+        from unittest.mock import patch
+
+        with patch("core.middleware.resolve_country_code", return_value="FR"):
+            resp = self.client.post("/api/needs/", self._payload(), format="json", REMOTE_ADDR="41.100.0.5")
+        self.assertEqual(resp.status_code, 201)
+        need = Need.objects.get(pk=resp.data["id"])
+        self.assertEqual(need.audit_creator_country, "FR")
+        self.assertEqual(need.audit_editor_country, "FR")
+
+    def test_edit_from_a_different_country_moves_only_the_editor_country(self):
+        from unittest.mock import patch
+
+        with patch("core.middleware.resolve_country_code", return_value="FR"):
+            create_resp = self.client.post("/api/needs/", self._payload(), format="json", REMOTE_ADDR="41.100.0.5")
+        need_id, token = create_resp.data["id"], create_resp.data["access_token"]
+
+        with patch("core.middleware.resolve_country_code", return_value="DZ"):
+            edit_resp = self.client.patch(
+                f"/api/needs/{need_id}/",
+                {"title": "New title", "access_token": token},
+                format="json",
+                REMOTE_ADDR="41.200.0.1",
+            )
+        self.assertEqual(edit_resp.status_code, 200)
+        need = Need.objects.get(pk=need_id)
+        self.assertEqual(need.audit_creator_country, "FR")
+        self.assertEqual(need.audit_editor_country, "DZ")
+
+    def test_country_stays_null_when_it_cannot_be_resolved(self):
+        """The real behavior in this environment (no GeoLite2 database) --
+        resolve_country_code itself already returns None, unmocked."""
+        resp = self.client.post("/api/needs/", self._payload(), format="json", REMOTE_ADDR="41.100.0.5")
+        self.assertEqual(resp.status_code, 201)
+        need = Need.objects.get(pk=resp.data["id"])
+        self.assertIsNone(need.audit_creator_country)
+        self.assertIsNone(need.audit_editor_country)
+
+    def test_write_with_no_bound_request_ip_leaves_ip_columns_null(self):
+        """A management command, a data migration, a test creating rows
+        directly via the ORM -- no request, so no IP (or country) to
+        attribute the write to. Dates are still stamped (timezone.now()
+        has no such dependency), only the IP/country columns stay NULL."""
+        need = Need.objects.create(
+            campaign=self.campaign,
+            wilaya=self.wilaya,
+            title="Direct ORM create",
+            contact_name="X",
+            contact_phone="0555000002",
+        )
+        self.assertIsNotNone(need.audit_created_at)
+        self.assertIsNone(need.audit_creator_ip)
+        self.assertIsNone(need.audit_editor_ip)
+        self.assertIsNone(need.audit_creator_country)
+        self.assertIsNone(need.audit_editor_country)
+
+    def test_pre_existing_rows_added_by_the_audit_migration_stay_null(self):
+        """The migration that added these columns (core/migrations/
+        0031_...) is a plain ALTER TABLE ADD COLUMN with no backfill --
+        seed rows created by earlier migrations (e.g. the 58 Wilaya rows)
+        must come back with every audit_* column NULL."""
+        wilaya = Wilaya.objects.exclude(pk=self.wilaya.pk).first()
+        self.assertIsNone(wilaya.audit_created_at)
+        self.assertIsNone(wilaya.audit_updated_at)
+        self.assertIsNone(wilaya.audit_creator_ip)
+        self.assertIsNone(wilaya.audit_editor_ip)

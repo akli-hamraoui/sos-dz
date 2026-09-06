@@ -275,10 +275,13 @@
     "stillNotWorking": "Still not working? Contact admin support",
     "forgotCode": "Forgot your code? Use your name and phone instead",
     "useCodeInstead": "I have a recovery code",
+    "haveTokenInstead": "I already have my access token",
     "noContextHint": "This page is meant to be opened from the \"Recover access\" button on a specific need or pickup's own page. If you lost that link, search for your listing in the needs list below.",
     "codeLabel": "Recovery code",
     "nameLabel": "Full name",
-    "phoneLabel": "Phone"
+    "phoneLabel": "Phone",
+    "tokenLabel": "Access token",
+    "tokenHint": "Shown once when you created this listing. If you contacted admin support and they gave you one, paste it here."
   },
   "support": {
     "title": "Find my listing or delivery / contact admin",
@@ -483,7 +486,7 @@
     "pickupAnonymizeConfirm": "This pickup is still active. Your contact details will be removed, others will no longer be able to reach you about this. Confirm to proceed.",
     "notAuthorizedPickupUpdates": "Not authorized: only the volunteer who owns this pickup can post updates.",
     "notAuthorizedPickupPosition": "Not authorized: only this pickup's own volunteer can submit its position.",
-    "nameDontMatchCollectionPoint": "Name/phone don't match this collection point's contact.",
+    "notAuthorizedCollectionPoint": "Not authorized: this access token doesn't match this collection point (or provide the matching name/phone/recovery code).",
     "notAuthorizedDeleteComment": "Not authorized to delete this comment.",
     "videoDurationUnverifiable": "Video duration could not be verified server-side, so it can't be accepted. Please try again, or contact support if this persists.",
     "tooManyPhotos": "Maximum 3 photos allowed.",

@@ -52,7 +52,10 @@ const MATCHERS = [
   },
   { match: 'Not authorized: only the volunteer who owns this pickup can post updates.', key: 'notAuthorizedPickupUpdates' },
   { match: "Not authorized: only this pickup's own volunteer can submit its position.", key: 'notAuthorizedPickupPosition' },
-  { match: "Name/phone don't match this collection point's contact.", key: 'nameDontMatchCollectionPoint' },
+  {
+    match: "Not authorized: this access token doesn't match this collection point (or provide the matching name/phone/recovery code).",
+    key: 'notAuthorizedCollectionPoint',
+  },
   { match: 'Not authorized to delete this comment.', key: 'notAuthorizedDeleteComment' },
   {
     match: "Video duration could not be verified server-side, so it can't be accepted. Please try again, or contact support if this persists.",

@@ -6,6 +6,7 @@ from django.db import models
 from django.utils import timezone
 
 from core.anonymization import mask_identity_name, mask_identity_phone
+from core.audit import AuditMixin
 
 
 def generate_token():
@@ -18,7 +19,7 @@ def generate_token():
 # Reference data
 # ---------------------------------------------------------------------------
 
-class Wilaya(models.Model):
+class Wilaya(AuditMixin, models.Model):
     """Fixed reference table: the 58 wilayas of Algeria. Closed list, no
     free text allowed elsewhere in the app."""
 
@@ -34,7 +35,7 @@ class Wilaya(models.Model):
         return self.name
 
 
-class DisasterType(models.Model):
+class DisasterType(AuditMixin, models.Model):
     """Admin-only creation."""
 
     name = models.CharField(max_length=100)
@@ -44,7 +45,7 @@ class DisasterType(models.Model):
         return self.name
 
 
-class Campaign(models.Model):
+class Campaign(AuditMixin, models.Model):
     STATUS_ACTIVE = "active"
     STATUS_PAUSED = "paused"
     STATUS_STOPPED = "stopped"
@@ -72,7 +73,7 @@ class Campaign(models.Model):
         super().save(*args, **kwargs)
 
 
-class AppConfiguration(models.Model):
+class AppConfiguration(AuditMixin, models.Model):
     """Singleton model: use AppConfiguration.get_solo()."""
 
     MODE_NORMAL = "normal"
@@ -143,7 +144,7 @@ class AppConfiguration(models.Model):
         return "App configuration"
 
 
-class AdminContactPhone(models.Model):
+class AdminContactPhone(AuditMixin, models.Model):
     """Up to 5 per AppConfiguration (enforced in Django Admin, see
     AdminContactPhoneInline) -- each shown as its own link in the site
     footer."""
@@ -227,7 +228,7 @@ class IdentityListingMixin(models.Model):
 # Need
 # ---------------------------------------------------------------------------
 
-class Need(IdentityListingMixin, models.Model):
+class Need(IdentityListingMixin, AuditMixin, models.Model):
     URGENCY_LOW = "low"
     URGENCY_MEDIUM = "medium"
     URGENCY_CRITICAL = "critical"
@@ -386,7 +387,7 @@ class Need(IdentityListingMixin, models.Model):
             self.save(update_fields=["overall_status", "covered_quantity"])
 
 
-class DamagePhoto(models.Model):
+class DamagePhoto(AuditMixin, models.Model):
     """Up to 3 live-captured photos per Need (Wave 2). Each photo is
     moderated independently (Wave 3) -- one photo being flagged must not
     hide the other two."""
@@ -402,7 +403,7 @@ class DamagePhoto(models.Model):
 # Pickup
 # ---------------------------------------------------------------------------
 
-class Pickup(IdentityListingMixin, models.Model):
+class Pickup(IdentityListingMixin, AuditMixin, models.Model):
     RESPONDER_INDIVIDUAL = "individual_volunteer"
     RESPONDER_ORGANIZATION = "organization"
     RESPONDER_TRUCK = "collective_truck"
@@ -531,7 +532,7 @@ class Pickup(IdentityListingMixin, models.Model):
         super().save(*args, **kwargs)
 
 
-class DeliveryPhoto(models.Model):
+class DeliveryPhoto(AuditMixin, models.Model):
     """Up to 3 live-captured proof-of-delivery photos per Pickup (Wave 2)."""
 
     pickup = models.ForeignKey(Pickup, on_delete=models.CASCADE, related_name="delivery_photos")
@@ -541,7 +542,7 @@ class DeliveryPhoto(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
 
-class ProgressUpdate(models.Model):
+class ProgressUpdate(AuditMixin, models.Model):
     """Public free-text timeline entry. Never restricted -- see spec MAP VIEW."""
 
     pickup = models.ForeignKey(Pickup, on_delete=models.CASCADE, related_name="progress_updates")
@@ -554,7 +555,7 @@ class ProgressUpdate(models.Model):
         ordering = ["timestamp"]
 
 
-class LocationPing(models.Model):
+class LocationPing(AuditMixin, models.Model):
     """Live position trail for a Pickup. The full per-need trail (this
     model's own history) stays access-restricted to that Need's creator, a
     valid share-link holder, or admin (NeedViewSet.pickup_locations) -- but
@@ -576,7 +577,7 @@ class LocationPing(models.Model):
 # Duplicate / content reporting (Wave 3)
 # ---------------------------------------------------------------------------
 
-class DuplicateReport(models.Model):
+class DuplicateReport(AuditMixin, models.Model):
     STATUS_PENDING, STATUS_PROCESSED = "pending", "processed"
     STATUS_CHOICES = [(STATUS_PENDING, "Pending"), (STATUS_PROCESSED, "Processed")]
 
@@ -588,7 +589,7 @@ class DuplicateReport(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
 
 
-class ContentReport(models.Model):
+class ContentReport(AuditMixin, models.Model):
     MEDIA_NEED_FILE = "need_media_file"
     MEDIA_DAMAGE_PHOTO = "damage_photo"
     MEDIA_DELIVERY_PHOTO = "delivery_photo"
@@ -624,7 +625,7 @@ class ContentReport(models.Model):
 # Support / audit
 # ---------------------------------------------------------------------------
 
-class SupportRequest(models.Model):
+class SupportRequest(AuditMixin, models.Model):
     STATUS_PENDING, STATUS_PROCESSED = "pending", "processed"
     STATUS_CHOICES = [(STATUS_PENDING, "Pending"), (STATUS_PROCESSED, "Processed")]
 
@@ -670,7 +671,7 @@ class RecoveryRequestProxy(SupportRequest):
 # Community: collection points and comments (Wave 4)
 # ---------------------------------------------------------------------------
 
-class CollectionPoint(models.Model):
+class CollectionPoint(AuditMixin, models.Model):
     STATUS_ACTIVE, STATUS_CLOSED = "active", "closed"
     STATUS_CHOICES = [(STATUS_ACTIVE, "Active"), (STATUS_CLOSED, "Closed")]
 
@@ -791,7 +792,7 @@ class CollectionPoint(models.Model):
         return self.recovery_code.strip() == (code or "").strip()
 
 
-class Comment(models.Model):
+class Comment(AuditMixin, models.Model):
     """Usable on a Need, a CollectionPoint, or a Pickup (exactly one of the
     three FKs is set). One level of replies only -- parent_comment_id must
     itself have no parent."""
@@ -833,7 +834,7 @@ class Comment(models.Model):
         return bool(token) and self.owner_token == token
 
 
-class AuditLog(models.Model):
+class AuditLog(AuditMixin, models.Model):
     """Every admin moderation/override action, and anonymization events."""
 
     admin_user = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
@@ -850,7 +851,7 @@ class AuditLog(models.Model):
         return f"{self.created_at:%Y-%m-%d %H:%M} - {who} - {self.action}"
 
 
-class TranslationOverride(models.Model):
+class TranslationOverride(AuditMixin, models.Model):
     """Lets an admin correct/adjust a piece of UI text from Django Admin
     without a code deploy. `key` is a dotted i18next key exactly as used in
     the frontend's t() calls (e.g. "home.tagline", "createNeed.name") --

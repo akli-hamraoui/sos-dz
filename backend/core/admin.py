@@ -392,6 +392,13 @@ class CollectionPointAdmin(admin.ModelAdmin):
     list_display = ["point_name", "wilaya", "country_name", "contact_name", "status", "flyer_moderation_status", "created_at"]
     list_filter = ["status", "wilaya", "country_code", "flyer_moderation_status"]
     search_fields = ["point_name", "contact_name", "contact_phone", "country_name"]
+    # access_token isn't editable=False in a ModelForm doesn't show it at
+    # all by default -- listed here (same as NeedAdmin/PickupAdmin) so an
+    # admin can actually read it here and relay it to a creator who lost
+    # access and contacted support (core.models.SupportRequest,
+    # category=general / "coordonnées oubliées"), as a second recovery path
+    # alongside the self-service name+phone/code one.
+    readonly_fields = ["access_token"]
     actions = [approve_flyer, reject_flyer]
 
 

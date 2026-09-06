@@ -1244,7 +1244,10 @@ fieldset {
    invented markers (never plot a position we don't actually have). */
 .unknown-position-chip {
   position: absolute;
-  top: 12px;
+  /* Shifted down from the corner itself (was top: 12px) -- .locate-btn
+     now sits at top-right too (see below), so this drops just below it
+     instead of overlapping. */
+  top: 54px;
   inset-inline-end: 12px;
   /* Top-right, not bottom-left: clear of Leaflet's own zoom control
      (top-left) and attribution (bottom-right), and out of the way of
@@ -1326,22 +1329,22 @@ fieldset {
    on its own: a single finger scrolls the page even directly over the
    map, and panning the map itself needs two fingers. Full width. */
 /* Tight wrapper around just the map div (not the surrounding hint/legend
-   text also inside .map-wrap) -- position: relative anchors
-   .unknown-position-chip to the map's own bottom-left corner instead of
-   the bottom of the whole section. */
+   text also inside .map-wrap) -- position: relative anchors .locate-btn/
+   .unknown-position-chip to the map's own corner instead of the bottom
+   of the whole section. */
 .map-frame {
   position: relative;
 }
 
 /* "Recenter on my location" button, on every browsable map (see
-   utils.js's getCurrentPosition + each page's recenterOnMe). Bottom-left:
-   clear of Leaflet's own zoom control (top-left), its attribution
-   (bottom-right), and Deliveries.jsx's .unknown-position-chip (top-right) --
-   no page has anything else in that corner. */
+   utils.js's getCurrentPosition + each page's recenterOnMe). Top-right:
+   clear of Leaflet's own zoom control (top-left) and its attribution
+   (bottom-right). Deliveries.jsx's .unknown-position-chip shares this
+   corner (it drops below this button instead, see its own top offset). */
 .locate-btn {
   position: absolute;
-  bottom: 12px;
-  inset-inline-start: 12px;
+  top: 12px;
+  inset-inline-end: 12px;
   z-index: 1200; /* above Leaflet's own zoom/attribution controls (1000) */
   width: 34px;
   height: 34px;
