@@ -69,11 +69,21 @@ export function formatDate(iso, locale) {
 export const RECENTER_BOX_METERS = 200000
 
 // Promise-wrapped geolocation lookup shared by every "recenter on my
-// position" map button. `getCurrentPosition`'s own `timeout` option isn't
-// honored by every browser (confirmed in NeedsList.jsx/Help.jsx's smartZoom,
-// where neither callback ever fired) -- the manual setTimeout race below
-// guarantees this always resolves within ~3.5s regardless. Resolves to
-// null (never rejects) on denial/unavailability/timeout so callers can
+// position" map button (and the Maps-directions buttons on the detail
+// pages). `getCurrentPosition`'s own `timeout` option isn't honored by
+// every browser (confirmed in NeedsList.jsx/Help.jsx's smartZoom, where
+// neither callback ever fired) -- the manual setTimeout race below
+// guarantees this always resolves regardless. Both were originally a
+// tight ~3.5s, which reliably lost the race against the OS's own
+// location-permission prompt: a fresh "Allow this site to use your
+// location?" dialog routinely takes a visitor longer than that just to
+// notice and tap, so the very first tap on a permission-cold page gave up
+// and silently resolved null before they'd even answered the prompt --
+// reported as "recenter on me"/directions doing nothing on a first try,
+// then working on a second one (permission already granted by then).
+// 8s/10s matches the timeout already used for a comparable one-off
+// geolocation call elsewhere (Deliveries.jsx's drawRouteToPoint). Resolves
+// to null (never rejects) on denial/unavailability/timeout so callers can
 // stay best-effort/silent, matching the rest of the app's geolocation UX.
 export function getCurrentPosition() {
   return new Promise((resolve) => {
@@ -90,9 +100,9 @@ export function getCurrentPosition() {
     navigator.geolocation.getCurrentPosition(
       (pos) => settle([pos.coords.latitude, pos.coords.longitude]),
       () => settle(null),
-      { timeout: 3000 }
+      { timeout: 8000 }
     )
-    setTimeout(() => settle(null), 3500)
+    setTimeout(() => settle(null), 10000)
   })
 }
 
