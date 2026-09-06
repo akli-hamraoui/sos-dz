@@ -99,6 +99,19 @@ export function IconMapPin(props) {
   )
 }
 
+// "Recenter on my location" -- the standard crosshair-around-a-dot glyph
+// used by every major map product (Google/Apple/OSM-based apps) for this
+// exact action, so it reads as familiar rather than needing a label.
+export function IconLocate(props) {
+  return (
+    <svg {...base} {...props}>
+      <circle cx="12" cy="12" r="2.6" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="12" r="7" />
+      <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+    </svg>
+  )
+}
+
 export function IconMic(props) {
   return (
     <svg {...base} {...props}>

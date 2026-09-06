@@ -3,9 +3,10 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import L from 'leaflet'
 import { api } from '../api'
-import { geocodeCountryBounds } from '../utils'
+import { geocodeCountryBounds, getCurrentPosition, RECENTER_BOX_METERS } from '../utils'
 import { fetchDrivingRoute, COLLECTION_POINT_ROUTE_COLOR } from '../routing'
 import CountryOrPlaceSearch from '../components/CountryOrPlaceSearch'
+import { IconLocate } from '../icons'
 
 // Worldwide counterpart to CollectionPoints.jsx -- same map/list page, no
 // wilaya (there is none outside Algeria) and no Algeria restriction on
@@ -258,6 +259,31 @@ export default function InternationalCollectionPoints() {
     routeLineRef.current = null
   }, [viewMode])
 
+  // Same "you are here" marker as defaultZoom above, but on demand rather
+  // than only on first load -- so a manual recenter reads the same way as
+  // the automatic one instead of just silently moving the view.
+  const recenterOnMe = async () => {
+    const map = mapRef.current
+    if (!map) return
+    const pos = await getCurrentPosition()
+    if (!pos) return // denied/unavailable/timed out -- best-effort, silent
+    const [lat, lon] = pos
+    if (youAreHereRef.current) {
+      map.removeLayer(youAreHereRef.current)
+      youAreHereRef.current = null
+    }
+    const marker = L.circleMarker([lat, lon], {
+      radius: 8,
+      color: '#2563eb',
+      weight: 2,
+      fillColor: '#3b82f6',
+      fillOpacity: 0.9,
+    }).addTo(map)
+    marker.bindPopup(t('internationalCollectionPoints.youAreHere'))
+    youAreHereRef.current = marker
+    map.fitBounds(L.latLng(lat, lon).toBounds(RECENTER_BOX_METERS))
+  }
+
   return (
     <section className="needs-page">
       <p className="hint">{t('internationalCollectionPoints.intro')}</p>
@@ -340,7 +366,12 @@ export default function InternationalCollectionPoints() {
       {viewMode === 'map' && (
         <div className="map-wrap">
           {mapHasNothing && <p className="hint">{t('internationalCollectionPoints.noPointsYet')}</p>}
-          <div id="intl-cp-map" ref={mapElRef} style={{ height: 600 }} />
+          <div className="map-frame">
+            <div id="intl-cp-map" ref={mapElRef} style={{ height: 600 }} />
+            <button type="button" className="locate-btn" onClick={recenterOnMe} aria-label={t('map.recenterOnMe')} title={t('map.recenterOnMe')}>
+              <IconLocate width={18} height={18} />
+            </button>
+          </div>
         </div>
       )}
     </section>

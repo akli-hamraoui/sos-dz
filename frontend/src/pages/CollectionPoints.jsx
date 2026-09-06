@@ -4,8 +4,9 @@ import { useTranslation } from 'react-i18next'
 import L from 'leaflet'
 import { useApp } from '../context/AppContext'
 import { api } from '../api'
-import { haversineKm, isInAlgeria } from '../utils'
+import { haversineKm, isInAlgeria, getCurrentPosition, RECENTER_BOX_METERS } from '../utils'
 import { fetchDrivingRoute, COLLECTION_POINT_ROUTE_COLOR } from '../routing'
+import { IconLocate } from '../icons'
 
 export default function CollectionPoints() {
   const { t } = useTranslation()
@@ -31,6 +32,12 @@ export default function CollectionPoints() {
     const timer = setTimeout(() => setSearch(searchInput.trim()), 300)
     return () => clearTimeout(timer)
   }, [searchInput])
+
+  const hasActiveFilters = !!(filterWilaya || searchInput)
+  const resetFilters = () => {
+    setFilterWilaya('')
+    setSearchInput('')
+  }
 
   const load = useCallback(async () => {
     const params = new URLSearchParams()
@@ -234,6 +241,14 @@ export default function CollectionPoints() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewMode, filterWilaya, search, activeCampaignWilayas])
 
+  const recenterOnMe = async () => {
+    const map = mapRef.current
+    if (!map) return
+    const pos = await getCurrentPosition()
+    if (!pos) return // denied/unavailable/timed out -- best-effort, silent
+    map.fitBounds(L.latLng(pos[0], pos[1]).toBounds(RECENTER_BOX_METERS))
+  }
+
   // See NeedsList.jsx for why this is needed: without it, switching back
   // to "Carte" after "Liste" left the map permanently blank.
   useEffect(() => {
@@ -268,6 +283,11 @@ export default function CollectionPoints() {
             ))}
           </select>
         </label>
+        {hasActiveFilters && (
+          <button type="button" className="btn" onClick={resetFilters}>
+            {t('needsList.resetFilters')}
+          </button>
+        )}
         <div className="view-toggle">
           <button className={viewMode === 'list' ? 'active' : ''} onClick={() => setViewMode('list')}>
             {t('needsList.list')}
@@ -315,7 +335,12 @@ export default function CollectionPoints() {
       {viewMode === 'map' && (
         <div className="map-wrap">
           {mapHasNothing && <p className="hint">{t('collectionPoints.noPointsYet')}</p>}
-          <div id="cp-map" ref={mapElRef} style={{ height: 600 }} />
+          <div className="map-frame">
+            <div id="cp-map" ref={mapElRef} style={{ height: 600 }} />
+            <button type="button" className="locate-btn" onClick={recenterOnMe} aria-label={t('map.recenterOnMe')} title={t('map.recenterOnMe')}>
+              <IconLocate width={18} height={18} />
+            </button>
+          </div>
         </div>
       )}
     </section>

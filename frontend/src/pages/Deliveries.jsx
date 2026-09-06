@@ -4,9 +4,9 @@ import { useTranslation } from 'react-i18next'
 import L from 'leaflet'
 import { useApp } from '../context/AppContext'
 import { api } from '../api'
-import { maskPhone, formatDate } from '../utils'
+import { maskPhone, formatDate, getCurrentPosition, RECENTER_BOX_METERS } from '../utils'
 import { fetchDrivingRoute, ROUTE_COLOR } from '../routing'
-import { IconTruck } from '../icons'
+import { IconTruck, IconLocate } from '../icons'
 
 // Same green already used elsewhere for this app's own accent (the
 // Collecte FAB, "Prendre en charge" button, Home's privacy notice --
@@ -244,6 +244,14 @@ export default function Deliveries() {
     return () => clearInterval(interval)
   }, [viewMode, renderLiveLocations])
 
+  const recenterOnMe = async () => {
+    const map = mapRef.current
+    if (!map) return
+    const pos = await getCurrentPosition()
+    if (!pos) return // denied/unavailable/timed out -- best-effort, silent
+    map.fitBounds(L.latLng(pos[0], pos[1]).toBounds(RECENTER_BOX_METERS))
+  }
+
   // Switching to "Liste" unmounts the map div -- tear down the Leaflet
   // instance so switching back to "Carte" builds a fresh one instead of
   // pointing at a stale, now-detached DOM node (see NeedsList.jsx for the
@@ -398,6 +406,9 @@ export default function Deliveries() {
               standing in for the map. */}
           <div className="map-frame">
             <div id="deliveries-map" ref={mapElRef} style={{ height: 600 }} />
+            <button type="button" className="locate-btn" onClick={recenterOnMe} aria-label={t('map.recenterOnMe')} title={t('map.recenterOnMe')}>
+              <IconLocate width={18} height={18} />
+            </button>
             {unknownPositionCount > 0 && (
               <div className="unknown-position-chip">
                 <span className="unknown-position-pin">

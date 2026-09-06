@@ -41,7 +41,8 @@
   "map": {
     "gestureTouch": "Use two fingers to move the map",
     "gestureScroll": "Use ctrl + scroll to zoom the map",
-    "gestureScrollMac": "Use ⌘ + scroll to zoom the map"
+    "gestureScrollMac": "Use ⌘ + scroll to zoom the map",
+    "recenterOnMe": "Center on my location"
   },
   "readOnly": {
     "banner": "The app is currently in read-only mode. Existing data remains viewable."
@@ -179,7 +180,8 @@
     "pickupsCount": "{{count}} pickup(s)",
     "collectionPointLabel": "Collection point",
     "legendNote": "— pins without exact GPS sit at the wilaya's approximate centroid (\"no exact GPS position\")",
-    "addButton": "+ I need help"
+    "addButton": "+ I need help",
+    "resetFilters": "Reset filters"
   },
   "help": {
     "instructions": "Please choose a collection point or a need to help with on the map, or use the list or filters.",
