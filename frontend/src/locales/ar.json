@@ -391,6 +391,11 @@
     "positionWithout": "بدون موقع",
     "viewTransporterDetail": "عرض تفاصيل المتطوع"
   },
+  "quickActions": {
+    "national": "+ نقطة تجميع",
+    "international": "+ دولي",
+    "deliver": "توصيل"
+  },
   "reportBug": {
     "title": "الإبلاغ عن خلل",
     "description": "صف المشكلة التي واجهتها في الموقع (الصفحة، الجهاز، ما حدث). اترك رقم هاتف أو بريداً إلكترونياً إذا كنت تريد متابعة الرد.",

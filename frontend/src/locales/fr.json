@@ -391,6 +391,11 @@
     "positionWithout": "Sans position",
     "viewTransporterDetail": "Voir les détails du transporteur"
   },
+  "quickActions": {
+    "national": "+ Collecte",
+    "international": "+ International",
+    "deliver": "Livrer"
+  },
   "reportBug": {
     "title": "Signaler un bug",
     "description": "Décrivez le problème rencontré sur le site (page, appareil, ce qui s'est passé). Laissez un téléphone ou un email si vous voulez être tenu au courant.",

@@ -391,6 +391,11 @@
     "positionWithout": "No position",
     "viewTransporterDetail": "View transporter details"
   },
+  "quickActions": {
+    "national": "+ Collection point",
+    "international": "+ International",
+    "deliver": "Deliver"
+  },
   "reportBug": {
     "title": "Report a bug",
     "description": "Describe the problem you ran into on the site (which page, which device, what happened). Leave a phone number or email if you'd like an update.",
