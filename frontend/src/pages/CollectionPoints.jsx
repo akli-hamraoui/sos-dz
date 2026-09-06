@@ -7,6 +7,7 @@ import { useDialog } from '../context/DialogContext'
 import { api } from '../api'
 import { haversineKm, isInAlgeria, getCurrentPosition, RECENTER_BOX_METERS } from '../utils'
 import { fetchDrivingRoute, COLLECTION_POINT_ROUTE_COLOR } from '../routing'
+import { countryFlagEmoji } from '../mapMarkers'
 import { IconLocate } from '../icons'
 
 export default function CollectionPoints() {
@@ -244,7 +245,7 @@ export default function CollectionPoints() {
           marker.on('click', () => drawRouteToPoint(map, p.display_latitude, p.display_longitude))
           const gpsNote = p.has_exact_position ? '' : `<br><em>${t('common.noExactGpsPosition')}</em>`
           marker.bindPopup(
-            `<strong>${p.point_name}</strong><br>${p.contact_name}${p.organization ? '<br>' + p.organization : ''}` +
+            `<strong>${p.point_name} ${countryFlagEmoji(p.country_code)}</strong><br>${p.contact_name}${p.organization ? '<br>' + p.organization : ''}` +
               `${p.hours ? '<br>' + p.hours : ''}<br>${p.wilaya_name}${gpsNote}<br><a href="/collection-points/${p.id}">${t('common.open')}</a>`
           )
           markers.push(marker)

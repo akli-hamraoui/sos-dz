@@ -19,9 +19,23 @@ window.L = L
 // edge (a Europe-wide map's westernmost point, a marker near the screen's
 // left border, etc.), so the popup's left side can render running off the
 // visible viewport entirely -- confirmed live: reported as an unreadable,
-// cut-off popup. A smaller maxWidth and a wider auto-pan margin keep every
-// popup fully on-screen regardless of where its marker sits.
-L.Popup.mergeOptions({ maxWidth: 260, autoPanPadding: [16, 16] })
+// cut-off popup. A smaller maxWidth keeps every popup narrow enough to
+// fit regardless of where its marker sits.
+//
+// autoPan only keeps the popup within the *map's own* pixel bounds -- it
+// has no idea our zoom control (top-left) and "recenter on me" button
+// (top-right, see .locate-btn in index.css) are fixed overlays sitting on
+// top of the map, so a marker near the top of the visible area could
+// still open its popup fully "in bounds" but visually underneath/behind
+// those controls (confirmed live). A tall top-left margin -- roughly the
+// stacked zoom buttons' own height plus their inset -- keeps the popup
+// clear of them; asymmetric padding (rather than a single autoPanPadding)
+// is what lets the top get more room than the other three sides.
+L.Popup.mergeOptions({
+  maxWidth: 260,
+  autoPanPaddingTopLeft: [16, 90],
+  autoPanPaddingBottomRight: [16, 16],
+})
 // Registers the `gestureHandling` map option used on every Leaflet map in
 // this app (see NeedsList/CollectionPoints/NeedDetail): a single finger on
 // a mobile touchscreen pans the *page*, not the map -- panning the map
