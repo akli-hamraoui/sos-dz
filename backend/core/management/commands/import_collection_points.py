@@ -167,6 +167,33 @@ def normalize(text):
     return strip_accents(text or "").strip().lower()
 
 
+# A CSV "ville" cell that's actually one of these isn't a place name at all
+# -- geocoding it as free text is how "Algeria United Foundation - National"
+# (ville="National") got matched to some unrelated real-world "National"
+# something near Algiers and silently placed there. Caught in production:
+# a live Nominatim search on a bare generic word can return a coincidental
+# hit (a business name, a road called "Route Nationale"...) that has
+# nothing to do with the actual point -- worth flagging for a human rather
+# than trusting a free-text match on non-place vocabulary.
+GENERIC_NON_PLACE_TOKENS = {
+    "national", "nationale", "national(e)", "toute l'algerie", "algerie entiere",
+    "non precisee", "non precise", "ville non precisee", "inconnu", "inconnue",
+    "a confirmer", "n/a", "na", "-",
+}
+
+
+def is_generic_non_place(text):
+    text = normalize(text)
+    if not text:
+        return True
+    if text in GENERIC_NON_PLACE_TOKENS:
+        return True
+    # Also catches "Nouvelle Ville (à confirmer)" or "Ville X (non précisée)"
+    # -- the qualifier itself, wherever it sits in the cell, marks the
+    # whole value as not a place a geocoder should be trusted to resolve.
+    return any(token in text for token in ("a confirmer", "non precisee", "non precise"))
+
+
 def split_phones(raw):
     """CollectionPoint.contact_phone is capped at 30 chars and is meant for
     one identity-matching number; a CSV cell listing several numbers
@@ -193,10 +220,17 @@ def fundraising_hit(row):
 def city_query_candidates(ville):
     """A raw CSV city cell sometimes carries a French department code or a
     more precise place name in parentheses, e.g. "Argenteuil (95)" or
-    "Paris (Saint-Denis)". Returns geocoding query candidates, most
-    specific first: the parenthetical content when it looks like a place
-    name (contains a letter, not just a department number), then the bare
-    name before the parenthesis."""
+    "Paris (Saint-Denis)" -- but the parenthetical can also be a data-entry
+    note rather than a place at all, e.g. "Nouvelle Ville (à confirmer)".
+    Returns geocoding query candidates, most specific first: the
+    parenthetical content when it looks like a place name (contains a
+    letter, not just a department number), then the bare name before the
+    parenthesis -- dropping any candidate that's itself generic
+    non-place text (see is_generic_non_place) so it's never sent to
+    Nominatim as if it were an actual place to search for. Can return an
+    empty list when NOTHING in the cell is an actual place name (e.g.
+    ville="National" alone) -- the caller then has no candidate left to
+    try at all, by design."""
     ville = (ville or "").strip()
     if not ville:
         return []
@@ -211,7 +245,7 @@ def city_query_candidates(ville):
         candidates.append(base)
     if not candidates:
         candidates.append(ville)
-    return candidates
+    return [c for c in candidates if not is_generic_non_place(c)]
 
 
 class NominatimClient:
@@ -371,7 +405,7 @@ def resolve_international(row, geocoder, stdout):
     pays = (row.get("pays") or "").strip()
     ville = (row.get("ville") or "").strip()
     adresse = (row.get("adresse") or "").strip()
-    has_city = bool(ville) and normalize("non précisée") not in normalize(ville) and normalize(ville) != normalize(pays)
+    has_city = bool(ville) and not is_generic_non_place(ville) and normalize(ville) != normalize(pays)
 
     iso = COUNTRY_NAME_TO_ISO.get(normalize(pays))
     if not iso:
