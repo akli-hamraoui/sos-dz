@@ -41,7 +41,6 @@ export default function Help() {
     return () => clearTimeout(timer)
   }, [searchInput])
 
-  const hasActiveFilters = !!(filterWilaya || searchInput)
   const resetFilters = () => {
     setFilterWilaya('')
     setSearchInput('')
@@ -235,11 +234,9 @@ export default function Help() {
             ))}
           </select>
         </label>
-        {hasActiveFilters && (
-          <button type="button" className="btn" onClick={resetFilters}>
-            {t('needsList.resetFilters')}
-          </button>
-        )}
+        <button type="button" className="btn" onClick={resetFilters}>
+          {t('needsList.resetFilters')}
+        </button>
         <div className="view-toggle">
           <button className={viewMode === 'list' ? 'active' : ''} onClick={() => setViewMode('list')}>
             {t('needsList.list')}

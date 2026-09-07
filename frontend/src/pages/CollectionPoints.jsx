@@ -635,11 +635,9 @@ export default function CollectionPoints() {
               ))}
             </select>
           </label>
-          {hasActiveFilters && (
-            <button type="button" className="btn" onClick={resetFilters}>
-              {t('needsList.resetFilters')}
-            </button>
-          )}
+          <button type="button" className="btn" onClick={resetFilters}>
+            {t('needsList.resetFilters')}
+          </button>
         </div>
       )}
 

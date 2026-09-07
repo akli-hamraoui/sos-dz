@@ -29,11 +29,7 @@ export default function Home() {
       <p className="home-tagline">{t('home.tagline')}</p>
       <div className="home-actions">
         <Link to="/collection-points" className="btn btn-icon home-btn-outline home-btn-compact">
-          <IconAlgeriaFlag />
-          <span className="home-btn-label">
-            <span className="home-btn-title">{t('home.collectionPointsAlgeria')}</span>
-            <span className="home-btn-subtitle">{t('home.collectionPointsListHint')}</span>
-          </span>
+          <IconAlgeriaFlag /> {t('home.collectionPointsAlgeria')}
           {/* Small trailing cue that this leads to a map view (both
               collection-point pages default to their map -- see each
               page's own viewMode state), same IconMapPin glyph already
@@ -43,11 +39,7 @@ export default function Home() {
           <IconMapPin width={16} height={16} strokeWidth={1.75} className="home-btn-map-hint" />
         </Link>
         <Link to="/international-collection-points" className="btn btn-icon home-btn-outline home-btn-compact">
-          <IconGlobeColor />
-          <span className="home-btn-label">
-            <span className="home-btn-title">{t('home.collectionPointsInternational')}</span>
-            <span className="home-btn-subtitle">{t('home.collectionPointsListHint')}</span>
-          </span>
+          <IconGlobeColor /> {t('home.collectionPointsInternational')}
           <IconMapPin width={16} height={16} strokeWidth={1.75} className="home-btn-map-hint" />
         </Link>
         {/* Creating a point is a distinct action from the two browse

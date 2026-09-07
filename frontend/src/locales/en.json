@@ -29,7 +29,7 @@
     "approxLocationPopup": "{{count}} points with no precise address here — click to see the list",
     "openInMaps": "View on Google Maps",
     "adminContact": "Admin contact",
-    "searchPlaceholder": "Search (name, description...)",
+    "searchPlaceholder": "association, donations, phone, city, name, etc.",
     "adminModeBadge": "Admin mode",
     "adminLogout": "log out",
     "nonOfficialFooterNote": "Unofficial site, developed and deployed by a volunteer.",
@@ -97,7 +97,6 @@
     "createCollectionPoint": "Create a collection point",
     "createCollectionPointAlgeria": "In Algeria",
     "createCollectionPointInternational": "Internationally",
-    "collectionPointsListHint": "List of collection points...",
     "summary": "SOSDZ coordinates emergency relief in Algeria in response to natural disasters (wildfires...): report a need, help as a volunteer or delivery driver, or set up a donation collection point."
   },
   "status": {
@@ -181,7 +180,7 @@
     "legendNote": "— pins without exact GPS sit at the wilaya's approximate centroid (\"no exact GPS position\")",
     "addButton": "+ I need help",
     "resetFilters": "Reset filters",
-    "searchPlaceholder": "Search (title, description, contact, phone...)"
+    "searchPlaceholder": "association, donations, phone, city, name, etc."
   },
   "help": {
     "instructions": "Please choose a collection point or a need to help with on the map, or use the list or filters.",
@@ -297,7 +296,7 @@
     "title": "Collection points",
     "shortIntro": "Collection point in Algeria",
     "addButton": "+ Add a collection point in Algeria",
-    "searchPlaceholder": "Search (name, contact, phone, description...)",
+    "searchPlaceholder": "association, donations, phone, city, name, etc.",
     "noPointsYet": "No collection points listed for this wilaya yet.",
     "viewInternationalOnMap": "View international points",
     "hoursNotSpecified": "hours not specified",
@@ -343,7 +342,7 @@
     "viewLink": "🌍 View international collection points",
     "intro": "Collection points outside Algeria, anywhere in the world.",
     "goToNationalLink": "View collection points in Algeria",
-    "searchPlaceholder": "Search (name, association, contact, phone, description...)",
+    "searchPlaceholder": "association, donations, phone, city, name, etc.",
     "noPointsYet": "No international collection points listed yet.",
     "locationLabel": "Location",
     "locationPlaceholder": "City or country (e.g. Paris, France)",
@@ -367,7 +366,7 @@
     "responder": "Responder",
     "since": "since",
     "liveMapNote": "Positions volunteered by couriers, updated automatically.",
-    "searchPlaceholder": "Search a courier (name, phone, email, need, collection point...)",
+    "searchPlaceholder": "association, donations, phone, city, name, etc.",
     "yours": "Yours",
     "deliverToNeed": "Deliver to a need",
     "deliverToCollectionPoint": "Deliver to a collection point",

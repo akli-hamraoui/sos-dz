@@ -536,14 +536,9 @@ export default function InternationalCollectionPoints() {
             onChange={(e) => setSearchInput(e.target.value)}
             placeholder={t('internationalCollectionPoints.searchPlaceholder')}
           />
-          {/* Only shown once a filter is actually active -- a discreet text
-              link rather than a full button, since resetting isn't a
-              primary action on this toolbar. */}
-          {hasActiveFilter && (
-            <button type="button" className="link" onClick={resetFilters}>
-              {t('internationalCollectionPoints.resetFilters')}
-            </button>
-          )}
+          <button type="button" className="btn" onClick={resetFilters}>
+            {t('internationalCollectionPoints.resetFilters')}
+          </button>
         </div>
       )}
 
