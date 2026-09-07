@@ -287,10 +287,18 @@ export default function NeedDetail() {
         <span className={`badge urgency-${need.urgency}`}>{t(`urgency.${need.urgency}`)}</span>
       )}{' '}
       <span className="status">{statusLabel(t, need.overall_status)}</span>
-      <p>
-        {need.wilaya_name}
-        {need.commune ? ' — ' + need.commune : ''}
-      </p>
+      {/* has_no_location means the wilaya below is only a submission-time
+          fallback (see NeedCreateSerializer, backend), never a place the
+          reporter actually confirmed -- showing it plainly here would
+          read as a real location when it isn't one. */}
+      {need.has_no_location ? (
+        <p className="hint">{t('needsList.noGeographicPosition')}</p>
+      ) : (
+        <p>
+          {need.wilaya_name}
+          {need.commune ? ' — ' + need.commune : ''}
+        </p>
+      )}
       {need.location_description && <p>{need.location_description}</p>}
       {need.position_accuracy === 'exact' && need.latitude != null && need.longitude != null ? (
         <p>

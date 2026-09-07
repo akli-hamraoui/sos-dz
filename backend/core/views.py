@@ -13,6 +13,7 @@ from rest_framework.views import APIView
 from core.access import authorized_for_write, get_presented_token, is_admin_request, owner_authorized
 from core.captcha import verify_turnstile
 from core.duplicates import find_similar_needs
+from core.geoip import is_algeria_ip
 from core.media_validation import validate_photo_count, validate_photo_size
 from core.moderation import moderate_image_field, moderate_video_field, moderation_active
 from core.models import (
@@ -175,6 +176,15 @@ class AppConfigurationView(APIView):
         # otherwise be rejected) -- never a security boundary itself,
         # every actual write still re-checks is_admin_request server-side.
         data["is_admin"] = is_admin_request(request)
+        # The guided voice SOS flow (CreateNeedVoiceGuide.jsx) isn't linked
+        # from the site yet and, unlike the rest of the app, is meant to
+        # always stay Algeria-only (or admin) regardless of the sitewide
+        # geo_restrict_writes_to_algeria toggle above -- it's still pending
+        # approval, reachable only via a direct link for testing. Re-checked
+        # server-side on submission itself (NeedViewSet.create_via_voice_guide);
+        # this copy is only so the page can show an explanatory message
+        # instead of letting someone go through all 7 steps first.
+        data["voice_guide_available"] = is_admin_request(request) or is_algeria_ip(getattr(request, "client_ip", None)) is True
         # Bottom-nav notification badges (frontend rounds/formats the
         # number) -- "active" on purpose, not a lifetime total: reflects
         # what there actually is to look at right now, not a count that
@@ -224,12 +234,12 @@ class NeedViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retriev
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get_serializer_class(self):
-        if self.action == "create":
+        if self.action in ("create", "create_via_voice_guide"):
             return NeedCreateSerializer
         return NeedPublicSerializer
 
     def get_throttles(self):
-        if self.action in ("create",):
+        if self.action in ("create", "create_via_voice_guide"):
             return [CreationRateThrottle()]
         return []
 
@@ -298,6 +308,24 @@ class NeedViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retriev
             many=True,
         ).data
         return Response(out, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=["post"], url_path="voice-guide")
+    def create_via_voice_guide(self, request, *args, **kwargs):
+        """CreateNeedVoiceGuide.jsx submits here instead of the regular
+        create() above -- unlike an ordinary need report, this feature isn't
+        linked from the site yet and is meant to stay Algeria-only (or
+        admin) regardless of the sitewide geo_restrict_writes_to_algeria
+        toggle (see write_guard, still applied below via create()), since
+        it remains pending approval. AppConfigurationView exposes the same
+        check as voice_guide_available so the page can show an explanatory
+        message instead of letting someone go through all 7 steps first --
+        that copy is UI-only, this is the actual enforcement."""
+        if not (is_admin_request(request) or is_algeria_ip(getattr(request, "client_ip", None)) is True):
+            return Response(
+                {"detail": "This feature is only available from Algeria."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return self.create(request, *args, **kwargs)
 
     @action(detail=False, methods=["get"], url_path="check-duplicates")
     def check_duplicates(self, request):

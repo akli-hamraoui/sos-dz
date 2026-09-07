@@ -15,6 +15,15 @@ function statusLabel(t, s) {
   return t(`status.${s}`, s)
 }
 
+// Popup content below is built as raw HTML strings (Leaflet's bindPopup
+// takes a string, not JSX) -- title/location_description are free text the
+// reporter typed, so they're escaped before interpolation. wilaya_name and
+// every other field used come from the backend's own fixed data (never
+// reporter-controlled), same as elsewhere in this file/mapMarkers.js.
+function escapeHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c])
+}
+
 // "SOS" speech-bubble mark inside the same white circle/black border pin
 // used for collection points and courier markers (see .pickup-marker-pin/
 // .cp-marker-pin/.need-marker-pin). Inverted to white -- urgencyColor()
@@ -62,12 +71,36 @@ export default function NeedsList() {
   // the full rationale -- a search-only change must never move the map.
   const hasFramedRef = useRef(false)
   const prevFilterWilayaRef = useRef(filterWilaya)
+  // Which need's voice recording (if any) is currently playing in the
+  // "Liste" view below -- at most one at a time, so starting a second clip
+  // stops the first instead of both playing over each other.
+  const [playingNeedId, setPlayingNeedId] = useState(null)
+  const playingAudioRef = useRef(null)
 
   // Debounced so typing doesn't fire a request on every keystroke.
   useEffect(() => {
     const timer = setTimeout(() => setSearch(searchInput.trim()), 300)
     return () => clearTimeout(timer)
   }, [searchInput])
+
+  // Stops on unmount (e.g. navigating away from this page mid-playback) --
+  // switching away from the "Liste" view itself doesn't need its own
+  // handling since that view's cards (and this state) simply stop being
+  // rendered/relevant, same as any other React state on an unmounted branch.
+  useEffect(() => () => playingAudioRef.current?.pause(), [])
+
+  const toggleAudio = (needId, url) => {
+    playingAudioRef.current?.pause()
+    if (playingNeedId === needId) {
+      setPlayingNeedId(null) // same button tapped again -- just stop
+      return
+    }
+    const audio = new Audio(url)
+    audio.addEventListener('ended', () => setPlayingNeedId(null))
+    audio.play().catch(() => {})
+    playingAudioRef.current = audio
+    setPlayingNeedId(needId)
+  }
 
   const hasActiveFilters = !!(filterWilaya || searchInput)
   const resetFilters = () => {
@@ -244,7 +277,20 @@ export default function NeedsList() {
         markersRef.current.forEach((m) => map.removeLayer(m))
         const markers = []
 
-        needsWithPos.forEach((p) => {
+        // Needs reported with no location fix at all (guided voice flow,
+        // geolocation declined/failed -- see has_no_location, backend) all
+        // share the same fallback position (the campaign's fallback
+        // wilaya's own centroid), so plotting one pin per need would stack
+        // them exactly on top of each other. Grouped into one big red
+        // bubble with a count instead -- same "one badge, not N
+        // indistinguishable pins" idea as CollectionPoints.jsx's own
+        // .cp-bubble, and (per explicit request) the same click behavior
+        // too: switch to the "Liste" view filtered to that wilaya, rather
+        // than an in-place popup.
+        const located = needsWithPos.filter((p) => !p.has_no_location)
+        const unlocated = needsWithPos.filter((p) => p.has_no_location)
+
+        located.forEach((p) => {
           const icon = L.divIcon({
             className: 'need-marker-icon',
             html: `<span class="need-marker-pin" style="background:${urgencyColor(p.urgency)}">${NEED_SOS_ICON}</span>`,
@@ -256,12 +302,30 @@ export default function NeedsList() {
           const urgencyPrefix = p.urgency !== 'medium' ? `${t(`urgency.${p.urgency}`)} — ` : ''
           const photoBtn = flyerPopupButtonHtml(t, p.photo)
           marker.bindPopup(
-            `<strong>${p.title}</strong><br>${urgencyPrefix}${p.wilaya_name}<br>${(p.location_description || '').slice(0, 80)}` +
+            `<strong>${escapeHtml(p.title)}</strong><br>${urgencyPrefix}${p.wilaya_name}<br>${escapeHtml((p.location_description || '').slice(0, 80))}` +
               `<br>${statusLabel(t, p.overall_status)}${gpsNote}` +
               `<div class="popup-actions">${photoBtn}<a href="/needs/${p.id}">${t('common.open')}</a></div>`
           )
           markers.push(marker)
         })
+
+        if (unlocated.length) {
+          const icon = L.divIcon({
+            className: 'need-marker-icon',
+            html:
+              `<span class="need-marker-pin need-marker-pin-unlocated">${NEED_SOS_ICON}` +
+              `<span class="need-marker-count-badge">${unlocated.length}</span></span>`,
+            iconSize: [44, 44],
+            iconAnchor: [22, 22],
+          })
+          const marker = L.marker([unlocated[0].display_latitude, unlocated[0].display_longitude], { icon, zIndexOffset: 1000 }).addTo(map)
+          marker.bindTooltip(`${t('needsList.noLocationBubbleLabel')} (${unlocated.length})`)
+          marker.on('click', () => {
+            if (unlocated[0].wilaya != null) setFilterWilaya(String(unlocated[0].wilaya))
+            setViewMode('list')
+          })
+          markers.push(marker)
+        }
 
         markersRef.current = markers
         const allPoints = needsWithPos.map((p) => [p.display_latitude, p.display_longitude])
@@ -436,14 +500,43 @@ export default function NeedsList() {
                 <span className={`badge urgency-${n.urgency}`}>{t(`urgency.${n.urgency}`)}</span>
               )}
               <h3>{n.title}</h3>
-              <p>
-                {n.wilaya_name}
-                {n.commune ? ' — ' + n.commune : ''}
-              </p>
+              {/* has_no_location means the wilaya below is only a
+                  submission-time fallback (see NeedCreateSerializer,
+                  backend), never a place the reporter actually confirmed
+                  -- showing it plainly here would read as a real location
+                  when it isn't one. */}
+              {n.has_no_location ? (
+                <p className="hint">{t('needsList.noGeographicPosition')}</p>
+              ) : (
+                <p>
+                  {n.wilaya_name}
+                  {n.commune ? ' — ' + n.commune : ''}
+                </p>
+              )}
               {n.location_description && <p className="need-card-description">{n.location_description}</p>}
               <p className="status">
                 {statusLabel(t, n.overall_status)} — {t('needsList.pickupsCount', { count: n.pickups.length })}
               </p>
+              {/* A voice-reported SOS (see the guided voice flow) carries
+                  its actual content as an audio recording rather than
+                  text -- offered right here (not just on the detail page)
+                  since this is exactly the list a "sans localisation"
+                  bubble tap lands on (see the map effect above). Stops
+                  the card's own <Link> navigation, same reasoning as
+                  PhotoThumb's own onOpen button elsewhere in this list. */}
+              {n.voice_file && (
+                <button
+                  type="button"
+                  className="need-card-audio-btn"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    toggleAudio(n.id, n.voice_file)
+                  }}
+                >
+                  {playingNeedId === n.id ? `⏸ ${t('needsList.stopAudio')}` : `🔊 ${t('needsList.playAudio')}`}
+                </button>
+              )}
             </Link>
           ))}
         </div>

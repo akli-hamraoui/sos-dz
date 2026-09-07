@@ -1484,6 +1484,36 @@ fieldset {
   color: #111;
   cursor: pointer;
 }
+/* Same "one bubble, not N stacked pins" idea as .cp-bubble above, for SOS
+   reports with no location fix at all (has_no_location, backend) -- bigger
+   and always the urgent red (these are, by definition, reports a responder
+   can't place on the map on their own) with a small count badge, so it
+   reads as visually distinct from an ordinary single-need pin rather than
+   just a slightly bigger one. See NeedsList.jsx for the popup this opens. */
+.need-marker-pin-unlocated {
+  width: 44px;
+  height: 44px;
+  background: var(--danger);
+  border-color: #fff;
+  position: relative;
+  cursor: pointer;
+}
+.need-marker-count-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 18px;
+  height: 18px;
+  padding-inline: 3px;
+  border-radius: 9px;
+  background: #fff;
+  border: 2px solid #111;
+  color: #111;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 14px;
+  text-align: center;
+}
 /* Declared departure position, not an actual live GPS ping -- dashed
    (instead of the live marker's solid border) so it still reads as
    "roughly here, as of take-charge time" rather than "currently tracked,"
@@ -1691,6 +1721,26 @@ fieldset {
 .leaflet-popup-content .popup-actions a,
 .leaflet-popup-content .popup-actions .popup-photo-btn {
   margin-block-start: 0;
+}
+/* Listen button on a voice-reported SOS's own card in the "Liste" view
+   (NeedsList.jsx) -- e.g. every need a "sans localisation" bubble tap
+   lands on. Boxed/bordered (unlike the plain-link popup buttons above)
+   since it sits among this card's other plain text, not other links. */
+.need-card-audio-btn {
+  margin-block-start: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: 999px;
+  background: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.need-card-audio-btn:active {
+  background: #f2f2f2;
 }
 
 /* "Recenter on my location" button, on every browsable map (see
@@ -2122,6 +2172,32 @@ footer {
   .dialog-sheet {
     border-radius: 18px;
   }
+}
+
+/* --- Guided voice SOS (CreateNeedVoiceGuide.jsx, pending approval) --- */
+
+.voice-guide-page {
+  max-width: 480px;
+  margin-inline: auto;
+  text-align: center;
+}
+.voice-guide-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  margin-block-start: 32px;
+}
+.voice-guide-caption {
+  font-size: 17px;
+  line-height: 1.5;
+  color: var(--text);
+}
+.voice-guide-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
 }
 
 /* --- RTL: Arabic --- */

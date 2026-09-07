@@ -169,6 +169,118 @@ class NeedCreationTests(BaseAPITestCase):
         self.assertEqual(patch_resp.status_code, 200, patch_resp.content)
         self.assertEqual(patch_resp.data["other_phones"], "0555999999")
 
+    def test_explicit_wilaya_leaves_has_no_location_false(self):
+        resp = self.client.post("/api/needs/", self._payload(), format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+        need = Need.objects.get(pk=resp.data["id"])
+        self.assertFalse(need.has_no_location)
+        self.assertEqual(need.wilaya, self.wilaya)
+
+
+class NeedFallbackWilayaTests(BaseAPITestCase):
+    """The guided voice SOS flow (CreateNeedVoiceGuide.jsx) has no wilaya
+    picker of its own and lets the reporter decline geolocation entirely --
+    it never sends a `wilaya` field at all in that case. NeedCreateSerializer
+    must still accept the submission (a real emergency report must never
+    dead-end on a missing wilaya) by assigning a fallback and flagging
+    has_no_location, so the map can group these separately (see
+    NeedsList.jsx's "sans localisation" bubble)."""
+
+    def _payload(self, **overrides):
+        data = dict(NEED_PAYLOAD, campaign=self.campaign.pk)
+        data.update(overrides)
+        return data
+
+    def test_falls_back_to_alger_when_authorized(self):
+        alger = Wilaya.objects.get(name="Alger")
+        others = list(Wilaya.objects.exclude(name="Alger")[:2])
+        self.campaign = make_campaign(wilayas=[alger, *others])
+        resp = self.client.post("/api/needs/", self._payload(), format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+        # Exposed on the response itself (NeedPublicSerializer, also used
+        # by /api/needs/ and /api/needs/<id>/) -- the frontend needs this
+        # to show "no geographic position" instead of the fallback wilaya's
+        # name as if the reporter had actually confirmed being there.
+        self.assertTrue(resp.data["has_no_location"])
+        need = Need.objects.get(pk=resp.data["id"])
+        self.assertEqual(need.wilaya, alger)
+        self.assertTrue(need.has_no_location)
+
+    def test_falls_back_to_first_authorized_wilaya_when_alger_not_authorized(self):
+        # make_campaign()'s default (no wilayas= override) is the first 3
+        # wilayas by id -- Adrar, Chlef, Laghouat -- none of which is Alger.
+        self.campaign = make_campaign()
+        resp = self.client.post("/api/needs/", self._payload(), format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+        need = Need.objects.get(pk=resp.data["id"])
+        self.assertEqual(need.wilaya.name, "Adrar")  # alphabetically first of the 3
+        self.assertTrue(need.has_no_location)
+
+    def test_explicit_wilaya_still_works_and_is_not_flagged(self):
+        self.campaign = make_campaign()
+        wilaya = self.campaign.authorized_wilayas.first()
+        resp = self.client.post("/api/needs/", self._payload(wilaya=wilaya.pk), format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+        need = Need.objects.get(pk=resp.data["id"])
+        self.assertEqual(need.wilaya, wilaya)
+        self.assertFalse(need.has_no_location)
+
+
+class VoiceGuideEndpointTests(BaseAPITestCase):
+    """CreateNeedVoiceGuide.jsx submits to /api/needs/voice-guide/, not the
+    regular /api/needs/ -- this feature is still pending approval, unlinked
+    from the site, and meant to stay Algeria-only (or admin) regardless of
+    the sitewide geo_restrict_writes_to_algeria toggle (see
+    NeedViewSet.create_via_voice_guide). The ordinary /api/needs/ endpoint
+    (CreateNeed.jsx) must stay completely unaffected."""
+
+    def setUp(self):
+        super().setUp()
+        self.campaign = make_campaign()
+
+    def _payload(self, **overrides):
+        data = dict(NEED_PAYLOAD, campaign=self.campaign.pk)
+        data.update(overrides)
+        return data
+
+    def test_blocked_for_anonymous_non_algeria(self):
+        # No real GeoLite2 DB here -- is_algeria_ip() always resolves to
+        # None (unknown), which counts as "not Algeria".
+        resp = self.client.post("/api/needs/voice-guide/", self._payload(), format="json")
+        self.assertEqual(resp.status_code, 403)
+        self.assertEqual(Need.objects.count(), 0)
+
+    def test_allowed_from_algeria(self):
+        from unittest.mock import patch
+
+        with patch("core.views.is_algeria_ip", return_value=True):
+            resp = self.client.post("/api/needs/voice-guide/", self._payload(), format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+        self.assertIn("access_token", resp.data)
+
+    def test_allowed_for_admin_regardless_of_location(self):
+        admin = get_user_model().objects.create_superuser("voiceadmin", "va@example.com", "pw123456!")
+        self.client.force_authenticate(admin)
+        resp = self.client.post("/api/needs/voice-guide/", self._payload(), format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+
+    def test_still_falls_back_to_wilaya_when_none_sent(self):
+        from unittest.mock import patch
+
+        with patch("core.views.is_algeria_ip", return_value=True):
+            resp = self.client.post("/api/needs/voice-guide/", self._payload(), format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+        need = Need.objects.get(pk=resp.data["id"])
+        self.assertTrue(need.has_no_location)
+
+    def test_ordinary_needs_endpoint_unaffected_by_this_restriction(self):
+        """The regular CreateNeed.jsx path must never be gated by this --
+        confirms create_via_voice_guide's extra check lives only on its own
+        action, not on NeedViewSet.create()."""
+        wilaya = self.campaign.authorized_wilayas.first()
+        resp = self.client.post("/api/needs/", self._payload(wilaya=wilaya.pk), format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+
 
 class OptionalContactFieldsTests(BaseAPITestCase):
     """contact_name/contact_phone became optional on both Need and
@@ -1049,6 +1161,49 @@ class MapAndLocationPrivacyTests(BaseAPITestCase):
         self.assertEqual(update.gps_latitude, 36.75)  # it WAS stored, just never publicly serialized
 
 
+class NeedMapPinUnlocatedTests(BaseAPITestCase):
+    """`/api/needs/locations/` must surface has_no_location and voice_file
+    so the map (NeedsList.jsx) can group guided-voice SOS reports with no
+    location fix into one "sans localisation" bubble with per-item audio
+    playback, instead of scattering them as ordinary pins."""
+
+    def setUp(self):
+        super().setUp()
+        alger = Wilaya.objects.get(name="Alger")
+        self.campaign = make_campaign(wilayas=[alger, *Wilaya.objects.exclude(name="Alger")[:2]])
+
+    def test_unlocated_need_flagged_on_map(self):
+        resp = self.client.post("/api/needs/", dict(NEED_PAYLOAD, campaign=self.campaign.pk), format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+
+        locations_resp = self.client.get("/api/needs/locations/")
+        self.assertEqual(locations_resp.status_code, 200)
+        pin = next(p for p in locations_resp.data if p["id"] == resp.data["id"])
+        self.assertTrue(pin["has_no_location"])
+        self.assertIsNone(pin["voice_file"])  # no voice recording attached in this payload
+
+    def test_map_pin_exposes_wilaya_id(self):
+        """NeedsList.jsx's "sans localisation" bubble click needs the raw
+        wilaya id (not just wilaya_name) to filter the "Liste" view the
+        same way CollectionPoints.jsx's own .cp-bubble does."""
+        alger = Wilaya.objects.get(name="Alger")
+        resp = self.client.post("/api/needs/", dict(NEED_PAYLOAD, campaign=self.campaign.pk), format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+
+        locations_resp = self.client.get("/api/needs/locations/")
+        pin = next(p for p in locations_resp.data if p["id"] == resp.data["id"])
+        self.assertEqual(pin["wilaya"], alger.pk)
+
+    def test_ordinary_need_not_flagged_on_map(self):
+        wilaya = self.campaign.authorized_wilayas.exclude(name="Alger").first()
+        resp = self.client.post("/api/needs/", dict(NEED_PAYLOAD, campaign=self.campaign.pk, wilaya=wilaya.pk), format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+
+        locations_resp = self.client.get("/api/needs/locations/")
+        pin = next(p for p in locations_resp.data if p["id"] == resp.data["id"])
+        self.assertFalse(pin["has_no_location"])
+
+
 @override_settings(GEOIP_DB_PATH="/nonexistent/GeoLite2-Country.mmdb")
 class GeoRestrictionTests(BaseAPITestCase):
     disable_geo_restriction = False
@@ -1662,6 +1817,27 @@ class AppConfigurationEndpointTests(BaseAPITestCase):
         self.client.force_authenticate(admin_user)
         resp = self.client.get("/api/config/")
         self.assertTrue(resp.data["is_admin"])
+
+    def test_voice_guide_unavailable_for_anonymous_non_algeria(self):
+        # No real GeoLite2 DB in this test environment -- is_algeria_ip()
+        # always resolves to None (unknown) here, which must be treated as
+        # "not Algeria", same as core.permissions.geo_restriction_block's
+        # own "only exactly True counts" rule.
+        resp = self.client.get("/api/config/")
+        self.assertFalse(resp.data["voice_guide_available"])
+
+    def test_voice_guide_available_from_algeria(self):
+        from unittest.mock import patch
+
+        with patch("core.views.is_algeria_ip", return_value=True):
+            resp = self.client.get("/api/config/")
+        self.assertTrue(resp.data["voice_guide_available"])
+
+    def test_voice_guide_available_for_admin_regardless_of_location(self):
+        admin_user = get_user_model().objects.create_superuser("cfgadmin2", "cfg2@example.com", "pw123456!")
+        self.client.force_authenticate(admin_user)
+        resp = self.client.get("/api/config/")
+        self.assertTrue(resp.data["voice_guide_available"])
 
     def test_needs_open_count_excludes_covered_and_cancelled(self):
         campaign = make_campaign()
