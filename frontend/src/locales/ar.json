@@ -97,7 +97,17 @@
     "createCollectionPoint": "إنشاء نقطة تجميع",
     "createCollectionPointAlgeria": "في الجزائر",
     "createCollectionPointInternational": "دوليًا",
-    "summary": "SOS DZ تنسّق المساعدة الطارئة في الجزائر في مواجهة الكوارث الطبيعية (حرائق الغابات...): أبلغ عن احتياج، ساعد كمتطوع أو ناقل، أو أنشئ نقطة لتجميع التبرعات."
+    "summary": "SOS DZ تنسّق المساعدة الطارئة في الجزائر في مواجهة الكوارث الطبيعية (حرائق الغابات...): أبلغ عن احتياج، ساعد كمتطوع أو ناقل، أو أنشئ نقطة لتجميع التبرعات.",
+    "mission": "تضامن · تكافل · عمل",
+    "sosTitle": "أطلق نداء استغاثة",
+    "sosSubtitle": "هل تحتاج إلى مساعدة عاجلة؟",
+    "sosDetail": "بلّغ عن احتياج الآن.",
+    "collectionPointsAlgeriaDescription": "اعثر على نقاط التجميع القريبة منك.",
+    "collectionPointsInternationalDescription": "اكتشف نقاط التجميع الدولية.",
+    "viewPoints": "عرض النقاط",
+    "createCollectionPointDescription": "أضف نقطة تجميع جديدة في منطقتك.",
+    "createPoint": "إنشاء نقطة",
+    "learnMore": "اعرف المزيد"
   },
   "status": {
     "open": "مفتوح",
