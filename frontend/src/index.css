@@ -523,18 +523,17 @@ main {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 10px;
   text-align: center;
   padding: 14px;
-  /* No border on any tile below -- flat colored/white squares with only a
-     soft shadow for edge definition, closer to an Instagram-style app-icon
-     tile than an outlined button. */
-  border: none;
-  /* Modern touch: a soft lift (shadow) at rest, pressed back down on tap
-     -- each tile's own shadow color below is tinted to match its
-     background instead of a flat generic black, so it reads as "this
-     tile's own shadow" rather than a shared card-shadow applied uniformly. */
-  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  /* Flat social-app icon-grid look (reference screenshot: Facebook/
+     Instagram/YouTube.../Pinterest app icons) -- solid border, no
+     shadow, moderately rounded corners, rather than the previous
+     shadow-and-no-border "Instagram tile" pass. */
+  background: #fff;
+  border: 2.5px solid #111;
+  border-radius: 18px;
+  transition: transform 0.12s ease;
 }
 .home-actions .btn:active {
   transform: scale(0.95);
@@ -547,26 +546,23 @@ main {
   font-size: 15px;
 }
 .btn.home-btn-sos {
-  /* Red, but not too dark -- a clear, legible red rather than a near-
-     black brick red or a neon one. */
-  background: #e5484d;
-  color: #fff;
-  /* Squircle-style rounding (~22% of the tile), not a full pill or a
-     plain rounded rect -- aspect-ratio:1 on .home-actions .btn already
-     governs the actual size, min-height no longer applies. */
-  border-radius: 32px;
-  box-shadow: 0 8px 20px rgba(229, 72, 77, 0.4);
+  /* The grid's one red tile (the urgent action) -- every other tile
+     stays black-on-white, matching the reference's black-icon-on-white
+     look; red flags this one as different on purpose. */
+  background: #fff;
+  color: #d33d42;
+  border-color: #d33d42;
 }
 .icon-sos {
   display: inline-block;
-  width: 26px;
-  height: 26px;
+  width: 30px;
+  height: 30px;
   flex-shrink: 0;
-  /* White, for contrast against this button's own red background.
+  /* Same red as this tile's own border/label text (see .home-btn-sos) --
      background-color + mask-image tints the source PNG (a solid black
      shape on a transparent background) to this exact color, which a CSS
      filter chain (invert/hue-rotate) can't do reliably. */
-  background-color: #fff;
+  background-color: #d33d42;
   -webkit-mask-image: url('/icons/need-marker-sos.png');
   mask-image: url('/icons/need-marker-sos.png');
   -webkit-mask-size: contain;
@@ -579,17 +575,14 @@ main {
 .btn.home-btn-outline {
   background: #fff;
   color: var(--accent);
-  border-radius: 32px;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
 }
-/* Solid black tile (Uber-style), used only for the "Créer un point de
-   collecte" button -- sets it apart from the two plain-outline browse
-   buttons above it as the one action that starts something new. */
+/* Used only for the "Créer un point de collecte" button now (still
+   black-on-white, like every other tile except the red SOS one -- no
+   longer visually distinct via an inverted black background, since the
+   reference look is a uniform grid of white icon tiles). */
 .btn.home-btn-black {
-  background: #111;
-  color: #fff;
-  border-radius: 32px;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.32);
+  background: #fff;
+  color: #111;
 }
 /* Used instead of .btn-huge on the two collection-point buttons -- still
    a bit tighter than the regular stacked-pill layout's own font-size, to
