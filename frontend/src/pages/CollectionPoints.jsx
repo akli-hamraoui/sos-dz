@@ -9,6 +9,8 @@ import { haversineKm, isInAlgeria, getCurrentPosition, RECENTER_BOX_METERS } fro
 import { fetchDrivingRoute, COLLECTION_POINT_ROUTE_COLOR } from '../routing'
 import { countryFlagEmoji, formatApproxKm } from '../mapMarkers'
 import { IconLocate, IconExpand, IconClose, IconGlobeColor } from '../icons'
+import PhotoThumb from '../components/PhotoThumb'
+import PhotoLightbox from '../components/PhotoLightbox'
 
 export default function CollectionPoints() {
   const { t } = useTranslation()
@@ -27,6 +29,10 @@ export default function CollectionPoints() {
   // under a compact single-row toolbar instead of losing a big chunk of a
   // short mobile screen to filter controls most visits never touch.
   const [filtersOpen, setFiltersOpen] = useState(false)
+  // The photo currently open in the shared full-screen viewer -- a flyer
+  // thumbnail (list row) or a map popup's own "view photo" button, see
+  // PhotoThumb/PhotoLightbox. null means closed.
+  const [lightboxPhoto, setLightboxPhoto] = useState(null)
   // The map fills whatever viewport height remains below it (Airbnb-style)
   // instead of a fixed 600px block -- computed from the frame's own
   // measured top offset (see the effect below) rather than a CSS flex
@@ -618,6 +624,7 @@ export default function CollectionPoints() {
           <div className="needs-list">
             {points.map((cp) => (
               <Link className="need-card" to={`/collection-points/${cp.id}`} key={cp.id}>
+                <PhotoThumb src={cp.flyer_image} alt={cp.point_name} onOpen={setLightboxPhoto} />
                 <h3>{cp.point_name}</h3>
                 <p>
                   {cp.wilaya_name}
@@ -682,6 +689,7 @@ export default function CollectionPoints() {
           )}
         </div>
       )}
+      <PhotoLightbox src={lightboxPhoto} onClose={() => setLightboxPhoto(null)} />
     </section>
   )
 }

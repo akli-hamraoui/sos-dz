@@ -1079,6 +1079,62 @@ fieldset {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
 }
+/* Floated (not flexed) so it drops into .need-card's existing block flow
+   (a plain stack of <h3>/<p>) without restructuring every list row's JSX
+   into a flex layout just for the rows that happen to have a photo. */
+.photo-thumb {
+  float: inline-start;
+  display: block;
+  width: 56px;
+  height: 56px;
+  margin-inline-end: 10px;
+  margin-block-end: 4px;
+  border-radius: 10px;
+  overflow: hidden;
+  cursor: pointer;
+  border: 1px solid var(--border);
+}
+.photo-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.photo-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  cursor: zoom-out;
+}
+.photo-lightbox img {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 8px;
+  cursor: default;
+}
+.photo-lightbox-close {
+  position: absolute;
+  top: 16px;
+  inset-inline-end: 16px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  border: none;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.photo-lightbox-close:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
 .badge {
   display: inline-block;
   padding: 2px 10px;
