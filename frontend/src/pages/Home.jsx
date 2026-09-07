@@ -50,7 +50,7 @@ export default function Home() {
         <div className="home-btn-create">
           <button
             type="button"
-            className="btn btn-icon home-btn-outline home-btn-compact"
+            className="btn btn-icon home-btn-black home-btn-compact"
             aria-expanded={createMenuOpen}
             onClick={() => setCreateMenuOpen((v) => !v)}
           >

@@ -10,7 +10,7 @@ import { countryFlagEmoji, formatApproxKm, flyerPopupButtonHtml, attachPopupPinc
 import CountryOrPlaceSearch from '../components/CountryOrPlaceSearch'
 import PhotoThumb from '../components/PhotoThumb'
 import PhotoLightbox from '../components/PhotoLightbox'
-import { IconLocate, IconExpand, IconClose } from '../icons'
+import { IconLocate, IconExpand, IconClose, IconAlgeriaFlag } from '../icons'
 
 // Worldwide counterpart to CollectionPoints.jsx -- same map/list page, no
 // wilaya (there is none outside Algeria) and no Algeria restriction on
@@ -39,6 +39,11 @@ export default function InternationalCollectionPoints() {
   const [points, setPoints] = useState([])
   const [viewMode, setViewMode] = useState('map')
   const [mapHasNothing, setMapHasNothing] = useState(false)
+  // Filters tucked behind this toggle instead of always expanded -- same
+  // collapsed-by-default pattern as CollectionPoints.jsx/NeedsList.jsx/
+  // Deliveries.jsx, so this page's own location/search fields don't always
+  // eat vertical space above the map on a short mobile screen.
+  const [filtersOpen, setFiltersOpen] = useState(false)
   // Tap-to-activate map -- see CollectionPoints.jsx's own mapActive for
   // the full rationale (replaces the old two-finger-to-pan gesture
   // handling, reported awkward on mobile). Starts "asleep" so a single
@@ -238,6 +243,13 @@ export default function InternationalCollectionPoints() {
             if (btn) btn.onclick = () => setLightboxPhoto(btn.dataset.photoUrl)
             attachPopupPinchZoom(e.popup.getElement())
           })
+          // Also wired from the overlay's own ref callback (for when it
+          // remounts later, e.g. deactivate/reactivate) -- done here too
+          // since on first mount that ref callback can fire before this
+          // effect has actually created the map yet (mapRef.current still
+          // null at that point), which would otherwise silently skip
+          // wiring it the very first time the page loads.
+          attachMapPinchZoomOverlay(mapRef.current, mapElRef.current?.parentElement?.querySelector('.map-activate-overlay'), activateMap)
         }
         const map = mapRef.current
         markersRef.current.forEach((m) => map.removeLayer(m))
@@ -484,39 +496,14 @@ export default function InternationalCollectionPoints() {
           position turns out to be inside Algeria. */}
       <p className="hint">
         <Link className="link field-label-icon" to="/collection-points">
-          🇩🇿 {t('internationalCollectionPoints.goToNationalLink')}
+          <IconAlgeriaFlag width={16} height={16} /> {t('internationalCollectionPoints.goToNationalLink')}
         </Link>
       </p>
-      <div className="toolbar">
-        <label>
-          {t('internationalCollectionPoints.locationLabel')}
-          <CountryOrPlaceSearch
-            key={locationFieldKey}
-            lang={i18n.language}
-            placeholder={t('internationalCollectionPoints.locationPlaceholder')}
-            onSelectCountry={(code) => {
-              setFilterCountry(code)
-              setPlaceActive(false)
-            }}
-            onSelectPlace={flyTo}
-            excludeCountryCode="dz"
-          />
-        </label>
-        <input
-          type="search"
-          className="search-input"
-          value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
-          placeholder={t('internationalCollectionPoints.searchPlaceholder')}
-        />
-        {/* Only shown once a filter is actually active -- a discreet text
-            link rather than a full button, since resetting isn't a
-            primary action on this toolbar. */}
-        {hasActiveFilter && (
-          <button type="button" className="link" onClick={resetFilters}>
-            {t('internationalCollectionPoints.resetFilters')}
-          </button>
-        )}
+      <div className="toolbar toolbar-compact">
+        <button type="button" className="filters-toggle" aria-expanded={filtersOpen} onClick={() => setFiltersOpen((v) => !v)}>
+          ☰ {t('common.filters')}
+          {hasActiveFilter && <span className="filters-badge" aria-hidden="true" />}
+        </button>
         <div className="view-toggle">
           <button className={viewMode === 'list' ? 'active' : ''} onClick={() => setViewMode('list')}>
             {t('needsList.list')}
@@ -526,6 +513,39 @@ export default function InternationalCollectionPoints() {
           </button>
         </div>
       </div>
+      {filtersOpen && (
+        <div className="filters-panel">
+          <label>
+            {t('internationalCollectionPoints.locationLabel')}
+            <CountryOrPlaceSearch
+              key={locationFieldKey}
+              lang={i18n.language}
+              placeholder={t('internationalCollectionPoints.locationPlaceholder')}
+              onSelectCountry={(code) => {
+                setFilterCountry(code)
+                setPlaceActive(false)
+              }}
+              onSelectPlace={flyTo}
+              excludeCountryCode="dz"
+            />
+          </label>
+          <input
+            type="search"
+            className="search-input"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder={t('internationalCollectionPoints.searchPlaceholder')}
+          />
+          {/* Only shown once a filter is actually active -- a discreet text
+              link rather than a full button, since resetting isn't a
+              primary action on this toolbar. */}
+          {hasActiveFilter && (
+            <button type="button" className="link" onClick={resetFilters}>
+              {t('internationalCollectionPoints.resetFilters')}
+            </button>
+          )}
+        </div>
+      )}
 
       {viewMode === 'list' && (
         <>

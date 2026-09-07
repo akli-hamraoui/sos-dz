@@ -313,6 +313,7 @@
   },
   "collectionPoints": {
     "title": "Collection points",
+    "shortIntro": "Collection point in Algeria",
     "addButton": "+ Add a collection point in Algeria",
     "searchPlaceholder": "Search (name, contact, phone, description...)",
     "noPointsYet": "No collection points listed for this wilaya yet.",
@@ -357,8 +358,9 @@
   },
   "internationalCollectionPoints": {
     "navButton": "🌍 International collection",
+    "viewLink": "🌍 View international collection points",
     "intro": "Collection points outside Algeria, anywhere in the world.",
-    "goToNationalLink": "Collection point in Algeria? See the national collection points",
+    "goToNationalLink": "View collection points in Algeria",
     "searchPlaceholder": "Search (name, association, contact, phone, description...)",
     "noPointsYet": "No international collection points listed yet.",
     "locationLabel": "Location",

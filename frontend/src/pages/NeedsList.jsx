@@ -232,6 +232,13 @@ export default function NeedsList() {
             if (btn) btn.onclick = () => setLightboxPhoto(btn.dataset.photoUrl)
             attachPopupPinchZoom(e.popup.getElement())
           })
+          // Also wired from the overlay's own ref callback (for when it
+          // remounts later, e.g. deactivate/reactivate) -- done here too
+          // since on first mount that ref callback can fire before this
+          // effect has actually created the map yet (mapRef.current still
+          // null at that point), which would otherwise silently skip
+          // wiring it the very first time the page loads.
+          attachMapPinchZoomOverlay(mapRef.current, mapElRef.current?.parentElement?.querySelector('.map-activate-overlay'), activateMap)
         }
         const map = mapRef.current
         markersRef.current.forEach((m) => map.removeLayer(m))

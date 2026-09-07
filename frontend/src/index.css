@@ -166,11 +166,17 @@ a {
   margin-block: 0 10px;
 }
 .page-intro {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   color: var(--text-muted);
   font-size: 14px;
   line-height: 1.5;
   max-width: 640px;
   margin-block: 0 16px;
+}
+.page-intro svg {
+  flex-shrink: 0;
 }
 .back-btn {
   display: inline-flex;
@@ -552,6 +558,15 @@ main {
   background: #fff;
   color: var(--accent);
   border: 1.5px solid var(--accent);
+  border-radius: 999px;
+}
+/* Solid black pill (Uber-style), used only for the "Créer un point de
+   collecte" button -- sets it apart from the two plain-outline browse
+   buttons above it as the one action that starts something new. */
+.btn.home-btn-black {
+  background: #111;
+  color: #fff;
+  border: 1.5px solid #111;
   border-radius: 999px;
 }
 /* Used instead of .btn-huge on the two collection-point buttons -- their
