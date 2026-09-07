@@ -496,59 +496,73 @@ main {
   max-width: 420px;
   margin-inline: auto;
 }
+/* PREVIEW: 2x2 grid of square tiles, to compare against the regular
+   stacked-pill layout above -- requested explicitly ("2 boutons carré par
+   ligne espacé, pour voir le résultat"), not yet a decided replacement.
+   Fixed (not 1fr) column width -- first pass filled the container's full
+   max-width, reported as too big; a fixed size shrinks the tiles
+   themselves while keeping this exact same gap and centered positioning
+   on every viewport, mobile through desktop alike. */
 .home-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: stretch;
+  display: grid;
+  grid-template-columns: repeat(2, 120px);
   justify-content: center;
-  gap: 16px;
-  /* Slightly lower than before (was 32px) so the two buttons sit better
-     centered in the action area below the logo on a tall screen --
-     shrinks back down on a short one so they don't end up under the
-     fixed bottom nav (see .home's own padding comment above). */
+  /* "Espacé" -- deliberately more generous than the stacked layout's own
+     16px, since a mis-tap between two adjacent tiles is easier here (both
+     dimensions are close together, not just a shared vertical edge). */
+  gap: 20px;
   margin-block-start: clamp(16px, 8svh, 64px);
-  max-width: 620px;
+  max-width: 420px;
   margin-inline: auto;
 }
 .home-actions .btn {
   box-sizing: border-box;
-  /* Always one full-width button per row (not just under 480px) --
-     wrapping into a row of 2 sharing the width against a 3rd alone
-     spanning the full width on its own row (the previous behavior on
-     wider screens) is exactly what made the three buttons visibly
-     different sizes; this guarantees identical width everywhere, not
-     just matching height. */
-  flex: 1 1 100%;
-  /* Icon+label centered as one block instead of pinned to the start
-     edge -- reported as reading unbalanced/left-heavy on a full-width
-     pill, on every viewport (mobile, desktop, tablet alike). */
-  text-align: center;
+  width: 100%;
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   justify-content: center;
+  gap: 6px;
+  text-align: center;
+  padding: 10px;
+  /* Flat social-app icon-grid look (reference screenshot: Facebook/
+     Instagram/YouTube.../Pinterest app icons) -- solid border, no
+     shadow, moderately rounded corners, rather than the previous
+     shadow-and-no-border "Instagram tile" pass. */
+  background: #fff;
+  border: 2.5px solid #111;
+  border-radius: 18px;
+  transition: transform 0.12s ease;
+}
+.home-actions .btn:active {
+  transform: scale(0.95);
+}
+/* .btn-huge's own 18px/22px padding (used elsewhere at a much bigger
+   size) is too large for this tile's fixed box -- overridden here rather
+   than in .btn-huge itself, which other pages may still rely on at its
+   original size. */
+.home-actions .btn-huge {
+  font-size: 13px;
 }
 .btn.home-btn-sos {
-  /* Red, but not too dark -- a clear, legible red rather than a near-
-     black brick red or a neon one. */
-  background: #e5484d;
-  color: #fff;
-  border: 1px solid #d33d42;
-  border-radius: 999px;
-  /* Explicit shared floor with .home-btn-compact below, rather than
-     relying on padding/font-size alone to coincidentally match --
-     measured heights actually varied 44-68px depending on whether a
-     button's label wrapped to one or two lines, which padding/font
-     tuning alone can't reliably control. */
-  min-height: 68px;
+  /* The grid's one red tile (the urgent action) -- every other tile
+     stays black-on-white, matching the reference's black-icon-on-white
+     look; red flags this one as different on purpose. */
+  background: #fff;
+  color: #d33d42;
+  border-color: #d33d42;
 }
 .icon-sos {
   display: inline-block;
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   flex-shrink: 0;
-  /* White, for contrast against this button's own red background.
+  /* Same red as this tile's own border/label text (see .home-btn-sos) --
      background-color + mask-image tints the source PNG (a solid black
      shape on a transparent background) to this exact color, which a CSS
      filter chain (invert/hue-rotate) can't do reliably. */
-  background-color: #fff;
+  background-color: #d33d42;
   -webkit-mask-image: url('/icons/need-marker-sos.png');
   mask-image: url('/icons/need-marker-sos.png');
   -webkit-mask-size: contain;
@@ -561,30 +575,22 @@ main {
 .btn.home-btn-outline {
   background: #fff;
   color: var(--accent);
-  border: 1.5px solid var(--accent);
-  border-radius: 999px;
 }
-/* Solid black pill (Uber-style), used only for the "Créer un point de
-   collecte" button -- sets it apart from the two plain-outline browse
-   buttons above it as the one action that starts something new. */
+/* Used only for the "Créer un point de collecte" button now (still
+   black-on-white, like every other tile except the red SOS one -- no
+   longer visually distinct via an inverted black background, since the
+   reference look is a uniform grid of white icon tiles). */
 .btn.home-btn-black {
-  background: #111;
-  color: #fff;
-  border: 1.5px solid #111;
-  border-radius: 999px;
+  background: #fff;
+  color: #111;
 }
-/* Used instead of .btn-huge on the two collection-point buttons -- their
-   labels are long enough to wrap to two lines, which under .btn-huge's
-   22px padding/18px font made them noticeably taller/bulkier than the
-   single-line SOS button using the same class. Smaller padding/font here
-   brings a two-line button back down to roughly the same height as the
-   SOS button's one line. */
+/* Used instead of .btn-huge on the two collection-point buttons -- still
+   a bit tighter than the regular stacked-pill layout's own font-size, to
+   comfortably fit a two-line label inside the square tile above. */
 .home-btn-compact {
-  padding: 14px 18px;
-  border-radius: 16px;
-  font-size: 15px;
+  font-size: 11.5px;
   font-weight: 600;
-  min-height: 68px;
+  line-height: 1.2;
 }
 /* Small trailing "this opens a map" cue on the two collection-point
    buttons -- muted/smaller than the flag/globe icon so it reads as a
@@ -595,16 +601,18 @@ main {
 }
 /* Wraps the 4th home button (opens a small Algérie/international choice
    menu instead of navigating directly) -- this div, not the <button>
-   itself, is the actual flex item inside .home-actions (the button sits
+   itself, is the actual grid item inside .home-actions (the button sits
    one level deeper so the dropdown below can anchor to it), so the
-   full-width flex sizing that the other 3 buttons get straight from
+   square sizing that the other 3 buttons get straight from
    `.home-actions .btn` needs repeating here on the wrapper instead. */
 .home-btn-create {
   position: relative;
-  flex: 1 1 100%;
+  width: 100%;
+  aspect-ratio: 1;
 }
 .home-btn-create .btn {
   width: 100%;
+  height: 100%;
 }
 .home-btn-create-menu {
   position: absolute;
@@ -700,13 +708,10 @@ main {
        cramped right under the tagline once the rest of this tier's
        compacting was in place. */
     margin-block-start: clamp(10px, 3.5svh, 36px);
-    /* Enough of a gap between buttons to not mis-tap a neighboring one --
-       6px, then 10px, both read as too tight, reported live. */
     gap: 14px;
   }
   .home-actions .btn {
-    padding: 8px 14px;
-    min-height: 46px;
+    padding: 10px;
   }
   .home-about-link {
     margin-block-start: clamp(2px, 1svh, 10px);
@@ -736,20 +741,11 @@ main {
   }
   .home-actions {
     margin-block-start: 4px;
-    gap: 8px;
+    gap: 10px;
+    max-width: 280px;
   }
-  /* The three buttons are always full-width/stacked now (see
-     .home-actions .btn), which on a short-but-wide viewport (the
-     car-tablet dashboard case) takes more vertical room than the
-     previous 2-buttons-share-a-row layout did -- min-height alone
-     doesn't shrink them here since each button's own padding already
-     produces a taller natural height than that floor, so padding itself
-     needs overriding too. Confirmed this combination clears the bottom
-     nav at 900x350 (the shortest car-tablet case tested) through
-     900x400. */
   .home-actions .btn {
-    padding: 8px 14px;
-    min-height: 44px;
+    padding: 8px;
   }
   .home-about-link {
     margin-block-start: 2px;

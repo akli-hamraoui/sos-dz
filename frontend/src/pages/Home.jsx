@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { IconAlgeriaFlag, IconGlobeColor, IconMapPin, IconPlus } from '../icons'
+import { IconAlgeriaFlag, IconGlobeColor, IconPlus } from '../icons'
 
 export default function Home() {
   const { t } = useTranslation()
@@ -28,19 +28,15 @@ export default function Home() {
       <img src="/logo-full.png" alt={t('common.brand')} className="home-logo" />
       <p className="home-tagline">{t('home.tagline')}</p>
       <div className="home-actions">
+        {/* PREVIEW (square-grid layout): the small trailing "opens a map"
+            IconMapPin hint used in the regular stacked-pill layout is
+            dropped here -- a third stacked element read as cluttered
+            inside a compact square tile. */}
         <Link to="/collection-points" className="btn btn-icon home-btn-outline home-btn-compact">
-          <IconAlgeriaFlag /> {t('home.collectionPointsAlgeria')}
-          {/* Small trailing cue that this leads to a map view (both
-              collection-point pages default to their map -- see each
-              page's own viewMode state), same IconMapPin glyph already
-              used elsewhere in the app for this, just smaller than the
-              flag/globe so it reads as a subordinate hint, not a second
-              equally-weighted icon. */}
-          <IconMapPin width={16} height={16} strokeWidth={1.75} className="home-btn-map-hint" />
+          <IconAlgeriaFlag width={24} height={24} /> {t('home.collectionPointsAlgeria')}
         </Link>
         <Link to="/international-collection-points" className="btn btn-icon home-btn-outline home-btn-compact">
-          <IconGlobeColor /> {t('home.collectionPointsInternational')}
-          <IconMapPin width={16} height={16} strokeWidth={1.75} className="home-btn-map-hint" />
+          <IconGlobeColor width={24} height={24} /> {t('home.collectionPointsInternational')}
         </Link>
         {/* Creating a point is a distinct action from the two browse
             buttons above, and needs a country choice first (this page has
@@ -54,7 +50,7 @@ export default function Home() {
             aria-expanded={createMenuOpen}
             onClick={() => setCreateMenuOpen((v) => !v)}
           >
-            <IconPlus width={20} height={20} strokeWidth={2} /> {t('home.createCollectionPoint')}
+            <IconPlus width={22} height={22} strokeWidth={2} /> {t('home.createCollectionPoint')}
           </button>
           {createMenuOpen && (
             <div className="home-btn-create-menu">
@@ -81,9 +77,10 @@ export default function Home() {
         </Link>
       </div>
       {/* The guided voice SOS flow (CreateNeedVoiceGuide.jsx, /create-voice)
-          deliberately has NO entry point here or anywhere else on the site
-          -- still pending approval and, per explicit instruction, meant to
-          stay reachable only via someone testing the direct URL for now. */}
+          deliberately has NO entry point here or anywhere else on the site,
+          per explicit instruction -- reachable only via the direct URL
+          (and gated Algeria-only/admin regardless, see AppConfigurationView/
+          NeedViewSet.create_via_voice_guide, backend). */}
       {/* The footer also carries this link (it's the only entry point to
           /about from every other page), but there it sits far below the
           fold on Home specifically -- shown again here, right under the
