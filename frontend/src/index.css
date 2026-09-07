@@ -1591,6 +1591,23 @@ fieldset {
   display: inline-block;
   margin-block-start: 4px;
 }
+/* "View photo" shortcut inside a marker's own popup (flyer/damage/delivery
+   photo, when the pin has one) -- opens the shared PhotoLightbox (see each
+   map page's own popupopen handler) without closing this popup, so the
+   point's own info stays visible once the photo is dismissed. Styled as a
+   plain link, not a boxed button, to sit naturally among the popup's other
+   <br>-separated lines/links. */
+.popup-photo-btn {
+  display: inline-block;
+  margin-block-start: 4px;
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
 
 /* "Recenter on my location" button, on every browsable map (see
    utils.js's getCurrentPosition + each page's recenterOnMe). Top-right:

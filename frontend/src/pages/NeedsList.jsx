@@ -219,6 +219,13 @@ export default function NeedsList() {
             maxZoom: 19,
           }).addTo(mapRef.current)
           L.control.attribution({ prefix: false }).addTo(mapRef.current)
+          // See CollectionPoints.jsx's own equivalent registration -- wires
+          // up any popup's "view photo" link to the shared PhotoLightbox
+          // without closing the popup underneath it.
+          mapRef.current.on('popupopen', (e) => {
+            const btn = e.popup.getElement()?.querySelector('.popup-photo-btn')
+            if (btn) btn.onclick = () => setLightboxPhoto(btn.dataset.photoUrl)
+          })
         }
         const map = mapRef.current
         markersRef.current.forEach((m) => map.removeLayer(m))
@@ -234,9 +241,12 @@ export default function NeedsList() {
           const marker = L.marker([p.display_latitude, p.display_longitude], { icon }).addTo(map)
           const gpsNote = p.has_exact_position ? '' : `<br><em>${t('common.noExactGpsPosition')}</em>`
           const urgencyPrefix = p.urgency !== 'medium' ? `${t(`urgency.${p.urgency}`)} — ` : ''
+          const photoBtn = p.photo
+            ? `<br><button type="button" class="popup-photo-btn" data-photo-url="${p.photo}">📷 ${t('common.viewPhoto')}</button>`
+            : ''
           marker.bindPopup(
             `<strong>${p.title}</strong><br>${urgencyPrefix}${p.wilaya_name}<br>${(p.location_description || '').slice(0, 80)}` +
-              `<br>${statusLabel(t, p.overall_status)}${gpsNote}<br><a href="/needs/${p.id}">${t('common.open')}</a>`
+              `<br>${statusLabel(t, p.overall_status)}${gpsNote}<br><a href="/needs/${p.id}">${t('common.open')}</a>${photoBtn}`
           )
           markers.push(marker)
         })
