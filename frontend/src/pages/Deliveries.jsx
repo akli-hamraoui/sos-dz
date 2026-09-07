@@ -7,6 +7,7 @@ import { useDialog } from '../context/DialogContext'
 import { api } from '../api'
 import { maskPhone, formatDate, getCurrentPosition, RECENTER_BOX_METERS } from '../utils'
 import { fetchDrivingRoute, ROUTE_COLOR } from '../routing'
+import { flyerPopupButtonHtml } from '../mapMarkers'
 import PhotoThumb from '../components/PhotoThumb'
 import PhotoLightbox from '../components/PhotoLightbox'
 import { IconTruck, IconLocate, IconExpand, IconClose } from '../icons'
@@ -167,6 +168,13 @@ export default function Deliveries() {
           maxZoom: 19,
         }).addTo(mapRef.current)
         L.control.attribution({ prefix: false }).addTo(mapRef.current)
+        // See CollectionPoints.jsx's own equivalent registration -- wires
+        // up any popup's "view photo" link to the shared PhotoLightbox
+        // without closing the popup underneath it.
+        mapRef.current.on('popupopen', (e) => {
+          const btn = e.popup.getElement()?.querySelector('.popup-photo-btn')
+          if (btn) btn.onclick = () => setLightboxPhoto(btn.dataset.photoUrl)
+        })
       }
       const map = mapRef.current
       markersRef.current.forEach((m) => map.removeLayer(m))
@@ -209,10 +217,12 @@ export default function Deliveries() {
         const statusLine = loc.is_live
           ? t('deliveries.liveMarkerLabel')
           : t('deliveries.departureMarkerLabel') + (loc.departure_description ? ` (${loc.departure_description})` : '')
+        const photoBtn = flyerPopupButtonHtml(t, loc.photo)
         marker.bindPopup(
           `<strong>${loc.responder_name}</strong><br>${t('deliveries.bringing')}: ${loc.content_brought || '—'}<br>` +
             `<em>${statusLine}</em><br><a href="/pickups/${loc.pickup_id}">${t('deliveries.viewTransporterDetail')}</a>` +
-            `<br><a href="${destHref}">${destLabel}</a>`
+            `<br><a href="${destHref}">${destLabel}</a>` +
+            (photoBtn ? `<br>${photoBtn}` : '')
         )
         // Trajectory to the destination on click -- silently skipped (no
         // line, no error, the rest of the marker/popup still works) when

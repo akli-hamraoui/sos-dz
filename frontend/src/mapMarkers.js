@@ -73,6 +73,25 @@ export function formatApproxKm(km) {
   return km.toFixed(1)
 }
 
+// "View flyer" shortcut icon inside a marker's own popup -- a plain image
+// glyph (not a camera) since what's behind it is a flyer/damage/delivery
+// photo already taken, not something the popup itself photographs. Sized
+// to sit inline with the popup's own text instead of towering over it.
+const FLYER_ICON_SVG =
+  '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ' +
+  'stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><rect x="3" y="3" width="18" height="18" rx="2.5"/>' +
+  '<circle cx="9" cy="9" r="1.8"/><path d="m21 15-4.5-4.5a2 2 0 0 0-2.8 0L6 18"/></svg>'
+
+// Builds the "view flyer" popup button (or '' when the pin has no photo).
+// Deliberately laid out separately from the popup's own "Ouvrir" link (see
+// each map page's popupopen handler + the .popup-actions row in index.css)
+// rather than stacked directly under it, so the two don't read as one
+// cramped block.
+export function flyerPopupButtonHtml(t, photoUrl) {
+  if (!photoUrl) return ''
+  return `<button type="button" class="popup-photo-btn" data-photo-url="${photoUrl}">${FLYER_ICON_SVG} ${t('common.viewFlyer')}</button>`
+}
+
 export function needPopupHtml(t, p, statusLabel) {
   const gpsNote = p.has_exact_position ? '' : `<br><em>${t('common.noExactGpsPosition')}</em>`
   const urgencyPrefix = p.urgency !== 'medium' ? `${t(`urgency.${p.urgency}`)} — ` : ''

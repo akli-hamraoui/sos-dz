@@ -6,6 +6,7 @@ import { useApp } from '../context/AppContext'
 import { useDialog } from '../context/DialogContext'
 import { api } from '../api'
 import { urgencyColor, haversineKm, isInAlgeria, getCurrentPosition, RECENTER_BOX_METERS } from '../utils'
+import { flyerPopupButtonHtml } from '../mapMarkers'
 import PhotoThumb from '../components/PhotoThumb'
 import PhotoLightbox from '../components/PhotoLightbox'
 import { IconLocate, IconExpand, IconClose } from '../icons'
@@ -223,6 +224,13 @@ export default function NeedsList() {
             maxZoom: 19,
           }).addTo(mapRef.current)
           L.control.attribution({ prefix: false }).addTo(mapRef.current)
+          // See CollectionPoints.jsx's own equivalent registration -- wires
+          // up any popup's "view photo" link to the shared PhotoLightbox
+          // without closing the popup underneath it.
+          mapRef.current.on('popupopen', (e) => {
+            const btn = e.popup.getElement()?.querySelector('.popup-photo-btn')
+            if (btn) btn.onclick = () => setLightboxPhoto(btn.dataset.photoUrl)
+          })
         }
         const map = mapRef.current
         markersRef.current.forEach((m) => map.removeLayer(m))
@@ -238,9 +246,11 @@ export default function NeedsList() {
           const marker = L.marker([p.display_latitude, p.display_longitude], { icon }).addTo(map)
           const gpsNote = p.has_exact_position ? '' : `<br><em>${t('common.noExactGpsPosition')}</em>`
           const urgencyPrefix = p.urgency !== 'medium' ? `${t(`urgency.${p.urgency}`)} — ` : ''
+          const photoBtn = flyerPopupButtonHtml(t, p.photo)
           marker.bindPopup(
             `<strong>${p.title}</strong><br>${urgencyPrefix}${p.wilaya_name}<br>${(p.location_description || '').slice(0, 80)}` +
-              `<br>${statusLabel(t, p.overall_status)}${gpsNote}<br><a href="/needs/${p.id}">${t('common.open')}</a>`
+              `<br>${statusLabel(t, p.overall_status)}${gpsNote}` +
+              `<div class="popup-actions">${photoBtn}<a href="/needs/${p.id}">${t('common.open')}</a></div>`
           )
           markers.push(marker)
         })
