@@ -7,7 +7,7 @@ import { useDialog } from '../context/DialogContext'
 import { api } from '../api'
 import { haversineKm, isInAlgeria, getCurrentPosition, RECENTER_BOX_METERS } from '../utils'
 import { fetchDrivingRoute, COLLECTION_POINT_ROUTE_COLOR } from '../routing'
-import { countryFlagEmoji, formatApproxKm } from '../mapMarkers'
+import { countryFlagEmoji, formatApproxKm, flyerPopupButtonHtml } from '../mapMarkers'
 import { IconLocate, IconExpand, IconClose, IconGlobeColor } from '../icons'
 import PhotoThumb from '../components/PhotoThumb'
 import PhotoLightbox from '../components/PhotoLightbox'
@@ -336,16 +336,15 @@ export default function CollectionPoints() {
           // every popup open (see myPosRef above), so it always reflects
           // whatever position is known *at open time* rather than freezing
           // whatever was known back when this marker was first built.
-          const photoBtn = p.flyer_image
-            ? `<br><button type="button" class="popup-photo-btn" data-photo-url="${p.flyer_image}">📷 ${t('common.viewPhoto')}</button>`
-            : ''
+          const photoBtn = flyerPopupButtonHtml(t, p.flyer_image)
           marker.bindPopup(() => {
             const distanceNote = myPosRef.current
               ? `<br>${t('map.approxDistance', { km: formatApproxKm(haversineKm(myPosRef.current, [p.display_latitude, p.display_longitude])) })}`
               : ''
             return (
               `<strong>${p.point_name} ${countryFlagEmoji(p.country_code)}</strong><br>${p.contact_name}${p.organization ? '<br>' + p.organization : ''}` +
-              `${p.hours ? '<br>' + p.hours : ''}<br>${p.wilaya_name}${gpsNote}${distanceNote}<br><a href="/collection-points/${p.id}">${t('common.open')}</a>${photoBtn}`
+              `${p.hours ? '<br>' + p.hours : ''}<br>${p.wilaya_name}${gpsNote}${distanceNote}` +
+              `<div class="popup-actions">${photoBtn}<a href="/collection-points/${p.id}">${t('common.open')}</a></div>`
             )
           })
           markers.push(marker)
