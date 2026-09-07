@@ -325,6 +325,7 @@ a {
 .quick-actions-btn:hover {
   background: #f2f2f2;
 }
+.quick-actions-create,
 .quick-actions-deliver {
   position: relative;
 }
@@ -344,6 +345,9 @@ a {
   min-width: 200px;
 }
 .quick-actions-menu a {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   padding: 8px 10px;
   border-radius: 8px;
   text-decoration: none;
@@ -649,6 +653,37 @@ main {
   font-size: 13px;
   line-height: 1.5;
   color: var(--text-muted);
+}
+/* A regular phone held in portrait (iPhone SE up through the taller
+   modern phones, ~650-850px of logical height) still doesn't leave room
+   for the fixed topbar + quick-actions bar above and the fixed bottom nav
+   below without scrolling to the 4 action buttons and "Qui sommes-nous" --
+   the clamp()s above alone (tuned against a bare viewport height, with no
+   allowance for that ~150px of fixed chrome) fit a tall/desktop window but
+   not a real phone. Doesn't touch home-description/home-faq (unlike the
+   even-shorter tier below) -- those are already expected to need a scroll,
+   only the 4 buttons + about link need to fit without one. */
+@media (max-height: 850px) {
+  .home {
+    padding-top: clamp(4px, 4svh, 60px);
+  }
+  .home-logo {
+    width: 190px;
+  }
+  .home-tagline {
+    margin-block-start: 0;
+  }
+  .home-actions {
+    margin-block-start: clamp(8px, 3svh, 32px);
+    gap: 10px;
+  }
+  .home-actions .btn {
+    padding: 10px 16px;
+    min-height: 52px;
+  }
+  .home-about-link {
+    margin-block-start: clamp(2px, 1svh, 12px);
+  }
 }
 /* A short phone viewport (confirmed down to 320x568, the smallest still
    in real use) needs more compacting than the clamp()s above alone can

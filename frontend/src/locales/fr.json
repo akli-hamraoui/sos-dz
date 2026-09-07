@@ -400,6 +400,7 @@
     "viewTransporterDetail": "Voir les détails du transporteur"
   },
   "quickActions": {
+    "create": "+ Collecte",
     "national": "+ Collecte en Algérie",
     "international": "+ Collecte en dehors de l'Algérie",
     "deliver": "Livrer"

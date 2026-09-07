@@ -37,6 +37,7 @@ import {
   IconClose,
   IconAlgeriaFlag,
   IconGlobeColor,
+  IconPlus,
 } from './icons'
 
 // Small "this opens a map" cue on a bottom-nav icon -- Besoins/Points de
@@ -182,7 +183,19 @@ function TopNavLinks({ isActive, isAdmin }) {
 // which page's own filters are open or closed.
 function QuickActions() {
   const { t } = useTranslation()
+  const [createMenuOpen, setCreateMenuOpen] = useState(false)
   const [deliverMenuOpen, setDeliverMenuOpen] = useState(false)
+
+  // Closes the Algérie/international choice menu on an outside click --
+  // same pattern as Home's own equivalent menu (Home.jsx).
+  useEffect(() => {
+    if (!createMenuOpen) return
+    const onDocClick = (e) => {
+      if (!e.target.closest('.quick-actions-create')) setCreateMenuOpen(false)
+    }
+    document.addEventListener('click', onDocClick)
+    return () => document.removeEventListener('click', onDocClick)
+  }, [createMenuOpen])
 
   // Closes the delivery-destination menu on an outside click -- it isn't
   // a native <select>/<details>, so nothing does this for free.
@@ -197,14 +210,33 @@ function QuickActions() {
 
   return (
     <div className="quick-actions">
-      <Link to="/collection-points/create" className="quick-actions-btn" title={t('collectionPoints.addButton')}>
-        <IconAlgeriaFlag width={16} height={16} />
-        <span>{t('quickActions.national')}</span>
-      </Link>
-      <Link to="/international-collection-points/create" className="quick-actions-btn" title={t('internationalCollectionPoints.addButton')}>
-        <IconGlobeColor width={16} height={16} />
-        <span>{t('quickActions.international')}</span>
-      </Link>
+      {/* One "+ Collecte" pill instead of two separate Algérie/international
+          ones -- on a narrow phone screen the two used to wrap onto a
+          second row, pushing this whole bar (and everything below it) down.
+          Same choice-menu pattern as the deliver pill below and Home's own
+          "create a collection point" button. */}
+      <div className="quick-actions-create">
+        <button
+          type="button"
+          className="quick-actions-btn"
+          title={t('collectionPoints.addButton') + ' / ' + t('internationalCollectionPoints.addButton')}
+          aria-expanded={createMenuOpen}
+          onClick={() => setCreateMenuOpen((v) => !v)}
+        >
+          <IconPlus width={16} height={16} strokeWidth={2} />
+          <span>{t('quickActions.create')}</span>
+        </button>
+        {createMenuOpen && (
+          <div className="quick-actions-menu">
+            <Link to="/collection-points/create" onClick={() => setCreateMenuOpen(false)}>
+              <IconAlgeriaFlag width={16} height={16} /> {t('home.createCollectionPointAlgeria')}
+            </Link>
+            <Link to="/international-collection-points/create" onClick={() => setCreateMenuOpen(false)}>
+              <IconGlobeColor width={16} height={16} /> {t('home.createCollectionPointInternational')}
+            </Link>
+          </div>
+        )}
+      </div>
       <div className="quick-actions-deliver">
         <button
           type="button"
@@ -310,7 +342,19 @@ export default function App() {
 
   useEffect(() => {
     setNavOpen(false) // close the mobile menu on every navigation
+    // Land on every new page at its own top -- react-router's client-side
+    // navigation doesn't reset scroll like a real page load does, so
+    // without this a page opened while scrolled down on the previous one
+    // would render already scrolled to that same offset.
+    window.scrollTo(0, 0)
   }, [location.pathname])
+
+  // Stops the browser's own back/forward scroll-restoration from fighting
+  // the reset above -- without this, navigating back could still jump to
+  // whatever offset the browser remembered instead of staying at the top.
+  useEffect(() => {
+    if ('scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'
+  }, [])
 
   return (
     <>

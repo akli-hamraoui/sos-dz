@@ -7,7 +7,7 @@ import { useDialog } from '../context/DialogContext'
 import { api } from '../api'
 import { maskPhone, formatDate, getCurrentPosition, RECENTER_BOX_METERS } from '../utils'
 import { fetchDrivingRoute, ROUTE_COLOR } from '../routing'
-import { flyerPopupButtonHtml } from '../mapMarkers'
+import { flyerPopupButtonHtml, attachPopupPinchZoom } from '../mapMarkers'
 import PhotoThumb from '../components/PhotoThumb'
 import PhotoLightbox from '../components/PhotoLightbox'
 import { IconTruck, IconLocate, IconExpand, IconClose } from '../icons'
@@ -174,6 +174,7 @@ export default function Deliveries() {
         mapRef.current.on('popupopen', (e) => {
           const btn = e.popup.getElement()?.querySelector('.popup-photo-btn')
           if (btn) btn.onclick = () => setLightboxPhoto(btn.dataset.photoUrl)
+          attachPopupPinchZoom(e.popup.getElement())
         })
       }
       const map = mapRef.current

@@ -6,7 +6,7 @@ import { useDialog } from '../context/DialogContext'
 import { api } from '../api'
 import { geocodeCountryBounds, getCurrentPosition, haversineKm, RECENTER_BOX_METERS } from '../utils'
 import { fetchDrivingRoute, COLLECTION_POINT_ROUTE_COLOR } from '../routing'
-import { countryFlagEmoji, formatApproxKm, flyerPopupButtonHtml } from '../mapMarkers'
+import { countryFlagEmoji, formatApproxKm, flyerPopupButtonHtml, attachPopupPinchZoom } from '../mapMarkers'
 import CountryOrPlaceSearch from '../components/CountryOrPlaceSearch'
 import PhotoThumb from '../components/PhotoThumb'
 import PhotoLightbox from '../components/PhotoLightbox'
@@ -236,6 +236,7 @@ export default function InternationalCollectionPoints() {
           mapRef.current.on('popupopen', (e) => {
             const btn = e.popup.getElement()?.querySelector('.popup-photo-btn')
             if (btn) btn.onclick = () => setLightboxPhoto(btn.dataset.photoUrl)
+            attachPopupPinchZoom(e.popup.getElement())
           })
         }
         const map = mapRef.current

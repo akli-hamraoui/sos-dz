@@ -400,6 +400,7 @@
     "viewTransporterDetail": "View transporter details"
   },
   "quickActions": {
+    "create": "+ Collection point",
     "national": "+ Collection point in Algeria",
     "international": "+ Collection point outside Algeria",
     "deliver": "Deliver"

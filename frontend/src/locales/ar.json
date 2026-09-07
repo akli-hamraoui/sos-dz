@@ -400,6 +400,7 @@
     "viewTransporterDetail": "عرض تفاصيل المتطوع"
   },
   "quickActions": {
+    "create": "+ تجميع",
     "national": "+ تجميع في الجزائر",
     "international": "+ تجميع خارج الجزائر",
     "deliver": "توصيل"
