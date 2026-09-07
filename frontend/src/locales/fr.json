@@ -29,7 +29,7 @@
     "approxLocationPopup": "{{count}} points sans adresse précise ici — cliquer pour voir la liste",
     "openInMaps": "Voir sur Google Maps",
     "adminContact": "Contact admin",
-    "searchPlaceholder": "Rechercher (nom, description...)",
+    "searchPlaceholder": "association, dons, téléphone, ville, nom, etc.",
     "adminModeBadge": "Mode admin",
     "adminLogout": "se déconnecter",
     "nonOfficialFooterNote": "Site non-officiel, développé et déployé par un bénévole.",
@@ -97,7 +97,6 @@
     "createCollectionPoint": "Créer un point de collecte",
     "createCollectionPointAlgeria": "En Algérie",
     "createCollectionPointInternational": "À l'international",
-    "collectionPointsListHint": "Liste des points de collecte...",
     "summary": "SOSDZ coordonne l'aide d'urgence en Algérie face aux catastrophes naturelles (feux de forêt...) : signalez un besoin, aidez comme bénévole ou transporteur, ou créez un point de collecte de dons."
   },
   "status": {
@@ -181,7 +180,7 @@
     "legendNote": "— les points sans GPS exact sont placés au centre approximatif de la wilaya (« sans position GPS exacte »)",
     "addButton": "+ J'ai besoin d'aide",
     "resetFilters": "Réinitialiser les filtres",
-    "searchPlaceholder": "Rechercher (titre, description, contact, téléphone...)"
+    "searchPlaceholder": "association, dons, téléphone, ville, nom, etc."
   },
   "help": {
     "instructions": "Veuillez choisir sur la carte un point de collecte ou un SOS à aider, ou utiliser la liste ou les filtres.",
@@ -297,7 +296,7 @@
     "title": "Points de collecte",
     "shortIntro": "Point de collecte en Algérie",
     "addButton": "+ Ajouter un point de collecte en Algérie",
-    "searchPlaceholder": "Rechercher (nom, contact, téléphone, description...)",
+    "searchPlaceholder": "association, dons, téléphone, ville, nom, etc.",
     "noPointsYet": "Aucun point de collecte listé pour cette wilaya pour le moment.",
     "viewInternationalOnMap": "Voir les points internationaux",
     "hoursNotSpecified": "horaires non précisés",
@@ -343,7 +342,7 @@
     "viewLink": "🌍 Voir les points de collecte à l'international",
     "intro": "Points de collecte hors d'Algérie, dans le monde entier.",
     "goToNationalLink": "Voir les points de collecte en Algérie",
-    "searchPlaceholder": "Rechercher (nom, association, contact, téléphone, description...)",
+    "searchPlaceholder": "association, dons, téléphone, ville, nom, etc.",
     "noPointsYet": "Aucun point de collecte international listé pour le moment.",
     "locationLabel": "Localisation",
     "locationPlaceholder": "Ville ou pays (ex : Paris, France)",
@@ -367,7 +366,7 @@
     "responder": "Livreur/livreuse",
     "since": "depuis",
     "liveMapNote": "Positions partagées volontairement par les livreurs, mises à jour automatiquement.",
-    "searchPlaceholder": "Rechercher un transporteur (nom, téléphone, email, besoin, point de collecte...)",
+    "searchPlaceholder": "association, dons, téléphone, ville, nom, etc.",
     "yours": "La vôtre",
     "deliverToNeed": "Livrer un besoin",
     "deliverToCollectionPoint": "Livrer vers un point de collecte",

@@ -439,11 +439,9 @@ export default function Deliveries() {
               <option value="without">{t('deliveries.positionWithout')}</option>
             </select>
           </label>
-          {hasActiveFilters && (
-            <button type="button" className="btn" onClick={resetFilters}>
-              {t('deliveries.resetFilters')}
-            </button>
-          )}
+          <button type="button" className="btn" onClick={resetFilters}>
+            {t('deliveries.resetFilters')}
+          </button>
         </div>
       )}
 

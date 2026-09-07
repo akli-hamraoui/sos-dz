@@ -92,11 +92,15 @@ export function flyerPopupButtonHtml(t, photoUrl) {
   return `<button type="button" class="popup-photo-btn" data-photo-url="${photoUrl}">${FLYER_ICON_SVG} ${t('common.viewFlyer')}</button>`
 }
 
-// Lets a two-finger pinch over an open popup zoom the popup's own text/photo
-// instead of the map underneath it -- reported live: the popup's font is
-// small and a reflex pinch over it (the same gesture used everywhere else on
-// the page to zoom the map) was instead panning/zooming the whole map out
-// from under the point the visitor was trying to read. Only a *two*-finger
+// Lets a two-finger pinch over an open popup zoom the whole popup box --
+// background, text and photo button together, not just the text -- instead
+// of the map underneath it. Reported live twice: first that the popup's
+// font is small and a reflex pinch over it (the same gesture used
+// everywhere else on the page to zoom the map) was instead panning/zooming
+// the whole map out from under the point being read; then, once that was
+// fixed by scaling the text alone, that the enlarged text was spilling out
+// past the edges of an unchanged-size box instead of the box growing along
+// with it. Only a *two*-finger
 // touch on the popup itself is intercepted (stopPropagation keeps it from
 // ever reaching Leaflet's own TouchZoom handler on the map container, which
 // listens on that same bubbling touchstart/touchmove); a single finger --
@@ -104,20 +108,32 @@ export function flyerPopupButtonHtml(t, photoUrl) {
 // finger drag -- is left completely alone. Call once per popup, from the
 // map's own 'popupopen' handler (see each map page).
 export function attachPopupPinchZoom(popupEl) {
-  const content = popupEl?.querySelector('.leaflet-popup-content')
-  if (!content) return
+  // The *wrapper* (the actual white rounded box -- background, border,
+  // shadow, close button and all), not just its own .leaflet-popup-content
+  // child -- scaling only the text left the box around it its original
+  // size, so the enlarged text just spilled out past its own edges instead
+  // of the whole popup growing together, reported live (screenshot showed
+  // giant overflowing text next to an unchanged box). Never the outer
+  // .leaflet-popup itself: Leaflet positions that element with its own
+  // `transform: translate3d(...)`, and a second `transform` on the same
+  // element would replace that positioning outright, not add to it.
+  const wrapper = popupEl?.querySelector('.leaflet-popup-content-wrapper')
+  if (!wrapper) return
   // Every open (even a repeat open of the same marker) starts back at the
   // popup's natural size -- a pinch left over from a previous look at this
   // same point shouldn't still be applied the next time it's opened.
-  content.style.transformOrigin = 'top left'
-  content.style.transform = 'scale(1)'
-  content._pinchScale = 1
+  // Bottom-center origin (roughly where the little tip/arrow meets the
+  // box) so pinching grows the popup from the point anchored to the map,
+  // instead of drifting away from it.
+  wrapper.style.transformOrigin = 'center bottom'
+  wrapper.style.transform = 'scale(1)'
+  wrapper._pinchScale = 1
   // Each marker keeps the same popup DOM element across repeated opens, and
   // 'popupopen' fires again on every one of those -- guard against wiring
   // the same element's touch listeners more than once (they'd otherwise
   // pile up, each firing the same pinch on every later touch).
-  if (content.dataset.pinchZoomWired) return
-  content.dataset.pinchZoomWired = '1'
+  if (wrapper.dataset.pinchZoomWired) return
+  wrapper.dataset.pinchZoomWired = '1'
   let startDist = 0
   let startScale = 1
 
@@ -128,7 +144,7 @@ export function attachPopupPinchZoom(popupEl) {
     e.preventDefault()
     e.stopPropagation()
     startDist = touchDist(e.touches)
-    startScale = content._pinchScale
+    startScale = wrapper._pinchScale
   }
   const onTouchMove = (e) => {
     if (e.touches.length !== 2 || !startDist) return
@@ -136,17 +152,17 @@ export function attachPopupPinchZoom(popupEl) {
     e.stopPropagation()
     // Clamped 1x-3x -- shrinking below the popup's own natural size would
     // make it harder to read, the opposite of the point of this gesture.
-    content._pinchScale = Math.min(3, Math.max(1, startScale * (touchDist(e.touches) / startDist)))
-    content.style.transform = `scale(${content._pinchScale})`
+    wrapper._pinchScale = Math.min(3, Math.max(1, startScale * (touchDist(e.touches) / startDist)))
+    wrapper.style.transform = `scale(${wrapper._pinchScale})`
   }
   const onTouchEnd = (e) => {
     if (e.touches.length >= 2) return
     startDist = 0
   }
-  content.addEventListener('touchstart', onTouchStart, { passive: false })
-  content.addEventListener('touchmove', onTouchMove, { passive: false })
-  content.addEventListener('touchend', onTouchEnd, { passive: false })
-  content.addEventListener('touchcancel', onTouchEnd, { passive: false })
+  wrapper.addEventListener('touchstart', onTouchStart, { passive: false })
+  wrapper.addEventListener('touchmove', onTouchMove, { passive: false })
+  wrapper.addEventListener('touchend', onTouchEnd, { passive: false })
+  wrapper.addEventListener('touchcancel', onTouchEnd, { passive: false })
 }
 
 // Lets a two-finger pinch zoom the map immediately, even before the usual
