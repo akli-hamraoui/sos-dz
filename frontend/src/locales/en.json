@@ -89,12 +89,17 @@
   },
   "home": {
     "privacyNotice": "Information from associations, aid requests and couriers (name, phone, address, collection points) is public so volunteers can contact you.\n* Phone numbers are not required.\n* You can anonymize your information at any time.",
+    "kicker": "Solidarity · Mutual aid · Action",
     "tagline": "Coordinating relief following the wildfires in Algeria.",
     "iNeedHelp": "Send an SOS",
+    "iNeedHelpSubtitle": "Need urgent help? Report a need now.",
     "iWantToHelp": "I want to help",
     "collectionPointsAlgeria": "Collection points in Algeria",
+    "collectionPointsAlgeriaSubtitle": "Find the collection points near you.",
     "collectionPointsInternational": "Collection points abroad",
+    "collectionPointsInternationalSubtitle": "Discover collection points abroad.",
     "createCollectionPoint": "Create a collection point",
+    "createCollectionPointSubtitle": "Add a new collection point in your area.",
     "createCollectionPointAlgeria": "In Algeria",
     "createCollectionPointInternational": "Internationally",
     "summary": "SOSDZ coordinates emergency relief in Algeria in response to natural disasters (wildfires...): report a need, help as a volunteer or delivery driver, or set up a donation collection point."

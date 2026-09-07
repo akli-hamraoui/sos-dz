@@ -89,12 +89,17 @@
   },
   "home": {
     "privacyNotice": "معلومات الجمعيات وطلبات المساعدة والموصّلين (الاسم، الهاتف، العنوان، نقاط التجميع) متاحة للعموم لتمكين المتطوعين من التواصل معكم.\n* رقم الهاتف غير إلزامي.\n* يمكنكم إخفاء هويتكم في أي وقت.",
+    "kicker": "تضامن · تكافل · عمل",
     "tagline": "تنسيق المساعدات إثر حرائق الغابات في الجزائر.",
     "iNeedHelp": "أطلق نداء SOS",
+    "iNeedHelpSubtitle": "بحاجة لمساعدة عاجلة؟ أبلغ عن احتياجك الآن.",
     "iWantToHelp": "أريد المساعدة",
     "collectionPointsAlgeria": "نقاط التجميع في الجزائر",
+    "collectionPointsAlgeriaSubtitle": "ابحث عن نقاط التجميع بالقرب منك.",
     "collectionPointsInternational": "نقاط التجميع الدولية",
+    "collectionPointsInternationalSubtitle": "اكتشف نقاط التجميع في الخارج.",
     "createCollectionPoint": "إنشاء نقطة تجميع",
+    "createCollectionPointSubtitle": "أضف نقطة تجميع جديدة في منطقتك.",
     "createCollectionPointAlgeria": "في الجزائر",
     "createCollectionPointInternational": "دوليًا",
     "summary": "SOS DZ تنسّق المساعدة الطارئة في الجزائر في مواجهة الكوارث الطبيعية (حرائق الغابات...): أبلغ عن احتياج، ساعد كمتطوع أو ناقل، أو أنشئ نقطة لتجميع التبرعات."

@@ -191,6 +191,32 @@ export function IconGlobe(props) {
   )
 }
 
+// Speech-bubble "SOS" mark -- the Home page's own big SOS card icon (design
+// pack asset), distinct from the masked need-marker-sos.png used for map
+// pins/the footer FAB elsewhere: this one needs to render at an arbitrary
+// currentColor (white-on-red here) at a much bigger size, which a raster
+// mask handles worse than a real vector shape with the label baked in.
+export function IconSosBubble(props) {
+  return (
+    <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="2.5" {...props}>
+      <path d="M24 7C13.5 7 5 13.7 5 22c0 4.4 2.4 8.3 6.3 11l-1.4 7.2 7-4.6c2.2.7 4.6 1 7.1 1 10.5 0 19-6.7 19-15S34.5 7 24 7Z" />
+      <text x="24" y="27" textAnchor="middle" fontSize="11" fontFamily="Arial" fontWeight="700" fill="currentColor" stroke="none">
+        SOS
+      </text>
+    </svg>
+  )
+}
+
+// Plain disclosure chevron ("this row opens something") -- the Home page's
+// own card rows, see .home-card-arrow.
+export function IconChevronRight(props) {
+  return (
+    <svg {...base} {...props}>
+      <path d="m9 6 6 6-6 6" />
+    </svg>
+  )
+}
+
 // Real-color icons -- deliberately not stroke/currentColor like the rest of
 // this file's flat monochrome language above. Used only for the two Home
 // page collection-point buttons, where a recognizable colored flag/globe

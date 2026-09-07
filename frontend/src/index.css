@@ -435,7 +435,7 @@ main {
      making it invisible no matter the opacity. */
   z-index: 0;
   overflow: hidden;
-  text-align: center;
+  text-align: start;
 }
 .home::before {
   /* A barely-there map hint in the clear space above the logo -- a real
@@ -478,141 +478,170 @@ main {
     background-image: url('/backgrounds/home-map-hint-lg.jpg');
   }
 }
-.home-logo {
-  display: block;
-  width: clamp(260px, 45vw, 480px);
-  max-width: 100%;
-  height: auto;
-  margin-inline: auto;
+/* Card-based redesign per SOSDZ_Claude_Design_Pack (design-system.md/
+   colors.md/PROMPT_CLAUDE.md) + its reference mobile screenshot: rounded
+   white/light-tinted cards, no thick borders, generous spacing ("il ne
+   faut pas les rapprocher sinon on risque de cliquer sur le mauvais"),
+   one action per card, SOS the one strongly-colored/bigger exception. */
+.home-kicker {
+  display: inline-block;
+  background: #e8f7ef;
+  color: #087a4b;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 6px 14px;
+  border-radius: 999px;
 }
 .home-tagline {
-  /* Sits over the background photo, same contrast need as
-     .home-about-link below. Tight against the logo right above it
-     (was 10px) now that nothing else sits between them. */
-  margin-block: 2px 0;
-  color: var(--text);
-  font-size: 15px;
+  margin-block: 10px 0;
+  color: #102a43;
+  font-size: 16px;
   font-weight: 500;
-  max-width: 420px;
-  margin-inline: auto;
+  max-width: 480px;
 }
-/* PREVIEW: 2x2 grid of square tiles, to compare against the regular
-   stacked-pill layout above -- requested explicitly ("2 boutons carré par
-   ligne espacé, pour voir le résultat"), not yet a decided replacement.
-   Fixed (not 1fr) column width -- first pass filled the container's full
-   max-width, reported as too big; a fixed size shrinks the tiles
-   themselves while keeping this exact same gap and centered positioning
-   on every viewport, mobile through desktop alike. */
 .home-actions {
-  display: grid;
-  grid-template-columns: repeat(2, 120px);
-  justify-content: center;
-  /* "Espacé" -- deliberately more generous than the stacked layout's own
-     16px, since a mis-tap between two adjacent tiles is easier here (both
-     dimensions are close together, not just a shared vertical edge). */
-  gap: 20px;
-  margin-block-start: clamp(16px, 8svh, 64px);
-  max-width: 420px;
-  margin-inline: auto;
-}
-.home-actions .btn {
-  box-sizing: border-box;
-  width: 100%;
-  aspect-ratio: 1;
   display: flex;
   flex-direction: column;
+  /* "Espacer suffisamment ... pour éviter les mauvais clics" -- a full
+     card-height gap, not just a thin line between rows. */
+  gap: 20px;
+  margin-block-start: clamp(20px, 6svh, 40px);
+  max-width: 480px;
+}
+.home-card {
+  box-sizing: border-box;
+  display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  text-align: center;
-  padding: 10px;
-  /* Flat social-app icon-grid look (reference screenshot: Facebook/
-     Instagram/YouTube.../Pinterest app icons) -- solid border, no
-     shadow, moderately rounded corners, rather than the previous
-     shadow-and-no-border "Instagram tile" pass. */
+  gap: 16px;
+  width: 100%;
+  padding: 20px;
+  min-height: 48px;
+  border: none;
+  border-radius: 20px;
   background: #fff;
-  border: 2.5px solid #111;
-  border-radius: 18px;
+  box-shadow: 0 2px 10px rgba(16, 42, 67, 0.07);
+  text-decoration: none;
+  text-align: start;
+  font: inherit;
+  cursor: pointer;
   transition: transform 0.12s ease;
 }
-.home-actions .btn:active {
-  transform: scale(0.95);
+.home-card:active {
+  transform: scale(0.98);
 }
-/* .btn-huge's own 18px/22px padding (used elsewhere at a much bigger
-   size) is too large for this tile's fixed box -- overridden here rather
-   than in .btn-huge itself, which other pages may still rely on at its
-   original size. */
-.home-actions .btn-huge {
-  font-size: 13px;
-}
-.btn.home-btn-sos {
-  /* The grid's one red tile (the urgent action) -- every other tile
-     stays black-on-white, matching the reference's black-icon-on-white
-     look; red flags this one as different on purpose. */
-  background: #fff;
-  color: #d33d42;
-  border-color: #d33d42;
-}
-.icon-sos {
-  display: inline-block;
-  width: 24px;
-  height: 24px;
+.home-card-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
   flex-shrink: 0;
-  /* Same red as this tile's own border/label text (see .home-btn-sos) --
-     background-color + mask-image tints the source PNG (a solid black
-     shape on a transparent background) to this exact color, which a CSS
-     filter chain (invert/hue-rotate) can't do reliably. */
-  background-color: #d33d42;
-  -webkit-mask-image: url('/icons/need-marker-sos.png');
-  mask-image: url('/icons/need-marker-sos.png');
-  -webkit-mask-size: contain;
-  mask-size: contain;
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-position: center;
-  mask-position: center;
 }
-.btn.home-btn-outline {
-  background: #fff;
-  color: var(--accent);
+.home-card-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
 }
-/* Used only for the "Créer un point de collecte" button now (still
-   black-on-white, like every other tile except the red SOS one -- no
-   longer visually distinct via an inverted black background, since the
-   reference look is a uniform grid of white icon tiles). */
-.btn.home-btn-black {
-  background: #fff;
-  color: #111;
-}
-/* Used instead of .btn-huge on the two collection-point buttons -- still
-   a bit tighter than the regular stacked-pill layout's own font-size, to
-   comfortably fit a two-line label inside the square tile above. */
-.home-btn-compact {
-  font-size: 11.5px;
+.home-card-title {
+  font-size: 17px;
   font-weight: 600;
-  line-height: 1.2;
+  color: #102a43;
 }
-/* Small trailing "this opens a map" cue on the two collection-point
-   buttons -- muted/smaller than the flag/globe icon so it reads as a
-   subordinate hint, not a second equally-weighted icon. */
-.home-btn-map-hint {
-  color: var(--text-muted);
+.home-card-subtitle {
+  font-size: 13.5px;
+  font-weight: 400;
+  color: #64748b;
+  line-height: 1.35;
+}
+.home-card-arrow-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
   flex-shrink: 0;
+  margin-inline-start: auto;
 }
-/* Wraps the 4th home button (opens a small Algérie/international choice
-   menu instead of navigating directly) -- this div, not the <button>
-   itself, is the actual grid item inside .home-actions (the button sits
-   one level deeper so the dropdown below can anchor to it), so the
-   square sizing that the other 3 buttons get straight from
-   `.home-actions .btn` needs repeating here on the wrapper instead. */
+.home-card-arrow-open {
+  transform: rotate(90deg);
+}
+.home-card-icon svg,
+.home-card-arrow-badge svg {
+  transition: transform 0.15s ease;
+}
+
+.home-card-green .home-card-icon {
+  background: #087a4b;
+  color: #fff;
+}
+.home-card-green {
+  background: #e8f7ef;
+}
+.home-card-green .home-card-arrow-badge {
+  background: #cfeedd;
+  color: #087a4b;
+}
+
+.home-card-blue .home-card-icon {
+  background: #1976d2;
+  color: #fff;
+}
+.home-card-blue {
+  background: #eaf3ff;
+}
+.home-card-blue .home-card-arrow-badge {
+  background: #d3e7fd;
+  color: #1976d2;
+}
+
+.home-card-orange .home-card-icon {
+  background: #e68a00;
+  color: #fff;
+}
+.home-card-orange {
+  background: #fff4df;
+  width: 100%;
+}
+.home-card-orange .home-card-arrow-badge {
+  background: #ffe8be;
+  color: #e68a00;
+}
+
+/* The one strongly-colored, bigger card -- "priorité visuelle très
+   claire" for SOS, per the design pack (every other card stays a light
+   tint; red is reserved for SOS/urgence everywhere else in the app too). */
+.home-card-sos {
+  background: #e53935;
+  padding: 24px 20px;
+  box-shadow: 0 8px 20px rgba(229, 57, 53, 0.3);
+}
+.home-card-sos .home-card-icon {
+  background: #fff;
+  color: #e53935;
+}
+.home-card-sos .home-card-title {
+  color: #fff;
+  font-size: 19px;
+  font-weight: 700;
+}
+.home-card-sos .home-card-subtitle {
+  color: rgba(255, 255, 255, 0.85);
+}
+.home-card-sos .home-card-arrow-badge {
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+}
+
+/* Wraps the "Créer un point de collecte" card (opens a small Algérie/
+   international choice menu instead of navigating directly) -- this div,
+   not the <button> itself, is what the dropdown below anchors to. */
 .home-btn-create {
   position: relative;
-  width: 100%;
-  aspect-ratio: 1;
-}
-.home-btn-create .btn {
-  width: 100%;
-  height: 100%;
 }
 .home-btn-create-menu {
   position: absolute;
@@ -658,7 +687,6 @@ main {
   font-size: 13px;
   line-height: 1.5;
   max-width: 480px;
-  margin-inline: auto;
 }
 .home-faq {
   margin-block-start: 32px;
@@ -696,22 +724,23 @@ main {
   .home {
     padding-top: clamp(4px, 2svh, 36px);
   }
-  .home-logo {
-    width: 140px;
-  }
   .home-tagline {
-    margin-block-start: 0;
+    margin-block-start: 6px;
   }
   .home-actions {
-    /* A touch more breathing room than the buttons' own min-height/gap
-       reduction below leaves on its own -- reported as sitting too high/
-       cramped right under the tagline once the rest of this tier's
-       compacting was in place. */
-    margin-block-start: clamp(10px, 3.5svh, 36px);
-    gap: 14px;
+    /* A touch more breathing room than the cards' own padding reduction
+       below leaves on its own -- reported as sitting too high/cramped
+       right under the tagline once the rest of this tier's compacting
+       was in place. Gap itself is NOT reduced here -- the whole point of
+       this design was more space between cards, not less. */
+    margin-block-start: clamp(14px, 4svh, 32px);
   }
-  .home-actions .btn {
-    padding: 10px;
+  .home-card {
+    padding: 16px;
+  }
+  .home-card-icon {
+    width: 44px;
+    height: 44px;
   }
   .home-about-link {
     margin-block-start: clamp(2px, 1svh, 10px);
@@ -733,19 +762,24 @@ main {
   .home {
     padding-top: 4px;
   }
-  .home-logo {
-    width: 150px;
-  }
   .home-tagline {
-    margin-block-start: 0;
+    margin-block-start: 4px;
   }
   .home-actions {
-    margin-block-start: 4px;
-    gap: 10px;
-    max-width: 280px;
+    margin-block-start: 10px;
+    gap: 12px;
   }
-  .home-actions .btn {
-    padding: 8px;
+  .home-card {
+    padding: 12px 14px;
+    min-height: 40px;
+  }
+  .home-card-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+  }
+  .home-card-subtitle {
+    display: none;
   }
   .home-about-link {
     margin-block-start: 2px;
@@ -2200,4 +2234,14 @@ footer {
 :root[dir='rtl'] .badge,
 :root[dir='rtl'] .status {
   direction: rtl;
+}
+/* The chevron itself is a fixed left-to-right glyph -- logical properties
+   (margin-inline-start, inset-inline) already move the whole badge to the
+   correct side in RTL, but the arrow shape inside it still needs an
+   explicit flip, same technique as .back-btn's own arrow above. */
+:root[dir='rtl'] .home-card-arrow-badge svg {
+  transform: scaleX(-1);
+}
+:root[dir='rtl'] .home-card-arrow-open {
+  transform: scaleX(-1) rotate(90deg);
 }
