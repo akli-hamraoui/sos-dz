@@ -1177,6 +1177,18 @@ class NeedMapPinUnlocatedTests(BaseAPITestCase):
         self.assertTrue(pin["has_no_location"])
         self.assertIsNone(pin["voice_file"])  # no voice recording attached in this payload
 
+    def test_map_pin_exposes_wilaya_id(self):
+        """NeedsList.jsx's "sans localisation" bubble click needs the raw
+        wilaya id (not just wilaya_name) to filter the "Liste" view the
+        same way CollectionPoints.jsx's own .cp-bubble does."""
+        alger = Wilaya.objects.get(name="Alger")
+        resp = self.client.post("/api/needs/", dict(NEED_PAYLOAD, campaign=self.campaign.pk), format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+
+        locations_resp = self.client.get("/api/needs/locations/")
+        pin = next(p for p in locations_resp.data if p["id"] == resp.data["id"])
+        self.assertEqual(pin["wilaya"], alger.pk)
+
     def test_ordinary_need_not_flagged_on_map(self):
         wilaya = self.campaign.authorized_wilayas.exclude(name="Alger").first()
         resp = self.client.post("/api/needs/", dict(NEED_PAYLOAD, campaign=self.campaign.pk, wilaya=wilaya.pk), format="json")

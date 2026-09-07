@@ -410,6 +410,7 @@ class NeedMapPinSerializer(serializers.ModelSerializer):
             "id",
             "title",
             "urgency",
+            "wilaya",
             "wilaya_name",
             "overall_status",
             "location_description",

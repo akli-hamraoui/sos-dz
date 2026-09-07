@@ -71,12 +71,11 @@ export default function NeedsList() {
   // the full rationale -- a search-only change must never move the map.
   const hasFramedRef = useRef(false)
   const prevFilterWilayaRef = useRef(filterWilaya)
-  // Tracks whichever voice recording is currently playing from inside the
-  // "sans localisation" bubble's popup (see below) -- at most one at a
-  // time, so opening a second clip stops the first instead of both playing
-  // over each other, and the pressed button's own label/state need a way
-  // back to "not playing" once playback ends or the popup is closed.
-  const playingAudioRef = useRef({ audio: null, btn: null })
+  // Which need's voice recording (if any) is currently playing in the
+  // "Liste" view below -- at most one at a time, so starting a second clip
+  // stops the first instead of both playing over each other.
+  const [playingNeedId, setPlayingNeedId] = useState(null)
+  const playingAudioRef = useRef(null)
 
   // Debounced so typing doesn't fire a request on every keystroke.
   useEffect(() => {
@@ -84,30 +83,23 @@ export default function NeedsList() {
     return () => clearTimeout(timer)
   }, [searchInput])
 
-  // Stops whatever clip is currently playing (if any) -- used both when a
-  // different button is pressed and when the popup itself closes, so audio
-  // never keeps playing after its list has been dismissed.
-  const stopPlayingAudio = () => {
-    const { audio, btn } = playingAudioRef.current
-    if (!audio) return
-    audio.pause()
-    if (btn) {
-      btn.classList.remove('playing')
-      btn.textContent = `🔊 ${t('needsList.playAudio')}`
-    }
-    playingAudioRef.current = { audio: null, btn: null }
-  }
+  // Stops on unmount (e.g. navigating away from this page mid-playback) --
+  // switching away from the "Liste" view itself doesn't need its own
+  // handling since that view's cards (and this state) simply stop being
+  // rendered/relevant, same as any other React state on an unmounted branch.
+  useEffect(() => () => playingAudioRef.current?.pause(), [])
 
-  const toggleAudioPlayback = (btn) => {
-    const wasThisButton = playingAudioRef.current.btn === btn
-    stopPlayingAudio()
-    if (wasThisButton) return // same button tapped again -- just stop, per the toggle above
-    const audio = new Audio(btn.dataset.audioUrl)
-    audio.addEventListener('ended', () => stopPlayingAudio())
+  const toggleAudio = (needId, url) => {
+    playingAudioRef.current?.pause()
+    if (playingNeedId === needId) {
+      setPlayingNeedId(null) // same button tapped again -- just stop
+      return
+    }
+    const audio = new Audio(url)
+    audio.addEventListener('ended', () => setPlayingNeedId(null))
     audio.play().catch(() => {})
-    btn.classList.add('playing')
-    btn.textContent = `⏸ ${t('needsList.stopAudio')}`
-    playingAudioRef.current = { audio, btn }
+    playingAudioRef.current = audio
+    setPlayingNeedId(needId)
   }
 
   const hasActiveFilters = !!(filterWilaya || searchInput)
@@ -272,18 +264,7 @@ export default function NeedsList() {
             const btn = e.popup.getElement()?.querySelector('.popup-photo-btn')
             if (btn) btn.onclick = () => setLightboxPhoto(btn.dataset.photoUrl)
             attachPopupPinchZoom(e.popup.getElement())
-            // The "sans localisation" bubble's popup can list several SOS
-            // at once, each with its own listen button.
-            e.popup
-              .getElement()
-              ?.querySelectorAll('.popup-audio-btn')
-              .forEach((audioBtn) => {
-                audioBtn.onclick = () => toggleAudioPlayback(audioBtn)
-              })
           })
-          // A clip left playing after its list is dismissed would keep
-          // going with nothing on screen to stop it from.
-          mapRef.current.on('popupclose', () => stopPlayingAudio())
           // Also wired from the overlay's own ref callback (for when it
           // remounts later, e.g. deactivate/reactivate) -- done here too
           // since on first mount that ref callback can fire before this
@@ -301,11 +282,11 @@ export default function NeedsList() {
         // share the same fallback position (the campaign's fallback
         // wilaya's own centroid), so plotting one pin per need would stack
         // them exactly on top of each other. Grouped into one big red
-        // bubble with a count instead -- same "one badge, not N indistinguishable
-        // pins" idea as CollectionPoints.jsx's own .cp-bubble, but this one
-        // opens an in-place list (with a listen button per SOS) rather than
-        // switching to a filtered list view, since these needs don't share
-        // a real wilaya the way approximate collection points do.
+        // bubble with a count instead -- same "one badge, not N
+        // indistinguishable pins" idea as CollectionPoints.jsx's own
+        // .cp-bubble, and (per explicit request) the same click behavior
+        // too: switch to the "Liste" view filtered to that wilaya, rather
+        // than an in-place popup.
         const located = needsWithPos.filter((p) => !p.has_no_location)
         const unlocated = needsWithPos.filter((p) => p.has_no_location)
 
@@ -338,22 +319,11 @@ export default function NeedsList() {
             iconAnchor: [22, 22],
           })
           const marker = L.marker([unlocated[0].display_latitude, unlocated[0].display_longitude], { icon, zIndexOffset: 1000 }).addTo(map)
-          marker.bindTooltip(t('needsList.noLocationBubbleLabel'))
-          const itemsHtml = unlocated
-            .map((p) => {
-              const urgencyPrefix = p.urgency !== 'medium' ? `${t(`urgency.${p.urgency}`)} — ` : ''
-              const audioBtn = p.voice_file
-                ? `<button type="button" class="popup-audio-btn" data-audio-url="${p.voice_file}">🔊 ${t('needsList.playAudio')}</button>`
-                : ''
-              return (
-                `<div class="popup-need-item"><strong>${escapeHtml(p.title)}</strong><br>${urgencyPrefix}${p.wilaya_name}` +
-                `<div class="popup-actions">${audioBtn}<a href="/needs/${p.id}">${t('common.open')}</a></div></div>`
-              )
-            })
-            .join('')
-          marker.bindPopup(
-            `<div class="popup-unlocated-list"><strong>${t('needsList.noLocationBubbleLabel')} (${unlocated.length})</strong>${itemsHtml}</div>`
-          )
+          marker.bindTooltip(`${t('needsList.noLocationBubbleLabel')} (${unlocated.length})`)
+          marker.on('click', () => {
+            if (unlocated[0].wilaya != null) setFilterWilaya(String(unlocated[0].wilaya))
+            setViewMode('list')
+          })
           markers.push(marker)
         }
 
@@ -538,6 +508,26 @@ export default function NeedsList() {
               <p className="status">
                 {statusLabel(t, n.overall_status)} — {t('needsList.pickupsCount', { count: n.pickups.length })}
               </p>
+              {/* A voice-reported SOS (see the guided voice flow) carries
+                  its actual content as an audio recording rather than
+                  text -- offered right here (not just on the detail page)
+                  since this is exactly the list a "sans localisation"
+                  bubble tap lands on (see the map effect above). Stops
+                  the card's own <Link> navigation, same reasoning as
+                  PhotoThumb's own onOpen button elsewhere in this list. */}
+              {n.voice_file && (
+                <button
+                  type="button"
+                  className="need-card-audio-btn"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    toggleAudio(n.id, n.voice_file)
+                  }}
+                >
+                  {playingNeedId === n.id ? `⏸ ${t('needsList.stopAudio')}` : `🔊 ${t('needsList.playAudio')}`}
+                </button>
+              )}
             </Link>
           ))}
         </div>

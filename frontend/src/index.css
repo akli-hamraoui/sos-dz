@@ -1694,8 +1694,7 @@ fieldset {
    point's own info stays visible once the photo is dismissed. Styled as a
    plain link, not a boxed button, to sit naturally among the popup's other
    <br>-separated lines/links. */
-.popup-photo-btn,
-.popup-audio-btn {
+.popup-photo-btn {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -1708,17 +1707,10 @@ fieldset {
   text-decoration: underline;
   cursor: pointer;
 }
-/* Currently-playing state -- see NeedsList.jsx's toggleAudioPlayback,
-   which swaps both the label (🔊 → ⏸) and this class together. */
-.popup-audio-btn.playing {
-  color: var(--danger);
-  text-decoration: none;
-  font-weight: 600;
-}
-/* Row pairing the "view flyer"/"listen" button with the popup's own
-   "Ouvrir" link (CollectionPoints/InternationalCollectionPoints/
-   NeedsList) -- pushed to opposite ends instead of stacked directly on top
-   of each other, which read as one cramped, easy-to-mis-tap block. */
+/* Row pairing the "view flyer" button with the popup's own "Ouvrir" link
+   (CollectionPoints/InternationalCollectionPoints/NeedsList) -- pushed to
+   opposite ends instead of stacked directly on top of each other, which
+   read as one cramped, easy-to-mis-tap block. */
 .leaflet-popup-content .popup-actions {
   display: flex;
   align-items: center;
@@ -1727,24 +1719,28 @@ fieldset {
   margin-block-start: 4px;
 }
 .leaflet-popup-content .popup-actions a,
-.leaflet-popup-content .popup-actions .popup-photo-btn,
-.leaflet-popup-content .popup-actions .popup-audio-btn {
+.leaflet-popup-content .popup-actions .popup-photo-btn {
   margin-block-start: 0;
 }
-/* "Sans localisation" bubble popup (NeedsList.jsx) -- can list several SOS
-   sharing the same fallback position, so it scrolls instead of growing
-   tall enough to push the map off-screen on a short viewport. */
-.popup-unlocated-list {
-  max-height: 260px;
-  overflow-y: auto;
+/* Listen button on a voice-reported SOS's own card in the "Liste" view
+   (NeedsList.jsx) -- e.g. every need a "sans localisation" bubble tap
+   lands on. Boxed/bordered (unlike the plain-link popup buttons above)
+   since it sits among this card's other plain text, not other links. */
+.need-card-audio-btn {
+  margin-block-start: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: 999px;
+  background: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
 }
-.popup-need-item {
-  padding-block: 8px;
-  border-block-start: 1px solid #eee;
-}
-.popup-need-item:first-of-type {
-  border-block-start: none;
-  padding-block-start: 6px;
+.need-card-audio-btn:active {
+  background: #f2f2f2;
 }
 
 /* "Recenter on my location" button, on every browsable map (see
