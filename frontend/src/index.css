@@ -505,7 +505,7 @@ main {
    on every viewport, mobile through desktop alike. */
 .home-actions {
   display: grid;
-  grid-template-columns: repeat(2, 100px);
+  grid-template-columns: repeat(2, 140px);
   justify-content: center;
   /* "Espacé" -- deliberately more generous than the stacked layout's own
      16px, since a mis-tap between two adjacent tiles is easier here (both
@@ -523,9 +523,13 @@ main {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 8px;
   text-align: center;
-  padding: 10px;
+  padding: 14px;
+  /* No border on any tile below -- flat colored/white squares with only a
+     soft shadow for edge definition, closer to an Instagram-style app-icon
+     tile than an outlined button. */
+  border: none;
   /* Modern touch: a soft lift (shadow) at rest, pressed back down on tap
      -- each tile's own shadow color below is tinted to match its
      background instead of a flat generic black, so it reads as "this
@@ -536,28 +540,27 @@ main {
   transform: scale(0.95);
 }
 /* .btn-huge's own 18px/22px padding (used elsewhere at a much bigger
-   size) is too large for this tile's fixed 100px box -- overridden here
-   rather than in .btn-huge itself, which other pages may still rely on
-   at its original size. */
+   size) is too large for this tile's fixed box -- overridden here rather
+   than in .btn-huge itself, which other pages may still rely on at its
+   original size. */
 .home-actions .btn-huge {
-  font-size: 13px;
+  font-size: 15px;
 }
 .btn.home-btn-sos {
   /* Red, but not too dark -- a clear, legible red rather than a near-
      black brick red or a neon one. */
   background: #e5484d;
   color: #fff;
-  border: 1px solid #d33d42;
-  /* Rounded square, not a full pill, to match the square-tile grid
-     preview above -- aspect-ratio:1 on .home-actions .btn already governs
-     the actual size, min-height no longer applies. */
-  border-radius: 22px;
-  box-shadow: 0 6px 16px rgba(229, 72, 77, 0.35);
+  /* Squircle-style rounding (~22% of the tile), not a full pill or a
+     plain rounded rect -- aspect-ratio:1 on .home-actions .btn already
+     governs the actual size, min-height no longer applies. */
+  border-radius: 32px;
+  box-shadow: 0 8px 20px rgba(229, 72, 77, 0.4);
 }
 .icon-sos {
   display: inline-block;
-  width: 22px;
-  height: 22px;
+  width: 26px;
+  height: 26px;
   flex-shrink: 0;
   /* White, for contrast against this button's own red background.
      background-color + mask-image tints the source PNG (a solid black
@@ -576,9 +579,8 @@ main {
 .btn.home-btn-outline {
   background: #fff;
   color: var(--accent);
-  border: 1.5px solid var(--accent);
-  border-radius: 22px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
+  border-radius: 32px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
 }
 /* Solid black tile (Uber-style), used only for the "Créer un point de
    collecte" button -- sets it apart from the two plain-outline browse
@@ -586,18 +588,16 @@ main {
 .btn.home-btn-black {
   background: #111;
   color: #fff;
-  border: 1.5px solid #111;
-  border-radius: 22px;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.28);
+  border-radius: 32px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.32);
 }
-/* Used instead of .btn-huge on the two collection-point buttons -- a
-   smaller/tighter size than the regular stacked-pill layout's own
-   font-size, to still comfortably fit a two-line label inside the
-   smaller square tile above. */
+/* Used instead of .btn-huge on the two collection-point buttons -- still
+   a bit tighter than the regular stacked-pill layout's own font-size, to
+   comfortably fit a two-line label inside the square tile above. */
 .home-btn-compact {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
-  line-height: 1.25;
+  line-height: 1.3;
 }
 /* Small trailing "this opens a map" cue on the two collection-point
    buttons -- muted/smaller than the flag/globe icon so it reads as a

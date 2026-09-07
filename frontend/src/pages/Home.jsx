@@ -33,10 +33,10 @@ export default function Home() {
             dropped here -- a third stacked element read as cluttered
             inside a compact square tile. */}
         <Link to="/collection-points" className="btn btn-icon home-btn-outline home-btn-compact">
-          <IconAlgeriaFlag /> {t('home.collectionPointsAlgeria')}
+          <IconAlgeriaFlag width={28} height={28} /> {t('home.collectionPointsAlgeria')}
         </Link>
         <Link to="/international-collection-points" className="btn btn-icon home-btn-outline home-btn-compact">
-          <IconGlobeColor /> {t('home.collectionPointsInternational')}
+          <IconGlobeColor width={28} height={28} /> {t('home.collectionPointsInternational')}
         </Link>
         {/* Creating a point is a distinct action from the two browse
             buttons above, and needs a country choice first (this page has
@@ -50,7 +50,7 @@ export default function Home() {
             aria-expanded={createMenuOpen}
             onClick={() => setCreateMenuOpen((v) => !v)}
           >
-            <IconPlus width={20} height={20} strokeWidth={2} /> {t('home.createCollectionPoint')}
+            <IconPlus width={26} height={26} strokeWidth={2} /> {t('home.createCollectionPoint')}
           </button>
           {createMenuOpen && (
             <div className="home-btn-create-menu">
