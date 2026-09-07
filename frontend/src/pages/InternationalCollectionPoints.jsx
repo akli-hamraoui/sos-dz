@@ -8,7 +8,7 @@ import { geocodeCountryBounds, getCurrentPosition, haversineKm, RECENTER_BOX_MET
 import { fetchDrivingRoute, COLLECTION_POINT_ROUTE_COLOR } from '../routing'
 import { countryFlagEmoji, formatApproxKm } from '../mapMarkers'
 import CountryOrPlaceSearch from '../components/CountryOrPlaceSearch'
-import { IconLocate } from '../icons'
+import { IconLocate, IconExpand, IconClose } from '../icons'
 
 // Worldwide counterpart to CollectionPoints.jsx -- same map/list page, no
 // wilaya (there is none outside Algeria) and no Algeria restriction on
@@ -37,6 +37,13 @@ export default function InternationalCollectionPoints() {
   const [points, setPoints] = useState([])
   const [viewMode, setViewMode] = useState('map')
   const [mapHasNothing, setMapHasNothing] = useState(false)
+  // Tap-to-activate map -- see CollectionPoints.jsx's own mapActive for
+  // the full rationale (replaces the old two-finger-to-pan gesture
+  // handling, reported awkward on mobile). Starts "asleep" so a single
+  // finger scrolls the page; the first tap wakes it.
+  const [mapActive, setMapActive] = useState(false)
+  // Fullscreen expand -- see CollectionPoints.jsx's own fullscreen.
+  const [fullscreen, setFullscreen] = useState(false)
   // null (nothing yet) | { distanceKm, durationMin } | 'unavailable' (OSRM
   // unreachable) | 'too-far' (beyond the 100km cutoff, see drawRouteToPoint)
   const [routeInfo, setRouteInfo] = useState(null)
@@ -200,10 +207,15 @@ export default function InternationalCollectionPoints() {
         if (!mapRef.current) {
           mapRef.current = L.map(mapElRef.current, {
             attributionControl: false,
-            gestureHandling: true,
-            gestureHandlingOptions: {
-              text: { touch: t('map.gestureTouch'), scroll: t('map.gestureScroll'), scrollMac: t('map.gestureScrollMac') },
-            },
+            // Starts fully "asleep" -- see mapActive above -- so a single
+            // finger over the map scrolls the page like anything else on
+            // it, with no special gesture to learn. activateMap enables
+            // all of these once the map is explicitly tapped.
+            dragging: false,
+            touchZoom: false,
+            scrollWheelZoom: false,
+            doubleClickZoom: false,
+            boxZoom: false,
           })
           L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; OpenStreetMap contributors',
@@ -341,7 +353,62 @@ export default function InternationalCollectionPoints() {
     youAreHereRef.current = null
     routeLineRef.current = null
     setRouteInfo(null)
+    setMapActive(false)
+    setFullscreen(false)
   }, [viewMode])
+
+  // Wakes the map from its initial "asleep" state (see mapActive above) --
+  // see CollectionPoints.jsx's own activateMap for the full rationale.
+  const activateMap = () => {
+    const map = mapRef.current
+    if (!map) return
+    map.dragging.enable()
+    map.touchZoom.enable()
+    map.scrollWheelZoom.enable()
+    map.doubleClickZoom.enable()
+    map.boxZoom.enable()
+    setMapActive(true)
+  }
+
+  const deactivateMap = () => {
+    const map = mapRef.current
+    if (!map) return
+    map.dragging.disable()
+    map.touchZoom.disable()
+    map.scrollWheelZoom.disable()
+    map.doubleClickZoom.disable()
+    map.boxZoom.disable()
+    setMapActive(false)
+  }
+
+  const enterFullscreen = () => {
+    activateMap()
+    setFullscreen(true)
+  }
+  const exitFullscreen = () => {
+    setFullscreen(false)
+    deactivateMap()
+  }
+
+  // See CollectionPoints.jsx's own equivalent effect -- Leaflet has no way
+  // to notice the container's on-screen size change (600px <-> fullscreen)
+  // on its own.
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+    const rafId = requestAnimationFrame(() => map.invalidateSize())
+    return () => cancelAnimationFrame(rafId)
+  }, [fullscreen])
+
+  // See CollectionPoints.jsx's own equivalent effect.
+  useEffect(() => {
+    if (!fullscreen) return
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = previousOverflow
+    }
+  }, [fullscreen])
 
   // Same "you are here" marker as defaultZoom above, but on demand rather
   // than only on first load -- so a manual recenter reads the same way as
@@ -448,8 +515,34 @@ export default function InternationalCollectionPoints() {
       {viewMode === 'map' && (
         <div className="map-wrap">
           {mapHasNothing && <p className="hint">{t('internationalCollectionPoints.noPointsYet')}</p>}
-          <div className="map-frame">
-            <div id="intl-cp-map" ref={mapElRef} style={{ height: 600 }} />
+          <div className={fullscreen ? 'map-frame map-frame-fullscreen' : 'map-frame'}>
+            <div id="intl-cp-map" ref={mapElRef} style={{ height: fullscreen ? '100%' : 600 }} />
+            {!mapActive && !fullscreen && (
+              <div className="map-activate-overlay" onClick={activateMap} role="button" tabIndex={0} aria-label={t('map.tapToInteract')}>
+                <span className="map-activate-hint">{t('map.tapToInteract')}</span>
+              </div>
+            )}
+            {mapActive && !fullscreen && (
+              <button type="button" className="map-deactivate-btn" onClick={deactivateMap}>
+                {t('map.exitMapInteraction')}
+              </button>
+            )}
+            {!fullscreen && (
+              <button
+                type="button"
+                className="expand-btn"
+                onClick={enterFullscreen}
+                aria-label={t('map.viewFullscreen')}
+                title={t('map.viewFullscreen')}
+              >
+                <IconExpand width={18} height={18} />
+              </button>
+            )}
+            {fullscreen && (
+              <button type="button" className="exit-fullscreen-btn" onClick={exitFullscreen} aria-label={t('map.exitFullscreen')} title={t('map.exitFullscreen')}>
+                <IconClose width={20} height={20} />
+              </button>
+            )}
             <button type="button" className="locate-btn" onClick={recenterOnMe} aria-label={t('map.recenterOnMe')} title={t('map.recenterOnMe')}>
               <IconLocate width={18} height={18} />
             </button>
