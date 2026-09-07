@@ -171,7 +171,6 @@
   },
   "voiceGuide": {
     "title": "Guided voice SOS",
-    "entryLinkLabel": "Guided voice SOS (new)",
     "step0Caption": "You're about to send an emergency SOS. For French, tap \"Français\".",
     "langFr": "Français",
     "langAr": "العربية",
@@ -503,6 +502,7 @@
     "recoveryCodeTaken": "This recovery code is already in use. Please choose a different one.",
     "readOnlyMode": "The app is currently in read-only mode. Existing data remains viewable.",
     "geoRestricted": "Only visible from within Algeria can create or edit listings — you can still browse everything.",
+    "voiceGuideAlgeriaOnly": "This feature is only available from Algeria.",
     "captchaRequired": "Please complete the anti-spam check before submitting.",
     "captchaFailed": "Anti-spam check failed, please try again.",
     "captchaUnavailable": "Could not verify the anti-spam check right now, please try again.",

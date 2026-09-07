@@ -80,14 +80,10 @@ export default function Home() {
           {t('home.iNeedHelp')}
         </Link>
       </div>
-      {/* New, separate entry point for the tap-driven audio-narrated SOS
-          flow (CreateNeedVoiceGuide.jsx) -- deliberately a small secondary
-          link, not another full-size pill competing with "Lancer un SOS"
-          above, since this is a pending-approval feature still being
-          evaluated, not a replacement for the existing flow. */}
-      <Link to="/create-voice" className="voice-guide-entry-link">
-        🎙️ {t('voiceGuide.entryLinkLabel')}
-      </Link>
+      {/* The guided voice SOS flow (CreateNeedVoiceGuide.jsx, /create-voice)
+          deliberately has NO entry point here or anywhere else on the site
+          -- still pending approval and, per explicit instruction, meant to
+          stay reachable only via someone testing the direct URL for now. */}
       {/* The footer also carries this link (it's the only entry point to
           /about from every other page), but there it sits far below the
           fold on Home specifically -- shown again here, right under the

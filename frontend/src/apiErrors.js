@@ -32,6 +32,7 @@ const MATCHERS = [
   { match: 'This recovery code is already in use. Please choose a different one.', key: 'recoveryCodeTaken' },
   { match: 'The app is currently in read-only mode. Existing data remains viewable.', key: 'readOnlyMode' },
   { match: 'Only visible from within Algeria can create or edit listings — you can still browse everything.', key: 'geoRestricted' },
+  { match: 'This feature is only available from Algeria.', key: 'voiceGuideAlgeriaOnly' },
   { match: 'Please complete the anti-spam check before submitting.', key: 'captchaRequired' },
   { match: 'Anti-spam check failed, please try again.', key: 'captchaFailed' },
   { match: 'Could not verify the anti-spam check right now, please try again.', key: 'captchaUnavailable' },

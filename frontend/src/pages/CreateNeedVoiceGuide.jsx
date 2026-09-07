@@ -27,7 +27,7 @@ const STEP = { LANG: 0, INTRO: 1, GEO_ASK: 2, GEO_YES: 3, GEO_NO: 4, VALIDATE: 5
 export default function CreateNeedVoiceGuide() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const { campaigns, saveNeedToken, refreshConfig } = useApp()
+  const { config, campaigns, saveNeedToken, refreshConfig } = useApp()
   const [step, setStep] = useState(STEP.LANG)
   const [lang, setLang] = useState('fr')
   // How many times the current step's prompt has already auto-repeated --
@@ -203,7 +203,12 @@ export default function CreateNeedVoiceGuide() {
         longitude: gps?.longitude ?? '',
       }
       const files = voiceBlob ? { voice_file: new File([voiceBlob], 'voice.webm', { type: voiceBlob.type }) } : {}
-      const result = await createOrQueue({ type: 'need', endpoint: '/api/needs/', fields, files })
+      // Own endpoint (not /api/needs/, which CreateNeed.jsx keeps using
+      // unaffected) -- this one additionally re-checks Algeria-or-admin
+      // server-side (see NeedViewSet.create_via_voice_guide) regardless of
+      // the sitewide geo_restrict_writes_to_algeria toggle, since this
+      // feature is still pending approval and unlinked from the site.
+      const result = await createOrQueue({ type: 'need', endpoint: '/api/needs/voice-guide/', fields, files })
       if (result.queued) {
         setStep(STEP.DONE)
         return
@@ -218,6 +223,27 @@ export default function CreateNeedVoiceGuide() {
     } finally {
       setSubmitting(false)
     }
+  }
+
+  // Not linked from the site yet -- reachable only via a direct link for
+  // testing (see Home.jsx, which deliberately no longer has this link).
+  // config.voice_guide_available mirrors the same Algeria-or-admin check
+  // NeedViewSet.create_via_voice_guide re-checks at submission time; shown
+  // upfront so a non-eligible visitor sees this immediately instead of
+  // going through all 7 steps only to be rejected at the last one.
+  // Strictly === false (not just falsy) so the still-loading default
+  // config (before /config/ resolves) never flashes this message for an
+  // eligible visitor.
+  if (config.voice_guide_available === false) {
+    return (
+      <section className="voice-guide-page">
+        <h2>{t('voiceGuide.title')}</h2>
+        <p className="voice-guide-caption">{t('apiErrors.voiceGuideAlgeriaOnly')}</p>
+        <Link to="/" className="btn">
+          {t('voiceGuide.backHome')}
+        </Link>
+      </section>
+    )
   }
 
   return (

@@ -221,6 +221,62 @@ class NeedFallbackWilayaTests(BaseAPITestCase):
         self.assertFalse(need.has_no_location)
 
 
+class VoiceGuideEndpointTests(BaseAPITestCase):
+    """CreateNeedVoiceGuide.jsx submits to /api/needs/voice-guide/, not the
+    regular /api/needs/ -- this feature is still pending approval, unlinked
+    from the site, and meant to stay Algeria-only (or admin) regardless of
+    the sitewide geo_restrict_writes_to_algeria toggle (see
+    NeedViewSet.create_via_voice_guide). The ordinary /api/needs/ endpoint
+    (CreateNeed.jsx) must stay completely unaffected."""
+
+    def setUp(self):
+        super().setUp()
+        self.campaign = make_campaign()
+
+    def _payload(self, **overrides):
+        data = dict(NEED_PAYLOAD, campaign=self.campaign.pk)
+        data.update(overrides)
+        return data
+
+    def test_blocked_for_anonymous_non_algeria(self):
+        # No real GeoLite2 DB here -- is_algeria_ip() always resolves to
+        # None (unknown), which counts as "not Algeria".
+        resp = self.client.post("/api/needs/voice-guide/", self._payload(), format="json")
+        self.assertEqual(resp.status_code, 403)
+        self.assertEqual(Need.objects.count(), 0)
+
+    def test_allowed_from_algeria(self):
+        from unittest.mock import patch
+
+        with patch("core.views.is_algeria_ip", return_value=True):
+            resp = self.client.post("/api/needs/voice-guide/", self._payload(), format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+        self.assertIn("access_token", resp.data)
+
+    def test_allowed_for_admin_regardless_of_location(self):
+        admin = get_user_model().objects.create_superuser("voiceadmin", "va@example.com", "pw123456!")
+        self.client.force_authenticate(admin)
+        resp = self.client.post("/api/needs/voice-guide/", self._payload(), format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+
+    def test_still_falls_back_to_wilaya_when_none_sent(self):
+        from unittest.mock import patch
+
+        with patch("core.views.is_algeria_ip", return_value=True):
+            resp = self.client.post("/api/needs/voice-guide/", self._payload(), format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+        need = Need.objects.get(pk=resp.data["id"])
+        self.assertTrue(need.has_no_location)
+
+    def test_ordinary_needs_endpoint_unaffected_by_this_restriction(self):
+        """The regular CreateNeed.jsx path must never be gated by this --
+        confirms create_via_voice_guide's extra check lives only on its own
+        action, not on NeedViewSet.create()."""
+        wilaya = self.campaign.authorized_wilayas.first()
+        resp = self.client.post("/api/needs/", self._payload(wilaya=wilaya.pk), format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+
+
 class OptionalContactFieldsTests(BaseAPITestCase):
     """contact_name/contact_phone became optional on both Need and
     CollectionPoint -- as long as at least one recovery path (name+phone
@@ -1744,6 +1800,27 @@ class AppConfigurationEndpointTests(BaseAPITestCase):
         self.client.force_authenticate(admin_user)
         resp = self.client.get("/api/config/")
         self.assertTrue(resp.data["is_admin"])
+
+    def test_voice_guide_unavailable_for_anonymous_non_algeria(self):
+        # No real GeoLite2 DB in this test environment -- is_algeria_ip()
+        # always resolves to None (unknown) here, which must be treated as
+        # "not Algeria", same as core.permissions.geo_restriction_block's
+        # own "only exactly True counts" rule.
+        resp = self.client.get("/api/config/")
+        self.assertFalse(resp.data["voice_guide_available"])
+
+    def test_voice_guide_available_from_algeria(self):
+        from unittest.mock import patch
+
+        with patch("core.views.is_algeria_ip", return_value=True):
+            resp = self.client.get("/api/config/")
+        self.assertTrue(resp.data["voice_guide_available"])
+
+    def test_voice_guide_available_for_admin_regardless_of_location(self):
+        admin_user = get_user_model().objects.create_superuser("cfgadmin2", "cfg2@example.com", "pw123456!")
+        self.client.force_authenticate(admin_user)
+        resp = self.client.get("/api/config/")
+        self.assertTrue(resp.data["voice_guide_available"])
 
     def test_needs_open_count_excludes_covered_and_cancelled(self):
         campaign = make_campaign()

@@ -171,7 +171,6 @@
   },
   "voiceGuide": {
     "title": "SOS vocal guidé",
-    "entryLinkLabel": "SOS vocal guidé (nouveau)",
     "step0Caption": "Vous êtes sur le point d'envoyer un SOS en urgence. Pour le français, cliquez sur « Français ».",
     "langFr": "Français",
     "langAr": "العربية",
@@ -503,6 +502,7 @@
     "recoveryCodeTaken": "Ce code de récupération est déjà utilisé. Choisissez-en un autre.",
     "readOnlyMode": "L'application est actuellement en lecture seule. Les données existantes restent consultables.",
     "geoRestricted": "Seules les personnes en Algérie peuvent créer ou modifier des annonces — vous pouvez tout de même tout consulter.",
+    "voiceGuideAlgeriaOnly": "Cette fonctionnalité est disponible uniquement depuis l'Algérie.",
     "captchaRequired": "Merci de valider le contrôle anti-spam avant d'envoyer.",
     "captchaFailed": "Le contrôle anti-spam a échoué, veuillez réessayer.",
     "captchaUnavailable": "Impossible de vérifier le contrôle anti-spam pour le moment, veuillez réessayer.",
