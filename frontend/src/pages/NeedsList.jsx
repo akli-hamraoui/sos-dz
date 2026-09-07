@@ -6,7 +6,7 @@ import { useApp } from '../context/AppContext'
 import { useDialog } from '../context/DialogContext'
 import { api } from '../api'
 import { urgencyColor, haversineKm, isInAlgeria, getCurrentPosition, RECENTER_BOX_METERS } from '../utils'
-import { flyerPopupButtonHtml, attachPopupPinchZoom } from '../mapMarkers'
+import { flyerPopupButtonHtml, attachPopupPinchZoom, attachMapPinchZoomOverlay } from '../mapMarkers'
 import PhotoThumb from '../components/PhotoThumb'
 import PhotoLightbox from '../components/PhotoLightbox'
 import { IconLocate, IconExpand, IconClose } from '../icons'
@@ -454,7 +454,14 @@ export default function NeedsList() {
           >
             <div id="main-map" ref={mapElRef} style={{ height: '100%' }} />
             {!mapActive && !fullscreen && (
-              <div className="map-activate-overlay" onClick={activateMap} role="button" tabIndex={0} aria-label={t('map.tapToInteract')}>
+              <div
+                className="map-activate-overlay"
+                onClick={activateMap}
+                role="button"
+                tabIndex={0}
+                aria-label={t('map.tapToInteract')}
+                ref={(el) => attachMapPinchZoomOverlay(mapRef.current, el, activateMap)}
+              >
                 <span className="map-activate-hint">{t('map.tapToInteract')}</span>
               </div>
             )}

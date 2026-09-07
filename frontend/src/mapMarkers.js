@@ -149,6 +149,62 @@ export function attachPopupPinchZoom(popupEl) {
   content.addEventListener('touchcancel', onTouchEnd, { passive: false })
 }
 
+// Lets a two-finger pinch zoom the map immediately, even before the usual
+// single-finger "tap to activate" step (see each map page's own mapActive) --
+// reported live: pinching on the map zoomed the whole page instead of the
+// map, since the map starts "asleep" behind a full-cover overlay div (a
+// plain sibling of Leaflet's own container, not a descendant of it) that
+// swallows every touch so a one-finger drag reads as page-scroll rather than
+// a map pan. A one-finger gesture genuinely needs that tap-first step (it's
+// ambiguous with scrolling); a two-finger pinch never is, so there's no
+// reason to gate it the same way -- outside the overlay/map entirely,
+// nothing here runs and the browser's own native pinch-zooms the page,
+// exactly as it already does today.
+// Handled by hand (computing zoom from the pinch distance and calling
+// map.setZoomAround directly) rather than just enabling Leaflet's own
+// TouchZoom, because a touch starting on the overlay never bubbles to
+// Leaflet's container-scoped listener in the first place -- it's a sibling
+// element, not an ancestor. Once the map is actually awake (mapActive, the
+// overlay unmounted) Leaflet's real TouchZoom (enabled in activateMap)
+// already handles every pinch correctly on its own; this only covers the
+// asleep-overlay gap. onActivate is called once the pinch ends, so the map
+// is left "awake" afterwards (matching having just directly interacted with
+// it) the same as a tap would have left it.
+export function attachMapPinchZoomOverlay(map, overlayEl, onActivate) {
+  if (!map || !overlayEl || overlayEl.dataset.pinchZoomWired) return
+  overlayEl.dataset.pinchZoomWired = '1'
+  let startDist = 0
+  let startZoom = 0
+  let center = null
+
+  const touchDist = (touches) => Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY)
+  const touchMidpoint = (touches) => [(touches[0].clientX + touches[1].clientX) / 2, (touches[0].clientY + touches[1].clientY) / 2]
+
+  const onTouchStart = (e) => {
+    if (e.touches.length !== 2) return
+    e.preventDefault()
+    startDist = touchDist(e.touches)
+    startZoom = map.getZoom()
+    const [mx, my] = touchMidpoint(e.touches)
+    const rect = map.getContainer().getBoundingClientRect()
+    center = map.containerPointToLatLng([mx - rect.left, my - rect.top])
+  }
+  const onTouchMove = (e) => {
+    if (e.touches.length !== 2 || !startDist) return
+    e.preventDefault()
+    map.setZoomAround(center, startZoom + Math.log2(touchDist(e.touches) / startDist), { animate: false })
+  }
+  const onTouchEnd = (e) => {
+    if (e.touches.length >= 2) return
+    if (startDist) onActivate?.()
+    startDist = 0
+  }
+  overlayEl.addEventListener('touchstart', onTouchStart, { passive: false })
+  overlayEl.addEventListener('touchmove', onTouchMove, { passive: false })
+  overlayEl.addEventListener('touchend', onTouchEnd, { passive: false })
+  overlayEl.addEventListener('touchcancel', onTouchEnd, { passive: false })
+}
+
 export function needPopupHtml(t, p, statusLabel) {
   const gpsNote = p.has_exact_position ? '' : `<br><em>${t('common.noExactGpsPosition')}</em>`
   const urgencyPrefix = p.urgency !== 'medium' ? `${t(`urgency.${p.urgency}`)} — ` : ''

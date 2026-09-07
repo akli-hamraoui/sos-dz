@@ -7,7 +7,7 @@ import { useDialog } from '../context/DialogContext'
 import { api } from '../api'
 import { haversineKm, isInAlgeria, getCurrentPosition, RECENTER_BOX_METERS } from '../utils'
 import { fetchDrivingRoute, COLLECTION_POINT_ROUTE_COLOR } from '../routing'
-import { countryFlagEmoji, formatApproxKm, flyerPopupButtonHtml, attachPopupPinchZoom } from '../mapMarkers'
+import { countryFlagEmoji, formatApproxKm, flyerPopupButtonHtml, attachPopupPinchZoom, attachMapPinchZoomOverlay } from '../mapMarkers'
 import { IconLocate, IconExpand, IconClose, IconGlobeColor } from '../icons'
 import PhotoThumb from '../components/PhotoThumb'
 import PhotoLightbox from '../components/PhotoLightbox'
@@ -660,7 +660,14 @@ export default function CollectionPoints() {
           >
             <div id="cp-map" ref={mapElRef} style={{ height: '100%' }} />
             {!mapActive && !fullscreen && (
-              <div className="map-activate-overlay" onClick={activateMap} role="button" tabIndex={0} aria-label={t('map.tapToInteract')}>
+              <div
+                className="map-activate-overlay"
+                onClick={activateMap}
+                role="button"
+                tabIndex={0}
+                aria-label={t('map.tapToInteract')}
+                ref={(el) => attachMapPinchZoomOverlay(mapRef.current, el, activateMap)}
+              >
                 <span className="map-activate-hint">{t('map.tapToInteract')}</span>
               </div>
             )}

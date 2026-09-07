@@ -7,7 +7,7 @@ import { useDialog } from '../context/DialogContext'
 import { api } from '../api'
 import { maskPhone, formatDate, getCurrentPosition, RECENTER_BOX_METERS } from '../utils'
 import { fetchDrivingRoute, ROUTE_COLOR } from '../routing'
-import { flyerPopupButtonHtml, attachPopupPinchZoom } from '../mapMarkers'
+import { flyerPopupButtonHtml, attachPopupPinchZoom, attachMapPinchZoomOverlay } from '../mapMarkers'
 import PhotoThumb from '../components/PhotoThumb'
 import PhotoLightbox from '../components/PhotoLightbox'
 import { IconTruck, IconLocate, IconExpand, IconClose } from '../icons'
@@ -524,7 +524,14 @@ export default function Deliveries() {
           >
             <div id="deliveries-map" ref={mapElRef} style={{ height: '100%' }} />
             {!mapActive && !fullscreen && (
-              <div className="map-activate-overlay" onClick={activateMap} role="button" tabIndex={0} aria-label={t('map.tapToInteract')}>
+              <div
+                className="map-activate-overlay"
+                onClick={activateMap}
+                role="button"
+                tabIndex={0}
+                aria-label={t('map.tapToInteract')}
+                ref={(el) => attachMapPinchZoomOverlay(mapRef.current, el, activateMap)}
+              >
                 <span className="map-activate-hint">{t('map.tapToInteract')}</span>
               </div>
             )}

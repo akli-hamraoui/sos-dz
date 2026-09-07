@@ -6,7 +6,7 @@ import { useDialog } from '../context/DialogContext'
 import { api } from '../api'
 import { geocodeCountryBounds, getCurrentPosition, haversineKm, RECENTER_BOX_METERS } from '../utils'
 import { fetchDrivingRoute, COLLECTION_POINT_ROUTE_COLOR } from '../routing'
-import { countryFlagEmoji, formatApproxKm, flyerPopupButtonHtml, attachPopupPinchZoom } from '../mapMarkers'
+import { countryFlagEmoji, formatApproxKm, flyerPopupButtonHtml, attachPopupPinchZoom, attachMapPinchZoomOverlay } from '../mapMarkers'
 import CountryOrPlaceSearch from '../components/CountryOrPlaceSearch'
 import PhotoThumb from '../components/PhotoThumb'
 import PhotoLightbox from '../components/PhotoLightbox'
@@ -552,7 +552,14 @@ export default function InternationalCollectionPoints() {
           <div className={fullscreen ? 'map-frame map-frame-fullscreen' : 'map-frame'}>
             <div id="intl-cp-map" ref={mapElRef} style={{ height: fullscreen ? '100%' : 600 }} />
             {!mapActive && !fullscreen && (
-              <div className="map-activate-overlay" onClick={activateMap} role="button" tabIndex={0} aria-label={t('map.tapToInteract')}>
+              <div
+                className="map-activate-overlay"
+                onClick={activateMap}
+                role="button"
+                tabIndex={0}
+                aria-label={t('map.tapToInteract')}
+                ref={(el) => attachMapPinchZoomOverlay(mapRef.current, el, activateMap)}
+              >
                 <span className="map-activate-hint">{t('map.tapToInteract')}</span>
               </div>
             )}

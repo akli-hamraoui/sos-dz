@@ -655,34 +655,45 @@ main {
   color: var(--text-muted);
 }
 /* A regular phone held in portrait (iPhone SE up through the taller
-   modern phones, ~650-850px of logical height) still doesn't leave room
+   modern phones, ~650-950px of logical height) still doesn't leave room
    for the fixed topbar + quick-actions bar above and the fixed bottom nav
-   below without scrolling to the 4 action buttons and "Qui sommes-nous" --
-   the clamp()s above alone (tuned against a bare viewport height, with no
-   allowance for that ~150px of fixed chrome) fit a tall/desktop window but
-   not a real phone. Doesn't touch home-description/home-faq (unlike the
-   even-shorter tier below) -- those are already expected to need a scroll,
-   only the 4 buttons + about link need to fit without one. */
-@media (max-height: 850px) {
+   below without scrolling to the 4 action buttons, "Qui sommes-nous" and
+   the summary paragraph right under it -- the clamp()s above alone (tuned
+   against a bare viewport height, with no allowance for that ~150px of
+   fixed chrome) fit a tall/desktop window but not a real phone. Doesn't
+   touch home-faq (unlike the even-shorter tier below) -- that's still
+   expected to need a scroll; home-summary itself was also shortened to
+   just the essentials (see home.summary, locales) so it fits in the room
+   freed up here instead of needing endless further compacting. */
+@media (max-height: 950px) {
   .home {
-    padding-top: clamp(4px, 4svh, 60px);
+    padding-top: clamp(4px, 2svh, 36px);
   }
   .home-logo {
-    width: 190px;
+    width: 140px;
   }
   .home-tagline {
     margin-block-start: 0;
   }
   .home-actions {
-    margin-block-start: clamp(8px, 3svh, 32px);
-    gap: 10px;
+    /* A touch more breathing room than the buttons' own min-height/gap
+       reduction below leaves on its own -- reported as sitting too high/
+       cramped right under the tagline once the rest of this tier's
+       compacting was in place. */
+    margin-block-start: clamp(10px, 3.5svh, 36px);
+    gap: 6px;
   }
   .home-actions .btn {
-    padding: 10px 16px;
-    min-height: 52px;
+    padding: 8px 14px;
+    min-height: 46px;
   }
   .home-about-link {
-    margin-block-start: clamp(2px, 1svh, 12px);
+    margin-block-start: clamp(2px, 1svh, 10px);
+  }
+  .home-description {
+    margin-block-start: clamp(2px, 0.5svh, 8px);
+    font-size: 12px;
+    line-height: 1.4;
   }
 }
 /* A short phone viewport (confirmed down to 320x568, the smallest still
