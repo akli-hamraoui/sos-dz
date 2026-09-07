@@ -187,6 +187,15 @@ export default function CreateNeedVoiceGuide() {
     try {
       const fields = {
         campaign: activeCampaign ? activeCampaign.id : '',
+        // Left out entirely (createOrQueue drops empty-string fields) when
+        // geolocation was declined/failed -- there's no wilaya picker in
+        // this flow to fall back to. NeedCreateSerializer.validate() then
+        // assigns a fallback wilaya itself (Alger when authorized for the
+        // campaign, otherwise the first authorized one) and flags
+        // has_no_location, so submission never dead-ends on this alone;
+        // the map groups those into one "sans localisation" bubble with a
+        // listen button per SOS instead of scattering them under a wilaya
+        // the reporter never actually confirmed (see NeedsList.jsx).
         wilaya: wilayaId || '',
         urgency: 'critical',
         title: t('createNeed.fallbackTitle'),

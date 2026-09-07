@@ -15,6 +15,15 @@ function statusLabel(t, s) {
   return t(`status.${s}`, s)
 }
 
+// Popup content below is built as raw HTML strings (Leaflet's bindPopup
+// takes a string, not JSX) -- title/location_description are free text the
+// reporter typed, so they're escaped before interpolation. wilaya_name and
+// every other field used come from the backend's own fixed data (never
+// reporter-controlled), same as elsewhere in this file/mapMarkers.js.
+function escapeHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c])
+}
+
 // "SOS" speech-bubble mark inside the same white circle/black border pin
 // used for collection points and courier markers (see .pickup-marker-pin/
 // .cp-marker-pin/.need-marker-pin). Inverted to white -- urgencyColor()
@@ -62,12 +71,44 @@ export default function NeedsList() {
   // the full rationale -- a search-only change must never move the map.
   const hasFramedRef = useRef(false)
   const prevFilterWilayaRef = useRef(filterWilaya)
+  // Tracks whichever voice recording is currently playing from inside the
+  // "sans localisation" bubble's popup (see below) -- at most one at a
+  // time, so opening a second clip stops the first instead of both playing
+  // over each other, and the pressed button's own label/state need a way
+  // back to "not playing" once playback ends or the popup is closed.
+  const playingAudioRef = useRef({ audio: null, btn: null })
 
   // Debounced so typing doesn't fire a request on every keystroke.
   useEffect(() => {
     const timer = setTimeout(() => setSearch(searchInput.trim()), 300)
     return () => clearTimeout(timer)
   }, [searchInput])
+
+  // Stops whatever clip is currently playing (if any) -- used both when a
+  // different button is pressed and when the popup itself closes, so audio
+  // never keeps playing after its list has been dismissed.
+  const stopPlayingAudio = () => {
+    const { audio, btn } = playingAudioRef.current
+    if (!audio) return
+    audio.pause()
+    if (btn) {
+      btn.classList.remove('playing')
+      btn.textContent = `🔊 ${t('needsList.playAudio')}`
+    }
+    playingAudioRef.current = { audio: null, btn: null }
+  }
+
+  const toggleAudioPlayback = (btn) => {
+    const wasThisButton = playingAudioRef.current.btn === btn
+    stopPlayingAudio()
+    if (wasThisButton) return // same button tapped again -- just stop, per the toggle above
+    const audio = new Audio(btn.dataset.audioUrl)
+    audio.addEventListener('ended', () => stopPlayingAudio())
+    audio.play().catch(() => {})
+    btn.classList.add('playing')
+    btn.textContent = `⏸ ${t('needsList.stopAudio')}`
+    playingAudioRef.current = { audio, btn }
+  }
 
   const hasActiveFilters = !!(filterWilaya || searchInput)
   const resetFilters = () => {
@@ -231,7 +272,18 @@ export default function NeedsList() {
             const btn = e.popup.getElement()?.querySelector('.popup-photo-btn')
             if (btn) btn.onclick = () => setLightboxPhoto(btn.dataset.photoUrl)
             attachPopupPinchZoom(e.popup.getElement())
+            // The "sans localisation" bubble's popup can list several SOS
+            // at once, each with its own listen button.
+            e.popup
+              .getElement()
+              ?.querySelectorAll('.popup-audio-btn')
+              .forEach((audioBtn) => {
+                audioBtn.onclick = () => toggleAudioPlayback(audioBtn)
+              })
           })
+          // A clip left playing after its list is dismissed would keep
+          // going with nothing on screen to stop it from.
+          mapRef.current.on('popupclose', () => stopPlayingAudio())
           // Also wired from the overlay's own ref callback (for when it
           // remounts later, e.g. deactivate/reactivate) -- done here too
           // since on first mount that ref callback can fire before this
@@ -244,7 +296,20 @@ export default function NeedsList() {
         markersRef.current.forEach((m) => map.removeLayer(m))
         const markers = []
 
-        needsWithPos.forEach((p) => {
+        // Needs reported with no location fix at all (guided voice flow,
+        // geolocation declined/failed -- see has_no_location, backend) all
+        // share the same fallback position (the campaign's fallback
+        // wilaya's own centroid), so plotting one pin per need would stack
+        // them exactly on top of each other. Grouped into one big red
+        // bubble with a count instead -- same "one badge, not N indistinguishable
+        // pins" idea as CollectionPoints.jsx's own .cp-bubble, but this one
+        // opens an in-place list (with a listen button per SOS) rather than
+        // switching to a filtered list view, since these needs don't share
+        // a real wilaya the way approximate collection points do.
+        const located = needsWithPos.filter((p) => !p.has_no_location)
+        const unlocated = needsWithPos.filter((p) => p.has_no_location)
+
+        located.forEach((p) => {
           const icon = L.divIcon({
             className: 'need-marker-icon',
             html: `<span class="need-marker-pin" style="background:${urgencyColor(p.urgency)}">${NEED_SOS_ICON}</span>`,
@@ -256,12 +321,41 @@ export default function NeedsList() {
           const urgencyPrefix = p.urgency !== 'medium' ? `${t(`urgency.${p.urgency}`)} — ` : ''
           const photoBtn = flyerPopupButtonHtml(t, p.photo)
           marker.bindPopup(
-            `<strong>${p.title}</strong><br>${urgencyPrefix}${p.wilaya_name}<br>${(p.location_description || '').slice(0, 80)}` +
+            `<strong>${escapeHtml(p.title)}</strong><br>${urgencyPrefix}${p.wilaya_name}<br>${escapeHtml((p.location_description || '').slice(0, 80))}` +
               `<br>${statusLabel(t, p.overall_status)}${gpsNote}` +
               `<div class="popup-actions">${photoBtn}<a href="/needs/${p.id}">${t('common.open')}</a></div>`
           )
           markers.push(marker)
         })
+
+        if (unlocated.length) {
+          const icon = L.divIcon({
+            className: 'need-marker-icon',
+            html:
+              `<span class="need-marker-pin need-marker-pin-unlocated">${NEED_SOS_ICON}` +
+              `<span class="need-marker-count-badge">${unlocated.length}</span></span>`,
+            iconSize: [44, 44],
+            iconAnchor: [22, 22],
+          })
+          const marker = L.marker([unlocated[0].display_latitude, unlocated[0].display_longitude], { icon, zIndexOffset: 1000 }).addTo(map)
+          marker.bindTooltip(t('needsList.noLocationBubbleLabel'))
+          const itemsHtml = unlocated
+            .map((p) => {
+              const urgencyPrefix = p.urgency !== 'medium' ? `${t(`urgency.${p.urgency}`)} — ` : ''
+              const audioBtn = p.voice_file
+                ? `<button type="button" class="popup-audio-btn" data-audio-url="${p.voice_file}">🔊 ${t('needsList.playAudio')}</button>`
+                : ''
+              return (
+                `<div class="popup-need-item"><strong>${escapeHtml(p.title)}</strong><br>${urgencyPrefix}${p.wilaya_name}` +
+                `<div class="popup-actions">${audioBtn}<a href="/needs/${p.id}">${t('common.open')}</a></div></div>`
+              )
+            })
+            .join('')
+          marker.bindPopup(
+            `<div class="popup-unlocated-list"><strong>${t('needsList.noLocationBubbleLabel')} (${unlocated.length})</strong>${itemsHtml}</div>`
+          )
+          markers.push(marker)
+        }
 
         markersRef.current = markers
         const allPoints = needsWithPos.map((p) => [p.display_latitude, p.display_longitude])

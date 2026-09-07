@@ -398,6 +398,11 @@ class NeedMapPinSerializer(serializers.ModelSerializer):
     # "view photo" shortcut without a second request, same moderation gate
     # as NeedPublicSerializer's own damage_photos.
     photo = serializers.SerializerMethodField()
+    # Already public on the need's own detail endpoint (NeedPublicSerializer)
+    # -- exposed here too so the map's "sans localisation" bubble popup (see
+    # NeedsList.jsx) can offer a "listen" button per SOS without a second
+    # request per item.
+    voice_file = serializers.SerializerMethodField()
 
     class Meta:
         model = Need
@@ -411,7 +416,9 @@ class NeedMapPinSerializer(serializers.ModelSerializer):
             "display_latitude",
             "display_longitude",
             "has_exact_position",
+            "has_no_location",
             "photo",
+            "voice_file",
         ]
 
     def get_has_exact_position(self, obj):
@@ -435,11 +442,25 @@ class NeedMapPinSerializer(serializers.ModelSerializer):
         url = approved.image.url
         return request.build_absolute_uri(url) if request else url
 
+    def get_voice_file(self, obj):
+        if not obj.voice_file:
+            return None
+        request = self.context.get("request")
+        url = obj.voice_file.url
+        return request.build_absolute_uri(url) if request else url
+
 
 class NeedCreateSerializer(serializers.ModelSerializer):
     location_description = serializers.CharField(required=False, allow_blank=True)
     voice_file = serializers.FileField(required=False, allow_null=True)
     video_file = serializers.FileField(required=False, allow_null=True)
+    # Optional here (unlike the model field, which has no default) -- the
+    # guided voice flow has no wilaya picker of its own and lets the
+    # reporter decline geolocation entirely, so it never sends this field.
+    # validate() below assigns a fallback wilaya and flags has_no_location
+    # in that case; every other caller (CreateNeed.jsx, always sends one)
+    # is unaffected.
+    wilaya = serializers.PrimaryKeyRelatedField(queryset=Wilaya.objects.all(), required=False)
 
     class Meta:
         model = Need
@@ -469,12 +490,24 @@ class NeedCreateSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         campaign = attrs["campaign"]
-        wilaya = attrs["wilaya"]
         if campaign.status != Campaign.STATUS_ACTIVE:
             raise serializers.ValidationError(
                 "This campaign is not accepting new needs right now (paused or stopped)."
             )
-        if not campaign.authorized_wilayas.filter(pk=wilaya.pk).exists():
+        wilaya = attrs.get("wilaya")
+        if wilaya is None:
+            # No location fix at all (guided voice flow, geolocation
+            # declined/failed) -- fall back to Alger (the capital, the
+            # single most-likely-relevant wilaya when none is known) if
+            # it's authorized for this campaign, otherwise the first
+            # authorized wilaya alphabetically, so submission never dead-
+            # ends just because nothing more specific was available.
+            wilaya = campaign.authorized_wilayas.filter(name="Alger").first() or campaign.authorized_wilayas.order_by("name").first()
+            if wilaya is None:
+                raise serializers.ValidationError({"wilaya": "This field is required."})
+            attrs["wilaya"] = wilaya
+            attrs["has_no_location"] = True
+        elif not campaign.authorized_wilayas.filter(pk=wilaya.pk).exists():
             raise serializers.ValidationError(
                 "This wilaya is not authorized for the selected campaign."
             )

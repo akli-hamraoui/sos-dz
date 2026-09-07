@@ -1497,6 +1497,36 @@ fieldset {
   color: #111;
   cursor: pointer;
 }
+/* Same "one bubble, not N stacked pins" idea as .cp-bubble above, for SOS
+   reports with no location fix at all (has_no_location, backend) -- bigger
+   and always the urgent red (these are, by definition, reports a responder
+   can't place on the map on their own) with a small count badge, so it
+   reads as visually distinct from an ordinary single-need pin rather than
+   just a slightly bigger one. See NeedsList.jsx for the popup this opens. */
+.need-marker-pin-unlocated {
+  width: 44px;
+  height: 44px;
+  background: var(--danger);
+  border-color: #fff;
+  position: relative;
+  cursor: pointer;
+}
+.need-marker-count-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 18px;
+  height: 18px;
+  padding-inline: 3px;
+  border-radius: 9px;
+  background: #fff;
+  border: 2px solid #111;
+  color: #111;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 14px;
+  text-align: center;
+}
 /* Declared departure position, not an actual live GPS ping -- dashed
    (instead of the live marker's solid border) so it still reads as
    "roughly here, as of take-charge time" rather than "currently tracked,"
@@ -1677,7 +1707,8 @@ fieldset {
    point's own info stays visible once the photo is dismissed. Styled as a
    plain link, not a boxed button, to sit naturally among the popup's other
    <br>-separated lines/links. */
-.popup-photo-btn {
+.popup-photo-btn,
+.popup-audio-btn {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -1690,10 +1721,17 @@ fieldset {
   text-decoration: underline;
   cursor: pointer;
 }
-/* Row pairing the "view flyer" button with the popup's own "Ouvrir" link
-   (CollectionPoints/InternationalCollectionPoints/NeedsList) -- pushed to
-   opposite ends instead of stacked directly on top of each other, which
-   read as one cramped, easy-to-mis-tap block. */
+/* Currently-playing state -- see NeedsList.jsx's toggleAudioPlayback,
+   which swaps both the label (🔊 → ⏸) and this class together. */
+.popup-audio-btn.playing {
+  color: var(--danger);
+  text-decoration: none;
+  font-weight: 600;
+}
+/* Row pairing the "view flyer"/"listen" button with the popup's own
+   "Ouvrir" link (CollectionPoints/InternationalCollectionPoints/
+   NeedsList) -- pushed to opposite ends instead of stacked directly on top
+   of each other, which read as one cramped, easy-to-mis-tap block. */
 .leaflet-popup-content .popup-actions {
   display: flex;
   align-items: center;
@@ -1702,8 +1740,24 @@ fieldset {
   margin-block-start: 4px;
 }
 .leaflet-popup-content .popup-actions a,
-.leaflet-popup-content .popup-actions .popup-photo-btn {
+.leaflet-popup-content .popup-actions .popup-photo-btn,
+.leaflet-popup-content .popup-actions .popup-audio-btn {
   margin-block-start: 0;
+}
+/* "Sans localisation" bubble popup (NeedsList.jsx) -- can list several SOS
+   sharing the same fallback position, so it scrolls instead of growing
+   tall enough to push the map off-screen on a short viewport. */
+.popup-unlocated-list {
+  max-height: 260px;
+  overflow-y: auto;
+}
+.popup-need-item {
+  padding-block: 8px;
+  border-block-start: 1px solid #eee;
+}
+.popup-need-item:first-of-type {
+  border-block-start: none;
+  padding-block-start: 6px;
 }
 
 /* "Recenter on my location" button, on every browsable map (see

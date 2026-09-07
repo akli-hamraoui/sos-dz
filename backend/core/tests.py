@@ -169,6 +169,57 @@ class NeedCreationTests(BaseAPITestCase):
         self.assertEqual(patch_resp.status_code, 200, patch_resp.content)
         self.assertEqual(patch_resp.data["other_phones"], "0555999999")
 
+    def test_explicit_wilaya_leaves_has_no_location_false(self):
+        resp = self.client.post("/api/needs/", self._payload(), format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+        need = Need.objects.get(pk=resp.data["id"])
+        self.assertFalse(need.has_no_location)
+        self.assertEqual(need.wilaya, self.wilaya)
+
+
+class NeedFallbackWilayaTests(BaseAPITestCase):
+    """The guided voice SOS flow (CreateNeedVoiceGuide.jsx) has no wilaya
+    picker of its own and lets the reporter decline geolocation entirely --
+    it never sends a `wilaya` field at all in that case. NeedCreateSerializer
+    must still accept the submission (a real emergency report must never
+    dead-end on a missing wilaya) by assigning a fallback and flagging
+    has_no_location, so the map can group these separately (see
+    NeedsList.jsx's "sans localisation" bubble)."""
+
+    def _payload(self, **overrides):
+        data = dict(NEED_PAYLOAD, campaign=self.campaign.pk)
+        data.update(overrides)
+        return data
+
+    def test_falls_back_to_alger_when_authorized(self):
+        alger = Wilaya.objects.get(name="Alger")
+        others = list(Wilaya.objects.exclude(name="Alger")[:2])
+        self.campaign = make_campaign(wilayas=[alger, *others])
+        resp = self.client.post("/api/needs/", self._payload(), format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+        need = Need.objects.get(pk=resp.data["id"])
+        self.assertEqual(need.wilaya, alger)
+        self.assertTrue(need.has_no_location)
+
+    def test_falls_back_to_first_authorized_wilaya_when_alger_not_authorized(self):
+        # make_campaign()'s default (no wilayas= override) is the first 3
+        # wilayas by id -- Adrar, Chlef, Laghouat -- none of which is Alger.
+        self.campaign = make_campaign()
+        resp = self.client.post("/api/needs/", self._payload(), format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+        need = Need.objects.get(pk=resp.data["id"])
+        self.assertEqual(need.wilaya.name, "Adrar")  # alphabetically first of the 3
+        self.assertTrue(need.has_no_location)
+
+    def test_explicit_wilaya_still_works_and_is_not_flagged(self):
+        self.campaign = make_campaign()
+        wilaya = self.campaign.authorized_wilayas.first()
+        resp = self.client.post("/api/needs/", self._payload(wilaya=wilaya.pk), format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+        need = Need.objects.get(pk=resp.data["id"])
+        self.assertEqual(need.wilaya, wilaya)
+        self.assertFalse(need.has_no_location)
+
 
 class OptionalContactFieldsTests(BaseAPITestCase):
     """contact_name/contact_phone became optional on both Need and
@@ -1047,6 +1098,37 @@ class MapAndLocationPrivacyTests(BaseAPITestCase):
 
         update = ProgressUpdate.objects.get(pickup_id=self.pickup_id, free_text="at the drop-off point")
         self.assertEqual(update.gps_latitude, 36.75)  # it WAS stored, just never publicly serialized
+
+
+class NeedMapPinUnlocatedTests(BaseAPITestCase):
+    """`/api/needs/locations/` must surface has_no_location and voice_file
+    so the map (NeedsList.jsx) can group guided-voice SOS reports with no
+    location fix into one "sans localisation" bubble with per-item audio
+    playback, instead of scattering them as ordinary pins."""
+
+    def setUp(self):
+        super().setUp()
+        alger = Wilaya.objects.get(name="Alger")
+        self.campaign = make_campaign(wilayas=[alger, *Wilaya.objects.exclude(name="Alger")[:2]])
+
+    def test_unlocated_need_flagged_on_map(self):
+        resp = self.client.post("/api/needs/", dict(NEED_PAYLOAD, campaign=self.campaign.pk), format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+
+        locations_resp = self.client.get("/api/needs/locations/")
+        self.assertEqual(locations_resp.status_code, 200)
+        pin = next(p for p in locations_resp.data if p["id"] == resp.data["id"])
+        self.assertTrue(pin["has_no_location"])
+        self.assertIsNone(pin["voice_file"])  # no voice recording attached in this payload
+
+    def test_ordinary_need_not_flagged_on_map(self):
+        wilaya = self.campaign.authorized_wilayas.exclude(name="Alger").first()
+        resp = self.client.post("/api/needs/", dict(NEED_PAYLOAD, campaign=self.campaign.pk, wilaya=wilaya.pk), format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+
+        locations_resp = self.client.get("/api/needs/locations/")
+        pin = next(p for p in locations_resp.data if p["id"] == resp.data["id"])
+        self.assertFalse(pin["has_no_location"])
 
 
 @override_settings(GEOIP_DB_PATH="/nonexistent/GeoLite2-Country.mmdb")

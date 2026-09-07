@@ -274,6 +274,16 @@ class Need(IdentityListingMixin, AuditMixin, models.Model):
     latitude = models.FloatField(null=True, blank=True)
     longitude = models.FloatField(null=True, blank=True)
     position_accuracy = models.CharField(max_length=20, choices=POSITION_CHOICES, default=POSITION_APPROXIMATE)
+    # True only when the reporter had no location fix at all -- no GPS and
+    # no wilaya of their own choosing (e.g. declined geolocation in the
+    # guided voice flow) -- so NeedCreateSerializer.validate() had to assign
+    # a fallback wilaya on their behalf. Distinct from position_accuracy
+    # above: an ordinary report with a deliberately-picked wilaya but no
+    # exact GPS is still "approximate", not this. Lets the map (NeedsList)
+    # group these into one clearly-labeled "sans localisation" bubble
+    # instead of scattering them under a real wilaya's own pins as if the
+    # reporter had actually confirmed being there.
+    has_no_location = models.BooleanField(default=False)
 
     # Both optional (NeedCreateSerializer.validate enforces that at least
     # one of these two OR a recovery_code is present -- an access_token is

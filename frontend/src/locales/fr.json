@@ -201,7 +201,10 @@
     "legendNote": "— les points sans GPS exact sont placés au centre approximatif de la wilaya (« sans position GPS exacte »)",
     "addButton": "+ J'ai besoin d'aide",
     "resetFilters": "Réinitialiser les filtres",
-    "searchPlaceholder": "association, dons, téléphone, ville, nom, etc."
+    "searchPlaceholder": "association, dons, téléphone, ville, nom, etc.",
+    "noLocationBubbleLabel": "Sans localisation",
+    "playAudio": "Écouter l'audio",
+    "stopAudio": "Arrêter"
   },
   "help": {
     "instructions": "Veuillez choisir sur la carte un point de collecte ou un SOS à aider, ou utiliser la liste ou les filtres.",
