@@ -19,7 +19,6 @@ export default function Home() {
   return (
     <section className="home">
       <h1 className="sr-only">{t('seo.home.title')}</h1>
-      <p className="home-mission">{t('home.mission')}</p>
       <p className="home-tagline">{t('home.tagline')}</p>
 
       <Link to="/create" className="home-sos-card">
