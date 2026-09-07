@@ -701,8 +701,8 @@ main {
        compacting was in place. */
     margin-block-start: clamp(10px, 3.5svh, 36px);
     /* Enough of a gap between buttons to not mis-tap a neighboring one --
-       6px read as too tight, reported live. */
-    gap: 10px;
+       6px, then 10px, both read as too tight, reported live. */
+    gap: 14px;
   }
   .home-actions .btn {
     padding: 8px 14px;
