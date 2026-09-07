@@ -422,9 +422,11 @@ export default function App() {
           the topbar's own content (nav links, or brand+lang+hamburger on
           mobile) already fills its width, leaving no reliable room for 3 more
           icon+text pills at any breakpoint. */}
-      <div className="quick-actions-bar">
-        <QuickActions />
-      </div>
+      {location.pathname !== '/' && (
+        <div className="quick-actions-bar">
+          <QuickActions />
+        </div>
+      )}
       {navOpen && (
         <nav className="topbar-nav-mobile">
           <TopNavLinks isActive={isActive} isAdmin={config.is_admin} />
