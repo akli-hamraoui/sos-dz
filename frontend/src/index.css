@@ -914,8 +914,15 @@ fieldset {
   gap: 10px;
   flex: 1 1 100%;
 }
+/* flex-grow: 0 -- confirmed live: with grow:1 here, these buttons filled
+   the *entire* row width on a wide/desktop viewport (nothing else on
+   .toolbar-actions's own full-width line to share the space with), making
+   an "Ajouter..." button hundreds of pixels wide instead of a normal
+   compact button. shrink:1 + the 200px basis is kept so on a narrow phone
+   two buttons side by side still shrink evenly to fit instead of
+   overflowing. */
 .toolbar-actions .btn {
-  flex: 1 1 200px;
+  flex: 0 1 200px;
   text-align: center;
 }
 .search-input {
