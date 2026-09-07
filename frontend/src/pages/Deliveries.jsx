@@ -7,6 +7,8 @@ import { useDialog } from '../context/DialogContext'
 import { api } from '../api'
 import { maskPhone, formatDate, getCurrentPosition, RECENTER_BOX_METERS } from '../utils'
 import { fetchDrivingRoute, ROUTE_COLOR } from '../routing'
+import PhotoThumb from '../components/PhotoThumb'
+import PhotoLightbox from '../components/PhotoLightbox'
 import { IconTruck, IconLocate, IconExpand, IconClose } from '../icons'
 
 // Same green already used elsewhere for this app's own accent (the
@@ -53,6 +55,8 @@ export default function Deliveries() {
   // of always expanded -- see CollectionPoints.jsx's own filtersOpen for
   // the rationale (same pattern, reused across every map+filters page).
   const [filtersOpen, setFiltersOpen] = useState(false)
+  // See CollectionPoints.jsx's own lightboxPhoto for the full rationale.
+  const [lightboxPhoto, setLightboxPhoto] = useState(null)
   // pickup_ids currently shown on the map (live ping or declared departure
   // position) -- used to flag, in the list, which en_route deliveries have
   // neither and so are never on the map at all (never "position
@@ -444,6 +448,7 @@ export default function Deliveries() {
                 // PickupDetail itself still offers a "view destination"
                 // link for whoever wants to go there instead.
                 <Link className="need-card" to={`/pickups/${p.id}`} key={p.id}>
+                  <PhotoThumb src={p.photo} alt={p.organization_or_person_name || p.responder_name} onOpen={setLightboxPhoto} />
                   <span className={`badge badge-status-${p.status}`}>{t(`status.${p.status}`)}</span>
                   {/* pickupTokens only ever holds pickups created in this exact
                       browser (see AppContext) -- lets someone who just took
@@ -549,6 +554,7 @@ export default function Deliveries() {
           <p className="legend-note">{t('deliveries.liveMapNote')}</p>
         </div>
       )}
+      <PhotoLightbox src={lightboxPhoto} onClose={() => setLightboxPhoto(null)} />
     </section>
   )
 }

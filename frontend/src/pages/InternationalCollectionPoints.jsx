@@ -8,6 +8,8 @@ import { geocodeCountryBounds, getCurrentPosition, haversineKm, RECENTER_BOX_MET
 import { fetchDrivingRoute, COLLECTION_POINT_ROUTE_COLOR } from '../routing'
 import { countryFlagEmoji, formatApproxKm } from '../mapMarkers'
 import CountryOrPlaceSearch from '../components/CountryOrPlaceSearch'
+import PhotoThumb from '../components/PhotoThumb'
+import PhotoLightbox from '../components/PhotoLightbox'
 import { IconLocate, IconExpand, IconClose } from '../icons'
 
 // Worldwide counterpart to CollectionPoints.jsx -- same map/list page, no
@@ -44,6 +46,8 @@ export default function InternationalCollectionPoints() {
   const [mapActive, setMapActive] = useState(false)
   // Fullscreen expand -- see CollectionPoints.jsx's own fullscreen.
   const [fullscreen, setFullscreen] = useState(false)
+  // See CollectionPoints.jsx's own lightboxPhoto for the full rationale.
+  const [lightboxPhoto, setLightboxPhoto] = useState(null)
   // null (nothing yet) | { distanceKm, durationMin } | 'unavailable' (OSRM
   // unreachable) | 'too-far' (beyond the 100km cutoff, see drawRouteToPoint)
   const [routeInfo, setRouteInfo] = useState(null)
@@ -500,6 +504,7 @@ export default function InternationalCollectionPoints() {
           <div className="needs-list">
             {points.map((cp) => (
               <Link className="need-card" to={`/collection-points/${cp.id}`} key={cp.id}>
+                <PhotoThumb src={cp.flyer_image} alt={cp.point_name} onOpen={setLightboxPhoto} />
                 <h3>{cp.point_name}</h3>
                 <p>
                   {cp.country_name}
@@ -554,6 +559,7 @@ export default function InternationalCollectionPoints() {
           )}
         </div>
       )}
+      <PhotoLightbox src={lightboxPhoto} onClose={() => setLightboxPhoto(null)} />
     </section>
   )
 }

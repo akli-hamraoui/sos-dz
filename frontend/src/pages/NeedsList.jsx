@@ -6,6 +6,8 @@ import { useApp } from '../context/AppContext'
 import { useDialog } from '../context/DialogContext'
 import { api } from '../api'
 import { urgencyColor, haversineKm, isInAlgeria, getCurrentPosition, RECENTER_BOX_METERS } from '../utils'
+import PhotoThumb from '../components/PhotoThumb'
+import PhotoLightbox from '../components/PhotoLightbox'
 import { IconLocate, IconExpand, IconClose } from '../icons'
 
 function statusLabel(t, s) {
@@ -39,6 +41,8 @@ export default function NeedsList() {
   // expanded -- see CollectionPoints.jsx's own filtersOpen for the
   // rationale (same pattern, reused across every map+filters page).
   const [filtersOpen, setFiltersOpen] = useState(false)
+  // See CollectionPoints.jsx's own lightboxPhoto for the full rationale.
+  const [lightboxPhoto, setLightboxPhoto] = useState(null)
   // Tap-to-activate map -- see CollectionPoints.jsx's own mapActive for
   // the full rationale (replaces the old two-finger-to-pan gesture
   // handling, reported awkward on mobile). Starts "asleep" so a single
@@ -401,6 +405,7 @@ export default function NeedsList() {
           {needs.length === 0 && <p>{t('needsList.noActiveNeeds')}</p>}
           {needs.map((n) => (
             <Link className="need-card" to={`/needs/${n.id}`} key={n.id}>
+              <PhotoThumb src={n.damage_photos?.find((p) => p.image)?.image} alt={n.title} onOpen={setLightboxPhoto} />
               {n.urgency !== 'medium' && (
                 <span className={`badge urgency-${n.urgency}`}>{t(`urgency.${n.urgency}`)}</span>
               )}
@@ -470,6 +475,7 @@ export default function NeedsList() {
           </div>
         </div>
       )}
+      <PhotoLightbox src={lightboxPhoto} onClose={() => setLightboxPhoto(null)} />
     </section>
   )
 }
