@@ -92,6 +92,16 @@ export default function CollectionPoints() {
   // marker) -- at most one at a time, same convention as Deliveries.jsx's
   // own courier-to-destination route line.
   const routeLineRef = useRef(null)
+  // Reported live: typing a search that matched nothing re-ran smartZoom's
+  // no-wilaya branch, which jumped the map to the visitor's own geolocated
+  // position -- disorienting when they were deliberately looking at a
+  // specific area. smartZoom below now only actually moves the map on the
+  // map's first appearance or when the wilaya filter itself changes;
+  // typing in the search box only ever changes which markers are shown,
+  // never the camera. hasFramedRef resets whenever the map is torn down
+  // (Liste<->Carte round trip) so returning to the map re-frames fresh.
+  const hasFramedRef = useRef(false)
+  const prevFilterWilayaRef = useRef(filterWilaya)
 
   // Debounced so typing doesn't fire a request on every keystroke.
   useEffect(() => {
@@ -374,7 +384,12 @@ export default function CollectionPoints() {
 
         markersRef.current = markers
         const allPoints = cpsWithPos.map((p) => [p.display_latitude, p.display_longitude])
-        smartZoom(map, allPoints, filterWilaya)
+        const wilayaChanged = prevFilterWilayaRef.current !== filterWilaya
+        prevFilterWilayaRef.current = filterWilaya
+        if (!hasFramedRef.current || wilayaChanged) {
+          hasFramedRef.current = true
+          smartZoom(map, allPoints, filterWilaya)
+        }
       })
     })()
 
@@ -444,6 +459,7 @@ export default function CollectionPoints() {
     setMapActive(false)
     setFullscreen(false)
     setShowInternationalLink(false)
+    hasFramedRef.current = false
   }, [viewMode])
 
   // Wakes the map from its initial "asleep" state (see mapActive above)
@@ -575,7 +591,7 @@ export default function CollectionPoints() {
             className="search-input"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
-            placeholder={t('common.searchPlaceholder')}
+            placeholder={t('collectionPoints.searchPlaceholder')}
           />
           <label>
             {t('needsList.filterByWilaya')}

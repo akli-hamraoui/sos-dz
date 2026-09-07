@@ -53,6 +53,10 @@ export default function NeedsList() {
   const mapRef = useRef(null)
   const mapElRef = useRef(null)
   const markersRef = useRef([])
+  // See CollectionPoints.jsx's own hasFramedRef/prevFilterWilayaRef for
+  // the full rationale -- a search-only change must never move the map.
+  const hasFramedRef = useRef(false)
+  const prevFilterWilayaRef = useRef(filterWilaya)
 
   // Debounced so typing doesn't fire a request on every keystroke.
   useEffect(() => {
@@ -239,7 +243,12 @@ export default function NeedsList() {
 
         markersRef.current = markers
         const allPoints = needsWithPos.map((p) => [p.display_latitude, p.display_longitude])
-        smartZoom(map, allPoints, filterWilaya)
+        const wilayaChanged = prevFilterWilayaRef.current !== filterWilaya
+        prevFilterWilayaRef.current = filterWilaya
+        if (!hasFramedRef.current || wilayaChanged) {
+          hasFramedRef.current = true
+          smartZoom(map, allPoints, filterWilaya)
+        }
       })
     })()
 
@@ -280,6 +289,7 @@ export default function NeedsList() {
     markersRef.current = []
     setMapActive(false)
     setFullscreen(false)
+    hasFramedRef.current = false
   }, [viewMode])
 
   // See CollectionPoints.jsx's own activateMap/deactivateMap/
@@ -375,7 +385,7 @@ export default function NeedsList() {
             className="search-input"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
-            placeholder={t('common.searchPlaceholder')}
+            placeholder={t('needsList.searchPlaceholder')}
           />
           <label>
             {t('needsList.filterByWilaya')}
