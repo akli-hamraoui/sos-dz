@@ -2080,13 +2080,13 @@ class InternationalCollectionPointTests(BaseAPITestCase):
         self.assertEqual(len(resp.data["results"]), 1)
         self.assertEqual(resp.data["results"][0]["organization"], "Croissant Rouge Paris")
 
-    def test_international_search_does_not_match_location_description(self):
-        # Unlike the national search, the international one is scoped to
-        # point_name/organization only -- a match on the street/landmark
-        # text isn't useful for telling international points apart.
+    def test_international_search_matches_location_description(self):
+        # As broad as the national search -- a match on the street/landmark
+        # text is just as useful for an international point as for a
+        # national one (see CollectionPointViewSet.get_queryset).
         self.client.post("/api/collection-points/", self._payload(location_description="Near Gare du Nord"), format="json")
         resp = self.client.get("/api/collection-points/?international=1&search=Gare")
-        self.assertEqual(len(resp.data["results"]), 0)
+        self.assertEqual(len(resp.data["results"]), 1)
 
     def test_international_point_excluded_from_locations_by_default(self):
         self.client.post("/api/collection-points/", self._payload(), format="json")
