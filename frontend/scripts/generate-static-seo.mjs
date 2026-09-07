@@ -5,7 +5,7 @@
 // knows what each one says. Three jobs:
 //
 // 1. Bakes a distinct title/description/canonical/OG/Twitter block (and,
-//    for the homepage, Organization + FAQPage JSON-LD) into a static
+//    for the homepage, Organization JSON-LD) into a static
 //    dist/<route>/index.html per route -- including the homepage itself,
 //    dist/index.html -- so a crawler that never runs the app's JS
 //    (WhatsApp/Facebook/Twitter link previews, a non-JS Googlebot
@@ -21,8 +21,8 @@
 //    impossible: frontend/index.html itself now only needs the
 //    SEO:START/END markers and an empty <div id="root">, both replaced
 //    unconditionally for every route including "/".
-// 2. Injects real, visible body text (the homepage's summary paragraph +
-//    FAQ) into the homepage's own dist/index.html, inside
+// 2. Injects real, visible body text (the homepage's summary paragraph)
+//    into the homepage's own dist/index.html, inside
 //    <div id="root">. Without this, a crawler that doesn't run JS sees a
 //    genuinely empty <body> on every page of this SPA -- confirmed by
 //    building and inspecting dist/index.html directly. Safe to do this
@@ -100,18 +100,6 @@ function organizationJsonLd() {
   }
 }
 
-function faqPageJsonLd() {
-  return {
-    '@context': 'https://schema.org',
-    '@type': 'FAQPage',
-    mainEntity: fr.home.faq.map((item) => ({
-      '@type': 'Question',
-      name: item.q,
-      acceptedAnswer: { '@type': 'Answer', text: item.a },
-    })),
-  }
-}
-
 function seoBlock({ title, description, canonicalUrl, jsonLd }) {
   const t = escapeAttr(title)
   const d = escapeAttr(description)
@@ -142,17 +130,9 @@ function seoBlock({ title, description, canonicalUrl, jsonLd }) {
 
 function homeBodyHtml() {
   const { home } = fr
-  const faqItems = home.faq
-    .map(
-      (item) => `      <h3>${escapeHtml(item.q)}</h3>
-      <p>${escapeHtml(item.a)}</p>`
-    )
-    .join('\n')
   return `<div id="root"><main style="max-width:640px;margin:40px auto;padding:0 20px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#111;line-height:1.6;">
       <h1>${escapeHtml(fr.seo.home.title)}</h1>
       <p>${escapeHtml(home.summary)}</p>
-      <h2>${escapeHtml(home.faqHeading)}</h2>
-${faqItems}
     </main></div>`
 }
 
@@ -195,7 +175,7 @@ for (const route of SEO_ROUTES) {
   const seo = fr.seo[route.key]
   const canonicalUrl = `${SITE_URL}${route.urlPath}`
   const isHome = route.key === 'home'
-  const jsonLd = isHome ? [organizationJsonLd(), faqPageJsonLd()] : []
+  const jsonLd = isHome ? [organizationJsonLd()] : []
   let html = shell.replace(seoBlockPattern, seoBlock({ title: seo.title, description: seo.description, canonicalUrl, jsonLd }))
   if (isHome) {
     html = html.replace(rootDivPattern, homeBodyHtml())

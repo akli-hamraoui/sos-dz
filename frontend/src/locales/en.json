@@ -97,26 +97,8 @@
     "createCollectionPoint": "Create a collection point",
     "createCollectionPointAlgeria": "In Algeria",
     "createCollectionPointInternational": "Internationally",
-    "summary": "SOSDZ coordinates emergency relief in Algeria in response to natural disasters (wildfires...): report a need, help as a volunteer or delivery driver, or set up a donation collection point.",
-    "faqHeading": "Frequently asked questions",
-    "faq": [
-      {
-        "q": "What is SOSDZ?",
-        "a": "SOSDZ is a community-run, volunteer platform that coordinates emergency relief in Algeria: it lets you report a need, offer help, or find a donation collection point, anywhere in the country."
-      },
-      {
-        "q": "How do I request help in Algeria through SOSDZ?",
-        "a": "Click \"I need help\" on the homepage, describe your need (food, water, shelter, medical care...) and your location -- nearby volunteers can then see it and offer help."
-      },
-      {
-        "q": "How can I volunteer for disaster relief in Algeria?",
-        "a": "Click \"I want to help\" on the homepage to browse nearby reported needs, take charge of a delivery, or become a volunteer driver."
-      },
-      {
-        "q": "How do I set up a donation collection point on SOSDZ?",
-        "a": "From the \"Collection Points\" page, click \"Add a collection point\" and fill in the location, opening hours, and accepted donations -- there's also an option for a collection point abroad."
-      }
-    ]
+    "collectionPointsListHint": "List of collection points...",
+    "summary": "SOSDZ coordinates emergency relief in Algeria in response to natural disasters (wildfires...): report a need, help as a volunteer or delivery driver, or set up a donation collection point."
   },
   "status": {
     "open": "open",
@@ -402,7 +384,7 @@
     "viewTransporterDetail": "View transporter details"
   },
   "quickActions": {
-    "create": "+ Collection point",
+    "create": "Collection point",
     "national": "+ Collection point in Algeria",
     "international": "+ Collection point outside Algeria",
     "deliver": "Deliver a donation"

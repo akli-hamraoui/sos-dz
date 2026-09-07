@@ -29,7 +29,11 @@ export default function Home() {
       <p className="home-tagline">{t('home.tagline')}</p>
       <div className="home-actions">
         <Link to="/collection-points" className="btn btn-icon home-btn-outline home-btn-compact">
-          <IconAlgeriaFlag /> {t('home.collectionPointsAlgeria')}
+          <IconAlgeriaFlag />
+          <span className="home-btn-label">
+            <span className="home-btn-title">{t('home.collectionPointsAlgeria')}</span>
+            <span className="home-btn-subtitle">{t('home.collectionPointsListHint')}</span>
+          </span>
           {/* Small trailing cue that this leads to a map view (both
               collection-point pages default to their map -- see each
               page's own viewMode state), same IconMapPin glyph already
@@ -39,7 +43,11 @@ export default function Home() {
           <IconMapPin width={16} height={16} strokeWidth={1.75} className="home-btn-map-hint" />
         </Link>
         <Link to="/international-collection-points" className="btn btn-icon home-btn-outline home-btn-compact">
-          <IconGlobeColor /> {t('home.collectionPointsInternational')}
+          <IconGlobeColor />
+          <span className="home-btn-label">
+            <span className="home-btn-title">{t('home.collectionPointsInternational')}</span>
+            <span className="home-btn-subtitle">{t('home.collectionPointsListHint')}</span>
+          </span>
           <IconMapPin width={16} height={16} strokeWidth={1.75} className="home-btn-map-hint" />
         </Link>
         {/* Creating a point is a distinct action from the two browse
@@ -100,20 +108,6 @@ export default function Home() {
           above (tuned to stay visible on short/tablet viewports -- see
           index.css's .home rules). */}
       <p className="home-description">{t('home.summary')}</p>
-      {/* FAQPage structured data (see Seo.jsx) must match visible page
-          content -- Google's own structured-data policy requires this,
-          and it's the honest thing to do regardless. This is that
-          visible copy; Seo.jsx reads the exact same "home.faq"
-          translation array so the two can never drift apart. */}
-      <section className="home-faq" aria-labelledby="home-faq-heading">
-        <h2 id="home-faq-heading" className="page-title">{t('home.faqHeading')}</h2>
-        {t('home.faq', { returnObjects: true }).map((item) => (
-          <div className="home-faq-item" key={item.q}>
-            <h3>{item.q}</h3>
-            <p>{item.a}</p>
-          </div>
-        ))}
-      </section>
     </section>
   )
 }

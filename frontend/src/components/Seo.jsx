@@ -76,29 +76,6 @@ export default function Seo() {
           })}
         </script>
       )}
-      {matched?.key === 'home' && (
-        <script type="application/ld+json">
-          {JSON.stringify({
-            '@context': 'https://schema.org',
-            '@type': 'FAQPage',
-            // Built from the exact same "home.faq" translations rendered
-            // as visible text on the page itself (see Home.jsx) -- the
-            // markup must match what a visitor actually sees, per
-            // Google's structured-data policy. Note: Google retired FAQ
-            // rich results from Search entirely as of May 2026 (this
-            // markup no longer produces the old dropdown snippet for
-            // anyone) -- this is included as a best-effort, no-guaranteed-
-            // effect signal for AI systems that read structured data as a
-            // clarity/trust signal, not for a search feature that still
-            // exists.
-            mainEntity: t('home.faq', { returnObjects: true }).map((item) => ({
-              '@type': 'Question',
-              name: item.q,
-              acceptedAnswer: { '@type': 'Answer', text: item.a },
-            })),
-          })}
-        </script>
-      )}
     </Helmet>
   )
 }
