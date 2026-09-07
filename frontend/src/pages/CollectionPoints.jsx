@@ -22,6 +22,20 @@ export default function CollectionPoints() {
   // this is deliberately not persisted.
   const [viewMode, setViewMode] = useState('map')
   const [mapHasNothing, setMapHasNothing] = useState(false)
+  // Filters (search + wilaya) tucked behind this toggle instead of always
+  // expanded -- collapsed by default so the map/list below starts right
+  // under a compact single-row toolbar instead of losing a big chunk of a
+  // short mobile screen to filter controls most visits never touch.
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  // The map fills whatever viewport height remains below it (Airbnb-style)
+  // instead of a fixed 600px block -- computed from the frame's own
+  // measured top offset (see the effect below) rather than a CSS flex
+  // chain, since #root only sets min-height (not a hard height), so a
+  // flex-grow map just grows #root to fit content instead of being capped
+  // at the viewport (confirmed live). 500 is only the very first paint's
+  // fallback, before the effect below has measured anything.
+  const [mapFillHeight, setMapFillHeight] = useState(500)
+  const mapFrameRef = useRef(null)
   // Prototype of a tap-to-activate map, replacing the old two-finger-to-
   // pan gesture handling (confirmed awkward on mobile -- reported live).
   // The map starts "asleep" (dragging/zoom all disabled) so a single
@@ -479,7 +493,36 @@ export default function CollectionPoints() {
     if (!map) return
     const rafId = requestAnimationFrame(() => map.invalidateSize())
     return () => cancelAnimationFrame(rafId)
-  }, [fullscreen])
+  }, [fullscreen, mapFillHeight])
+
+  // Airbnb-style "map fills the screen" -- measures the frame's own actual
+  // top offset (rather than a hardcoded chrome-height guess) so this stays
+  // correct regardless of the filters panel being open/closed, the
+  // international-link hint appearing, or how much the page-intro text
+  // wraps to (language, viewport width). 90 mirrors <main>'s own
+  // padding-block-end reserved for the fixed bottom nav (index.css) --
+  // an explicit height here doesn't inherit that clearance on its own, so
+  // it's subtracted a second time.
+  useEffect(() => {
+    if (viewMode !== 'map' || fullscreen) return
+    const el = mapFrameRef.current
+    if (!el) return
+    const BOTTOM_NAV_CLEARANCE = 90
+    // Only a floor against a degenerate near-zero map on a pathologically
+    // short viewport/tall toolbar combination -- anything higher risks the
+    // computed height being *smaller* than what's actually available,
+    // which would push the map's bottom edge past the bottom nav's own
+    // clearance and behind it (confirmed live at 340: overlapped the nav
+    // by ~54px on a common 780px-tall phone viewport).
+    const MIN_HEIGHT = 160
+    const recompute = () => {
+      const top = el.getBoundingClientRect().top
+      setMapFillHeight(Math.max(MIN_HEIGHT, Math.round(window.innerHeight - top - BOTTOM_NAV_CLEARANCE)))
+    }
+    recompute()
+    window.addEventListener('resize', recompute)
+    return () => window.removeEventListener('resize', recompute)
+  }, [viewMode, fullscreen, filtersOpen, mapHasNothing])
 
   // Fullscreen mode covers the whole viewport -- the page behind it has
   // no business scrolling while it's up (confirmed the alternative is
@@ -496,7 +539,7 @@ export default function CollectionPoints() {
   }, [fullscreen])
 
   return (
-    <section className="needs-page">
+    <section className="needs-page needs-page-map-fill">
       {/* Real, visible descriptive text -- search engines can't read
           meaning from the map/markers alone. */}
       <p className="page-intro">{t('seo.collectionPoints.description')}</p>
@@ -511,30 +554,11 @@ export default function CollectionPoints() {
           {t('internationalCollectionPoints.navButton')}
         </Link>
       </p>
-      <div className="toolbar">
-        <input
-          type="search"
-          className="search-input"
-          value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
-          placeholder={t('common.searchPlaceholder')}
-        />
-        <label>
-          {t('needsList.filterByWilaya')}
-          <select value={filterWilaya} onChange={(e) => setFilterWilaya(e.target.value)}>
-            <option value="">{t('needsList.all')}</option>
-            {activeCampaignWilayas.map((w) => (
-              <option key={w.id} value={w.id}>
-                {w.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        {hasActiveFilters && (
-          <button type="button" className="btn" onClick={resetFilters}>
-            {t('needsList.resetFilters')}
-          </button>
-        )}
+      <div className="toolbar toolbar-compact">
+        <button type="button" className="filters-toggle" aria-expanded={filtersOpen} onClick={() => setFiltersOpen((v) => !v)}>
+          ☰ {t('common.filters')}
+          {hasActiveFilters && <span className="filters-badge" aria-hidden="true" />}
+        </button>
         <div className="view-toggle">
           <button className={viewMode === 'list' ? 'active' : ''} onClick={() => setViewMode('list')}>
             {t('needsList.list')}
@@ -544,6 +568,33 @@ export default function CollectionPoints() {
           </button>
         </div>
       </div>
+      {filtersOpen && (
+        <div className="filters-panel">
+          <input
+            type="search"
+            className="search-input"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder={t('common.searchPlaceholder')}
+          />
+          <label>
+            {t('needsList.filterByWilaya')}
+            <select value={filterWilaya} onChange={(e) => setFilterWilaya(e.target.value)}>
+              <option value="">{t('needsList.all')}</option>
+              {activeCampaignWilayas.map((w) => (
+                <option key={w.id} value={w.id}>
+                  {w.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          {hasActiveFilters && (
+            <button type="button" className="btn" onClick={resetFilters}>
+              {t('needsList.resetFilters')}
+            </button>
+          )}
+        </div>
+      )}
 
       {viewMode === 'list' && (
         <>
@@ -566,8 +617,12 @@ export default function CollectionPoints() {
       {viewMode === 'map' && (
         <div className="map-wrap">
           {mapHasNothing && <p className="hint">{t('collectionPoints.noPointsYet')}</p>}
-          <div className={fullscreen ? 'map-frame map-frame-fullscreen' : 'map-frame'}>
-            <div id="cp-map" ref={mapElRef} style={{ height: fullscreen ? '100%' : 600 }} />
+          <div
+            className={fullscreen ? 'map-frame map-frame-fullscreen' : 'map-frame'}
+            style={fullscreen ? undefined : { height: mapFillHeight }}
+            ref={mapFrameRef}
+          >
+            <div id="cp-map" ref={mapElRef} style={{ height: '100%' }} />
             {!mapActive && !fullscreen && (
               <div className="map-activate-overlay" onClick={activateMap} role="button" tabIndex={0} aria-label={t('map.tapToInteract')}>
                 <span className="map-activate-hint">{t('map.tapToInteract')}</span>

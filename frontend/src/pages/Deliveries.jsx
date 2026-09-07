@@ -49,6 +49,10 @@ export default function Deliveries() {
   // default than a text list, same reasoning as NeedsList's own map-first
   // default.
   const [viewMode, setViewMode] = useState('map')
+  // Filters (search, wilaya, position) tucked behind this toggle instead
+  // of always expanded -- see CollectionPoints.jsx's own filtersOpen for
+  // the rationale (same pattern, reused across every map+filters page).
+  const [filtersOpen, setFiltersOpen] = useState(false)
   // pickup_ids currently shown on the map (live ping or declared departure
   // position) -- used to flag, in the list, which en_route deliveries have
   // neither and so are never on the map at all (never "position
@@ -80,6 +84,10 @@ export default function Deliveries() {
   const [mapActive, setMapActive] = useState(false)
   // Fullscreen expand -- see CollectionPoints.jsx's own fullscreen.
   const [fullscreen, setFullscreen] = useState(false)
+  // Map fills the remaining viewport height -- see CollectionPoints.jsx's
+  // own mapFillHeight for the full rationale.
+  const [mapFillHeight, setMapFillHeight] = useState(500)
+  const mapFrameRef = useRef(null)
   const mapRef = useRef(null)
   const mapElRef = useRef(null)
   const markersRef = useRef([])
@@ -326,7 +334,24 @@ export default function Deliveries() {
     if (!map) return
     const rafId = requestAnimationFrame(() => map.invalidateSize())
     return () => cancelAnimationFrame(rafId)
-  }, [fullscreen])
+  }, [fullscreen, mapFillHeight])
+
+  // Airbnb-style "map fills the screen" -- see CollectionPoints.jsx's own
+  // equivalent effect for the full rationale.
+  useEffect(() => {
+    if (viewMode !== 'map' || fullscreen) return
+    const el = mapFrameRef.current
+    if (!el) return
+    const BOTTOM_NAV_CLEARANCE = 90
+    const MIN_HEIGHT = 160
+    const recompute = () => {
+      const top = el.getBoundingClientRect().top
+      setMapFillHeight(Math.max(MIN_HEIGHT, Math.round(window.innerHeight - top - BOTTOM_NAV_CLEARANCE)))
+    }
+    recompute()
+    window.addEventListener('resize', recompute)
+    return () => window.removeEventListener('resize', recompute)
+  }, [viewMode, fullscreen, filtersOpen])
 
   useEffect(() => {
     if (!fullscreen) return
@@ -338,45 +363,17 @@ export default function Deliveries() {
   }, [fullscreen])
 
   return (
-    <section className="needs-page">
-      <div className="toolbar">
-        {/* Transporter info -- name/first name/full name/phone/email all
-            searched together server-side (PickupViewSet.get_queryset). */}
-        <input
-          type="search"
-          className="search-input"
-          value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
-          placeholder={t('deliveries.searchPlaceholder')}
-        />
-        {/* Destination info -- wilaya here is the destination's wilaya
-            (need/collection point), not the courier's current position,
-            same as the search box above already matching destination
-            name/phone too (see PickupViewSet.get_queryset). */}
-        <label>
-          {t('needsList.filterByWilaya')}
-          <select value={filterWilaya} onChange={(e) => setFilterWilaya(e.target.value)}>
-            <option value="">{t('needsList.all')}</option>
-            {activeCampaignWilayas.map((w) => (
-              <option key={w.id} value={w.id}>
-                {w.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          {t('deliveries.filterByPosition')}
-          <select value={filterPosition} onChange={(e) => setFilterPosition(e.target.value)}>
-            <option value="">{t('needsList.all')}</option>
-            <option value="with">{t('deliveries.positionWith')}</option>
-            <option value="without">{t('deliveries.positionWithout')}</option>
-          </select>
-        </label>
-        {hasActiveFilters && (
-          <button type="button" className="btn" onClick={resetFilters}>
-            {t('deliveries.resetFilters')}
-          </button>
-        )}
+    <section className="needs-page needs-page-map-fill">
+      {/* Starting a delivery (previously two buttons in a second toolbar
+          right here) is now reachable from the header's own truck
+          QuickActions menu (App.jsx) -- same two destinations
+          (/needs, /collection-points), so this page doesn't need to
+          duplicate them in its own toolbar too. */}
+      <div className="toolbar toolbar-compact">
+        <button type="button" className="filters-toggle" aria-expanded={filtersOpen} onClick={() => setFiltersOpen((v) => !v)}>
+          ☰ {t('common.filters')}
+          {hasActiveFilters && <span className="filters-badge" aria-hidden="true" />}
+        </button>
         <div className="view-toggle">
           <button className={viewMode === 'list' ? 'active' : ''} onClick={() => setViewMode('list')}>
             {t('needsList.list')}
@@ -386,20 +383,47 @@ export default function Deliveries() {
           </button>
         </div>
       </div>
-
-      {/* Starting a delivery always begins on the need/collection point's
-          own page ("Prendre en charge"/"Prendre en charge une livraison")
-          -- these two just get a courier to the right browse screen (map
-          or list, same pages as the Besoins/Collecte tabs) to pick which
-          one, instead of duplicating that browsing UI here. */}
-      <div className="toolbar">
-        <Link className="btn btn-primary" to="/needs">
-          {t('deliveries.deliverToNeed')}
-        </Link>
-        <Link className="btn btn-primary" to="/collection-points">
-          {t('deliveries.deliverToCollectionPoint')}
-        </Link>
-      </div>
+      {filtersOpen && (
+        <div className="filters-panel">
+          {/* Transporter info -- name/first name/full name/phone/email all
+              searched together server-side (PickupViewSet.get_queryset). */}
+          <input
+            type="search"
+            className="search-input"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder={t('deliveries.searchPlaceholder')}
+          />
+          {/* Destination info -- wilaya here is the destination's wilaya
+              (need/collection point), not the courier's current position,
+              same as the search box above already matching destination
+              name/phone too (see PickupViewSet.get_queryset). */}
+          <label>
+            {t('needsList.filterByWilaya')}
+            <select value={filterWilaya} onChange={(e) => setFilterWilaya(e.target.value)}>
+              <option value="">{t('needsList.all')}</option>
+              {activeCampaignWilayas.map((w) => (
+                <option key={w.id} value={w.id}>
+                  {w.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            {t('deliveries.filterByPosition')}
+            <select value={filterPosition} onChange={(e) => setFilterPosition(e.target.value)}>
+              <option value="">{t('needsList.all')}</option>
+              <option value="with">{t('deliveries.positionWith')}</option>
+              <option value="without">{t('deliveries.positionWithout')}</option>
+            </select>
+          </label>
+          {hasActiveFilters && (
+            <button type="button" className="btn" onClick={resetFilters}>
+              {t('deliveries.resetFilters')}
+            </button>
+          )}
+        </div>
+      )}
 
       {viewMode === 'list' && (
         <>
@@ -477,8 +501,12 @@ export default function Deliveries() {
               en_route is represented by the single unknown-position-chip
               bubble below, never a separate "nothing to show" message
               standing in for the map. */}
-          <div className={fullscreen ? 'map-frame map-frame-fullscreen' : 'map-frame'}>
-            <div id="deliveries-map" ref={mapElRef} style={{ height: fullscreen ? '100%' : 600 }} />
+          <div
+            className={fullscreen ? 'map-frame map-frame-fullscreen' : 'map-frame'}
+            style={fullscreen ? undefined : { height: mapFillHeight }}
+            ref={mapFrameRef}
+          >
+            <div id="deliveries-map" ref={mapElRef} style={{ height: '100%' }} />
             {!mapActive && !fullscreen && (
               <div className="map-activate-overlay" onClick={activateMap} role="button" tabIndex={0} aria-label={t('map.tapToInteract')}>
                 <span className="map-activate-hint">{t('map.tapToInteract')}</span>

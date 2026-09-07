@@ -35,6 +35,10 @@ export default function NeedsList() {
   // manual switch).
   const [viewMode, setViewMode] = useState('map')
   const [mapHasNothing, setMapHasNothing] = useState(false)
+  // Filters (search + wilaya) tucked behind this toggle instead of always
+  // expanded -- see CollectionPoints.jsx's own filtersOpen for the
+  // rationale (same pattern, reused across every map+filters page).
+  const [filtersOpen, setFiltersOpen] = useState(false)
   // Tap-to-activate map -- see CollectionPoints.jsx's own mapActive for
   // the full rationale (replaces the old two-finger-to-pan gesture
   // handling, reported awkward on mobile). Starts "asleep" so a single
@@ -42,6 +46,10 @@ export default function NeedsList() {
   const [mapActive, setMapActive] = useState(false)
   // Fullscreen expand -- see CollectionPoints.jsx's own fullscreen.
   const [fullscreen, setFullscreen] = useState(false)
+  // Map fills the remaining viewport height -- see CollectionPoints.jsx's
+  // own mapFillHeight for the full rationale.
+  const [mapFillHeight, setMapFillHeight] = useState(500)
+  const mapFrameRef = useRef(null)
   const mapRef = useRef(null)
   const mapElRef = useRef(null)
   const markersRef = useRef([])
@@ -312,7 +320,7 @@ export default function NeedsList() {
     if (!map) return
     const rafId = requestAnimationFrame(() => map.invalidateSize())
     return () => cancelAnimationFrame(rafId)
-  }, [fullscreen])
+  }, [fullscreen, mapFillHeight])
 
   useEffect(() => {
     if (!fullscreen) return
@@ -323,32 +331,34 @@ export default function NeedsList() {
     }
   }, [fullscreen])
 
+  // Airbnb-style "map fills the screen" -- see CollectionPoints.jsx's own
+  // equivalent effect for the full rationale.
+  useEffect(() => {
+    if (viewMode !== 'map' || fullscreen) return
+    const el = mapFrameRef.current
+    if (!el) return
+    const BOTTOM_NAV_CLEARANCE = 90
+    const MIN_HEIGHT = 160
+    const recompute = () => {
+      const top = el.getBoundingClientRect().top
+      setMapFillHeight(Math.max(MIN_HEIGHT, Math.round(window.innerHeight - top - BOTTOM_NAV_CLEARANCE)))
+    }
+    recompute()
+    window.addEventListener('resize', recompute)
+    return () => window.removeEventListener('resize', recompute)
+  }, [viewMode, fullscreen, filtersOpen, mapHasNothing])
+
   return (
-    <section className="needs-page">
-      <div className="toolbar">
-        <input
-          type="search"
-          className="search-input"
-          value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
-          placeholder={t('common.searchPlaceholder')}
-        />
-        <label>
-          {t('needsList.filterByWilaya')}
-          <select value={filterWilaya} onChange={(e) => setFilterWilaya(e.target.value)}>
-            <option value="">{t('needsList.all')}</option>
-            {activeCampaignWilayas.map((w) => (
-              <option key={w.id} value={w.id}>
-                {w.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        {hasActiveFilters && (
-          <button type="button" className="btn" onClick={resetFilters}>
-            {t('needsList.resetFilters')}
-          </button>
-        )}
+    <section className="needs-page needs-page-map-fill">
+      {/* Reporting a need is now reachable from the header nav ("J'ai
+          besoin d'aide") and the Home page's own SOS button, so this
+          toolbar no longer needs its own create button -- see
+          CollectionPoints.jsx's equivalent cleanup. */}
+      <div className="toolbar toolbar-compact">
+        <button type="button" className="filters-toggle" aria-expanded={filtersOpen} onClick={() => setFiltersOpen((v) => !v)}>
+          ☰ {t('common.filters')}
+          {hasActiveFilters && <span className="filters-badge" aria-hidden="true" />}
+        </button>
         <div className="view-toggle">
           <button className={viewMode === 'list' ? 'active' : ''} onClick={() => setViewMode('list')}>
             {t('needsList.list')}
@@ -357,11 +367,34 @@ export default function NeedsList() {
             {t('needsList.map')}
           </button>
         </div>
-        <Link className="btn btn-primary btn-icon" to="/create">
-          <img src="/icons/need-marker-sos.png" width={16} height={16} alt="" style={{ filter: 'invert(1)', flexShrink: 0 }} />
-          {t('needsList.addButton')}
-        </Link>
       </div>
+      {filtersOpen && (
+        <div className="filters-panel">
+          <input
+            type="search"
+            className="search-input"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder={t('common.searchPlaceholder')}
+          />
+          <label>
+            {t('needsList.filterByWilaya')}
+            <select value={filterWilaya} onChange={(e) => setFilterWilaya(e.target.value)}>
+              <option value="">{t('needsList.all')}</option>
+              {activeCampaignWilayas.map((w) => (
+                <option key={w.id} value={w.id}>
+                  {w.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          {hasActiveFilters && (
+            <button type="button" className="btn" onClick={resetFilters}>
+              {t('needsList.resetFilters')}
+            </button>
+          )}
+        </div>
+      )}
 
       {viewMode === 'list' && (
         <div className="needs-list">
@@ -388,8 +421,12 @@ export default function NeedsList() {
       {viewMode === 'map' && (
         <div className="map-wrap">
           {mapHasNothing && <p className="hint">{t('needsList.noActiveNeeds')}</p>}
-          <div className={fullscreen ? 'map-frame map-frame-fullscreen' : 'map-frame'}>
-            <div id="main-map" ref={mapElRef} style={{ height: fullscreen ? '100%' : 600 }} />
+          <div
+            className={fullscreen ? 'map-frame map-frame-fullscreen' : 'map-frame'}
+            style={fullscreen ? undefined : { height: mapFillHeight }}
+            ref={mapFrameRef}
+          >
+            <div id="main-map" ref={mapElRef} style={{ height: '100%' }} />
             {!mapActive && !fullscreen && (
               <div className="map-activate-overlay" onClick={activateMap} role="button" tabIndex={0} aria-label={t('map.tapToInteract')}>
                 <span className="map-activate-hint">{t('map.tapToInteract')}</span>

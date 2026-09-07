@@ -1021,6 +1021,13 @@ fieldset {
   flex-wrap: wrap;
   gap: 10px;
 }
+/* The compact filters-toggle + view-toggle row has no stacked <label> to
+   align against (that's now inside .filters-panel instead, shown/hidden
+   separately) -- plain center alignment instead of .toolbar's own
+   flex-end special-case above. */
+.toolbar-compact {
+  align-items: center;
+}
 .search-input {
   flex: 1 1 220px;
   min-width: 160px;
@@ -1458,6 +1465,60 @@ fieldset {
    of the whole section. */
 .map-frame {
   position: relative;
+}
+
+/* Airbnb-style compact toolbar (CollectionPoints.jsx, NeedsList.jsx,
+   Deliveries.jsx): filters tucked behind a toggle instead of always
+   expanded, and the map fills the remaining viewport height below the
+   toolbar instead of a fixed 600px block appended after all that chrome
+   -- confirmed live via a mockup shown to the user before this was
+   written for real. The actual fill height is computed in JS (each
+   page's own mapFillHeight state, set from the frame's measured top
+   offset) rather than a flex chain -- #root only sets min-height (not a
+   hard height), so a flex-grow map-frame just grows #root to fit content
+   instead of being capped at the viewport, tried and confirmed live. This
+   class only adds the min-height floor that JS-computed height also
+   enforces, as a no-JS/pre-layout fallback. */
+.needs-page-map-fill .map-frame {
+  min-height: 160px;
+}
+.filters-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border);
+  background: #fff;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 500;
+  color: #111;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.filters-toggle:hover {
+  background: #f7f7f7;
+}
+/* Small dot, not a number -- just a "something is filtered" signal, same
+   spirit as a notification dot elsewhere, since exactly which filter(s)
+   are active is already visible the moment the panel is opened. */
+.filters-badge {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--danger);
+  flex-shrink: 0;
+}
+.filters-panel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+  margin-block-end: 16px;
+  padding: 14px;
+  background: #fafafa;
+  border: 1px solid var(--border);
+  border-radius: 12px;
 }
 
 /* Marker popup content (mapMarkers.js and each map page's own bindPopup
