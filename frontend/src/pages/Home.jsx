@@ -77,9 +77,10 @@ export default function Home() {
         </Link>
       </div>
       {/* The guided voice SOS flow (CreateNeedVoiceGuide.jsx, /create-voice)
-          deliberately has NO entry point here or anywhere else on the site
-          -- still pending approval and, per explicit instruction, meant to
-          stay reachable only via someone testing the direct URL for now. */}
+          deliberately has NO entry point here or anywhere else on the site,
+          per explicit instruction -- reachable only via the direct URL
+          (and gated Algeria-only/admin regardless, see AppConfigurationView/
+          NeedViewSet.create_via_voice_guide, backend). */}
       {/* The footer also carries this link (it's the only entry point to
           /about from every other page), but there it sits far below the
           fold on Home specifically -- shown again here, right under the
