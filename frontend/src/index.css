@@ -277,6 +277,76 @@ a {
   flex-shrink: 0;
 }
 
+/* Header shortcuts to the app's own creation/delivery flows -- a dedicated
+   row below the main topbar (rather than squeezed inline into it, which
+   left no reliable room for 3 icon+text pills at any breakpoint), so they
+   read the same on every page. See QuickActions, App.jsx. */
+.quick-actions-bar {
+  display: flex;
+  justify-content: center;
+  padding: 8px 16px;
+  background: var(--card);
+  border-block-end: 1px solid var(--border);
+}
+.quick-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-width: 100%;
+}
+.quick-actions-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: #fff;
+  color: #333;
+  cursor: pointer;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-decoration: none;
+}
+.quick-actions-btn svg {
+  flex-shrink: 0;
+}
+.quick-actions-btn:hover {
+  background: #f2f2f2;
+}
+.quick-actions-deliver {
+  position: relative;
+}
+.quick-actions-menu {
+  position: absolute;
+  inset-inline-end: 0;
+  top: calc(100% + 6px);
+  z-index: 1400;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 200px;
+}
+.quick-actions-menu a {
+  padding: 8px 10px;
+  border-radius: 8px;
+  text-decoration: none;
+  color: #111;
+  font-size: 14px;
+  white-space: nowrap;
+}
+.quick-actions-menu a:hover {
+  background: #f2f2f2;
+}
+
 /* Below this width the inline nav (brand + 5 links + language switcher,
    ~900px at natural size) no longer has room -- collapse it into a
    toggleable menu instead of letting it overflow or wrap mid-word. */

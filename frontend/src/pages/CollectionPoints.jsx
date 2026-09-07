@@ -500,6 +500,17 @@ export default function CollectionPoints() {
       {/* Real, visible descriptive text -- search engines can't read
           meaning from the map/markers alone. */}
       <p className="page-intro">{t('seo.collectionPoints.description')}</p>
+      {/* Entry point to the separate worldwide page (any country, no
+          Algeria restriction) -- see InternationalCollectionPoints.jsx.
+          Same "hint" link pattern as that page's own reciprocal link back
+          here. Creating a point (either kind) is now a header shortcut
+          (see QuickActions, App.jsx), so this toolbar only needs the
+          cross-navigation link, not a create button. */}
+      <p className="hint">
+        <Link className="link field-label-icon" to="/international-collection-points">
+          {t('internationalCollectionPoints.navButton')}
+        </Link>
+      </p>
       <div className="toolbar">
         <input
           type="search"
@@ -531,22 +542,6 @@ export default function CollectionPoints() {
           <button className={viewMode === 'map' ? 'active' : ''} onClick={() => setViewMode('map')}>
             {t('needsList.map')}
           </button>
-        </div>
-        {/* Grouped and matched (equal flex share, wraps as a pair) rather
-            than two independently-sized buttons trailing the toolbar --
-            see .toolbar-actions. */}
-        <div className="toolbar-actions">
-          <Link className="btn btn-primary" to="/collection-points/create">
-            {t('collectionPoints.addButton')}
-          </Link>
-          {/* Entry point to the separate worldwide page (any country, no
-              Algeria restriction) -- see InternationalCollectionPoints.jsx.
-              A clearly distinct destination, not a filter on this page,
-              since it has its own map default (visitor position, no wilaya
-              concept) and never shows couriers/take-charge. */}
-          <Link className="btn" to="/international-collection-points">
-            {t('internationalCollectionPoints.navButton')}
-          </Link>
         </div>
       </div>
 

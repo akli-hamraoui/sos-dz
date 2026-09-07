@@ -25,7 +25,19 @@ import CreateInternationalCollectionPoint from './pages/CreateInternationalColle
 import Deliveries from './pages/Deliveries'
 import BackButton from './components/BackButton'
 import Seo from './components/Seo'
-import { IconHome, IconBox, IconGlobe, IconTruck, IconWarning, IconWifiOff, IconCheckCircle, IconMenu, IconClose } from './icons'
+import {
+  IconHome,
+  IconBox,
+  IconGlobe,
+  IconTruck,
+  IconWarning,
+  IconWifiOff,
+  IconCheckCircle,
+  IconMenu,
+  IconClose,
+  IconAlgeriaFlag,
+  IconGlobeColor,
+} from './icons'
 
 // Small "this opens a map" cue on a bottom-nav icon -- Besoins/Points de
 // collecte/Livraisons all default to their map view (see each page's own
@@ -137,6 +149,64 @@ function TopNavLinks({ isActive, isAdmin }) {
       )}
       <LanguageSwitcher />
     </>
+  )
+}
+
+// Always-visible header shortcuts to the app's own creation flows --
+// previously each map page (CollectionPoints.jsx, InternationalCollection
+// Points.jsx) carried its own "+ Ajouter..." button inside a filters row
+// that could scroll out of view or end up collapsed behind a "Filtres"
+// toggle; these live in the topbar itself instead, next to the language
+// switcher/hamburger, reachable from anywhere in the app regardless of
+// which page's own filters are open or closed.
+function QuickActions() {
+  const { t } = useTranslation()
+  const [deliverMenuOpen, setDeliverMenuOpen] = useState(false)
+
+  // Closes the delivery-destination menu on an outside click -- it isn't
+  // a native <select>/<details>, so nothing does this for free.
+  useEffect(() => {
+    if (!deliverMenuOpen) return
+    const onDocClick = (e) => {
+      if (!e.target.closest('.quick-actions-deliver')) setDeliverMenuOpen(false)
+    }
+    document.addEventListener('click', onDocClick)
+    return () => document.removeEventListener('click', onDocClick)
+  }, [deliverMenuOpen])
+
+  return (
+    <div className="quick-actions">
+      <Link to="/collection-points/create" className="quick-actions-btn" title={t('collectionPoints.addButton')}>
+        <IconAlgeriaFlag width={16} height={16} />
+        <span>{t('quickActions.national')}</span>
+      </Link>
+      <Link to="/international-collection-points/create" className="quick-actions-btn" title={t('internationalCollectionPoints.addButton')}>
+        <IconGlobeColor width={16} height={16} />
+        <span>{t('quickActions.international')}</span>
+      </Link>
+      <div className="quick-actions-deliver">
+        <button
+          type="button"
+          className="quick-actions-btn"
+          title={t('deliveries.deliverToNeed') + ' / ' + t('deliveries.deliverToCollectionPoint')}
+          aria-expanded={deliverMenuOpen}
+          onClick={() => setDeliverMenuOpen((v) => !v)}
+        >
+          <IconTruck width={16} height={16} strokeWidth={1.9} />
+          <span>{t('quickActions.deliver')}</span>
+        </button>
+        {deliverMenuOpen && (
+          <div className="quick-actions-menu">
+            <Link to="/needs" onClick={() => setDeliverMenuOpen(false)}>
+              {t('deliveries.deliverToNeed')}
+            </Link>
+            <Link to="/collection-points" onClick={() => setDeliverMenuOpen(false)}>
+              {t('deliveries.deliverToCollectionPoint')}
+            </Link>
+          </div>
+        )}
+      </div>
+    </div>
   )
 }
 
@@ -281,6 +351,13 @@ export default function App() {
           {navOpen ? <IconClose /> : <IconMenu />}
         </button>
       </header>
+      {/* A dedicated row below the main header, not squeezed inline into it --
+          the topbar's own content (nav links, or brand+lang+hamburger on
+          mobile) already fills its width, leaving no reliable room for 3 more
+          icon+text pills at any breakpoint. */}
+      <div className="quick-actions-bar">
+        <QuickActions />
+      </div>
       {navOpen && (
         <nav className="topbar-nav-mobile">
           <TopNavLinks isActive={isActive} isAdmin={config.is_admin} />
