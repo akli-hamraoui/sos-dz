@@ -197,6 +197,11 @@ class NeedFallbackWilayaTests(BaseAPITestCase):
         self.campaign = make_campaign(wilayas=[alger, *others])
         resp = self.client.post("/api/needs/", self._payload(), format="json")
         self.assertEqual(resp.status_code, 201, resp.content)
+        # Exposed on the response itself (NeedPublicSerializer, also used
+        # by /api/needs/ and /api/needs/<id>/) -- the frontend needs this
+        # to show "no geographic position" instead of the fallback wilaya's
+        # name as if the reporter had actually confirmed being there.
+        self.assertTrue(resp.data["has_no_location"])
         need = Need.objects.get(pk=resp.data["id"])
         self.assertEqual(need.wilaya, alger)
         self.assertTrue(need.has_no_location)

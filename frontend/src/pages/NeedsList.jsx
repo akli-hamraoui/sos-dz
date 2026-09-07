@@ -500,10 +500,19 @@ export default function NeedsList() {
                 <span className={`badge urgency-${n.urgency}`}>{t(`urgency.${n.urgency}`)}</span>
               )}
               <h3>{n.title}</h3>
-              <p>
-                {n.wilaya_name}
-                {n.commune ? ' — ' + n.commune : ''}
-              </p>
+              {/* has_no_location means the wilaya below is only a
+                  submission-time fallback (see NeedCreateSerializer,
+                  backend), never a place the reporter actually confirmed
+                  -- showing it plainly here would read as a real location
+                  when it isn't one. */}
+              {n.has_no_location ? (
+                <p className="hint">{t('needsList.noGeographicPosition')}</p>
+              ) : (
+                <p>
+                  {n.wilaya_name}
+                  {n.commune ? ' — ' + n.commune : ''}
+                </p>
+              )}
               {n.location_description && <p className="need-card-description">{n.location_description}</p>}
               <p className="status">
                 {statusLabel(t, n.overall_status)} — {t('needsList.pickupsCount', { count: n.pickups.length })}

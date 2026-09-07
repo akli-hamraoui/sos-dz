@@ -203,7 +203,8 @@
     "searchPlaceholder": "association, dons, téléphone, ville, nom, etc.",
     "noLocationBubbleLabel": "Sans localisation",
     "playAudio": "Écouter l'audio",
-    "stopAudio": "Arrêter"
+    "stopAudio": "Arrêter",
+    "noGeographicPosition": "Pas de position géographique"
   },
   "help": {
     "instructions": "Veuillez choisir sur la carte un point de collecte ou un SOS à aider, ou utiliser la liste ou les filtres.",

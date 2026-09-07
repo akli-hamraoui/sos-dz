@@ -203,7 +203,8 @@
     "searchPlaceholder": "association, donations, phone, city, name, etc.",
     "noLocationBubbleLabel": "No location",
     "playAudio": "Play audio",
-    "stopAudio": "Stop"
+    "stopAudio": "Stop",
+    "noGeographicPosition": "No geographic position"
   },
   "help": {
     "instructions": "Please choose a collection point or a need to help with on the map, or use the list or filters.",

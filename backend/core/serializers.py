@@ -363,6 +363,7 @@ class NeedPublicSerializer(serializers.ModelSerializer):
             "latitude",
             "longitude",
             "position_accuracy",
+            "has_no_location",
             "contact_name",
             "contact_phone",
             "other_phones",
