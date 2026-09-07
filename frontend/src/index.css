@@ -210,6 +210,14 @@ a {
   align-items: center;
   gap: 4px;
 }
+/* Wraps onto a second line rather than overflowing invisibly past the
+   right edge of the screen -- with 9 links + the language switcher, the
+   full row no longer reliably fits above the 960px breakpoint, especially
+   at common laptop widths (1280px and below). */
+.topbar-nav-desktop {
+  flex-wrap: wrap;
+  row-gap: 6px;
+}
 .topbar-nav-desktop a,
 .topbar-nav-desktop button,
 .topbar-nav-mobile a,

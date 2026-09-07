@@ -121,6 +121,27 @@ function TopNavLinks({ isActive, isAdmin }) {
       <Link to="/collection-points" className={isActive('/collection-points') ? 'active' : ''}>
         {t('nav.collectionPoints')}
       </Link>
+      {/* Same two destinations as the header QuickActions pills, also
+          reachable from the main menu itself (desktop inline nav, or the
+          mobile hamburger list) for anyone browsing/tapping through it
+          directly rather than using the always-visible pills. Short labels
+          (same text as the pills), not the full "+ Ajouter..." sentence --
+          that pushed the desktop nav's total width past 1280px and off the
+          edge of the screen with nothing to wrap onto. */}
+      <Link
+        to="/collection-points/create"
+        className={isActive('/collection-points/create') ? 'active' : ''}
+        title={t('collectionPoints.addButton')}
+      >
+        {t('quickActions.national')}
+      </Link>
+      <Link
+        to="/international-collection-points/create"
+        className={isActive('/international-collection-points/create') ? 'active' : ''}
+        title={t('internationalCollectionPoints.addButton')}
+      >
+        {t('quickActions.international')}
+      </Link>
       <Link to="/deliveries" className={isActive('/deliveries') ? 'active' : ''}>
         {t('nav.deliveries')}
       </Link>
