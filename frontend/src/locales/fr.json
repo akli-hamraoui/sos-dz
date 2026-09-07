@@ -97,7 +97,17 @@
     "createCollectionPoint": "Créer un point de collecte",
     "createCollectionPointAlgeria": "En Algérie",
     "createCollectionPointInternational": "À l'international",
-    "summary": "SOSDZ coordonne l'aide d'urgence en Algérie face aux catastrophes naturelles (feux de forêt...) : signalez un besoin, aidez comme bénévole ou transporteur, ou créez un point de collecte de dons."
+    "summary": "SOSDZ coordonne l'aide d'urgence en Algérie face aux catastrophes naturelles (feux de forêt...) : signalez un besoin, aidez comme bénévole ou transporteur, ou créez un point de collecte de dons.",
+    "mission": "Solidarité · Entraide · Action",
+    "sosTitle": "Lancer un SOS",
+    "sosSubtitle": "Besoin d'aide urgente ?",
+    "sosDetail": "Signalez un besoin maintenant.",
+    "collectionPointsAlgeriaDescription": "Trouvez les points de collecte près de chez vous.",
+    "collectionPointsInternationalDescription": "Découvrez les points de collecte internationaux.",
+    "viewPoints": "Voir les points",
+    "createCollectionPointDescription": "Ajoutez un nouveau point de collecte dans votre région.",
+    "createPoint": "Créer un point",
+    "learnMore": "En savoir plus"
   },
   "status": {
     "open": "ouvert",
