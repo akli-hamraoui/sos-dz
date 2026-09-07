@@ -169,6 +169,26 @@
     "clearGps": "Clear position",
     "gpsPlaceSet": "Place filled in automatically from your position."
   },
+  "voiceGuide": {
+    "title": "Guided voice SOS",
+    "step0Caption": "You're about to send an emergency SOS. For French, tap \"Français\".",
+    "langFr": "Français",
+    "langAr": "العربية",
+    "step1Caption": "You want to send an urgent SOS. State your name, phone number, address or village, and describe your need. Tap \"Record my voice\" to start.",
+    "startRecording": "Record my voice",
+    "recordingInProgress": "Recording… {{seconds}}s",
+    "finishRecording": "Done",
+    "step2Caption": "Do you allow location access? Confirm with \"Yes\" or tap \"No\".",
+    "step3Caption": "Confirmed. Location accepted.",
+    "step4Caption": "Location declined.",
+    "step5Caption": "Tap \"Confirm\" to send your SOS.",
+    "validate": "Confirm",
+    "submitting": "Sending…",
+    "stillWaitingHint": "Take your time, tap a button whenever you're ready.",
+    "step6Caption": "The SOS has been sent. Your listing will be published immediately, as urgent.",
+    "backHome": "Back to home",
+    "viewListing": "View my listing"
+  },
   "needsList": {
     "filterByWilaya": "Filter by wilaya",
     "all": "All",
@@ -180,7 +200,11 @@
     "legendNote": "— pins without exact GPS sit at the wilaya's approximate centroid (\"no exact GPS position\")",
     "addButton": "+ I need help",
     "resetFilters": "Reset filters",
-    "searchPlaceholder": "association, donations, phone, city, name, etc."
+    "searchPlaceholder": "association, donations, phone, city, name, etc.",
+    "noLocationBubbleLabel": "No location",
+    "playAudio": "Play audio",
+    "stopAudio": "Stop",
+    "noGeographicPosition": "No geographic position"
   },
   "help": {
     "instructions": "Please choose a collection point or a need to help with on the map, or use the list or filters.",
@@ -479,6 +503,7 @@
     "recoveryCodeTaken": "This recovery code is already in use. Please choose a different one.",
     "readOnlyMode": "The app is currently in read-only mode. Existing data remains viewable.",
     "geoRestricted": "Only visible from within Algeria can create or edit listings — you can still browse everything.",
+    "voiceGuideAlgeriaOnly": "This feature is only available from Algeria.",
     "captchaRequired": "Please complete the anti-spam check before submitting.",
     "captchaFailed": "Anti-spam check failed, please try again.",
     "captchaUnavailable": "Could not verify the anti-spam check right now, please try again.",
