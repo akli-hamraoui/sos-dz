@@ -169,6 +169,27 @@
     "clearGps": "حذف الموقع",
     "gpsPlaceSet": "تم ملء المكان تلقائياً من موقعك."
   },
+  "voiceGuide": {
+    "title": "نداء SOS صوتي موجّه",
+    "entryLinkLabel": "نداء SOS صوتي موجّه (جديد)",
+    "step0Caption": "أنت على وشك إرسال نداء SOS عاجل. للفرنسية، اضغط على «Français».",
+    "langFr": "Français",
+    "langAr": "العربية",
+    "step1Caption": "تريد إطلاق نداء SOS عاجل. اذكر اسمك وهاتفك وعنوانك أو قريتك، وصف احتياجك. اضغط على «تسجيل الصوت» للبدء.",
+    "startRecording": "تسجيل الصوت",
+    "recordingInProgress": "التسجيل جارٍ… {{seconds}}ث",
+    "finishRecording": "تم",
+    "step2Caption": "هل تسمح بتحديد الموقع؟ أكّد بزر «نعم» أو اضغط على «لا».",
+    "step3Caption": "تأكيد. تم قبول تحديد الموقع.",
+    "step4Caption": "تم رفض تحديد الموقع.",
+    "step5Caption": "اضغط على زر «تأكيد» لإرسال نداء SOS الخاص بك.",
+    "validate": "تأكيد",
+    "submitting": "جارٍ الإرسال…",
+    "stillWaitingHint": "خذ وقتك، اضغط على زر عندما تكون مستعداً.",
+    "step6Caption": "تم إرسال نداء SOS. سيُنشر إعلانك فوراً، كحالة طارئة.",
+    "backHome": "العودة إلى الرئيسية",
+    "viewListing": "عرض إعلاني"
+  },
   "needsList": {
     "filterByWilaya": "تصفية حسب الولاية",
     "all": "الكل",

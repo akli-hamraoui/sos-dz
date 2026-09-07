@@ -8,6 +8,7 @@ import { formatBadgeCount } from './utils'
 import Home from './pages/Home'
 import Help from './pages/Help'
 import CreateNeed from './pages/CreateNeed'
+import CreateNeedVoiceGuide from './pages/CreateNeedVoiceGuide'
 import NeedsList from './pages/NeedsList'
 import NeedDetail from './pages/NeedDetail'
 import TakeCharge from './pages/TakeCharge'
@@ -86,6 +87,7 @@ const PAGE_TITLE_KEYS = {
   '/needs': 'nav.needs',
   '/help': 'home.iWantToHelp',
   '/create': 'nav.iNeedHelp',
+  '/create-voice': 'voiceGuide.title',
   '/collection-points': 'nav.collectionPoints',
   '/collection-points/create': 'collectionPoints.createTitle',
   '/international-collection-points': 'internationalCollectionPoints.navButton',
@@ -436,6 +438,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/create" element={<CreateNeed />} />
+          <Route path="/create-voice" element={<CreateNeedVoiceGuide />} />
           <Route path="/needs" element={<NeedsList />} />
           <Route path="/help" element={<Help />} />
           <Route path="/needs/:id" element={<NeedDetail />} />

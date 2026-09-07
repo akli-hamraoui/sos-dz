@@ -644,6 +644,19 @@ main {
   font-size: 14px;
   text-decoration: underline;
 }
+/* Small, deliberately low-key secondary link to the pending-approval
+   audio-guided SOS flow (CreateNeedVoiceGuide.jsx) -- not another full
+   pill button, so it doesn't compete with "Lancer un SOS" above it. */
+.voice-guide-entry-link {
+  /* Block, not inline-block -- otherwise it sits on the same line as the
+     "Qui sommes-nous" link right after it (both are short inline-block
+     text), running the two together with no visible gap, confirmed live. */
+  display: block;
+  margin-block-start: 4px;
+  color: var(--text-muted);
+  font-size: 12px;
+  text-decoration: underline;
+}
 .home-description {
   margin-block-start: clamp(24px, 8svh, 64px);
   color: var(--text-muted);
@@ -2122,6 +2135,32 @@ footer {
   .dialog-sheet {
     border-radius: 18px;
   }
+}
+
+/* --- Guided voice SOS (CreateNeedVoiceGuide.jsx, pending approval) --- */
+
+.voice-guide-page {
+  max-width: 480px;
+  margin-inline: auto;
+  text-align: center;
+}
+.voice-guide-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  margin-block-start: 32px;
+}
+.voice-guide-caption {
+  font-size: 17px;
+  line-height: 1.5;
+  color: var(--text);
+}
+.voice-guide-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
 }
 
 /* --- RTL: Arabic --- */

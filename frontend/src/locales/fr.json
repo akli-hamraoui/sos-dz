@@ -169,6 +169,27 @@
     "clearGps": "Supprimer la position",
     "gpsPlaceSet": "Lieu rempli automatiquement à partir de votre position."
   },
+  "voiceGuide": {
+    "title": "SOS vocal guidé",
+    "entryLinkLabel": "SOS vocal guidé (nouveau)",
+    "step0Caption": "Vous êtes sur le point d'envoyer un SOS en urgence. Pour le français, cliquez sur « Français ».",
+    "langFr": "Français",
+    "langAr": "العربية",
+    "step1Caption": "Vous voulez lancer un SOS urgent. Donnez votre nom, votre téléphone, votre adresse ou village, et décrivez votre besoin. Cliquez sur « Enregistrer la voix » pour commencer.",
+    "startRecording": "Enregistrer la voix",
+    "recordingInProgress": "Enregistrement en cours… {{seconds}}s",
+    "finishRecording": "Terminé",
+    "step2Caption": "Autorisez-vous la localisation ? Confirmez avec le bouton « Oui » ou cliquez sur « Non ».",
+    "step3Caption": "Confirmation. Géolocalisation acceptée.",
+    "step4Caption": "Géolocalisation refusée.",
+    "step5Caption": "Appuyez sur le bouton « Valider » pour envoyer votre SOS.",
+    "validate": "Valider",
+    "submitting": "Envoi en cours…",
+    "stillWaitingHint": "Prenez votre temps, appuyez sur un bouton quand vous êtes prêt.",
+    "step6Caption": "Le SOS a été envoyé. Votre annonce sera publiée immédiatement, en urgence.",
+    "backHome": "Retour à l'accueil",
+    "viewListing": "Voir mon annonce"
+  },
   "needsList": {
     "filterByWilaya": "Filtrer par wilaya",
     "all": "Toutes",

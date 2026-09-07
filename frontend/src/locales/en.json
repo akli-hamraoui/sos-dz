@@ -169,6 +169,27 @@
     "clearGps": "Clear position",
     "gpsPlaceSet": "Place filled in automatically from your position."
   },
+  "voiceGuide": {
+    "title": "Guided voice SOS",
+    "entryLinkLabel": "Guided voice SOS (new)",
+    "step0Caption": "You're about to send an emergency SOS. For French, tap \"Français\".",
+    "langFr": "Français",
+    "langAr": "العربية",
+    "step1Caption": "You want to send an urgent SOS. State your name, phone number, address or village, and describe your need. Tap \"Record my voice\" to start.",
+    "startRecording": "Record my voice",
+    "recordingInProgress": "Recording… {{seconds}}s",
+    "finishRecording": "Done",
+    "step2Caption": "Do you allow location access? Confirm with \"Yes\" or tap \"No\".",
+    "step3Caption": "Confirmed. Location accepted.",
+    "step4Caption": "Location declined.",
+    "step5Caption": "Tap \"Confirm\" to send your SOS.",
+    "validate": "Confirm",
+    "submitting": "Sending…",
+    "stillWaitingHint": "Take your time, tap a button whenever you're ready.",
+    "step6Caption": "The SOS has been sent. Your listing will be published immediately, as urgent.",
+    "backHome": "Back to home",
+    "viewListing": "View my listing"
+  },
   "needsList": {
     "filterByWilaya": "Filter by wilaya",
     "all": "All",
