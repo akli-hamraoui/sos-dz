@@ -7,8 +7,8 @@ import { useDialog } from '../context/DialogContext'
 import { api } from '../api'
 import { haversineKm, isInAlgeria, getCurrentPosition, RECENTER_BOX_METERS } from '../utils'
 import { fetchDrivingRoute, COLLECTION_POINT_ROUTE_COLOR } from '../routing'
-import { countryFlagEmoji, formatApproxKm, flyerPopupButtonHtml } from '../mapMarkers'
-import { IconLocate, IconExpand, IconClose, IconGlobeColor } from '../icons'
+import { countryFlagEmoji, formatApproxKm, flyerPopupButtonHtml, attachPopupPinchZoom, attachMapPinchZoomOverlay } from '../mapMarkers'
+import { IconLocate, IconExpand, IconClose, IconGlobeColor, IconAlgeriaFlag } from '../icons'
 import PhotoThumb from '../components/PhotoThumb'
 import PhotoLightbox from '../components/PhotoLightbox'
 
@@ -302,7 +302,15 @@ export default function CollectionPoints() {
           mapRef.current.on('popupopen', (e) => {
             const btn = e.popup.getElement()?.querySelector('.popup-photo-btn')
             if (btn) btn.onclick = () => setLightboxPhoto(btn.dataset.photoUrl)
+            attachPopupPinchZoom(e.popup.getElement())
           })
+          // Also wired from the overlay's own ref callback (for when it
+          // remounts later, e.g. deactivate/reactivate) -- done here too
+          // since on first mount that ref callback can fire before this
+          // effect has actually created the map yet (mapRef.current still
+          // null at that point), which would otherwise silently skip
+          // wiring it the very first time the page loads.
+          attachMapPinchZoomOverlay(mapRef.current, mapElRef.current?.parentElement?.querySelector('.map-activate-overlay'), activateMap)
         }
         const map = mapRef.current
         markersRef.current.forEach((m) => map.removeLayer(m))
@@ -574,9 +582,14 @@ export default function CollectionPoints() {
 
   return (
     <section className="needs-page needs-page-map-fill">
-      {/* Real, visible descriptive text -- search engines can't read
-          meaning from the map/markers alone. */}
-      <p className="page-intro">{t('seo.collectionPoints.description')}</p>
+      {/* Short on-page label instead of the full SEO sentence (still used
+          as-is for the <meta name="description">/social-share tags, see
+          Seo.jsx -- those aren't visible page content, so they don't need
+          to match) -- freed-up space for the same "fit above the fold on
+          mobile" reason as Home's own summary paragraph. */}
+      <p className="page-intro">
+        <IconAlgeriaFlag width={18} height={18} /> {t('collectionPoints.shortIntro')}
+      </p>
       {/* Entry point to the separate worldwide page (any country, no
           Algeria restriction) -- see InternationalCollectionPoints.jsx.
           Same "hint" link pattern as that page's own reciprocal link back
@@ -585,7 +598,7 @@ export default function CollectionPoints() {
           cross-navigation link, not a create button. */}
       <p className="hint">
         <Link className="link field-label-icon" to="/international-collection-points">
-          {t('internationalCollectionPoints.navButton')}
+          {t('internationalCollectionPoints.viewLink')}
         </Link>
       </p>
       <div className="toolbar toolbar-compact">
@@ -659,7 +672,14 @@ export default function CollectionPoints() {
           >
             <div id="cp-map" ref={mapElRef} style={{ height: '100%' }} />
             {!mapActive && !fullscreen && (
-              <div className="map-activate-overlay" onClick={activateMap} role="button" tabIndex={0} aria-label={t('map.tapToInteract')}>
+              <div
+                className="map-activate-overlay"
+                onClick={activateMap}
+                role="button"
+                tabIndex={0}
+                aria-label={t('map.tapToInteract')}
+                ref={(el) => attachMapPinchZoomOverlay(mapRef.current, el, activateMap)}
+              >
                 <span className="map-activate-hint">{t('map.tapToInteract')}</span>
               </div>
             )}

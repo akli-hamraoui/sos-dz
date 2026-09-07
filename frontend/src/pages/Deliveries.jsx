@@ -7,7 +7,7 @@ import { useDialog } from '../context/DialogContext'
 import { api } from '../api'
 import { maskPhone, formatDate, getCurrentPosition, RECENTER_BOX_METERS } from '../utils'
 import { fetchDrivingRoute, ROUTE_COLOR } from '../routing'
-import { flyerPopupButtonHtml } from '../mapMarkers'
+import { flyerPopupButtonHtml, attachPopupPinchZoom, attachMapPinchZoomOverlay } from '../mapMarkers'
 import PhotoThumb from '../components/PhotoThumb'
 import PhotoLightbox from '../components/PhotoLightbox'
 import { IconTruck, IconLocate, IconExpand, IconClose } from '../icons'
@@ -174,7 +174,15 @@ export default function Deliveries() {
         mapRef.current.on('popupopen', (e) => {
           const btn = e.popup.getElement()?.querySelector('.popup-photo-btn')
           if (btn) btn.onclick = () => setLightboxPhoto(btn.dataset.photoUrl)
+          attachPopupPinchZoom(e.popup.getElement())
         })
+        // Also wired from the overlay's own ref callback (for when it
+        // remounts later, e.g. deactivate/reactivate) -- done here too
+        // since on first mount that ref callback can fire before this
+        // effect has actually created the map yet (mapRef.current still
+        // null at that point), which would otherwise silently skip wiring
+        // it the very first time the page loads.
+        attachMapPinchZoomOverlay(mapRef.current, mapElRef.current?.parentElement?.querySelector('.map-activate-overlay'), activateMap)
       }
       const map = mapRef.current
       markersRef.current.forEach((m) => map.removeLayer(m))
@@ -523,7 +531,14 @@ export default function Deliveries() {
           >
             <div id="deliveries-map" ref={mapElRef} style={{ height: '100%' }} />
             {!mapActive && !fullscreen && (
-              <div className="map-activate-overlay" onClick={activateMap} role="button" tabIndex={0} aria-label={t('map.tapToInteract')}>
+              <div
+                className="map-activate-overlay"
+                onClick={activateMap}
+                role="button"
+                tabIndex={0}
+                aria-label={t('map.tapToInteract')}
+                ref={(el) => attachMapPinchZoomOverlay(mapRef.current, el, activateMap)}
+              >
                 <span className="map-activate-hint">{t('map.tapToInteract')}</span>
               </div>
             )}

@@ -97,26 +97,8 @@
     "createCollectionPoint": "Create a collection point",
     "createCollectionPointAlgeria": "In Algeria",
     "createCollectionPointInternational": "Internationally",
-    "summary": "SOSDZ is a free, community-run platform that coordinates emergency relief in Algeria in response to natural disasters, particularly wildfires. It's built for anyone in Algeria who needs help (food, water, shelter, medical care) and for anyone who wants to help, whether in Algeria or from abroad. There are three ways to use it: report a need, offer your help as a volunteer or delivery driver, or set up a donation collection point near you.",
-    "faqHeading": "Frequently asked questions",
-    "faq": [
-      {
-        "q": "What is SOSDZ?",
-        "a": "SOSDZ is a community-run, volunteer platform that coordinates emergency relief in Algeria: it lets you report a need, offer help, or find a donation collection point, anywhere in the country."
-      },
-      {
-        "q": "How do I request help in Algeria through SOSDZ?",
-        "a": "Click \"I need help\" on the homepage, describe your need (food, water, shelter, medical care...) and your location -- nearby volunteers can then see it and offer help."
-      },
-      {
-        "q": "How can I volunteer for disaster relief in Algeria?",
-        "a": "Click \"I want to help\" on the homepage to browse nearby reported needs, take charge of a delivery, or become a volunteer driver."
-      },
-      {
-        "q": "How do I set up a donation collection point on SOSDZ?",
-        "a": "From the \"Collection Points\" page, click \"Add a collection point\" and fill in the location, opening hours, and accepted donations -- there's also an option for a collection point abroad."
-      }
-    ]
+    "collectionPointsListHint": "List of collection points...",
+    "summary": "SOSDZ coordinates emergency relief in Algeria in response to natural disasters (wildfires...): report a need, help as a volunteer or delivery driver, or set up a donation collection point."
   },
   "status": {
     "open": "open",
@@ -313,6 +295,7 @@
   },
   "collectionPoints": {
     "title": "Collection points",
+    "shortIntro": "Collection point in Algeria",
     "addButton": "+ Add a collection point in Algeria",
     "searchPlaceholder": "Search (name, contact, phone, description...)",
     "noPointsYet": "No collection points listed for this wilaya yet.",
@@ -357,8 +340,9 @@
   },
   "internationalCollectionPoints": {
     "navButton": "🌍 International collection",
+    "viewLink": "🌍 View international collection points",
     "intro": "Collection points outside Algeria, anywhere in the world.",
-    "goToNationalLink": "Collection point in Algeria? See the national collection points",
+    "goToNationalLink": "View collection points in Algeria",
     "searchPlaceholder": "Search (name, association, contact, phone, description...)",
     "noPointsYet": "No international collection points listed yet.",
     "locationLabel": "Location",
@@ -400,9 +384,10 @@
     "viewTransporterDetail": "View transporter details"
   },
   "quickActions": {
+    "create": "Collection point",
     "national": "+ Collection point in Algeria",
     "international": "+ Collection point outside Algeria",
-    "deliver": "Deliver"
+    "deliver": "Deliver a donation"
   },
   "reportBug": {
     "title": "Report a bug",

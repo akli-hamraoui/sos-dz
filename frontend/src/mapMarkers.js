@@ -92,6 +92,119 @@ export function flyerPopupButtonHtml(t, photoUrl) {
   return `<button type="button" class="popup-photo-btn" data-photo-url="${photoUrl}">${FLYER_ICON_SVG} ${t('common.viewFlyer')}</button>`
 }
 
+// Lets a two-finger pinch over an open popup zoom the popup's own text/photo
+// instead of the map underneath it -- reported live: the popup's font is
+// small and a reflex pinch over it (the same gesture used everywhere else on
+// the page to zoom the map) was instead panning/zooming the whole map out
+// from under the point the visitor was trying to read. Only a *two*-finger
+// touch on the popup itself is intercepted (stopPropagation keeps it from
+// ever reaching Leaflet's own TouchZoom handler on the map container, which
+// listens on that same bubbling touchstart/touchmove); a single finger --
+// tapping the flyer button, a link, the popup's own close "x", or a one-
+// finger drag -- is left completely alone. Call once per popup, from the
+// map's own 'popupopen' handler (see each map page).
+export function attachPopupPinchZoom(popupEl) {
+  const content = popupEl?.querySelector('.leaflet-popup-content')
+  if (!content) return
+  // Every open (even a repeat open of the same marker) starts back at the
+  // popup's natural size -- a pinch left over from a previous look at this
+  // same point shouldn't still be applied the next time it's opened.
+  content.style.transformOrigin = 'top left'
+  content.style.transform = 'scale(1)'
+  content._pinchScale = 1
+  // Each marker keeps the same popup DOM element across repeated opens, and
+  // 'popupopen' fires again on every one of those -- guard against wiring
+  // the same element's touch listeners more than once (they'd otherwise
+  // pile up, each firing the same pinch on every later touch).
+  if (content.dataset.pinchZoomWired) return
+  content.dataset.pinchZoomWired = '1'
+  let startDist = 0
+  let startScale = 1
+
+  const touchDist = (touches) => Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY)
+
+  const onTouchStart = (e) => {
+    if (e.touches.length !== 2) return
+    e.preventDefault()
+    e.stopPropagation()
+    startDist = touchDist(e.touches)
+    startScale = content._pinchScale
+  }
+  const onTouchMove = (e) => {
+    if (e.touches.length !== 2 || !startDist) return
+    e.preventDefault()
+    e.stopPropagation()
+    // Clamped 1x-3x -- shrinking below the popup's own natural size would
+    // make it harder to read, the opposite of the point of this gesture.
+    content._pinchScale = Math.min(3, Math.max(1, startScale * (touchDist(e.touches) / startDist)))
+    content.style.transform = `scale(${content._pinchScale})`
+  }
+  const onTouchEnd = (e) => {
+    if (e.touches.length >= 2) return
+    startDist = 0
+  }
+  content.addEventListener('touchstart', onTouchStart, { passive: false })
+  content.addEventListener('touchmove', onTouchMove, { passive: false })
+  content.addEventListener('touchend', onTouchEnd, { passive: false })
+  content.addEventListener('touchcancel', onTouchEnd, { passive: false })
+}
+
+// Lets a two-finger pinch zoom the map immediately, even before the usual
+// single-finger "tap to activate" step (see each map page's own mapActive) --
+// reported live: pinching on the map zoomed the whole page instead of the
+// map, since the map starts "asleep" behind a full-cover overlay div (a
+// plain sibling of Leaflet's own container, not a descendant of it) that
+// swallows every touch so a one-finger drag reads as page-scroll rather than
+// a map pan. A one-finger gesture genuinely needs that tap-first step (it's
+// ambiguous with scrolling); a two-finger pinch never is, so there's no
+// reason to gate it the same way -- outside the overlay/map entirely,
+// nothing here runs and the browser's own native pinch-zooms the page,
+// exactly as it already does today.
+// Handled by hand (computing zoom from the pinch distance and calling
+// map.setZoomAround directly) rather than just enabling Leaflet's own
+// TouchZoom, because a touch starting on the overlay never bubbles to
+// Leaflet's container-scoped listener in the first place -- it's a sibling
+// element, not an ancestor. Once the map is actually awake (mapActive, the
+// overlay unmounted) Leaflet's real TouchZoom (enabled in activateMap)
+// already handles every pinch correctly on its own; this only covers the
+// asleep-overlay gap. onActivate is called once the pinch ends, so the map
+// is left "awake" afterwards (matching having just directly interacted with
+// it) the same as a tap would have left it.
+export function attachMapPinchZoomOverlay(map, overlayEl, onActivate) {
+  if (!map || !overlayEl || overlayEl.dataset.pinchZoomWired) return
+  overlayEl.dataset.pinchZoomWired = '1'
+  let startDist = 0
+  let startZoom = 0
+  let center = null
+
+  const touchDist = (touches) => Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY)
+  const touchMidpoint = (touches) => [(touches[0].clientX + touches[1].clientX) / 2, (touches[0].clientY + touches[1].clientY) / 2]
+
+  const onTouchStart = (e) => {
+    if (e.touches.length !== 2) return
+    e.preventDefault()
+    startDist = touchDist(e.touches)
+    startZoom = map.getZoom()
+    const [mx, my] = touchMidpoint(e.touches)
+    const rect = map.getContainer().getBoundingClientRect()
+    center = map.containerPointToLatLng([mx - rect.left, my - rect.top])
+  }
+  const onTouchMove = (e) => {
+    if (e.touches.length !== 2 || !startDist) return
+    e.preventDefault()
+    map.setZoomAround(center, startZoom + Math.log2(touchDist(e.touches) / startDist), { animate: false })
+  }
+  const onTouchEnd = (e) => {
+    if (e.touches.length >= 2) return
+    if (startDist) onActivate?.()
+    startDist = 0
+  }
+  overlayEl.addEventListener('touchstart', onTouchStart, { passive: false })
+  overlayEl.addEventListener('touchmove', onTouchMove, { passive: false })
+  overlayEl.addEventListener('touchend', onTouchEnd, { passive: false })
+  overlayEl.addEventListener('touchcancel', onTouchEnd, { passive: false })
+}
+
 export function needPopupHtml(t, p, statusLabel) {
   const gpsNote = p.has_exact_position ? '' : `<br><em>${t('common.noExactGpsPosition')}</em>`
   const urgencyPrefix = p.urgency !== 'medium' ? `${t(`urgency.${p.urgency}`)} — ` : ''
