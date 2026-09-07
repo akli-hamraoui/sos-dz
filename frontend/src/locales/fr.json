@@ -92,6 +92,9 @@
     "iWantToHelp": "Je veux aider",
     "collectionPointsAlgeria": "Points de collecte en Algérie",
     "collectionPointsInternational": "Points de collecte internationaux",
+    "createCollectionPoint": "Créer un point de collecte",
+    "createCollectionPointAlgeria": "En Algérie",
+    "createCollectionPointInternational": "À l'international",
     "summary": "SOSDZ est une plateforme communautaire et gratuite qui coordonne l'aide d'urgence en Algérie face aux catastrophes naturelles, notamment les feux de forêt. Elle s'adresse à toute personne en Algérie ayant besoin d'aide (nourriture, eau, abri, soins) et à toute personne souhaitant aider, en Algérie ou depuis l'étranger. Trois façons de l'utiliser : signaler un besoin, proposer votre aide en tant que bénévole ou transporteur, ou mettre en place un point de collecte de dons près de chez vous.",
     "faqHeading": "Questions fréquentes",
     "faq": [
@@ -393,8 +396,8 @@
     "viewTransporterDetail": "Voir les détails du transporteur"
   },
   "quickActions": {
-    "national": "+ Collecte",
-    "international": "+ International",
+    "national": "+ Collecte en Algérie",
+    "international": "+ Collecte en dehors de l'Algérie",
     "deliver": "Livrer"
   },
   "reportBug": {

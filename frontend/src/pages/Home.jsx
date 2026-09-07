@@ -1,9 +1,24 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { IconAlgeriaFlag, IconGlobeColor, IconMapPin } from '../icons'
+import { IconAlgeriaFlag, IconGlobeColor, IconMapPin, IconPlus } from '../icons'
 
 export default function Home() {
   const { t } = useTranslation()
+  const [createMenuOpen, setCreateMenuOpen] = useState(false)
+
+  // Closes the Algérie/international choice menu on an outside click --
+  // it isn't a native <select>/<details>, so nothing does this for free.
+  // Same pattern as QuickActions' own delivery-destination menu (App.jsx).
+  useEffect(() => {
+    if (!createMenuOpen) return
+    const onDocClick = (e) => {
+      if (!e.target.closest('.home-btn-create')) setCreateMenuOpen(false)
+    }
+    document.addEventListener('click', onDocClick)
+    return () => document.removeEventListener('click', onDocClick)
+  }, [createMenuOpen])
+
   return (
     <section className="home">
       {/* Visually hidden -- the logo image above already conveys this to
@@ -27,6 +42,31 @@ export default function Home() {
           <IconGlobeColor /> {t('home.collectionPointsInternational')}
           <IconMapPin width={16} height={16} strokeWidth={1.75} className="home-btn-map-hint" />
         </Link>
+        {/* Creating a point is a distinct action from the two browse
+            buttons above, and needs a country choice first (this page has
+            no wilaya/location context of its own to guess from) -- same
+            small "open a menu on tap" pattern as QuickActions' own
+            delivery-destination menu (App.jsx), not a route of its own. */}
+        <div className="home-btn-create">
+          <button
+            type="button"
+            className="btn btn-icon home-btn-outline home-btn-compact"
+            aria-expanded={createMenuOpen}
+            onClick={() => setCreateMenuOpen((v) => !v)}
+          >
+            <IconPlus width={20} height={20} strokeWidth={2} /> {t('home.createCollectionPoint')}
+          </button>
+          {createMenuOpen && (
+            <div className="home-btn-create-menu">
+              <Link to="/collection-points/create" onClick={() => setCreateMenuOpen(false)}>
+                <IconAlgeriaFlag width={18} height={18} /> {t('home.createCollectionPointAlgeria')}
+              </Link>
+              <Link to="/international-collection-points/create" onClick={() => setCreateMenuOpen(false)}>
+                <IconGlobeColor width={18} height={18} /> {t('home.createCollectionPointInternational')}
+              </Link>
+            </div>
+          )}
+        </div>
         {/* Last/bottom by design -- moved from first to last, and from
             black to red (not too dark), per explicit request. */}
         <Link to="/create" className="btn btn-huge btn-icon home-btn-sos">
