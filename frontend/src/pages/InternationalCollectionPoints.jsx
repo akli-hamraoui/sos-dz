@@ -59,6 +59,10 @@ export default function InternationalCollectionPoints() {
   // marker) -- at most one at a time, same convention as Deliveries.jsx's
   // own courier-to-destination route line.
   const routeLineRef = useRef(null)
+  // See CollectionPoints.jsx's own hasFramedRef/prevFilterWilayaRef for
+  // the full rationale -- a search-only change must never move the map.
+  const hasFramedRef = useRef(false)
+  const prevFilterCountryRef = useRef(filterCountry)
   // Visitor's own position, prefetched once on mount purely to show an
   // approximate straight-line distance in each point's own popup (see the
   // marker-load effect below) -- see CollectionPoints.jsx's own myPosRef
@@ -328,6 +332,20 @@ export default function InternationalCollectionPoints() {
 
         markersRef.current = markers
 
+        // Reported live: typing a search that matched nothing re-ran the
+        // no-country branch below, which jumped the map to the visitor's
+        // own geolocated position -- disorienting when they were
+        // deliberately looking at a specific area. This whole reframing
+        // block now only runs on the map's first appearance or when the
+        // country filter itself changes; typing in either search box only
+        // ever changes which markers are shown, never the camera. See
+        // CollectionPoints.jsx's own hasFramedRef/prevFilterWilayaRef.
+        const countryChanged = prevFilterCountryRef.current !== filterCountry
+        prevFilterCountryRef.current = filterCountry
+        if (hasFramedRef.current && !countryChanged) {
+          return
+        }
+        hasFramedRef.current = true
         if (withPos.length) {
           map.fitBounds(L.latLngBounds(withPos.map((p) => [p.display_latitude, p.display_longitude])).pad(0.3), { maxZoom: 12 })
         } else if (filterCountry) {
@@ -368,6 +386,7 @@ export default function InternationalCollectionPoints() {
     setRouteInfo(null)
     setMapActive(false)
     setFullscreen(false)
+    hasFramedRef.current = false
   }, [viewMode])
 
   // Wakes the map from its initial "asleep" state (see mapActive above) --

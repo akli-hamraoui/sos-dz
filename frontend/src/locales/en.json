@@ -198,7 +198,8 @@
     "collectionPointLabel": "Collection point",
     "legendNote": "— pins without exact GPS sit at the wilaya's approximate centroid (\"no exact GPS position\")",
     "addButton": "+ I need help",
-    "resetFilters": "Reset filters"
+    "resetFilters": "Reset filters",
+    "searchPlaceholder": "Search (title, description, contact, phone...)"
   },
   "help": {
     "instructions": "Please choose a collection point or a need to help with on the map, or use the list or filters.",
@@ -313,6 +314,7 @@
   "collectionPoints": {
     "title": "Collection points",
     "addButton": "+ Add a collection point in Algeria",
+    "searchPlaceholder": "Search (name, contact, phone, description...)",
     "noPointsYet": "No collection points listed for this wilaya yet.",
     "viewInternationalOnMap": "View international points",
     "hoursNotSpecified": "hours not specified",
@@ -357,7 +359,7 @@
     "navButton": "🌍 International collection",
     "intro": "Collection points outside Algeria, anywhere in the world.",
     "goToNationalLink": "Collection point in Algeria? See the national collection points",
-    "searchPlaceholder": "Search by association name",
+    "searchPlaceholder": "Search (name, association, contact, phone, description...)",
     "noPointsYet": "No international collection points listed yet.",
     "locationLabel": "Location",
     "locationPlaceholder": "City or country (e.g. Paris, France)",

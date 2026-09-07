@@ -225,11 +225,15 @@ class PickupPublicSerializer(PickupParentInfoMixin, serializers.ModelSerializer)
 
 class PickupListSerializer(PickupParentInfoMixin, serializers.ModelSerializer):
     """Lighter than PickupPublicSerializer for the global "deliveries in
-    progress" list (no nested progress_updates/delivery_photos -- not
-    needed for an overview row, and keeps the payload small for weak
-    connectivity)."""
+    progress" list (no nested progress_updates/full delivery_photos list --
+    not needed for an overview row, and keeps the payload small for weak
+    connectivity). `photo` is the one exception: a single approved delivery
+    photo URL (not the full array+moderation metadata), letting the list
+    row show a thumbnail without pulling in everything
+    PickupPublicSerializer's own delivery_photos carries."""
 
     is_anonymized = serializers.BooleanField(read_only=True)
+    photo = serializers.SerializerMethodField()
 
     class Meta:
         model = Pickup
@@ -250,7 +254,16 @@ class PickupListSerializer(PickupParentInfoMixin, serializers.ModelSerializer):
             "pickup_date",
             "actual_delivery_date",
             "is_anonymized",
+            "photo",
         ]
+
+    def get_photo(self, obj):
+        approved = next((p for p in obj.delivery_photos.all() if p.moderation_status == Need.MODERATION_APPROVED), None)
+        if not approved:
+            return None
+        request = self.context.get("request")
+        url = approved.image.url
+        return request.build_absolute_uri(url) if request else url
 
 
 class PickupCreateSerializer(serializers.ModelSerializer):
@@ -381,6 +394,10 @@ class NeedMapPinSerializer(serializers.ModelSerializer):
     display_latitude = serializers.SerializerMethodField()
     display_longitude = serializers.SerializerMethodField()
     has_exact_position = serializers.SerializerMethodField()
+    # First approved damage photo, if any -- lets the map popup offer a
+    # "view photo" shortcut without a second request, same moderation gate
+    # as NeedPublicSerializer's own damage_photos.
+    photo = serializers.SerializerMethodField()
 
     class Meta:
         model = Need
@@ -394,6 +411,7 @@ class NeedMapPinSerializer(serializers.ModelSerializer):
             "display_latitude",
             "display_longitude",
             "has_exact_position",
+            "photo",
         ]
 
     def get_has_exact_position(self, obj):
@@ -408,6 +426,14 @@ class NeedMapPinSerializer(serializers.ModelSerializer):
         if obj.longitude is not None:
             return obj.longitude
         return obj.wilaya.centroid_longitude
+
+    def get_photo(self, obj):
+        approved = next((p for p in obj.damage_photos.all() if p.moderation_status == Need.MODERATION_APPROVED), None)
+        if not approved:
+            return None
+        request = self.context.get("request")
+        url = approved.image.url
+        return request.build_absolute_uri(url) if request else url
 
 
 class NeedCreateSerializer(serializers.ModelSerializer):
@@ -700,13 +726,17 @@ class CollectionPointMapPinSerializer(serializers.ModelSerializer):
     display_longitude = serializers.SerializerMethodField()
     has_exact_position = serializers.SerializerMethodField()
     is_international = serializers.BooleanField(read_only=True)
+    # Same "hidden until approved" gate as CollectionPointSerializer's own
+    # flyer_image -- lets the map popup offer a "view flyer" shortcut
+    # without a second request for the point's full detail.
+    flyer_image = serializers.SerializerMethodField()
 
     class Meta:
         model = CollectionPoint
         fields = [
             "id", "point_name", "contact_name", "contact_phone", "organization", "hours",
             "status", "wilaya", "wilaya_name", "country_code", "country_name", "is_international",
-            "display_latitude", "display_longitude", "has_exact_position",
+            "display_latitude", "display_longitude", "has_exact_position", "flyer_image",
         ]
 
     def get_wilaya_name(self, obj):
@@ -714,6 +744,13 @@ class CollectionPointMapPinSerializer(serializers.ModelSerializer):
 
     def get_has_exact_position(self, obj):
         return obj.latitude is not None
+
+    def get_flyer_image(self, obj):
+        if not obj.flyer_image or obj.flyer_moderation_status != Need.MODERATION_APPROVED:
+            return None
+        request = self.context.get("request")
+        url = obj.flyer_image.url
+        return request.build_absolute_uri(url) if request else url
 
     def get_display_latitude(self, obj):
         # International points always carry an exact position (enforced at

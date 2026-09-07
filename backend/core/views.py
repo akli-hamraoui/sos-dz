@@ -243,6 +243,10 @@ class NeedViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retriev
         if campaign:
             qs = qs.filter(campaign_id=campaign)
         if search:
+            # As broad as the model reasonably allows -- a visitor searching
+            # "Ahmed" or "0555..." should find a need by its contact just as
+            # readily as by its title/location, same principle applied to
+            # CollectionPointViewSet/PickupViewSet's own search below.
             qs = qs.filter(
                 Q(title__icontains=search)
                 | Q(location_description__icontains=search)
@@ -250,6 +254,9 @@ class NeedViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retriev
                 | Q(wilaya__name__icontains=search)
                 | Q(organization_or_person_name__icontains=search)
                 | Q(contact_name__icontains=search)
+                | Q(contact_phone__icontains=search)
+                | Q(other_phones__icontains=search)
+                | Q(contact_email__icontains=search)
             )
         return qs
 
@@ -352,7 +359,7 @@ class NeedViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retriev
     def locations(self, request):
         """Public: main map pins. Need locations only, never volunteer positions."""
         qs = self.get_queryset().exclude(is_cancelled=True)
-        return Response(NeedMapPinSerializer(qs, many=True).data)
+        return Response(NeedMapPinSerializer(qs, many=True, context={"request": request}).data)
 
     @action(detail=True, methods=["get"], url_path="pickup-locations")
     def pickup_locations(self, request, pk=None):
@@ -494,6 +501,9 @@ class PickupViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retri
         elif destination_type == "collection_point":
             qs = qs.filter(collection_point__isnull=False)
         if search:
+            # As broad as the model reasonably allows, matching against both
+            # the courier's own info and their destination's (need or
+            # collection point) -- see NeedViewSet's own search above.
             qs = qs.filter(
                 Q(responder_name__icontains=search)
                 | Q(responder_phone__icontains=search)
@@ -501,11 +511,18 @@ class PickupViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retri
                 | Q(content_brought__icontains=search)
                 | Q(organization_or_person_name__icontains=search)
                 | Q(need__title__icontains=search)
+                | Q(need__location_description__icontains=search)
                 | Q(need__wilaya__name__icontains=search)
+                | Q(need__contact_name__icontains=search)
                 | Q(need__contact_phone__icontains=search)
+                | Q(need__other_phones__icontains=search)
                 | Q(collection_point__point_name__icontains=search)
+                | Q(collection_point__organization__icontains=search)
+                | Q(collection_point__location_description__icontains=search)
                 | Q(collection_point__wilaya__name__icontains=search)
+                | Q(collection_point__contact_name__icontains=search)
                 | Q(collection_point__contact_phone__icontains=search)
+                | Q(collection_point__other_phones__icontains=search)
             )
         return qs
 
@@ -533,7 +550,10 @@ class PickupViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retri
             Pickup.objects.filter(status=Pickup.STATUS_EN_ROUTE)
             .filter(Q(location_sharing_active=True) | Q(departure_latitude__isnull=False))
             .select_related("need", "need__wilaya", "collection_point", "collection_point__wilaya")
-            .prefetch_related(Prefetch("location_pings", queryset=LocationPing.objects.order_by("-recorded_at")))
+            .prefetch_related(
+                Prefetch("location_pings", queryset=LocationPing.objects.order_by("-recorded_at")),
+                "delivery_photos",
+            )
         )
         result = []
         for pickup in pickups:
@@ -545,6 +565,10 @@ class PickupViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retri
                 latitude, longitude, recorded_at, is_live = pickup.departure_latitude, pickup.departure_longitude, None, False
             else:
                 continue
+            # Same "hidden until approved" gate as PickupListSerializer's
+            # own photo field -- lets the map popup offer a "view photo"
+            # shortcut without a second request.
+            approved_photo = next((p for p in pickup.delivery_photos.all() if p.moderation_status == Need.MODERATION_APPROVED), None)
             entry = {
                 "pickup_id": pickup.id,
                 # Exactly one of these two pairs is populated, matching
@@ -559,6 +583,7 @@ class PickupViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retri
                 "collection_point_wilaya_name": pickup.collection_point.wilaya.name if pickup.collection_point_id else None,
                 "responder_name": pickup.organization_or_person_name or pickup.responder_name,
                 "content_brought": pickup.content_brought,
+                "photo": (request.build_absolute_uri(approved_photo.image.url) if approved_photo else None),
                 "latitude": latitude,
                 "longitude": longitude,
                 # Destination's own coordinates, when it has one set -- lets
@@ -847,21 +872,33 @@ class CollectionPointViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mix
         if wilaya:
             qs = qs.filter(wilaya_id=wilaya)
         if search:
+            # As broad as the model reasonably allows, on both branches --
+            # a visitor should be able to find a point by its phone number,
+            # its accepted donations, or its own free-text description just
+            # as readily as by name (see NeedViewSet's own search above).
             if is_international_scope:
-                # The international list has no wilaya/hours-style local
-                # landmarks a visitor would search by -- what actually
-                # tells two international points apart is the point's own
-                # name and the association running it, so this search
-                # deliberately only matches those two (unlike the
-                # national branch below, left untouched).
-                qs = qs.filter(Q(point_name__icontains=search) | Q(organization__icontains=search))
+                qs = qs.filter(
+                    Q(point_name__icontains=search)
+                    | Q(contact_name__icontains=search)
+                    | Q(organization__icontains=search)
+                    | Q(location_description__icontains=search)
+                    | Q(description__icontains=search)
+                    | Q(accepted_donations__icontains=search)
+                    | Q(contact_phone__icontains=search)
+                    | Q(other_phones__icontains=search)
+                    | Q(country_name__icontains=search)
+                )
             else:
                 qs = qs.filter(
                     Q(point_name__icontains=search)
                     | Q(contact_name__icontains=search)
                     | Q(organization__icontains=search)
                     | Q(location_description__icontains=search)
+                    | Q(description__icontains=search)
+                    | Q(accepted_donations__icontains=search)
                     | Q(hours__icontains=search)
+                    | Q(contact_phone__icontains=search)
+                    | Q(other_phones__icontains=search)
                     | Q(wilaya__name__icontains=search)
                 )
         return qs
@@ -940,7 +977,7 @@ class CollectionPointViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mix
         """Public: pins for the SAME main map as Need pins (Wave 1) -- a
         visually distinct icon, same public/no-auth visibility as Needs."""
         qs = self.get_queryset().exclude(status=CollectionPoint.STATUS_CLOSED)
-        return Response(CollectionPointMapPinSerializer(qs, many=True).data)
+        return Response(CollectionPointMapPinSerializer(qs, many=True, context={"request": request}).data)
 
     @action(detail=True, methods=["post"], url_path="close")
     def close(self, request, pk=None):

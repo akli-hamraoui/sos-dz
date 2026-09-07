@@ -198,7 +198,8 @@
     "collectionPointLabel": "Point de collecte",
     "legendNote": "— les points sans GPS exact sont placés au centre approximatif de la wilaya (« sans position GPS exacte »)",
     "addButton": "+ J'ai besoin d'aide",
-    "resetFilters": "Réinitialiser les filtres"
+    "resetFilters": "Réinitialiser les filtres",
+    "searchPlaceholder": "Rechercher (titre, description, contact, téléphone...)"
   },
   "help": {
     "instructions": "Veuillez choisir sur la carte un point de collecte ou un SOS à aider, ou utiliser la liste ou les filtres.",
@@ -313,6 +314,7 @@
   "collectionPoints": {
     "title": "Points de collecte",
     "addButton": "+ Ajouter un point de collecte en Algérie",
+    "searchPlaceholder": "Rechercher (nom, contact, téléphone, description...)",
     "noPointsYet": "Aucun point de collecte listé pour cette wilaya pour le moment.",
     "viewInternationalOnMap": "Voir les points internationaux",
     "hoursNotSpecified": "horaires non précisés",
@@ -357,7 +359,7 @@
     "navButton": "🌍 Collecte internationale",
     "intro": "Points de collecte hors d'Algérie, dans le monde entier.",
     "goToNationalLink": "Point de collecte en Algérie ? Voir la collecte nationale",
-    "searchPlaceholder": "Rechercher par nom de l'association",
+    "searchPlaceholder": "Rechercher (nom, association, contact, téléphone, description...)",
     "noPointsYet": "Aucun point de collecte international listé pour le moment.",
     "locationLabel": "Localisation",
     "locationPlaceholder": "Ville ou pays (ex : Paris, France)",
