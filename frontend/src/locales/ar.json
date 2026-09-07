@@ -92,6 +92,9 @@
     "iWantToHelp": "أريد المساعدة",
     "collectionPointsAlgeria": "نقاط التجميع في الجزائر",
     "collectionPointsInternational": "نقاط التجميع الدولية",
+    "createCollectionPoint": "إنشاء نقطة تجميع",
+    "createCollectionPointAlgeria": "في الجزائر",
+    "createCollectionPointInternational": "دوليًا",
     "summary": "SOS DZ منصة مجتمعية ومجانية تنسّق المساعدة الطارئة في الجزائر في مواجهة الكوارث الطبيعية، وخاصة حرائق الغابات. وهي موجهة لكل شخص في الجزائر يحتاج إلى مساعدة (غذاء، ماء، مأوى، رعاية صحية) ولكل من يرغب في المساعدة، سواء من داخل الجزائر أو من الخارج. هناك ثلاث طرق لاستخدامها: الإبلاغ عن احتياج، عرض المساعدة كمتطوع أو ناقل، أو إنشاء نقطة لتجميع التبرعات بالقرب منك.",
     "faqHeading": "الأسئلة الشائعة",
     "faq": [
@@ -393,8 +396,8 @@
     "viewTransporterDetail": "عرض تفاصيل المتطوع"
   },
   "quickActions": {
-    "national": "+ نقطة تجميع",
-    "international": "+ دولي",
+    "national": "+ تجميع في الجزائر",
+    "international": "+ تجميع خارج الجزائر",
     "deliver": "توصيل"
   },
   "reportBug": {

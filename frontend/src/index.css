@@ -570,6 +570,47 @@ main {
   color: var(--text-muted);
   flex-shrink: 0;
 }
+/* Wraps the 4th home button (opens a small Algérie/international choice
+   menu instead of navigating directly) -- this div, not the <button>
+   itself, is the actual flex item inside .home-actions (the button sits
+   one level deeper so the dropdown below can anchor to it), so the
+   full-width flex sizing that the other 3 buttons get straight from
+   `.home-actions .btn` needs repeating here on the wrapper instead. */
+.home-btn-create {
+  position: relative;
+  flex: 1 1 100%;
+}
+.home-btn-create .btn {
+  width: 100%;
+}
+.home-btn-create-menu {
+  position: absolute;
+  inset-inline: 0;
+  top: calc(100% + 6px);
+  z-index: 20;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.home-btn-create-menu a {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  text-decoration: none;
+  color: #111;
+  font-size: 15px;
+  font-weight: 600;
+}
+.home-btn-create-menu a:hover {
+  background: #f2f2f2;
+}
 .home-about-link {
   /* Sits over the background photo, so it needs real contrast -- the
      footer's own muted #777 all but disappears there. */

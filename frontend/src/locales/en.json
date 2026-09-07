@@ -92,6 +92,9 @@
     "iWantToHelp": "I want to help",
     "collectionPointsAlgeria": "Collection points in Algeria",
     "collectionPointsInternational": "International collection points",
+    "createCollectionPoint": "Create a collection point",
+    "createCollectionPointAlgeria": "In Algeria",
+    "createCollectionPointInternational": "Internationally",
     "summary": "SOSDZ is a free, community-run platform that coordinates emergency relief in Algeria in response to natural disasters, particularly wildfires. It's built for anyone in Algeria who needs help (food, water, shelter, medical care) and for anyone who wants to help, whether in Algeria or from abroad. There are three ways to use it: report a need, offer your help as a volunteer or delivery driver, or set up a donation collection point near you.",
     "faqHeading": "Frequently asked questions",
     "faq": [
@@ -393,8 +396,8 @@
     "viewTransporterDetail": "View transporter details"
   },
   "quickActions": {
-    "national": "+ Collection point",
-    "international": "+ International",
+    "national": "+ Collection point in Algeria",
+    "international": "+ Collection point outside Algeria",
     "deliver": "Deliver"
   },
   "reportBug": {
