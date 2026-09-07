@@ -31,7 +31,8 @@
     "searchPlaceholder": "Search (name, description...)",
     "adminModeBadge": "Admin mode",
     "adminLogout": "log out",
-    "nonOfficialFooterNote": "Unofficial site, developed and deployed by a volunteer."
+    "nonOfficialFooterNote": "Unofficial site, developed and deployed by a volunteer.",
+    "filters": "Filters"
   },
   "validation": {
     "required": "This field is required.",

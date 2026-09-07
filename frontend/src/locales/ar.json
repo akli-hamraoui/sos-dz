@@ -31,7 +31,8 @@
     "searchPlaceholder": "بحث (اسم، وصف...)",
     "adminModeBadge": "وضع الإدارة",
     "adminLogout": "تسجيل الخروج",
-    "nonOfficialFooterNote": "موقع غير رسمي، طوّره ونشره متطوع."
+    "nonOfficialFooterNote": "موقع غير رسمي، طوّره ونشره متطوع.",
+    "filters": "الفلاتر"
   },
   "validation": {
     "required": "هذا الحقل إلزامي.",

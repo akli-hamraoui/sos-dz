@@ -31,7 +31,8 @@
     "searchPlaceholder": "Rechercher (nom, description...)",
     "adminModeBadge": "Mode admin",
     "adminLogout": "se déconnecter",
-    "nonOfficialFooterNote": "Site non-officiel, développé et déployé par un bénévole."
+    "nonOfficialFooterNote": "Site non-officiel, développé et déployé par un bénévole.",
+    "filters": "Filtres"
   },
   "validation": {
     "required": "Ce champ est obligatoire.",
