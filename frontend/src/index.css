@@ -505,7 +505,7 @@ main {
    on every viewport, mobile through desktop alike. */
 .home-actions {
   display: grid;
-  grid-template-columns: repeat(2, 140px);
+  grid-template-columns: repeat(2, 120px);
   justify-content: center;
   /* "Espacé" -- deliberately more generous than the stacked layout's own
      16px, since a mis-tap between two adjacent tiles is easier here (both
@@ -523,9 +523,9 @@ main {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 6px;
   text-align: center;
-  padding: 14px;
+  padding: 10px;
   /* Flat social-app icon-grid look (reference screenshot: Facebook/
      Instagram/YouTube.../Pinterest app icons) -- solid border, no
      shadow, moderately rounded corners, rather than the previous
@@ -543,7 +543,7 @@ main {
    than in .btn-huge itself, which other pages may still rely on at its
    original size. */
 .home-actions .btn-huge {
-  font-size: 15px;
+  font-size: 13px;
 }
 .btn.home-btn-sos {
   /* The grid's one red tile (the urgent action) -- every other tile
@@ -555,8 +555,8 @@ main {
 }
 .icon-sos {
   display: inline-block;
-  width: 30px;
-  height: 30px;
+  width: 24px;
+  height: 24px;
   flex-shrink: 0;
   /* Same red as this tile's own border/label text (see .home-btn-sos) --
      background-color + mask-image tints the source PNG (a solid black
@@ -588,9 +588,9 @@ main {
    a bit tighter than the regular stacked-pill layout's own font-size, to
    comfortably fit a two-line label inside the square tile above. */
 .home-btn-compact {
-  font-size: 14px;
+  font-size: 11.5px;
   font-weight: 600;
-  line-height: 1.3;
+  line-height: 1.2;
 }
 /* Small trailing "this opens a map" cue on the two collection-point
    buttons -- muted/smaller than the flag/globe icon so it reads as a
