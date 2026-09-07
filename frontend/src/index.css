@@ -420,19 +420,7 @@ main {
   padding: 28px 12px 32px;
   color: #15213a;
 }
-.home-mission {
-  display: inline-flex;
-  margin: 0 0 14px;
-  padding: 5px 11px;
-  border-radius: 999px;
-  background: #e7f6ef;
-  color: #198754;
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: .02em;
-  text-transform: uppercase;
-}
-.home-tagline {
+home-tagline {
   max-width: 420px;
   margin: 0 0 26px;
   color: #546173;
