@@ -171,7 +171,12 @@ export function attachMapPopupBehavior(map, onPhoto) {
   // moveend handler creates a feedback loop and can make the tile layer look
   // blank/gray while the map keeps moving.
   const centerPopupOnce = (popup) => {
-    requestAnimationFrame(() => {
+    // Leaflet can finish laying out the popup one frame after popupopen.
+    // Do two animation frames plus one short delayed pass so the final
+    // measured box -- not the intermediate height -- is what gets centered.
+    // There is deliberately no moveend listener, so user panning never
+    // triggers a recenter loop.
+    const center = () => {
       if (!map._container?.isConnected || !popup?.isOpen?.()) return
       const mapEl = map.getContainer()
       const popupEl = popup.getElement()
@@ -184,14 +189,15 @@ export function attachMapPopupBehavior(map, onPhoto) {
       const dx = (mapRect.left + mapRect.width / 2) - (popupRect.left + popupRect.width / 2)
       const dy = (mapRect.top + mapRect.height / 2) - (popupRect.top + popupRect.height / 2)
 
-      // One synchronous pan only. Leaflet's own autoPan guarantees visibility;
-      // this pass provides the requested centered presentation.
-      if (Math.abs(dx) > 6 || Math.abs(dy) > 6) {
-        // Center immediately. Animating this correction makes the map feel
-        // like it is still trying to recenter after the popup has opened.
+      if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
         map.panBy([dx, dy], { animate: false })
       }
+    }
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(center)
     })
+    setTimeout(center, 120)
   }
 
   const onOpen = (e) => {
