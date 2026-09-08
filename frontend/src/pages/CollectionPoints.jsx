@@ -170,33 +170,15 @@ export default function CollectionPoints() {
       map.fitBounds(L.latLngBounds(mapPoints).pad(0.3), { maxZoom: 12, animate: false })
       return
     }
-    // No wilaya filter: show the visitor's actual position if they're
-    // genuinely in Algeria, otherwise zoom to the concerned wilayas --
-    // this page never shows anywhere else, so a *resolved* (not merely
-    // denied/unavailable) position outside Algeria also surfaces the
-    // international link (see showInternationalLink above).
-    const doZoom = (userLatLng) => {
-      if (userLatLng && isInAlgeria(userLatLng[0], userLatLng[1])) {
-        setShowInternationalLink(false)
-        const nearby = mapPoints.filter((pt) => haversineKm(userLatLng, pt) <= 50)
-        if (nearby.length) {
-          map.fitBounds(L.latLngBounds(nearby).pad(0.3), { maxZoom: 11, animate: false })
-        } else {
-          map.setView(userLatLng, 9)
-        }
-        return
-      }
-      if (userLatLng) setShowInternationalLink(true)
-      zoomToConcernedWilayas(map)
-    }
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => doZoom([pos.coords.latitude, pos.coords.longitude]),
-        () => doZoom(null),
-        { timeout: 3000 }
-      )
+    // No wilaya filter: this page is Algeria-only. Do not wait for the
+    // browser geolocation before framing the campaign points. A visitor
+    // in France must immediately see the Algeria view; the explicit
+    // "Me localiser" control remains responsible for GPS positioning.
+    setShowInternationalLink(false)
+    if (mapPoints.length) {
+      map.fitBounds(L.latLngBounds(mapPoints).pad(0.3), { maxZoom: 11, animate: false })
     } else {
-      doZoom(null)
+      zoomToConcernedWilayas(map)
     }
   }
 
