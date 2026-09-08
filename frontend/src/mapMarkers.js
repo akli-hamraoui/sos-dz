@@ -246,14 +246,14 @@ export function attachMapPopupBehavior(map, onPhoto, onActivate) {
       }
     }
 
+    // The popup dimensions are now stable (no internal scrolling), so a
+    // double animation-frame pass is enough to measure the final DOM layout.
+    // Do not schedule delayed recentering: a later pan makes Leaflet visibly
+    // move/repaint the popup 1–3 seconds after opening, which looks like a
+    // flicker on mobile.
     requestAnimationFrame(() => {
       requestAnimationFrame(center)
     })
-    // A short delayed pass catches the final popup size after fonts/content
-    // settle and also catches the transition from the inactive map hint to
-    // the active "Quitter la carte" chip.
-    setTimeout(center, 120)
-    setTimeout(center, 320)
   }
 
   // Exposed only for map actions such as route fitBounds(): those actions
