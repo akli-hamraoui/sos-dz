@@ -38,26 +38,56 @@ def _headers():
     return {"Authorization": f"Bearer {key}"}
 
 
-def transcribe_audio(upload, language="fr"):
-    """Transcribe the recorded SOS with Groq Whisper, server-side."""
+def transcribe_audio(upload, language=None):
+    """Transcribe the recorded SOS with Groq Whisper, server-side.
+
+    The browser's selected UI language is deliberately not forced on Whisper:
+    the reporter may speak French, Arabic, or mix languages in the same
+    recording. Leaving the language unset lets Whisper auto-detect the spoken
+    language instead of turning a valid recording into a poor transcript
+    because the UI language did not match the speech.
+    """
+    content_type = upload.content_type or "audio/webm"
     response = requests.post(
         "https://api.groq.com/openai/v1/audio/transcriptions",
         headers=_headers(),
-        files={"file": (upload.name, upload.file, upload.content_type or "audio/webm")},
+        files={"file": (upload.name, upload.file, content_type)},
         data={
             "model": getattr(settings, "GROQ_TRANSCRIPTION_MODEL", "whisper-large-v3-turbo"),
-            "language": language if language in {"fr", "ar", "en"} else "fr",
             "response_format": "json",
             "temperature": "0",
         },
         timeout=120,
     )
     if not response.ok:
-        logger.warning("Voice transcription failed: status=%s body=%s", response.status_code, response.text[:500])
+        logger.warning(
+            "Voice transcription failed: status=%s content_type=%s size=%s body=%s",
+            response.status_code,
+            content_type,
+            getattr(upload, "size", None),
+            response.text[:1000],
+        )
         raise VoiceAIError("Voice transcription failed.")
-    text = (response.json().get("text") or "").strip()
+    try:
+        payload = response.json()
+    except ValueError:
+        logger.warning("Voice transcription returned non-JSON response: %s", response.text[:1000])
+        raise VoiceAIError("Voice transcription returned invalid data.")
+    text = (payload.get("text") or "").strip()
     if not text:
+        logger.warning(
+            "Voice transcription returned no text: content_type=%s size=%s response=%s",
+            content_type,
+            getattr(upload, "size", None),
+            payload,
+        )
         raise VoiceAIError("No speech was detected.")
+    logger.info(
+        "Voice transcription succeeded: chars=%s content_type=%s size=%s",
+        len(text),
+        content_type,
+        getattr(upload, "size", None),
+    )
     return text
 
 
