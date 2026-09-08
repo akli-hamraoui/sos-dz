@@ -48,6 +48,14 @@ def transcribe_audio(upload, language=None):
     because the UI language did not match the speech.
     """
     content_type = upload.content_type or "audio/webm"
+    # A multipart upload can have been inspected by validation code before it
+    # reaches this function. Always rewind it so Whisper receives the complete
+    # recording, not a zero-byte/partial stream.
+    try:
+        upload.seek(0)
+    except (AttributeError, OSError):
+        pass
+
     response = requests.post(
         "https://api.groq.com/openai/v1/audio/transcriptions",
         headers=_headers(),
@@ -55,7 +63,9 @@ def transcribe_audio(upload, language=None):
         data={
             "model": getattr(settings, "GROQ_TRANSCRIPTION_MODEL", "whisper-large-v3-turbo"),
             "response_format": "json",
-            "temperature": "0",
+            # Groq expects a JSON number here. Sending the string "0" can make
+            # the provider reject the transcription request with HTTP 400.
+            "temperature": 0.0,
         },
         timeout=120,
     )
