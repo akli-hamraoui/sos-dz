@@ -13,6 +13,7 @@ import CommentThread from '../components/CommentThread'
 import CopyButton from '../components/CopyButton'
 import ModerationBadge from '../components/ModerationBadge'
 import PickupManager from '../components/PickupManager'
+import { attachMapPopupBehavior } from '../mapMarkers'
 
 function statusLabel(t, s) {
   return t(`status.${s}`, s)
@@ -112,6 +113,7 @@ export default function NeedDetail() {
       maxZoom: 19,
     }).addTo(map)
     L.control.attribution({ prefix: false }).addTo(map)
+    attachMapPopupBehavior(map)
     mapRef.current = map
     const allPoints = []
     const dest = destinationPoint()

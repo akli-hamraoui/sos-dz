@@ -7,7 +7,7 @@ import { useDialog } from '../context/DialogContext'
 import { api } from '../api'
 import { maskPhone, formatDate, getCurrentPosition, RECENTER_BOX_METERS } from '../utils'
 import { fetchDrivingRoute, ROUTE_COLOR } from '../routing'
-import { flyerPopupButtonHtml, attachPopupPinchZoom, attachMapPinchZoomOverlay } from '../mapMarkers'
+import { flyerPopupButtonHtml, attachMapPopupBehavior, attachMapPinchZoomOverlay } from '../mapMarkers'
 import PhotoThumb from '../components/PhotoThumb'
 import PhotoLightbox from '../components/PhotoLightbox'
 import { IconTruck, IconLocate, IconExpand, IconClose } from '../icons'
@@ -161,11 +161,7 @@ export default function Deliveries() {
         // See CollectionPoints.jsx's own equivalent registration -- wires
         // up any popup's "view photo" link to the shared PhotoLightbox
         // without closing the popup underneath it.
-        mapRef.current.on('popupopen', (e) => {
-          const btn = e.popup.getElement()?.querySelector('.popup-photo-btn')
-          if (btn) btn.onclick = () => setLightboxPhoto(btn.dataset.photoUrl)
-          attachPopupPinchZoom(e.popup.getElement())
-        })
+        attachMapPopupBehavior(mapRef.current, (photoUrl) => setLightboxPhoto(photoUrl))
         // Also wired from the overlay's own ref callback (for when it
         // remounts later, e.g. deactivate/reactivate) -- done here too
         // since on first mount that ref callback can fire before this

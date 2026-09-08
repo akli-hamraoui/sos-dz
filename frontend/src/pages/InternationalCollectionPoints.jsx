@@ -6,7 +6,7 @@ import { useDialog } from '../context/DialogContext'
 import { api } from '../api'
 import { geocodeCountryBounds, getCurrentPosition, haversineKm, RECENTER_BOX_METERS } from '../utils'
 import { fetchDrivingRoute, COLLECTION_POINT_ROUTE_COLOR } from '../routing'
-import { countryFlagEmoji, formatApproxKm, flyerPopupButtonHtml, attachPopupPinchZoom, attachMapPinchZoomOverlay } from '../mapMarkers'
+import { countryFlagEmoji, formatApproxKm, flyerPopupButtonHtml, attachMapPopupBehavior, attachMapPinchZoomOverlay } from '../mapMarkers'
 import CountryOrPlaceSearch from '../components/CountryOrPlaceSearch'
 import PhotoThumb from '../components/PhotoThumb'
 import PhotoLightbox from '../components/PhotoLightbox'
@@ -230,11 +230,7 @@ export default function InternationalCollectionPoints() {
           // See CollectionPoints.jsx's own equivalent registration -- wires
           // up any popup's "view photo" link to the shared PhotoLightbox
           // without closing the popup underneath it.
-          mapRef.current.on('popupopen', (e) => {
-            const btn = e.popup.getElement()?.querySelector('.popup-photo-btn')
-            if (btn) btn.onclick = () => setLightboxPhoto(btn.dataset.photoUrl)
-            attachPopupPinchZoom(e.popup.getElement())
-          })
+          attachMapPopupBehavior(mapRef.current, (photoUrl) => setLightboxPhoto(photoUrl))
           // Also wired from the overlay's own ref callback (for when it
           // remounts later, e.g. deactivate/reactivate) -- done here too
           // since on first mount that ref callback can fire before this
