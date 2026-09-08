@@ -149,7 +149,7 @@ export default function CollectionPoints() {
       .filter((w) => w.centroid_latitude != null && w.centroid_longitude != null)
       .map((w) => [w.centroid_latitude, w.centroid_longitude])
     if (centroids.length) {
-      map.fitBounds(L.latLngBounds(centroids).pad(0.2), { maxZoom: 8 })
+      map.fitBounds(L.latLngBounds(centroids).pad(0.2), { maxZoom: 8, animate: false })
     } else {
       map.setView([28.0, 2.6], 5) // last-resort fallback, e.g. before campaigns have loaded yet
     }
@@ -167,7 +167,7 @@ export default function CollectionPoints() {
         }
         return
       }
-      map.fitBounds(L.latLngBounds(mapPoints).pad(0.3), { maxZoom: 12 })
+      map.fitBounds(L.latLngBounds(mapPoints).pad(0.3), { maxZoom: 12, animate: false })
       return
     }
     // No wilaya filter: show the visitor's actual position if they're
@@ -180,7 +180,7 @@ export default function CollectionPoints() {
         setShowInternationalLink(false)
         const nearby = mapPoints.filter((pt) => haversineKm(userLatLng, pt) <= 50)
         if (nearby.length) {
-          map.fitBounds(L.latLngBounds(nearby).pad(0.3), { maxZoom: 11 })
+          map.fitBounds(L.latLngBounds(nearby).pad(0.3), { maxZoom: 11, animate: false })
         } else {
           map.setView(userLatLng, 9)
         }
@@ -228,13 +228,13 @@ export default function CollectionPoints() {
         }
         const straight = L.polyline([from, dest], { color: COLLECTION_POINT_ROUTE_COLOR, weight: 3, dashArray: '4,8' }).addTo(map)
         routeLineRef.current = straight
-        map.fitBounds(L.latLngBounds([from, dest]).pad(0.3), { maxZoom: 13 })
+        map.fitBounds(L.latLngBounds([from, dest]).pad(0.3), { maxZoom: 13, animate: false })
         fetchDrivingRoute(from, dest)
           .then((route) => {
             if (routeLineRef.current !== straight) return // superseded by another click/re-render meanwhile
             map.removeLayer(straight)
             routeLineRef.current = L.polyline(route.coordinates, { color: COLLECTION_POINT_ROUTE_COLOR, weight: 4, dashArray: '1,10', lineCap: 'round' }).addTo(map)
-            map.fitBounds(L.latLngBounds(route.coordinates).pad(0.3), { maxZoom: 13 })
+            map.fitBounds(L.latLngBounds(route.coordinates).pad(0.3), { maxZoom: 13, animate: false })
             setRouteInfo({ distanceKm: route.distanceKm, durationMin: route.durationMin })
           })
           .catch(() => setRouteInfo('unavailable'))
