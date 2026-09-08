@@ -336,13 +336,28 @@ class NeedViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retriev
             return Response({"detail": "The audio file is too large."}, status=status.HTTP_400_BAD_REQUEST)
         language = request.data.get("language", "fr")
         try:
-            transcript = transcribe_audio(audio, language)
-            extraction = extract_need_data(transcript)
+            # Do not force the browser/UI language onto Whisper. The reporter
+            # may speak a different language (or mix languages), so the STT
+            # layer must auto-detect the actual recording language.
+            transcript = transcribe_audio(audio)
         except VoiceAIError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
         except Exception:
-            logger.exception("Unexpected urgent SOS voice analysis error")
-            return Response({"detail": "Voice analysis is temporarily unavailable."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+            logger.exception("Unexpected urgent SOS voice transcription error")
+            return Response({"detail": "Voice transcription is temporarily unavailable."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+        try:
+            extraction = extract_need_data(transcript)
+        except VoiceAIError:
+            # A good transcript is still valuable even if the structured LLM
+            # extraction is unavailable. The frontend can show the transcript
+            # and the user can correct the fields manually before confirming.
+            logger.exception("Urgent SOS transcript succeeded but LLM extraction failed")
+            extraction = {}
+        except Exception:
+            logger.exception("Unexpected urgent SOS voice extraction error")
+            extraction = {}
+
         return Response({"transcript": transcript, "extraction": extraction})
 
     @action(detail=False, methods=["post"], url_path="voice-guide")
