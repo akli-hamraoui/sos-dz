@@ -1031,25 +1031,29 @@ fieldset {
 }
 .media-capture-card .photo-thumb {
   min-width: 0;
+  width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
 }
 .media-capture-card .photo-thumb img {
   width: 64px;
   height: 64px;
   object-fit: cover;
   border-radius: 9px;
+  flex: 0 0 auto;
 }
 .photo-remove-btn {
-  display: inline-flex;
+  display: inline-flex !important;
   align-items: center;
   justify-content: center;
   gap: 4px;
   width: 100%;
-  min-height: 28px;
-  padding: 5px 6px;
+  min-height: 32px;
+  box-sizing: border-box;
+  margin-top: 1px;
+  padding: 6px 5px;
   border: 1px solid #e6b8b4;
   border-radius: 9px;
   background: #fff7f6;
