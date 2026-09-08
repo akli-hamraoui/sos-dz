@@ -63,6 +63,7 @@ export default function Deliveries() {
   // neither and so are never on the map at all (never "position
   // unavailable" purely by omission -- see the .noPosition list below).
   const [locatedPickupIds, setLocatedPickupIds] = useState(() => new Set())
+  const [mapPointsLoading, setMapPointsLoading] = useState(false)
   // The position filter applied on top of the server-side-filtered
   // `pickups` -- client-side, since locatedPickupIds is itself only known
   // client-side (derived from the separate live-locations fetch below).
@@ -132,28 +133,14 @@ export default function Deliveries() {
   // without moving the map the viewer is currently looking at.
   const renderLiveLocations = useCallback(
     async (fitView) => {
-      let locations
-      try {
-        locations = await api('/pickups/live-locations/')
-      } catch {
-        return // offline/network failure -- silently skip this refresh, the next tick retries
-      }
-      // Updated regardless of viewMode -- the list view's "no position"
-      // flagging (below) needs this even when the map itself isn't mounted.
-      // Always computed from the full, unfiltered fetch (never invented
-      // from a filtered subset) since it's also this page's one source of
-      // truth for "does this pickup have a position at all".
-      setLocatedPickupIds(new Set(locations.map((l) => l.pickup_id)))
-      if (!mapElRef.current) return
-      // Every entry here inherently has a position (that's what this
-      // endpoint returns) -- filterPosition === 'without' means "only show
-      // transporters without one", which this map can't place individual
-      // pins for (no coordinates to place them at), so it shows none here
-      // and lets the unknown-position bubble below carry that count instead.
-      const locationsToRender = filterPosition === 'without' ? [] : locations
       if (!mapRef.current) {
         mapRef.current = L.map(mapElRef.current, {
           attributionControl: false,
+          center: [28.0, 2.6],
+          zoom: 5,
+          fadeAnimation: false,
+          zoomAnimation: false,
+          markerZoomAnimation: false,
           // Starts fully "asleep" -- see mapActive above -- so a single
           // finger over the map scrolls the page like anything else on
           // it. activateMap enables all of these once explicitly tapped.
@@ -166,6 +153,8 @@ export default function Deliveries() {
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
           attribution: '&copy; OpenStreetMap contributors',
           maxZoom: 19,
+          updateWhenZooming: false,
+          keepBuffer: 1,
         }).addTo(mapRef.current)
         L.control.attribution({ prefix: false }).addTo(mapRef.current)
         // See CollectionPoints.jsx's own equivalent registration -- wires
@@ -184,6 +173,29 @@ export default function Deliveries() {
         // it the very first time the page loads.
         attachMapPinchZoomOverlay(mapRef.current, mapElRef.current?.parentElement?.querySelector('.map-activate-overlay'), activateMap)
       }
+      
+      let locations
+      setMapPointsLoading(true)
+      try {
+        locations = await api('/pickups/live-locations/')
+      } catch {
+        return // offline/network failure -- silently skip this refresh, the next tick retries
+      } finally {
+        if (!cancelled) setMapPointsLoading(false)
+      }
+      // Updated regardless of viewMode -- the list view's "no position"
+      // flagging (below) needs this even when the map itself isn't mounted.
+      // Always computed from the full, unfiltered fetch (never invented
+      // from a filtered subset) since it's also this page's one source of
+      // truth for "does this pickup have a position at all".
+      setLocatedPickupIds(new Set(locations.map((l) => l.pickup_id)))
+      if (!mapElRef.current) return
+      // Every entry here inherently has a position (that's what this
+      // endpoint returns) -- filterPosition === 'without' means "only show
+      // transporters without one", which this map can't place individual
+      // pins for (no coordinates to place them at), so it shows none here
+      // and lets the unknown-position bubble below carry that count instead.
+      const locationsToRender = filterPosition === 'without' ? [] : locations
       const map = mapRef.current
       markersRef.current.forEach((m) => map.removeLayer(m))
       // A marker click draws a fresh trajectory -- clear any leftover one
@@ -524,11 +536,17 @@ export default function Deliveries() {
               bubble below, never a separate "nothing to show" message
               standing in for the map. */}
           <div
-            className={fullscreen ? 'map-frame map-frame-fullscreen' : 'map-frame'}
-            style={fullscreen ? undefined : { height: mapFillHeight }}
+            className="map-frame"
+            
             ref={mapFrameRef}
           >
             <div id="deliveries-map" ref={mapElRef} style={{ height: '100%' }} />
+            {mapPointsLoading && (
+              <div className="map-points-loader" aria-live="polite" aria-label="Chargement des points">
+                <span className="map-points-loader-spinner" aria-hidden="true" />
+                <span>Chargement des points…</span>
+              </div>
+            )}
             {!mapActive && !fullscreen && (
               <div
                 className="map-activate-overlay"
@@ -546,6 +564,7 @@ export default function Deliveries() {
                 {t('map.exitMapInteraction')}
               </button>
             )}
+            
             {!fullscreen && (
               <button
                 type="button"

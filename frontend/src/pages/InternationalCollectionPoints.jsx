@@ -39,6 +39,7 @@ export default function InternationalCollectionPoints() {
   const [points, setPoints] = useState([])
   const [viewMode, setViewMode] = useState('map')
   const [mapHasNothing, setMapHasNothing] = useState(false)
+  const [mapPointsLoading, setMapPointsLoading] = useState(false)
   // Filters tucked behind this toggle instead of always expanded -- same
   // collapsed-by-default pattern as CollectionPoints.jsx/NeedsList.jsx/
   // Deliveries.jsx, so this page's own location/search fields don't always
@@ -201,25 +202,14 @@ export default function InternationalCollectionPoints() {
     let cancelled = false
     let rafId = null
 
-    ;(async () => {
-      let pins
-      const params = new URLSearchParams({ international: '1' })
-      if (filterCountry) params.set('country', filterCountry)
-      if (search) params.set('search', search)
-      try {
-        pins = await api(`/collection-points/locations/?${params.toString()}`)
-      } catch {
-        return // offline/network failure -- offline banner already informs the user
-      }
-      if (cancelled) return
-      setMapHasNothing(pins.length === 0)
-
-      rafId = requestAnimationFrame(() => {
-        if (cancelled) return
-        if (!mapElRef.current) return
-        if (!mapRef.current) {
+    if (!mapRef.current) {
           mapRef.current = L.map(mapElRef.current, {
             attributionControl: false,
+            center: [20, 10],
+            zoom: 2,
+            fadeAnimation: false,
+            zoomAnimation: false,
+            markerZoomAnimation: false,
             // Starts fully "asleep" -- see mapActive above -- so a single
             // finger over the map scrolls the page like anything else on
             // it, with no special gesture to learn. activateMap enables
@@ -233,6 +223,8 @@ export default function InternationalCollectionPoints() {
           L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; OpenStreetMap contributors',
             maxZoom: 19,
+            updateWhenZooming: false,
+            keepBuffer: 1,
           }).addTo(mapRef.current)
           L.control.attribution({ prefix: false }).addTo(mapRef.current)
           // See CollectionPoints.jsx's own equivalent registration -- wires
@@ -251,6 +243,27 @@ export default function InternationalCollectionPoints() {
           // wiring it the very first time the page loads.
           attachMapPinchZoomOverlay(mapRef.current, mapElRef.current?.parentElement?.querySelector('.map-activate-overlay'), activateMap)
         }
+        
+
+    ;(async () => {
+      let pins
+      const params = new URLSearchParams({ international: '1' })
+      if (filterCountry) params.set('country', filterCountry)
+      if (search) params.set('search', search)
+      setMapPointsLoading(true)
+      try {
+        pins = await api(`/collection-points/locations/?${params.toString()}`)
+      } catch {
+        return // offline/network failure -- offline banner already informs the user
+      } finally {
+        if (!cancelled) setMapPointsLoading(false)
+      }
+      if (cancelled) return
+      setMapHasNothing(pins.length === 0)
+
+      rafId = requestAnimationFrame(() => {
+        if (cancelled) return
+        if (!mapElRef.current) return
         const map = mapRef.current
         markersRef.current.forEach((m) => map.removeLayer(m))
         if (youAreHereRef.current) {
@@ -564,8 +577,14 @@ export default function InternationalCollectionPoints() {
       {viewMode === 'map' && (
         <div className="map-wrap">
           {mapHasNothing && <p className="hint">{t('internationalCollectionPoints.noPointsYet')}</p>}
-          <div className={fullscreen ? 'map-frame map-frame-fullscreen' : 'map-frame'}>
-            <div id="intl-cp-map" ref={mapElRef} style={{ height: fullscreen ? '100%' : 600 }} />
+          <div className="map-frame">
+            <div id="intl-cp-map" ref={mapElRef}  />
+            {mapPointsLoading && (
+              <div className="map-points-loader" aria-live="polite" aria-label="Chargement des points">
+                <span className="map-points-loader-spinner" aria-hidden="true" />
+                <span>Chargement des points…</span>
+              </div>
+            )}
             {!mapActive && !fullscreen && (
               <div
                 className="map-activate-overlay"
@@ -583,6 +602,7 @@ export default function InternationalCollectionPoints() {
                 {t('map.exitMapInteraction')}
               </button>
             )}
+            
             {!fullscreen && (
               <button
                 type="button"

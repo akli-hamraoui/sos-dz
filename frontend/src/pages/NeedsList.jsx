@@ -47,6 +47,7 @@ export default function NeedsList() {
   // manual switch).
   const [viewMode, setViewMode] = useState('map')
   const [mapHasNothing, setMapHasNothing] = useState(false)
+  const [mapPointsLoading, setMapPointsLoading] = useState(false)
   // Filters (search + wilaya) tucked behind this toggle instead of always
   // expanded -- see CollectionPoints.jsx's own filtersOpen for the
   // rationale (same pattern, reused across every map+filters page).
@@ -201,12 +202,61 @@ export default function NeedsList() {
     let cancelled = false
     let rafId = null
 
+    if (!mapRef.current) {
+          mapRef.current = L.map(mapElRef.current, {
+            attributionControl: false,
+            center: [28, 2.6],
+            zoom: 5,
+            fadeAnimation: false,
+            zoomAnimation: false,
+            markerZoomAnimation: false,
+            // Starts fully "asleep" -- see mapActive above -- so a single
+            // finger over the map scrolls the page like anything else on
+            // it. activateMap enables all of these once explicitly tapped.
+            dragging: false,
+            touchZoom: false,
+            scrollWheelZoom: false,
+            doubleClickZoom: false,
+            boxZoom: false,
+          })
+          // Standard OpenStreetMap raster tiles: free with no API key
+          // required (unlike CartoDB's basemaps.cartocdn.com, which
+          // started requiring one and showed an "API KEY REQUIRED"
+          // watermark in production). City/road labels, no elevation
+          // relief -- colored pins need to read clearly against the
+          // background, which a relief-shaded map fights against.
+          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors',
+            maxZoom: 19,
+            updateWhenZooming: false,
+            keepBuffer: 1,
+          }).addTo(mapRef.current)
+          L.control.attribution({ prefix: false }).addTo(mapRef.current)
+          // See CollectionPoints.jsx's own equivalent registration -- wires
+          // up any popup's "view photo" link to the shared PhotoLightbox
+          // without closing the popup underneath it.
+          mapRef.current.on('popupopen', (e) => {
+            const btn = e.popup.getElement()?.querySelector('.popup-photo-btn')
+            if (btn) btn.onclick = () => setLightboxPhoto(btn.dataset.photoUrl)
+            attachPopupPinchZoom(e.popup.getElement())
+          })
+          // Also wired from the overlay's own ref callback (for when it
+          // remounts later, e.g. deactivate/reactivate) -- done here too
+          // since on first mount that ref callback can fire before this
+          // effect has actually created the map yet (mapRef.current still
+          // null at that point), which would otherwise silently skip
+          // wiring it the very first time the page loads.
+          attachMapPinchZoomOverlay(mapRef.current, mapElRef.current?.parentElement?.querySelector('.map-activate-overlay'), activateMap)
+        }
+        
+
     ;(async () => {
       const params = new URLSearchParams()
       if (filterWilaya) params.set('wilaya', filterWilaya)
       if (search) params.set('search', search)
       const qs = params.toString() ? `?${params.toString()}` : ''
       let needPins = []
+      setMapPointsLoading(true)
       try {
         // This is the SOS/Besoins map specifically -- needs only, never
         // collection points (those get their own map on CollectionPoints.jsx,
@@ -214,6 +264,8 @@ export default function NeedsList() {
         needPins = await api(`/needs/locations/${qs}`)
       } catch {
         return // offline/network failure -- offline banner already informs the user
+      } finally {
+        if (!cancelled) setMapPointsLoading(false)
       }
       if (cancelled) return
 
@@ -234,45 +286,6 @@ export default function NeedsList() {
       rafId = requestAnimationFrame(() => {
         if (cancelled) return
         if (!mapElRef.current) return
-        if (!mapRef.current) {
-          mapRef.current = L.map(mapElRef.current, {
-            attributionControl: false,
-            // Starts fully "asleep" -- see mapActive above -- so a single
-            // finger over the map scrolls the page like anything else on
-            // it. activateMap enables all of these once explicitly tapped.
-            dragging: false,
-            touchZoom: false,
-            scrollWheelZoom: false,
-            doubleClickZoom: false,
-            boxZoom: false,
-          })
-          // Standard OpenStreetMap raster tiles: free with no API key
-          // required (unlike CartoDB's basemaps.cartocdn.com, which
-          // started requiring one and showed an "API KEY REQUIRED"
-          // watermark in production). City/road labels, no elevation
-          // relief -- colored pins need to read clearly against the
-          // background, which a relief-shaded map fights against.
-          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; OpenStreetMap contributors',
-            maxZoom: 19,
-          }).addTo(mapRef.current)
-          L.control.attribution({ prefix: false }).addTo(mapRef.current)
-          // See CollectionPoints.jsx's own equivalent registration -- wires
-          // up any popup's "view photo" link to the shared PhotoLightbox
-          // without closing the popup underneath it.
-          mapRef.current.on('popupopen', (e) => {
-            const btn = e.popup.getElement()?.querySelector('.popup-photo-btn')
-            if (btn) btn.onclick = () => setLightboxPhoto(btn.dataset.photoUrl)
-            attachPopupPinchZoom(e.popup.getElement())
-          })
-          // Also wired from the overlay's own ref callback (for when it
-          // remounts later, e.g. deactivate/reactivate) -- done here too
-          // since on first mount that ref callback can fire before this
-          // effect has actually created the map yet (mapRef.current still
-          // null at that point), which would otherwise silently skip
-          // wiring it the very first time the page loads.
-          attachMapPinchZoomOverlay(mapRef.current, mapElRef.current?.parentElement?.querySelector('.map-activate-overlay'), activateMap)
-        }
         const map = mapRef.current
         markersRef.current.forEach((m) => map.removeLayer(m))
         const markers = []
@@ -546,11 +559,17 @@ export default function NeedsList() {
         <div className="map-wrap">
           {mapHasNothing && <p className="hint">{t('needsList.noActiveNeeds')}</p>}
           <div
-            className={fullscreen ? 'map-frame map-frame-fullscreen' : 'map-frame'}
-            style={fullscreen ? undefined : { height: mapFillHeight }}
+            className="map-frame"
+            
             ref={mapFrameRef}
           >
             <div id="main-map" ref={mapElRef} style={{ height: '100%' }} />
+            {mapPointsLoading && (
+              <div className="map-points-loader" aria-live="polite" aria-label="Chargement des points">
+                <span className="map-points-loader-spinner" aria-hidden="true" />
+                <span>Chargement des points…</span>
+              </div>
+            )}
             {!mapActive && !fullscreen && (
               <div
                 className="map-activate-overlay"
@@ -568,6 +587,7 @@ export default function NeedsList() {
                 {t('map.exitMapInteraction')}
               </button>
             )}
+            
             {!fullscreen && (
               <button
                 type="button"

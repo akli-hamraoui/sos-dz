@@ -24,6 +24,7 @@ export default function CollectionPoints() {
   // this is deliberately not persisted.
   const [viewMode, setViewMode] = useState('map')
   const [mapHasNothing, setMapHasNothing] = useState(false)
+  const [mapPointsLoading, setMapPointsLoading] = useState(false)
   // Filters (search + wilaya) tucked behind this toggle instead of always
   // expanded -- collapsed by default so the map/list below starts right
   // under a compact single-row toolbar instead of losing a big chunk of a
@@ -248,34 +249,14 @@ export default function CollectionPoints() {
     let cancelled = false
     let rafId = null
 
-    ;(async () => {
-      let cpPins
-      const params = new URLSearchParams()
-      if (filterWilaya) params.set('wilaya', filterWilaya)
-      if (search) params.set('search', search)
-      const qs = params.toString() ? `?${params.toString()}` : ''
-      try {
-        cpPins = await api(`/collection-points/locations/${qs}`)
-      } catch {
-        return // offline/network failure -- offline banner already informs the user
-      }
-      if (cancelled) return
-      setMapHasNothing(cpPins.length === 0)
-
-      // activeCampaignWilayas can settle in more than one wave while
-      // campaigns/wilayas are still loading, re-running this whole effect
-      // each time -- checking `cancelled` again here (not just before the
-      // network request above) stops a since-superseded run's
-      // requestAnimationFrame from firing after its own effect instance was
-      // already cleaned up, which otherwise intermittently clobbered a
-      // fresher run's markers with a stale (sometimes empty) set on first
-      // load.
-      rafId = requestAnimationFrame(() => {
-        if (cancelled) return
-        if (!mapElRef.current) return
-        if (!mapRef.current) {
+    if (!mapRef.current) {
           mapRef.current = L.map(mapElRef.current, {
             attributionControl: false,
+            center: [28, 2.6],
+            zoom: 5,
+            fadeAnimation: false,
+            zoomAnimation: false,
+            markerZoomAnimation: false,
             // Starts fully "asleep" -- see mapActive above -- so a single
             // finger over the map scrolls the page like anything else on
             // it, with no special gesture to learn. activateMap enables
@@ -291,6 +272,8 @@ export default function CollectionPoints() {
           L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; OpenStreetMap contributors',
             maxZoom: 19,
+            updateWhenZooming: false,
+            keepBuffer: 1,
           }).addTo(mapRef.current)
           L.control.attribution({ prefix: false }).addTo(mapRef.current)
           // Wires up any marker popup's own "view photo" link (see
@@ -312,6 +295,36 @@ export default function CollectionPoints() {
           // wiring it the very first time the page loads.
           attachMapPinchZoomOverlay(mapRef.current, mapElRef.current?.parentElement?.querySelector('.map-activate-overlay'), activateMap)
         }
+        
+
+    ;(async () => {
+      let cpPins
+      const params = new URLSearchParams()
+      if (filterWilaya) params.set('wilaya', filterWilaya)
+      if (search) params.set('search', search)
+      const qs = params.toString() ? `?${params.toString()}` : ''
+      setMapPointsLoading(true)
+      try {
+        cpPins = await api(`/collection-points/locations/${qs}`)
+      } catch {
+        return // offline/network failure -- offline banner already informs the user
+      } finally {
+        if (!cancelled) setMapPointsLoading(false)
+      }
+      if (cancelled) return
+      setMapHasNothing(cpPins.length === 0)
+
+      // activeCampaignWilayas can settle in more than one wave while
+      // campaigns/wilayas are still loading, re-running this whole effect
+      // each time -- checking `cancelled` again here (not just before the
+      // network request above) stops a since-superseded run's
+      // requestAnimationFrame from firing after its own effect instance was
+      // already cleaned up, which otherwise intermittently clobbered a
+      // fresher run's markers with a stale (sometimes empty) set on first
+      // load.
+      rafId = requestAnimationFrame(() => {
+        if (cancelled) return
+        if (!mapElRef.current) return
         const map = mapRef.current
         markersRef.current.forEach((m) => map.removeLayer(m))
         if (youAreHereRef.current) {
@@ -664,11 +677,17 @@ export default function CollectionPoints() {
         <div className="map-wrap">
           {mapHasNothing && <p className="hint">{t('collectionPoints.noPointsYet')}</p>}
           <div
-            className={fullscreen ? 'map-frame map-frame-fullscreen' : 'map-frame'}
-            style={fullscreen ? undefined : { height: mapFillHeight }}
+            className="map-frame"
+            
             ref={mapFrameRef}
           >
             <div id="cp-map" ref={mapElRef} style={{ height: '100%' }} />
+            {mapPointsLoading && (
+              <div className="map-points-loader" aria-live="polite" aria-label="Chargement des points">
+                <span className="map-points-loader-spinner" aria-hidden="true" />
+                <span>Chargement des points…</span>
+              </div>
+            )}
             {!mapActive && !fullscreen && (
               <div
                 className="map-activate-overlay"
@@ -686,6 +705,7 @@ export default function CollectionPoints() {
                 {t('map.exitMapInteraction')}
               </button>
             )}
+            
             {!fullscreen && (
               <button
                 type="button"

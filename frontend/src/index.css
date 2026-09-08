@@ -2983,3 +2983,72 @@ body {
     margin-top: 3px;
   }
 }
+
+
+/* --- SOSDZ map performance/layout v1 ---------------------------------
+   All map pages share one predictable frame. Desktop/tablet maps are
+   compact enough to fit below the page controls without requiring a
+   second scroll just to reach the bottom of the map; mobile keeps its
+   own viewport-aware height. The existing map controls, including
+   fullscreen, remain available.
+*/
+.map-frame {
+  height: 420px;
+  min-height: 420px;
+  overflow: hidden;
+}
+
+.map-frame > [id$="-map"] {
+  height: 100%;
+  min-height: 0;
+}
+
+@media (max-width: 699px) {
+  .map-frame {
+    height: 400px;
+    min-height: 400px;
+  }
+}
+
+
+/* Map data loading indicator: lightweight CSS, no image/GIF request. */
+.map-points-loader {
+  position: absolute;
+  z-index: 900;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(35, 168, 114, 0.22);
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.12);
+  color: #238b5f;
+  font-size: 13px;
+  font-weight: 700;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.map-points-loader-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(35, 168, 114, 0.22);
+  border-top-color: #23a872;
+  border-radius: 50%;
+  animation: sosdz-map-loader-spin 0.75s linear infinite;
+}
+
+@keyframes sosdz-map-loader-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 699px) {
+  .map-points-loader {
+    padding: 9px 12px;
+    font-size: 12px;
+  }
+}
