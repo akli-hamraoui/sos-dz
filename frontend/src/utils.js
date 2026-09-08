@@ -100,9 +100,9 @@ export function getCurrentPosition() {
     navigator.geolocation.getCurrentPosition(
       (pos) => settle([pos.coords.latitude, pos.coords.longitude]),
       () => settle(null),
-      { timeout: 8000 }
+      { timeout: 5000, maximumAge: 15000, enableHighAccuracy: false }
     )
-    setTimeout(() => settle(null), 10000)
+    setTimeout(() => settle(null), 6000)
   })
 }
 
