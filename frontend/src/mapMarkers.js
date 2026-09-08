@@ -148,6 +148,7 @@ export function attachMapPopupBehavior(map, onPhoto) {
     const btn = popup.getElement()?.querySelector('.popup-photo-btn')
     if (btn && onPhoto) btn.onclick = () => onPhoto(btn.dataset.photoUrl)
     attachPopupPinchZoom(popup.getElement())
+    attachPopupMapDrag(map, popup.getElement())
     centerPopupOnce(popup)
   }
 
@@ -159,6 +160,56 @@ export function attachMapPopupBehavior(map, onPhoto) {
   map.on('popupopen', onOpen)
   map.on('popupclose', onClose)
 }
+// A Leaflet popup intentionally consumes pointer/touch events so taps on its
+// links/buttons do not bubble into the map. That also means a one-finger drag
+// started on popup text cannot reach Leaflet's map-drag handler. On mobile,
+// allow that specific gesture explicitly: the popup stays open while the map
+// follows the finger. Interactive controls keep their normal tap behavior.
+export function attachPopupMapDrag(map, popupEl) {
+  const wrapper = popupEl?.querySelector('.leaflet-popup-content-wrapper')
+  if (!map || !wrapper || wrapper.dataset.mapDragWired) return
+  wrapper.dataset.mapDragWired = '1'
+
+  let lastPoint = null
+  let moved = false
+
+  const isInteractive = (target) => !!target?.closest?.('a,button,input,select,textarea,[role="button"]')
+
+  const onTouchStart = (e) => {
+    if (e.touches.length !== 1 || isInteractive(e.target)) {
+      lastPoint = null
+      return
+    }
+    const touch = e.touches[0]
+    lastPoint = { x: touch.clientX, y: touch.clientY }
+    moved = false
+    e.stopPropagation()
+  }
+
+  const onTouchMove = (e) => {
+    if (!lastPoint || e.touches.length !== 1) return
+    const touch = e.touches[0]
+    const dx = touch.clientX - lastPoint.x
+    const dy = touch.clientY - lastPoint.y
+    if (Math.abs(dx) + Math.abs(dy) < 1) return
+    moved = true
+    e.preventDefault()
+    e.stopPropagation()
+    map.panBy([dx, dy], { animate: false })
+    lastPoint = { x: touch.clientX, y: touch.clientY }
+  }
+
+  const onTouchEnd = () => {
+    lastPoint = null
+    moved = false
+  }
+
+  wrapper.addEventListener('touchstart', onTouchStart, { capture: true, passive: false })
+  wrapper.addEventListener('touchmove', onTouchMove, { capture: true, passive: false })
+  wrapper.addEventListener('touchend', onTouchEnd, { capture: true, passive: false })
+  wrapper.addEventListener('touchcancel', onTouchEnd, { capture: true, passive: false })
+}
+
 export function attachPopupPinchZoom(popupEl) {
   // The *wrapper* (the actual white rounded box -- background, border,
   // shadow, close button and all), not just its own .leaflet-popup-content
