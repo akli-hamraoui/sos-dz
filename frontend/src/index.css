@@ -1714,12 +1714,13 @@ fieldset {
 }
 .sosdz-map-popup .leaflet-popup-content {
   margin: 14px 16px;
-  min-width: 220px;
-  max-width: min(288px, calc(100vw - 64px));
+  min-width: 0;
+  width: min(260px, calc(100vw - 48px));
+  max-width: min(260px, calc(100vw - 48px));
   color: var(--text);
   overflow-wrap: anywhere;
-  line-height: 1.5;
-  font-size: 13.5px;
+  line-height: 1.45;
+  font-size: 13px;
 }
 .sosdz-map-popup .leaflet-popup-content strong:first-child {
   display: block;
@@ -1904,8 +1905,9 @@ fieldset {
   left: 50%;
   transform: translateX(-50%);
   z-index: 1300;
-  background: rgba(17, 17, 17, 0.82);
-  color: #fff;
+  background: var(--brand-green-soft);
+  color: var(--brand-green);
+  border: 1px solid var(--brand-green-border);
   font-size: 13px;
   font-weight: 500;
   padding: 8px 16px;
@@ -1927,8 +1929,8 @@ fieldset {
 .map-international-link {
   position: absolute;
   top: 12px;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 12px;
+  right: 108px;
   z-index: 1200;
   display: flex;
   align-items: center;
@@ -1943,6 +1945,9 @@ fieldset {
   text-decoration: none;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  justify-content: center;
 }
 
 /* Prototype, solution 2: expand the map into a full-viewport overlay --
@@ -1975,10 +1980,13 @@ fieldset {
    height switches to 100% inline (see CollectionPoints.jsx) since an
    inline style can't be beaten by a class alone. */
 .map-frame-fullscreen {
-  position: fixed;
-  inset: 0;
-  z-index: 2000; /* above the topbar/bottom nav, this *is* the whole screen now */
-  height: 100vh;
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 2000;
+  width: 100vw;
+  height: 100dvh !important;
+  min-height: 100dvh !important;
+  border-radius: 0;
 }
 .exit-fullscreen-btn {
   position: absolute;
@@ -3175,5 +3183,38 @@ body {
   .map-points-loader {
     padding: 9px 12px;
     font-size: 12px;
+  }
+}
+
+
+/* Map popup interaction: the popup body is part of the map gesture surface.
+   Leaflet's popup container normally blocks touch/mouse press events, so the
+   shared popup behavior explicitly re-enables map dragging from the popup.
+   Keep the browser from turning the gesture into page scrolling. */
+.sosdz-map-popup .leaflet-popup-content-wrapper {
+  touch-action: none;
+}
+
+@media (max-width: 699px) {
+  .map-international-link {
+    left: 10px;
+    right: 104px;
+    max-width: none;
+  }
+
+  .map-frame-fullscreen {
+    height: 100dvh !important;
+    min-height: 100dvh !important;
+  }
+
+  .sosdz-map-popup .leaflet-popup-content {
+    width: min(260px, calc(100vw - 48px)) !important;
+    max-width: min(260px, calc(100vw - 48px)) !important;
+    margin: 12px 14px;
+    font-size: 13px;
+  }
+
+  .sosdz-map-popup .leaflet-popup-content strong:first-child {
+    font-size: 14px;
   }
 }
