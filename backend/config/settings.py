@@ -71,6 +71,12 @@ CSRF_TRUSTED_ORIGINS = [o.strip() for o in _csrf_trusted_origins.split(",") if o
 # under templates/index.html purely for history/reference.
 FRONTEND_URL = env("FRONTEND_URL", default="http://localhost:5173")
 
+# Server-side AI configuration for the discreet urgent voice SOS flow.
+# Never expose these values to the frontend.
+OPENAI_API_KEY = env("OPENAI_API_KEY", default="")
+OPENAI_TRANSCRIPTION_MODEL = env("OPENAI_TRANSCRIPTION_MODEL", default="gpt-4o-mini-transcribe")
+OPENAI_EXTRACTION_MODEL = env("OPENAI_EXTRACTION_MODEL", default="gpt-5.6-luna")
+
 # --- Applications ---------------------------------------------------------
 
 INSTALLED_APPS = [
