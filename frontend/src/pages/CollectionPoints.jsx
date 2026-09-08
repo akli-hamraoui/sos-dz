@@ -211,12 +211,14 @@ export default function CollectionPoints() {
         const straight = L.polyline([from, dest], { color: COLLECTION_POINT_ROUTE_COLOR, weight: 3, dashArray: '4,8' }).addTo(map)
         routeLineRef.current = straight
         map.fitBounds(L.latLngBounds([from, dest]).pad(0.3), { maxZoom: 13, animate: false })
+        requestAnimationFrame(() => map._sosdzCenterOpenPopup?.())
         fetchDrivingRoute(from, dest)
           .then((route) => {
             if (routeLineRef.current !== straight) return // superseded by another click/re-render meanwhile
             map.removeLayer(straight)
             routeLineRef.current = L.polyline(route.coordinates, { color: COLLECTION_POINT_ROUTE_COLOR, weight: 4, dashArray: '1,10', lineCap: 'round' }).addTo(map)
             map.fitBounds(L.latLngBounds(route.coordinates).pad(0.3), { maxZoom: 13, animate: false })
+            requestAnimationFrame(() => map._sosdzCenterOpenPopup?.())
             setRouteInfo({ distanceKm: route.distanceKm, durationMin: route.durationMin })
           })
           .catch(() => setRouteInfo('unavailable'))
@@ -264,7 +266,7 @@ export default function CollectionPoints() {
           // popupopen fires for whichever popup is currently open
           // regardless of which marker it belongs to. Opening the photo
           // never closes this popup underneath it.
-          attachMapPopupBehavior(mapRef.current, (photoUrl) => setLightboxPhoto(photoUrl))
+          attachMapPopupBehavior(mapRef.current, (photoUrl) => setLightboxPhoto(photoUrl), activateMap)
           // Also wired from the overlay's own ref callback (for when it
           // remounts later, e.g. deactivate/reactivate) -- done here too
           // since on first mount that ref callback can fire before this

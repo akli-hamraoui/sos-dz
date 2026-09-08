@@ -161,7 +161,7 @@ export default function Deliveries() {
         // See CollectionPoints.jsx's own equivalent registration -- wires
         // up any popup's "view photo" link to the shared PhotoLightbox
         // without closing the popup underneath it.
-        attachMapPopupBehavior(mapRef.current, (photoUrl) => setLightboxPhoto(photoUrl))
+        attachMapPopupBehavior(mapRef.current, (photoUrl) => setLightboxPhoto(photoUrl), activateMap)
         // Also wired from the overlay's own ref callback (for when it
         // remounts later, e.g. deactivate/reactivate) -- done here too
         // since on first mount that ref callback can fire before this
@@ -266,12 +266,14 @@ export default function Deliveries() {
           // destination well outside the visible area once a trajectory is
           // drawn -- zoom out just enough to fit both ends of the line.
           map.fitBounds(L.latLngBounds([from, dest]).pad(0.3), { maxZoom: 13, animate: false })
+          requestAnimationFrame(() => map._sosdzCenterOpenPopup?.())
           fetchDrivingRoute(from, dest)
             .then((route) => {
               if (routeLineRef.current !== straight) return // superseded by another click/re-render meanwhile
               map.removeLayer(straight)
               routeLineRef.current = L.polyline(route.coordinates, { color: ROUTE_COLOR, weight: 4, dashArray: '1,10', lineCap: 'round' }).addTo(map)
               map.fitBounds(L.latLngBounds(route.coordinates).pad(0.3), { maxZoom: 13, animate: false })
+              requestAnimationFrame(() => map._sosdzCenterOpenPopup?.())
             })
             .catch(() => {
               /* routing service unreachable -- the basic straight line drawn above stays as-is */

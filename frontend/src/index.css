@@ -1643,6 +1643,13 @@ fieldset {
   position: relative;
 }
 
+/* Popups are content, not map controls: keep them above every control layer.
+   The popup is still clipped by .map-frame, so it can never escape the map
+   rectangle on mobile/tablet/desktop. */
+.map-frame .leaflet-popup-pane {
+  z-index: 1400 !important;
+}
+
 /* Airbnb-style compact toolbar (CollectionPoints.jsx, NeedsList.jsx,
    Deliveries.jsx): filters tucked behind a toggle instead of always
    expanded, and the map fills the remaining viewport height below the
@@ -1721,26 +1728,27 @@ fieldset {
 }
 
 .sosdz-map-popup .leaflet-popup-content {
-  margin: 10px 12px;
-  padding-block-start: 10px;
-  padding-inline-end: 20px;
+  margin: 7px 9px;
+  padding-block-start: 5px;
+  padding-inline-end: 2px;
   min-width: 0;
-  width: min(220px, calc(100vw - 52px));
-  max-width: min(220px, calc(100vw - 52px));
-  max-height: min(260px, 42vh);
+  width: min(205px, calc(100vw - 40px));
+  max-width: min(205px, calc(100vw - 40px));
+  max-height: min(210px, 34vh);
   overflow-y: auto;
   color: var(--text);
   overflow-wrap: anywhere;
-  line-height: 1.45;
-  font-size: 13px;
+  line-height: 1.35;
+  font-size: 12.5px;
 }
 .sosdz-map-popup .leaflet-popup-content strong:first-child {
   display: block;
-  margin-block-end: 5px;
-  padding-inline-end: 2px;
+  max-width: calc(100% - 30px);
+  margin-block-end: 4px;
+  padding-inline-end: 0;
   color: var(--sos-green);
-  font-size: 14px;
-  line-height: 1.3;
+  font-size: 13.5px;
+  line-height: 1.25;
 }
 .sosdz-map-popup .leaflet-popup-close-button {
   top: 7px !important;
@@ -1760,13 +1768,21 @@ fieldset {
 }
 .sosdz-map-popup .popup-actions {
   display: flex;
-  align-items: stretch;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: space-between;
   flex-wrap: wrap;
-  gap: 7px;
-  margin-block-start: 10px;
-  padding-block-start: 9px;
+  gap: 6px;
+  margin-block-start: 6px;
+  padding-block-start: 6px;
   border-block-start: 1px solid var(--border);
+}
+/* A popup without a flyer has no reason to reserve a full separator row.
+   This noticeably shortens the card for the common "Ouvrir"-only case. */
+.sosdz-map-popup .popup-actions:not(:has(.popup-photo-btn)) {
+  justify-content: flex-start;
+  margin-block-start: 2px;
+  padding-block-start: 2px;
+  border-block-start: 0;
 }
 .sosdz-map-popup .popup-actions a,
 .sosdz-map-popup .popup-actions .popup-photo-btn {
@@ -1904,24 +1920,16 @@ fieldset {
   z-index: 900;
   cursor: pointer;
 }
-/* .map-activate-hint and .map-deactivate-btn are fixed to the *viewport*,
-   not the map -- confirmed live: anchoring them inside the map's own box
-   (a tall 600px container, or fullscreen) could leave them scrolled out of
-   view, or drifting as if they were part of the map itself. Pinned just
-   above .bottom-nav instead (same fixed bottom-of-screen spot regardless
-   of where the map's own box currently sits, and never moves as the map
-   pans/zooms underneath), sized to clear .bottom-nav's own height
-   (roughly icon + label + its own top/bottom padding) plus the safe-area
-   inset .bottom-nav itself pads for. Still a child of .map-activate-overlay
-   in the DOM (position:fixed only escapes layout, not event bubbling), so
-   tapping the hint pill still reaches the overlay's own onClick. */
+/* The map interaction chip belongs to the map frame itself. It stays at the
+   same bottom reference point when the page scrolls, while .leaflet-popup-pane
+   remains above it so an open popup can cover the chip instead of being hidden. */
 .map-activate-hint,
 .map-deactivate-btn {
-  position: fixed;
-  bottom: calc(84px + env(safe-area-inset-bottom));
+  position: absolute;
+  bottom: 14px;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 1300;
+  z-index: 1050;
   background: var(--brand-green-soft);
   color: var(--brand-green);
   border: 1px solid var(--brand-green-border);
@@ -1936,7 +1944,6 @@ fieldset {
   border: none;
   cursor: pointer;
 }
-
 /* Collection-point pages only ever show Algeria (national) -- when the
    visitor's own position resolves to somewhere else, this links out to
    the dedicated worldwide page instead of the map silently finding
@@ -1968,47 +1975,6 @@ fieldset {
   justify-content: center;
 }
 
-/* Compact popup zoom controls. They stay inside the popup card and remain
-   clickable while the popup body itself can be used to drag the map. */
-.popup-zoom-controls {
-  position: absolute;
-  top: 7px;
-  inset-inline-end: 42px;
-  z-index: 5;
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  padding: 3px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow: 0 2px 8px rgba(21, 33, 58, 0.12);
-  pointer-events: auto;
-}
-.popup-zoom-btn {
-  width: 25px;
-  height: 25px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: var(--sos-green-soft);
-  color: var(--sos-green);
-  font: inherit;
-  font-size: 16px;
-  font-weight: 700;
-  line-height: 1;
-  cursor: pointer;
-}
-.popup-zoom-reset {
-  width: 29px;
-  font-size: 10px;
-}
-.popup-zoom-btn:active {
-  transform: scale(0.94);
-}
 
 /* Prototype, solution 2: expand the map into a full-viewport overlay --
    sits just left of .locate-btn (top-right corner), same treatment as
@@ -3282,16 +3248,18 @@ body {
   }
 
   .sosdz-map-popup .leaflet-popup-content {
-    width: min(200px, calc(100vw - 48px)) !important;
-    max-width: min(200px, calc(100vw - 48px)) !important;
-    max-height: min(240px, 38vh);
-    margin: 8px 10px;
-    padding-block-start: 9px;
-    padding-inline-end: 18px;
+    width: min(190px, calc(100vw - 40px)) !important;
+    max-width: min(190px, calc(100vw - 40px)) !important;
+    max-height: min(195px, 34vh);
+    margin: 6px 8px;
+    padding-block-start: 4px;
+    padding-inline-end: 2px;
     font-size: 12px;
+    line-height: 1.3;
   }
 
   .sosdz-map-popup .leaflet-popup-content strong:first-child {
+    max-width: calc(100% - 28px);
     font-size: 13px;
   }
 }
