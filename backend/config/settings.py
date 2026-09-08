@@ -72,10 +72,10 @@ CSRF_TRUSTED_ORIGINS = [o.strip() for o in _csrf_trusted_origins.split(",") if o
 FRONTEND_URL = env("FRONTEND_URL", default="http://localhost:5173")
 
 # Server-side AI configuration for the discreet urgent voice SOS flow.
-# Never expose these values to the frontend.
-OPENAI_API_KEY = env("OPENAI_API_KEY", default="")
-OPENAI_TRANSCRIPTION_MODEL = env("OPENAI_TRANSCRIPTION_MODEL", default="gpt-4o-mini-transcribe")
-OPENAI_EXTRACTION_MODEL = env("OPENAI_EXTRACTION_MODEL", default="gpt-5.6-luna")
+# Groq is used through its free-tier API. Keys stay server-side only.
+GROQ_API_KEY = env("GROQ_API_KEY", default="")
+GROQ_TRANSCRIPTION_MODEL = env("GROQ_TRANSCRIPTION_MODEL", default="whisper-large-v3-turbo")
+GROQ_EXTRACTION_MODEL = env("GROQ_EXTRACTION_MODEL", default="qwen/qwen3.8-27b")
 
 # --- Applications ---------------------------------------------------------
 
