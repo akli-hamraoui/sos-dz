@@ -250,7 +250,6 @@ export default function UrgentSOS() {
         contact_name: extracted.contact_name || 'Anonyme',
         contact_phone: extracted.contact_phone || '',
         organization_or_person_name: extracted.organization_or_person_name || '',
-        description: extracted.description || transcript || 'SOS urgent — message vocal joint.',
         // CreateNeed's established model stores the user-facing free-text need in
         // location_description. Keep both the detected location and the full
         // LLM description there so no useful spoken detail is silently lost.
