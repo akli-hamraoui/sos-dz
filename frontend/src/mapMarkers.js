@@ -174,55 +174,19 @@ export function flyerPopupButtonHtml(t, photoUrl) {
 // Preserves the map's two-finger pinch gesture while the map is still
 // covered by the tap-to-activate overlay. This is intentionally separate
 // from popup zoom: the popup itself must not have custom +/-/1x controls.
-export function attachMapPinchZoomOverlay(map, overlayEl, onActivate) {
-  if (!map || !overlayEl || overlayEl.dataset.pinchZoomWired) return
-  overlayEl.dataset.pinchZoomWired = '1'
+// Activate map interaction only when the user taps the map surface itself.
+// Marker, popup and control clicks are intentionally ignored so the first tap
+// on a collection point, SOS need or courier opens that point normally instead
+// of being consumed by the map's "tap to interact" mode.
+export function attachMapTapToActivate(map, onActivate) {
+  if (!map || map._sosdzTapActivationWired) return
+  map._sosdzTapActivationWired = true
 
-  let startDist = 0
-  let startZoom = 0
-  let center = null
-
-  const touchDist = (touches) =>
-    Math.hypot(
-      touches[0].clientX - touches[1].clientX,
-      touches[0].clientY - touches[1].clientY
-    )
-  const touchMidpoint = (touches) => [
-    (touches[0].clientX + touches[1].clientX) / 2,
-    (touches[0].clientY + touches[1].clientY) / 2,
-  ]
-
-  const onTouchStart = (event) => {
-    if (event.touches.length !== 2) return
-    event.preventDefault()
-    startDist = touchDist(event.touches)
-    startZoom = map.getZoom()
-    const [mx, my] = touchMidpoint(event.touches)
-    const rect = map.getContainer().getBoundingClientRect()
-    center = map.containerPointToLatLng([mx - rect.left, my - rect.top])
-  }
-
-  const onTouchMove = (event) => {
-    if (event.touches.length !== 2 || !startDist) return
-    event.preventDefault()
-    map.setZoomAround(
-      center,
-      startZoom + Math.log2(touchDist(event.touches) / startDist),
-      { animate: false }
-    )
-  }
-
-  const onTouchEnd = (event) => {
-    if (event.touches.length >= 2) return
-    if (startDist) onActivate?.()
-    startDist = 0
-    center = null
-  }
-
-  overlayEl.addEventListener('touchstart', onTouchStart, { passive: false })
-  overlayEl.addEventListener('touchmove', onTouchMove, { passive: false })
-  overlayEl.addEventListener('touchend', onTouchEnd, { passive: false })
-  overlayEl.addEventListener('touchcancel', onTouchEnd, { passive: false })
+  map.on('click', (event) => {
+    const target = event?.originalEvent?.target
+    if (target?.closest?.('.leaflet-marker-icon, .leaflet-popup, .leaflet-control, button, a')) return
+    onActivate?.()
+  })
 }
 
 export function attachMapPopupBehavior(map, onPhoto) {
@@ -247,7 +211,15 @@ export function attachMapPopupBehavior(map, onPhoto) {
       if (!mapRect.width || !mapRect.height || !popupRect.width || !popupRect.height) return
 
       const mapCenterX = mapRect.left + mapRect.width / 2
-      const mapCenterY = mapRect.top + mapRect.height / 2
+      // Leave a little visual clearance below the popup in normal map mode:
+      // the fixed "Quitter la carte" chip sits above the bottom navigation and
+      // must never overlap the popup on short mobile/tablet viewports.
+      const exitButton = document.querySelector('.map-deactivate-btn')
+      const exitRect = exitButton?.getBoundingClientRect?.()
+      const reserveBottom = exitRect && exitRect.top < mapRect.bottom
+        ? Math.min(70, Math.max(28, mapRect.bottom - exitRect.top + 12))
+        : 0
+      const mapCenterY = mapRect.top + (mapRect.height - reserveBottom) / 2
       const popupCenterX = popupRect.left + popupRect.width / 2
       const popupCenterY = popupRect.top + popupRect.height / 2
 
