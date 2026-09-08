@@ -181,7 +181,7 @@ export default function Deliveries() {
       } catch {
         return // offline/network failure -- silently skip this refresh, the next tick retries
       } finally {
-        setMapPointsLoading(false)
+        if (!cancelled) setMapPointsLoading(false)
       }
       // Updated regardless of viewMode -- the list view's "no position"
       // flagging (below) needs this even when the map itself isn't mounted.
@@ -541,6 +541,12 @@ export default function Deliveries() {
             ref={mapFrameRef}
           >
             <div id="deliveries-map" ref={mapElRef} style={{ height: '100%' }} />
+            {mapPointsLoading && (
+              <div className="map-points-loader" aria-live="polite" aria-label="Chargement des points">
+                <span className="map-points-loader-spinner" aria-hidden="true" />
+                <span>Chargement des points…</span>
+              </div>
+            )}
             {!mapActive && !fullscreen && (
               <div
                 className="map-activate-overlay"
