@@ -2992,6 +2992,92 @@ body {
   }
 }
 
+/* --- Fixed navigation viewport guard ----------------------------------
+   Admin mode adds a non-shrinking badge to the topbar. On narrow screens
+   that extra width can make the document wider than the viewport; the
+   browser then exposes horizontal scrolling and the fixed bottom nav can
+   appear clipped when the page is horizontally scrolled. Keep both nav
+   bars constrained to the visual viewport and let their children shrink
+   instead of increasing document width.
+*/
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.topbar {
+  width: 100%;
+  max-width: 100vw;
+  box-sizing: border-box;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.topbar > .brand,
+.topbar > .admin-badge,
+.topbar > .topbar-lang-quick,
+.topbar > .nav-toggle {
+  min-width: 0;
+}
+
+.admin-badge {
+  min-width: 0;
+  max-width: min(58vw, 420px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bottom-nav {
+  left: 0;
+  right: 0;
+  width: 100%;
+  max-width: 100vw;
+  box-sizing: border-box;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.bottom-nav a,
+.bottom-nav button {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+@media (max-width: 699px) {
+  .topbar {
+    padding-inline: 10px;
+    gap: 7px;
+  }
+
+  .topbar > .brand {
+    flex: 0 1 auto;
+  }
+
+  .topbar > .admin-badge {
+    flex: 0 1 auto;
+    max-width: min(52vw, 300px);
+  }
+
+  .topbar > .topbar-lang-quick {
+    flex: 0 1 auto;
+  }
+
+  .bottom-nav {
+    padding-inline: 0;
+  }
+
+  .bottom-nav a {
+    width: 100%;
+    padding-inline: 2px;
+  }
+
+  .bottom-nav a.active {
+    padding-inline: 6px;
+  }
+}
+
 /* --- SOSDZ UI charter v6: mobile fit + menu direction + green active states --- */
 
 /* Keep the quick-action dropdown attached below its trigger.
