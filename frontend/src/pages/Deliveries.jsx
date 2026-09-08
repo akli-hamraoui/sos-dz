@@ -10,7 +10,7 @@ import { fetchDrivingRoute, ROUTE_COLOR } from '../routing'
 import { flyerPopupButtonHtml, attachPopupPinchZoom, attachMapPinchZoomOverlay } from '../mapMarkers'
 import PhotoThumb from '../components/PhotoThumb'
 import PhotoLightbox from '../components/PhotoLightbox'
-import { IconTruck, IconLocate, IconExpand, IconClose } from '../icons'
+import { IconTruck, IconLocate } from '../icons'
 
 // Same green already used elsewhere for this app's own accent (the
 // Collecte FAB, "Prendre en charge" button, Home's privacy notice --
@@ -132,6 +132,47 @@ export default function Deliveries() {
   // without moving the map the viewer is currently looking at.
   const renderLiveLocations = useCallback(
     async (fitView) => {
+      if (!mapRef.current) {
+        mapRef.current = L.map(mapElRef.current, {
+          attributionControl: false,
+          center: [28.0, 2.6],
+          zoom: 5,
+          fadeAnimation: false,
+          zoomAnimation: false,
+          markerZoomAnimation: false,
+          // Starts fully "asleep" -- see mapActive above -- so a single
+          // finger over the map scrolls the page like anything else on
+          // it. activateMap enables all of these once explicitly tapped.
+          dragging: false,
+          touchZoom: false,
+          scrollWheelZoom: false,
+          doubleClickZoom: false,
+          boxZoom: false,
+        })
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '&copy; OpenStreetMap contributors',
+          maxZoom: 19,
+          updateWhenZooming: false,
+          keepBuffer: 1,
+        }).addTo(mapRef.current)
+        L.control.attribution({ prefix: false }).addTo(mapRef.current)
+        // See CollectionPoints.jsx's own equivalent registration -- wires
+        // up any popup's "view photo" link to the shared PhotoLightbox
+        // without closing the popup underneath it.
+        mapRef.current.on('popupopen', (e) => {
+          const btn = e.popup.getElement()?.querySelector('.popup-photo-btn')
+          if (btn) btn.onclick = () => setLightboxPhoto(btn.dataset.photoUrl)
+          attachPopupPinchZoom(e.popup.getElement())
+        })
+        // Also wired from the overlay's own ref callback (for when it
+        // remounts later, e.g. deactivate/reactivate) -- done here too
+        // since on first mount that ref callback can fire before this
+        // effect has actually created the map yet (mapRef.current still
+        // null at that point), which would otherwise silently skip wiring
+        // it the very first time the page loads.
+        attachMapPinchZoomOverlay(mapRef.current, mapElRef.current?.parentElement?.querySelector('.map-activate-overlay'), activateMap)
+      }
+      
       let locations
       try {
         locations = await api('/pickups/live-locations/')
@@ -151,39 +192,6 @@ export default function Deliveries() {
       // pins for (no coordinates to place them at), so it shows none here
       // and lets the unknown-position bubble below carry that count instead.
       const locationsToRender = filterPosition === 'without' ? [] : locations
-      if (!mapRef.current) {
-        mapRef.current = L.map(mapElRef.current, {
-          attributionControl: false,
-          // Starts fully "asleep" -- see mapActive above -- so a single
-          // finger over the map scrolls the page like anything else on
-          // it. activateMap enables all of these once explicitly tapped.
-          dragging: false,
-          touchZoom: false,
-          scrollWheelZoom: false,
-          doubleClickZoom: false,
-          boxZoom: false,
-        })
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          attribution: '&copy; OpenStreetMap contributors',
-          maxZoom: 19,
-        }).addTo(mapRef.current)
-        L.control.attribution({ prefix: false }).addTo(mapRef.current)
-        // See CollectionPoints.jsx's own equivalent registration -- wires
-        // up any popup's "view photo" link to the shared PhotoLightbox
-        // without closing the popup underneath it.
-        mapRef.current.on('popupopen', (e) => {
-          const btn = e.popup.getElement()?.querySelector('.popup-photo-btn')
-          if (btn) btn.onclick = () => setLightboxPhoto(btn.dataset.photoUrl)
-          attachPopupPinchZoom(e.popup.getElement())
-        })
-        // Also wired from the overlay's own ref callback (for when it
-        // remounts later, e.g. deactivate/reactivate) -- done here too
-        // since on first mount that ref callback can fire before this
-        // effect has actually created the map yet (mapRef.current still
-        // null at that point), which would otherwise silently skip wiring
-        // it the very first time the page loads.
-        attachMapPinchZoomOverlay(mapRef.current, mapElRef.current?.parentElement?.querySelector('.map-activate-overlay'), activateMap)
-      }
       const map = mapRef.current
       markersRef.current.forEach((m) => map.removeLayer(m))
       // A marker click draws a fresh trajectory -- clear any leftover one
@@ -524,8 +532,8 @@ export default function Deliveries() {
               bubble below, never a separate "nothing to show" message
               standing in for the map. */}
           <div
-            className={fullscreen ? 'map-frame map-frame-fullscreen' : 'map-frame'}
-            style={fullscreen ? undefined : { height: mapFillHeight }}
+            className="map-frame"
+            
             ref={mapFrameRef}
           >
             <div id="deliveries-map" ref={mapElRef} style={{ height: '100%' }} />
@@ -546,22 +554,7 @@ export default function Deliveries() {
                 {t('map.exitMapInteraction')}
               </button>
             )}
-            {!fullscreen && (
-              <button
-                type="button"
-                className="expand-btn"
-                onClick={enterFullscreen}
-                aria-label={t('map.viewFullscreen')}
-                title={t('map.viewFullscreen')}
-              >
-                <IconExpand width={18} height={18} />
-              </button>
-            )}
-            {fullscreen && (
-              <button type="button" className="exit-fullscreen-btn" onClick={exitFullscreen} aria-label={t('map.exitFullscreen')} title={t('map.exitFullscreen')}>
-                <IconClose width={20} height={20} />
-              </button>
-            )}
+            
             <button type="button" className="locate-btn" onClick={recenterOnMe} aria-label={t('map.recenterOnMe')} title={t('map.recenterOnMe')}>
               <IconLocate width={18} height={18} />
             </button>
