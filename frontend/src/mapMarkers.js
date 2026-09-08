@@ -166,7 +166,7 @@ export function attachMapPopupBehavior(map, onPhoto) {
     }
     const btn = popupEl?.querySelector('.popup-photo-btn')
     if (btn && onPhoto) btn.onclick = () => onPhoto(btn.dataset.photoUrl)
-    attachPopupPinchZoom(popup.getElement())
+    attachPopupPinchZoom(popup.getElement(), map)
     centerPopupOnce(popup)
   }
 
@@ -178,58 +178,107 @@ export function attachMapPopupBehavior(map, onPhoto) {
   map.on('popupopen', onOpen)
   map.on('popupclose', onClose)
 }
-export function attachPopupPinchZoom(popupEl) {
-  // The *wrapper* (the actual white rounded box -- background, border,
-  // shadow, close button and all), not just its own .leaflet-popup-content
-  // child -- scaling only the text left the box around it its original
-  // size, so the enlarged text just spilled out past its own edges instead
-  // of the whole popup growing together, reported live (screenshot showed
-  // giant overflowing text next to an unchanged box). Never the outer
-  // .leaflet-popup itself: Leaflet positions that element with its own
-  // `transform: translate3d(...)`, and a second `transform` on the same
-  // element would replace that positioning outright, not add to it.
+export function attachPopupPinchZoom(popupEl, map) {
+  // The popup wrapper is the visual box that Leaflet positions inside the
+  // popup container. Scaling this wrapper keeps the background, text and
+  // close button together while Leaflet keeps control of the outer position.
   const wrapper = popupEl?.querySelector('.leaflet-popup-content-wrapper')
   if (!wrapper) return
-  // Every open (even a repeat open of the same marker) starts back at the
-  // popup's natural size -- a pinch left over from a previous look at this
-  // same point shouldn't still be applied the next time it's opened.
-  // Bottom-center origin (roughly where the little tip/arrow meets the
-  // box) so pinching grows the popup from the point anchored to the map,
-  // instead of drifting away from it.
+
   wrapper.style.transformOrigin = 'center bottom'
   wrapper.style.transform = 'scale(1)'
   wrapper._pinchScale = 1
-  // Each marker keeps the same popup DOM element across repeated opens, and
-  // 'popupopen' fires again on every one of those -- guard against wiring
-  // the same element's touch listeners more than once (they'd otherwise
-  // pile up, each firing the same pinch on every later touch).
+
+  const clampScale = (value) => Math.min(2, Math.max(1, value))
+  const applyScale = (value, recenter = true) => {
+    wrapper._pinchScale = clampScale(value)
+    wrapper.style.transform = `scale(${wrapper._pinchScale})`
+    if (!recenter || !map?.getContainer) return
+
+    requestAnimationFrame(() => {
+      if (!map._container?.isConnected || !popupEl?.isConnected) return
+      const mapRect = map.getContainer().getBoundingClientRect()
+      const popupRect = popupEl.getBoundingClientRect()
+      const dx = (mapRect.left + mapRect.width / 2) - (popupRect.left + popupRect.width / 2)
+      const dy = (mapRect.top + mapRect.height / 2) - (popupRect.top + popupRect.height / 2)
+      if (Math.abs(dx) > 4 || Math.abs(dy) > 4) map.panBy([dx, dy], { animate: false })
+    })
+  }
+
+  // Explicit +/-/reset controls make zooming usable without relying on a
+  // precise two-finger gesture. They are created once per popup DOM node.
+  if (!wrapper.querySelector('.popup-zoom-controls')) {
+    const controls = document.createElement('div')
+    controls.className = 'popup-zoom-controls'
+    controls.setAttribute('aria-label', 'Zoom de la popup')
+    controls.innerHTML =
+      '<button type="button" class="popup-zoom-btn" data-popup-zoom="out" aria-label="Réduire la popup">−</button>' +
+      '<button type="button" class="popup-zoom-btn popup-zoom-reset" data-popup-zoom="reset" aria-label="Taille normale">1×</button>' +
+      '<button type="button" class="popup-zoom-btn" data-popup-zoom="in" aria-label="Agrandir la popup">+</button>'
+    wrapper.appendChild(controls)
+
+    controls.querySelectorAll('button').forEach((button) => {
+      const stop = (event) => {
+        event.stopPropagation()
+      }
+      button.addEventListener('mousedown', stop)
+      button.addEventListener('touchstart', stop, { passive: true })
+      button.addEventListener('click', (event) => {
+        event.preventDefault()
+        event.stopPropagation()
+        const action = button.dataset.popupZoom
+        if (action === 'in') applyScale(wrapper._pinchScale + 0.25)
+        else if (action === 'out') applyScale(wrapper._pinchScale - 0.25)
+        else applyScale(1)
+      })
+    })
+  }
+
+  // Avoid wiring the same popup DOM element more than once. Re-opening a
+  // marker still resets the scale above, but the listeners themselves stay
+  // attached exactly once.
   if (wrapper.dataset.pinchZoomWired) return
   wrapper.dataset.pinchZoomWired = '1'
+
   let startDist = 0
   let startScale = 1
 
-  const touchDist = (touches) => Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY)
+  const touchDist = (touches) =>
+    Math.hypot(
+      touches[0].clientX - touches[1].clientX,
+      touches[0].clientY - touches[1].clientY
+    )
 
-  const onTouchStart = (e) => {
-    if (e.touches.length !== 2) return
-    e.preventDefault()
-    e.stopPropagation()
-    startDist = touchDist(e.touches)
+  const onTouchStart = (event) => {
+    if (event.touches.length !== 2) return
+    event.preventDefault()
+    event.stopPropagation()
+    startDist = touchDist(event.touches)
     startScale = wrapper._pinchScale
   }
-  const onTouchMove = (e) => {
-    if (e.touches.length !== 2 || !startDist) return
-    e.preventDefault()
-    e.stopPropagation()
-    // Clamped 1x-3x -- shrinking below the popup's own natural size would
-    // make it harder to read, the opposite of the point of this gesture.
-    wrapper._pinchScale = Math.min(3, Math.max(1, startScale * (touchDist(e.touches) / startDist)))
-    wrapper.style.transform = `scale(${wrapper._pinchScale})`
+
+  const onTouchMove = (event) => {
+    if (event.touches.length !== 2 || !startDist) return
+    event.preventDefault()
+    event.stopPropagation()
+    applyScale(startScale * (touchDist(event.touches) / startDist), false)
   }
-  const onTouchEnd = (e) => {
-    if (e.touches.length >= 2) return
-    startDist = 0
+
+  const onTouchEnd = (event) => {
+    if (event.touches.length >= 2) return
+    if (startDist) {
+      startDist = 0
+      requestAnimationFrame(() => {
+        if (!map?.getContainer || !popupEl?.isConnected) return
+        const mapRect = map.getContainer().getBoundingClientRect()
+        const popupRect = popupEl.getBoundingClientRect()
+        const dx = (mapRect.left + mapRect.width / 2) - (popupRect.left + popupRect.width / 2)
+        const dy = (mapRect.top + mapRect.height / 2) - (popupRect.top + popupRect.height / 2)
+        if (Math.abs(dx) > 4 || Math.abs(dy) > 4) map.panBy([dx, dy], { animate: false })
+      })
+    }
   }
+
   wrapper.addEventListener('touchstart', onTouchStart, { passive: false })
   wrapper.addEventListener('touchmove', onTouchMove, { passive: false })
   wrapper.addEventListener('touchend', onTouchEnd, { passive: false })
