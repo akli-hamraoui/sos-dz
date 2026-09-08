@@ -171,6 +171,60 @@ export function flyerPopupButtonHtml(t, photoUrl) {
 // re-centered after map moves while it remains open. This keeps popups
 // readable on mobile and prevents a route fitBounds() from stranding an
 // already-open popup near the edge of the map.
+// Preserves the map's two-finger pinch gesture while the map is still
+// covered by the tap-to-activate overlay. This is intentionally separate
+// from popup zoom: the popup itself must not have custom +/-/1x controls.
+export function attachMapPinchZoomOverlay(map, overlayEl, onActivate) {
+  if (!map || !overlayEl || overlayEl.dataset.pinchZoomWired) return
+  overlayEl.dataset.pinchZoomWired = '1'
+
+  let startDist = 0
+  let startZoom = 0
+  let center = null
+
+  const touchDist = (touches) =>
+    Math.hypot(
+      touches[0].clientX - touches[1].clientX,
+      touches[0].clientY - touches[1].clientY
+    )
+  const touchMidpoint = (touches) => [
+    (touches[0].clientX + touches[1].clientX) / 2,
+    (touches[0].clientY + touches[1].clientY) / 2,
+  ]
+
+  const onTouchStart = (event) => {
+    if (event.touches.length !== 2) return
+    event.preventDefault()
+    startDist = touchDist(event.touches)
+    startZoom = map.getZoom()
+    const [mx, my] = touchMidpoint(event.touches)
+    const rect = map.getContainer().getBoundingClientRect()
+    center = map.containerPointToLatLng([mx - rect.left, my - rect.top])
+  }
+
+  const onTouchMove = (event) => {
+    if (event.touches.length !== 2 || !startDist) return
+    event.preventDefault()
+    map.setZoomAround(
+      center,
+      startZoom + Math.log2(touchDist(event.touches) / startDist),
+      { animate: false }
+    )
+  }
+
+  const onTouchEnd = (event) => {
+    if (event.touches.length >= 2) return
+    if (startDist) onActivate?.()
+    startDist = 0
+    center = null
+  }
+
+  overlayEl.addEventListener('touchstart', onTouchStart, { passive: false })
+  overlayEl.addEventListener('touchmove', onTouchMove, { passive: false })
+  overlayEl.addEventListener('touchend', onTouchEnd, { passive: false })
+  overlayEl.addEventListener('touchcancel', onTouchEnd, { passive: false })
+}
+
 export function attachMapPopupBehavior(map, onPhoto) {
   if (!map) return
 
