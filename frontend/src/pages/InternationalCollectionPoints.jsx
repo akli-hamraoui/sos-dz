@@ -10,7 +10,7 @@ import { countryFlagEmoji, formatApproxKm, flyerPopupButtonHtml, attachPopupPinc
 import CountryOrPlaceSearch from '../components/CountryOrPlaceSearch'
 import PhotoThumb from '../components/PhotoThumb'
 import PhotoLightbox from '../components/PhotoLightbox'
-import { IconLocate, IconExpand, IconClose, IconAlgeriaFlag } from '../icons'
+import { IconLocate, IconAlgeriaFlag } from '../icons'
 
 // Worldwide counterpart to CollectionPoints.jsx -- same map/list page, no
 // wilaya (there is none outside Algeria) and no Algeria restriction on
@@ -201,25 +201,14 @@ export default function InternationalCollectionPoints() {
     let cancelled = false
     let rafId = null
 
-    ;(async () => {
-      let pins
-      const params = new URLSearchParams({ international: '1' })
-      if (filterCountry) params.set('country', filterCountry)
-      if (search) params.set('search', search)
-      try {
-        pins = await api(`/collection-points/locations/?${params.toString()}`)
-      } catch {
-        return // offline/network failure -- offline banner already informs the user
-      }
-      if (cancelled) return
-      setMapHasNothing(pins.length === 0)
-
-      rafId = requestAnimationFrame(() => {
-        if (cancelled) return
-        if (!mapElRef.current) return
-        if (!mapRef.current) {
+    if (!mapRef.current) {
           mapRef.current = L.map(mapElRef.current, {
             attributionControl: false,
+            center: [20, 10],
+            zoom: 2,
+            fadeAnimation: false,
+            zoomAnimation: false,
+            markerZoomAnimation: false,
             // Starts fully "asleep" -- see mapActive above -- so a single
             // finger over the map scrolls the page like anything else on
             // it, with no special gesture to learn. activateMap enables
@@ -233,6 +222,8 @@ export default function InternationalCollectionPoints() {
           L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; OpenStreetMap contributors',
             maxZoom: 19,
+            updateWhenZooming: false,
+            keepBuffer: 1,
           }).addTo(mapRef.current)
           L.control.attribution({ prefix: false }).addTo(mapRef.current)
           // See CollectionPoints.jsx's own equivalent registration -- wires
@@ -251,6 +242,24 @@ export default function InternationalCollectionPoints() {
           // wiring it the very first time the page loads.
           attachMapPinchZoomOverlay(mapRef.current, mapElRef.current?.parentElement?.querySelector('.map-activate-overlay'), activateMap)
         }
+        
+
+    ;(async () => {
+      let pins
+      const params = new URLSearchParams({ international: '1' })
+      if (filterCountry) params.set('country', filterCountry)
+      if (search) params.set('search', search)
+      try {
+        pins = await api(`/collection-points/locations/?${params.toString()}`)
+      } catch {
+        return // offline/network failure -- offline banner already informs the user
+      }
+      if (cancelled) return
+      setMapHasNothing(pins.length === 0)
+
+      rafId = requestAnimationFrame(() => {
+        if (cancelled) return
+        if (!mapElRef.current) return
         const map = mapRef.current
         markersRef.current.forEach((m) => map.removeLayer(m))
         if (youAreHereRef.current) {
@@ -564,8 +573,8 @@ export default function InternationalCollectionPoints() {
       {viewMode === 'map' && (
         <div className="map-wrap">
           {mapHasNothing && <p className="hint">{t('internationalCollectionPoints.noPointsYet')}</p>}
-          <div className={fullscreen ? 'map-frame map-frame-fullscreen' : 'map-frame'}>
-            <div id="intl-cp-map" ref={mapElRef} style={{ height: fullscreen ? '100%' : 600 }} />
+          <div className="map-frame">
+            <div id="intl-cp-map" ref={mapElRef}  />
             {!mapActive && !fullscreen && (
               <div
                 className="map-activate-overlay"
@@ -583,22 +592,7 @@ export default function InternationalCollectionPoints() {
                 {t('map.exitMapInteraction')}
               </button>
             )}
-            {!fullscreen && (
-              <button
-                type="button"
-                className="expand-btn"
-                onClick={enterFullscreen}
-                aria-label={t('map.viewFullscreen')}
-                title={t('map.viewFullscreen')}
-              >
-                <IconExpand width={18} height={18} />
-              </button>
-            )}
-            {fullscreen && (
-              <button type="button" className="exit-fullscreen-btn" onClick={exitFullscreen} aria-label={t('map.exitFullscreen')} title={t('map.exitFullscreen')}>
-                <IconClose width={20} height={20} />
-              </button>
-            )}
+            
             <button type="button" className="locate-btn" onClick={recenterOnMe} aria-label={t('map.recenterOnMe')} title={t('map.recenterOnMe')}>
               <IconLocate width={18} height={18} />
             </button>
