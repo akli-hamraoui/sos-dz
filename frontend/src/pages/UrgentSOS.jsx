@@ -251,6 +251,10 @@ export default function UrgentSOS() {
         contact_phone: extracted.contact_phone || '',
         organization_or_person_name: extracted.organization_or_person_name || '',
         description: extracted.description || transcript || 'SOS urgent — message vocal joint.',
+        // CreateNeed's established model stores the user-facing free-text need in
+        // location_description. Keep both the detected location and the full
+        // LLM description there so no useful spoken detail is silently lost.
+        location_description: [extracted.location_description, extracted.description || transcript].filter(Boolean).join(' — ') || 'Sans localisation',
         latitude: gps?.latitude ?? '',
         longitude: gps?.longitude ?? '',
         // Guided SOS is deliberately published with a safe recovery code
