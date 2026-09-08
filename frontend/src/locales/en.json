@@ -47,7 +47,7 @@
     "gestureScroll": "Use ctrl + scroll to zoom the map",
     "gestureScrollMac": "Use ⌘ + scroll to zoom the map",
     "recenterOnMe": "Center on my location",
-    "tapToInteract": "👆 Tap to move the map",
+    "tapToInteract": "Move the map",
     "exitMapInteraction": "✕ Exit map",
     "viewFullscreen": "View map fullscreen",
     "exitFullscreen": "Exit fullscreen",
