@@ -47,6 +47,7 @@ export default function NeedsList() {
   // manual switch).
   const [viewMode, setViewMode] = useState('map')
   const [mapHasNothing, setMapHasNothing] = useState(false)
+  const [mapPointsLoading, setMapPointsLoading] = useState(false)
   // Filters (search + wilaya) tucked behind this toggle instead of always
   // expanded -- see CollectionPoints.jsx's own filtersOpen for the
   // rationale (same pattern, reused across every map+filters page).
