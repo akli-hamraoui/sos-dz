@@ -110,12 +110,14 @@ export default function InternationalCollectionPoints() {
         const straight = L.polyline([from, dest], { color: COLLECTION_POINT_ROUTE_COLOR, weight: 3, dashArray: '4,8' }).addTo(map)
         routeLineRef.current = straight
         map.fitBounds(L.latLngBounds([from, dest]).pad(0.3), { maxZoom: 13, animate: false })
+        requestAnimationFrame(() => map._sosdzCenterOpenPopup?.())
         fetchDrivingRoute(from, dest)
           .then((route) => {
             if (routeLineRef.current !== straight) return // superseded by another click/re-render meanwhile
             map.removeLayer(straight)
             routeLineRef.current = L.polyline(route.coordinates, { color: COLLECTION_POINT_ROUTE_COLOR, weight: 4, dashArray: '1,10', lineCap: 'round' }).addTo(map)
             map.fitBounds(L.latLngBounds(route.coordinates).pad(0.3), { maxZoom: 13, animate: false })
+            requestAnimationFrame(() => map._sosdzCenterOpenPopup?.())
             setRouteInfo({ distanceKm: route.distanceKm, durationMin: route.durationMin })
           })
           .catch(() => setRouteInfo('unavailable'))
