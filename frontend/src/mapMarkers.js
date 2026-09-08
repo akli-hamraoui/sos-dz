@@ -59,6 +59,14 @@ export function collectionPointIcon(L) {
 export function spreadCollectionPointMarkers(map, markers, minDistance = 46) {
   if (!map || !Array.isArray(markers)) return
 
+  map._sosdzCollectionMarkers = markers
+  if (!map._sosdzCollectionSpreadZoomWired) {
+    map._sosdzCollectionSpreadZoomWired = true
+    map.on('zoomend', () => {
+      spreadCollectionPointMarkers(map, map._sosdzCollectionMarkers || [], minDistance)
+    })
+  }
+
   const cpMarkers = markers.filter((marker) => marker?._sosdzCollectionPoint && marker._icon)
   if (!cpMarkers.length) return
 
