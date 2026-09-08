@@ -535,8 +535,7 @@ export default function Deliveries() {
               bubble below, never a separate "nothing to show" message
               standing in for the map. */}
           <div
-            className="map-frame"
-            
+            className={`map-frame${fullscreen ? " map-frame-fullscreen" : ""}`}
             ref={mapFrameRef}
           >
             <div id="deliveries-map" ref={mapElRef} style={{ height: '100%' }} />
