@@ -328,7 +328,11 @@ export default function NeedsList() {
   const recenterOnMe = async () => {
     const map = mapRef.current
     if (!map) return
-    const pos = await getCurrentPosition()
+    const pos = await getCurrentPosition({
+      maximumAge: 30000,
+      timeout: 3000,
+      enableHighAccuracy: false,
+    })
     // See CollectionPoints.jsx's own recenterOnMe -- an explicit tap
     // deserves feedback on failure.
     if (!pos) {
@@ -523,8 +527,7 @@ export default function NeedsList() {
         <div className="map-wrap">
           {mapHasNothing && <p className="hint">{t('needsList.noActiveNeeds')}</p>}
           <div
-            className="map-frame"
-            
+            className={`map-frame${fullscreen ? ' map-frame-fullscreen' : ''}`}
             ref={mapFrameRef}
           >
             <div id="main-map" ref={mapElRef} style={{ height: '100%' }} />
