@@ -175,10 +175,13 @@ export default function Deliveries() {
       }
       
       let locations
+      setMapPointsLoading(true)
       try {
         locations = await api('/pickups/live-locations/')
       } catch {
         return // offline/network failure -- silently skip this refresh, the next tick retries
+      } finally {
+        setMapPointsLoading(false)
       }
       // Updated regardless of viewMode -- the list view's "no position"
       // flagging (below) needs this even when the map itself isn't mounted.
