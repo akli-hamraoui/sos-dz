@@ -2935,7 +2935,9 @@ body {
 
 .deliveries-page .map-activate-hint,
 .deliveries-page .map-deactivate-btn {
-  background: var(--brand-green);
+  background: var(--brand-green-soft);
+  color: var(--brand-green);
+  border: 1px solid var(--brand-green-border);
 }
 
 .deliveries-page .unknown-position-chip {
