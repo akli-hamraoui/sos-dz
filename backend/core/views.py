@@ -1,3 +1,4 @@
+import secrets
 import subprocess
 from functools import lru_cache
 
@@ -65,6 +66,7 @@ from core.serializers import (
     WilayaSerializer,
 )
 from core.throttling import CreationRateThrottle
+from core.voice_ai import VoiceAIError, extract_need_data, transcribe_audio
 
 
 def log_admin_action(request, action_name, target):
@@ -239,7 +241,7 @@ class NeedViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retriev
         return NeedPublicSerializer
 
     def get_throttles(self):
-        if self.action in ("create", "create_via_voice_guide"):
+        if self.action in ("create", "create_via_voice_guide", "analyze_voice_guide"):
             return [CreationRateThrottle()]
         return []
 
@@ -309,6 +311,37 @@ class NeedViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retriev
         ).data
         return Response(out, status=status.HTTP_201_CREATED)
 
+    def _voice_feature_allowed(self, request):
+        return is_admin_request(request) or is_algeria_ip(getattr(request, "client_ip", None)) is True
+
+    @action(detail=False, methods=["post"], url_path="voice-guide/analyze")
+    def analyze_voice_guide(self, request, *args, **kwargs):
+        """Transcribe and extract a guided SOS without creating a Need.
+
+        Publication remains a separate, explicit button action in the SPA.
+        This endpoint is deliberately server-side so the LLM credential is
+        never exposed to the browser.
+        """
+        if not self._voice_feature_allowed(request):
+            return Response({"detail": "This feature is only available from Algeria."}, status=status.HTTP_403_FORBIDDEN)
+        audio = request.FILES.get("audio")
+        if not audio:
+            return Response({"detail": "No audio file was provided."}, status=status.HTTP_400_BAD_REQUEST)
+        if audio.size <= 0:
+            return Response({"detail": "The audio file is empty."}, status=status.HTTP_400_BAD_REQUEST)
+        if audio.size > 20 * 1024 * 1024:
+            return Response({"detail": "The audio file is too large."}, status=status.HTTP_400_BAD_REQUEST)
+        language = request.data.get("language", "fr")
+        try:
+            transcript = transcribe_audio(audio, language)
+            extraction = extract_need_data(transcript)
+        except VoiceAIError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        except Exception:
+            logger.exception("Unexpected urgent SOS voice analysis error")
+            return Response({"detail": "Voice analysis is temporarily unavailable."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        return Response({"transcript": transcript, "extraction": extraction})
+
     @action(detail=False, methods=["post"], url_path="voice-guide")
     def create_via_voice_guide(self, request, *args, **kwargs):
         """CreateNeedVoiceGuide.jsx submits here instead of the regular
@@ -320,11 +353,19 @@ class NeedViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retriev
         check as voice_guide_available so the page can show an explanatory
         message instead of letting someone go through all 7 steps first --
         that copy is UI-only, this is the actual enforcement."""
-        if not (is_admin_request(request) or is_algeria_ip(getattr(request, "client_ip", None)) is True):
+        if not self._voice_feature_allowed(request):
             return Response(
                 {"detail": "This feature is only available from Algeria."},
                 status=status.HTTP_403_FORBIDDEN,
             )
+        # The regular Need serializer intentionally requires a recovery path.
+        # A guided emergency may legitimately be anonymous, so give the
+        # server-generated access-token path a private recovery code instead
+        # of blocking publication when name/phone are both unknown.
+        data = request.data.copy()
+        if not ((data.get("contact_name") or "").strip() and (data.get("contact_phone") or "").strip()) and not (data.get("recovery_code") or "").strip():
+            data["recovery_code"] = "voice-" + secrets.token_urlsafe(9)[:12]
+        request._full_data = data
         return self.create(request, *args, **kwargs)
 
     @action(detail=False, methods=["get"], url_path="check-duplicates")
