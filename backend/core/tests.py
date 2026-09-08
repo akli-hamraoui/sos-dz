@@ -3824,6 +3824,8 @@ class UrgentSOSVoiceAnalysisTests(BaseAPITestCase):
         need = Need.objects.get(pk=response.data["id"])
         self.assertEqual(need.contact_name, "")
         self.assertTrue(need.recovery_code.startswith("voice-"))
+        self.assertEqual(response.data["recovery_code"], need.recovery_code)
+        self.assertTrue(response.data["recovery_code"])
 
     def test_admin_can_submit_with_abroad_gps_and_falls_back_to_no_location(self):
         from django.core.files.uploadedfile import SimpleUploadedFile
