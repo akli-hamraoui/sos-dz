@@ -8,7 +8,7 @@ import { api } from '../api'
 import { haversineKm, isInAlgeria, getCurrentPosition, RECENTER_BOX_METERS } from '../utils'
 import { fetchDrivingRoute, COLLECTION_POINT_ROUTE_COLOR } from '../routing'
 import { countryFlagEmoji, formatApproxKm, flyerPopupButtonHtml, attachPopupPinchZoom, attachMapPinchZoomOverlay } from '../mapMarkers'
-import { IconLocate, IconExpand, IconClose, IconGlobeColor, IconAlgeriaFlag } from '../icons'
+import { IconLocate, IconGlobeColor, IconAlgeriaFlag } from '../icons'
 import PhotoThumb from '../components/PhotoThumb'
 import PhotoLightbox from '../components/PhotoLightbox'
 
@@ -248,6 +248,54 @@ export default function CollectionPoints() {
     let cancelled = false
     let rafId = null
 
+    if (!mapRef.current) {
+          mapRef.current = L.map(mapElRef.current, {
+            attributionControl: false,
+            center: [28, 2.6],
+            zoom: 5,
+            fadeAnimation: false,
+            zoomAnimation: false,
+            markerZoomAnimation: false,
+            // Starts fully "asleep" -- see mapActive above -- so a single
+            // finger over the map scrolls the page like anything else on
+            // it, with no special gesture to learn. activateMap enables
+            // all of these once the map is explicitly tapped.
+            dragging: false,
+            touchZoom: false,
+            scrollWheelZoom: false,
+            doubleClickZoom: false,
+            boxZoom: false,
+          })
+          // Standard OpenStreetMap raster tiles -- see NeedsList.jsx for why
+          // (CartoDB's free tier now requires an API key).
+          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors',
+            maxZoom: 19,
+            updateWhenZooming: false,
+            keepBuffer: 1,
+          }).addTo(mapRef.current)
+          L.control.attribution({ prefix: false }).addTo(mapRef.current)
+          // Wires up any marker popup's own "view photo" link (see
+          // addPointMarker below) to the shared PhotoLightbox -- registered
+          // once per map instance rather than per marker/popup, since
+          // popupopen fires for whichever popup is currently open
+          // regardless of which marker it belongs to. Opening the photo
+          // never closes this popup underneath it.
+          mapRef.current.on('popupopen', (e) => {
+            const btn = e.popup.getElement()?.querySelector('.popup-photo-btn')
+            if (btn) btn.onclick = () => setLightboxPhoto(btn.dataset.photoUrl)
+            attachPopupPinchZoom(e.popup.getElement())
+          })
+          // Also wired from the overlay's own ref callback (for when it
+          // remounts later, e.g. deactivate/reactivate) -- done here too
+          // since on first mount that ref callback can fire before this
+          // effect has actually created the map yet (mapRef.current still
+          // null at that point), which would otherwise silently skip
+          // wiring it the very first time the page loads.
+          attachMapPinchZoomOverlay(mapRef.current, mapElRef.current?.parentElement?.querySelector('.map-activate-overlay'), activateMap)
+        }
+        
+
     ;(async () => {
       let cpPins
       const params = new URLSearchParams()
@@ -273,45 +321,6 @@ export default function CollectionPoints() {
       rafId = requestAnimationFrame(() => {
         if (cancelled) return
         if (!mapElRef.current) return
-        if (!mapRef.current) {
-          mapRef.current = L.map(mapElRef.current, {
-            attributionControl: false,
-            // Starts fully "asleep" -- see mapActive above -- so a single
-            // finger over the map scrolls the page like anything else on
-            // it, with no special gesture to learn. activateMap enables
-            // all of these once the map is explicitly tapped.
-            dragging: false,
-            touchZoom: false,
-            scrollWheelZoom: false,
-            doubleClickZoom: false,
-            boxZoom: false,
-          })
-          // Standard OpenStreetMap raster tiles -- see NeedsList.jsx for why
-          // (CartoDB's free tier now requires an API key).
-          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; OpenStreetMap contributors',
-            maxZoom: 19,
-          }).addTo(mapRef.current)
-          L.control.attribution({ prefix: false }).addTo(mapRef.current)
-          // Wires up any marker popup's own "view photo" link (see
-          // addPointMarker below) to the shared PhotoLightbox -- registered
-          // once per map instance rather than per marker/popup, since
-          // popupopen fires for whichever popup is currently open
-          // regardless of which marker it belongs to. Opening the photo
-          // never closes this popup underneath it.
-          mapRef.current.on('popupopen', (e) => {
-            const btn = e.popup.getElement()?.querySelector('.popup-photo-btn')
-            if (btn) btn.onclick = () => setLightboxPhoto(btn.dataset.photoUrl)
-            attachPopupPinchZoom(e.popup.getElement())
-          })
-          // Also wired from the overlay's own ref callback (for when it
-          // remounts later, e.g. deactivate/reactivate) -- done here too
-          // since on first mount that ref callback can fire before this
-          // effect has actually created the map yet (mapRef.current still
-          // null at that point), which would otherwise silently skip
-          // wiring it the very first time the page loads.
-          attachMapPinchZoomOverlay(mapRef.current, mapElRef.current?.parentElement?.querySelector('.map-activate-overlay'), activateMap)
-        }
         const map = mapRef.current
         markersRef.current.forEach((m) => map.removeLayer(m))
         if (youAreHereRef.current) {
@@ -664,8 +673,8 @@ export default function CollectionPoints() {
         <div className="map-wrap">
           {mapHasNothing && <p className="hint">{t('collectionPoints.noPointsYet')}</p>}
           <div
-            className={fullscreen ? 'map-frame map-frame-fullscreen' : 'map-frame'}
-            style={fullscreen ? undefined : { height: mapFillHeight }}
+            className="map-frame"
+            
             ref={mapFrameRef}
           >
             <div id="cp-map" ref={mapElRef} style={{ height: '100%' }} />
@@ -686,22 +695,7 @@ export default function CollectionPoints() {
                 {t('map.exitMapInteraction')}
               </button>
             )}
-            {!fullscreen && (
-              <button
-                type="button"
-                className="expand-btn"
-                onClick={enterFullscreen}
-                aria-label={t('map.viewFullscreen')}
-                title={t('map.viewFullscreen')}
-              >
-                <IconExpand width={18} height={18} />
-              </button>
-            )}
-            {fullscreen && (
-              <button type="button" className="exit-fullscreen-btn" onClick={exitFullscreen} aria-label={t('map.exitFullscreen')} title={t('map.exitFullscreen')}>
-                <IconClose width={20} height={20} />
-              </button>
-            )}
+            
             <button type="button" className="locate-btn" onClick={recenterOnMe} aria-label={t('map.recenterOnMe')} title={t('map.recenterOnMe')}>
               <IconLocate width={18} height={18} />
             </button>
