@@ -397,7 +397,15 @@ class NeedViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retriev
                 data["longitude"] = ""
                 data["wilaya"] = ""
         request._full_data = data
-        return self.create(request, *args, **kwargs)
+        response = self.create(request, *args, **kwargs)
+        # The guided SOS recovery code is the code the reporter can use later
+        # to recover/delete the SOS. The regular Need response intentionally
+        # does not expose recovery_code, so add it only to this dedicated
+        # voice-SOS response where it is explicitly shown once on the final
+        # screen.
+        if response.status_code == status.HTTP_201_CREATED:
+            response.data["recovery_code"] = data.get("recovery_code", "")
+        return response
 
     @action(detail=False, methods=["get"], url_path="check-duplicates")
     def check_duplicates(self, request):
