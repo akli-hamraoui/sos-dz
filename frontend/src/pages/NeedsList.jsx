@@ -203,7 +203,7 @@ export default function NeedsList() {
           // See CollectionPoints.jsx's own equivalent registration -- wires
           // up any popup's "view photo" link to the shared PhotoLightbox
           // without closing the popup underneath it.
-          attachMapPopupBehavior(mapRef.current, (photoUrl) => setLightboxPhoto(photoUrl))
+          attachMapPopupBehavior(mapRef.current, (photoUrl) => setLightboxPhoto(photoUrl), activateMap)
           // Also wired from the overlay's own ref callback (for when it
           // remounts later, e.g. deactivate/reactivate) -- done here too
           // since on first mount that ref callback can fire before this
