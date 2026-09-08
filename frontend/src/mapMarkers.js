@@ -47,8 +47,57 @@ export function collectionPointIcon(L) {
   return L.divIcon({
     className: 'cp-marker-icon',
     html: `<span class="cp-marker-pin">${CP_BOX_SVG}</span>`,
-    iconSize: [30, 30],
-    iconAnchor: [15, 15],
+    iconSize: [40, 40],
+    iconAnchor: [20, 20],
+  })
+}
+
+// Give nearby collection-point pins a little breathing room without changing
+// their real geographic coordinates. The offsets are applied to the inner
+// visual pin, so the marker remains clickable at its original location.
+// Recomputed after zoom because pixel distances change with zoom level.
+export function spreadCollectionPointMarkers(map, markers, minDistance = 46) {
+  if (!map || !Array.isArray(markers)) return
+
+  const cpMarkers = markers.filter((marker) => marker?._sosdzCollectionPoint && marker._icon)
+  if (!cpMarkers.length) return
+
+  const positions = cpMarkers.map((marker) => map.latLngToContainerPoint(marker.getLatLng()))
+  const offsets = cpMarkers.map(() => ({ x: 0, y: 0 }))
+
+  // A few relaxation passes are enough for the small clusters visible on
+  // mobile, while keeping the displacement subtle.
+  for (let pass = 0; pass < 5; pass += 1) {
+    for (let i = 0; i < positions.length; i += 1) {
+      for (let j = i + 1; j < positions.length; j += 1) {
+        const ax = positions[i].x + offsets[i].x
+        const ay = positions[i].y + offsets[i].y
+        const bx = positions[j].x + offsets[j].x
+        const by = positions[j].y + offsets[j].y
+        const dx = bx - ax
+        const dy = by - ay
+        const distance = Math.hypot(dx, dy)
+
+        if (distance >= minDistance) continue
+
+        const safeDistance = distance || 1
+        const push = (minDistance - safeDistance) / 2 + 1
+        const ux = dx / safeDistance
+        const uy = dy / safeDistance
+        offsets[i].x -= ux * push
+        offsets[i].y -= uy * push
+        offsets[j].x += ux * push
+        offsets[j].y += uy * push
+      }
+    }
+  }
+
+  cpMarkers.forEach((marker, index) => {
+    const pin = marker._icon?.querySelector('.cp-marker-pin')
+    if (!pin) return
+    const x = Math.max(-24, Math.min(24, offsets[index].x))
+    const y = Math.max(-24, Math.min(24, offsets[index].y))
+    pin.style.transform = `translate3d(${x}px, ${y}px, 0)`
   })
 }
 
