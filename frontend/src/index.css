@@ -1880,7 +1880,10 @@ fieldset {
 .map-activate-overlay {
   position: absolute;
   inset: 0;
-  z-index: 1100;
+  /* Keep Leaflet's native controls and the SOSDZ locate/fullscreen controls
+     clickable while the map body is asleep. The overlay only blocks the map
+     surface/markers until the user activates map interaction. */
+  z-index: 900;
   cursor: pointer;
 }
 /* .map-activate-hint and .map-deactivate-btn are fixed to the *viewport*,
