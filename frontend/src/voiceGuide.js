@@ -16,10 +16,6 @@ export const AUDIO_BASE = '/audio/sos-guide'
 // Steps where the spec calls for auto-repeating the prompt if no tap is
 // detected: language choice (0), geolocation yes/no (2), final validation
 // (5). The purely informative steps (1, 3, 4, 6) are never repeated.
-export const REPEATING_STEPS = [0, 2, 5]
-export const REPEAT_DELAY_MS = 9000 // "~8-10 secondes sans interaction"
-export const MAX_REPEATS = 3
-
 export function audioUrlFor(lang, step) {
   return `${AUDIO_BASE}/${lang}_${step}.mp3`
 }

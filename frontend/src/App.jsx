@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Routes, Route, Link, useLocation } from 'react-router-dom'
+import { Navigate, Routes, Route, Link, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useApp } from './context/AppContext'
 import { setLanguage, getStoredLanguage } from './i18n'
@@ -8,7 +8,7 @@ import { formatBadgeCount } from './utils'
 import Home from './pages/Home'
 import Help from './pages/Help'
 import CreateNeed from './pages/CreateNeed'
-import CreateNeedVoiceGuide from './pages/CreateNeedVoiceGuide'
+import UrgentSOS from './pages/UrgentSOS'
 import NeedsList from './pages/NeedsList'
 import NeedDetail from './pages/NeedDetail'
 import TakeCharge from './pages/TakeCharge'
@@ -87,7 +87,7 @@ const PAGE_TITLE_KEYS = {
   '/needs': 'nav.needs',
   '/help': 'home.iWantToHelp',
   '/create': 'nav.iNeedHelp',
-  '/create-voice': 'voiceGuide.title',
+  '/urgent-sos': 'urgentSos.title',
   '/collection-points': 'nav.collectionPoints',
   '/collection-points/create': 'collectionPoints.createTitle',
   '/international-collection-points': 'internationalCollectionPoints.navButton',
@@ -440,7 +440,8 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/create" element={<CreateNeed />} />
-          <Route path="/create-voice" element={<CreateNeedVoiceGuide />} />
+          <Route path="/urgent-sos" element={<UrgentSOS />} />
+          <Route path="/create-voice" element={<Navigate to="/urgent-sos" replace />} />
           <Route path="/needs" element={<NeedsList />} />
           <Route path="/help" element={<Help />} />
           <Route path="/needs/:id" element={<NeedDetail />} />

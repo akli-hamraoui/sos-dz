@@ -71,6 +71,12 @@ CSRF_TRUSTED_ORIGINS = [o.strip() for o in _csrf_trusted_origins.split(",") if o
 # under templates/index.html purely for history/reference.
 FRONTEND_URL = env("FRONTEND_URL", default="http://localhost:5173")
 
+# Server-side AI configuration for the discreet urgent voice SOS flow.
+# Groq is used through its free-tier API. Keys stay server-side only.
+GROQ_API_KEY = env("GROQ_API_KEY", default="")
+GROQ_TRANSCRIPTION_MODEL = env("GROQ_TRANSCRIPTION_MODEL", default="whisper-large-v3-turbo")
+GROQ_EXTRACTION_MODEL = env("GROQ_EXTRACTION_MODEL", default="qwen/qwen3.8-27b")
+
 # --- Applications ---------------------------------------------------------
 
 INSTALLED_APPS = [

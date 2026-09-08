@@ -3756,3 +3756,58 @@ class AdminTokenCopyButtonTests(BaseAPITestCase):
         rendered = str(modeladmin.access_token_copy(pickup))
         self.assertIn(pickup.access_token, rendered)
         self.assertIn("<button", rendered)
+
+class UrgentSOSVoiceAnalysisTests(BaseAPITestCase):
+    def setUp(self):
+        super().setUp()
+        self.campaign = make_campaign()
+
+    def test_analysis_is_restricted_outside_algeria(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        response = self.client.post("/api/needs/voice-guide/analyze/", {"audio": SimpleUploadedFile("voice.webm", b"audio", content_type="audio/webm"), "language": "fr"}, format="multipart")
+        self.assertEqual(response.status_code, 403)
+
+    def test_analysis_transcribes_and_extracts_without_creating_need(self):
+        from unittest.mock import patch
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        with patch("core.views.is_algeria_ip", return_value=True), patch("core.views.transcribe_audio", return_value="Je suis Ahmed à Blida, j'ai besoin d'eau.") as transcribe, patch("core.views.extract_need_data", return_value={"title": "Besoin d'eau", "contact_name": "Ahmed", "contact_phone": "", "estimated_quantity": "", "commune": "", "location_description": "Blida", "organization_or_person_name": "", "description": "Ahmed a besoin d'eau."}) as extract:
+            response = self.client.post("/api/needs/voice-guide/analyze/", {"audio": SimpleUploadedFile("voice.webm", b"audio", content_type="audio/webm"), "language": "fr"}, format="multipart")
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(response.data["transcript"], "Je suis Ahmed à Blida, j'ai besoin d'eau.")
+        self.assertEqual(response.data["extraction"]["contact_name"], "Ahmed")
+        self.assertEqual(Need.objects.count(), 0)
+        transcribe.assert_called_once()
+        extract.assert_called_once()
+
+    def test_voice_creation_allows_anonymous_report_with_private_recovery_code(self):
+        from unittest.mock import patch
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        with patch("core.views.is_algeria_ip", return_value=True):
+            response = self.client.post("/api/needs/voice-guide/", {"campaign": self.campaign.pk, "title": "SOS urgent", "urgency": "critical", "location_description": "Sans localisation", "voice_file": SimpleUploadedFile("voice.webm", b"audio", content_type="audio/webm")}, format="multipart")
+        self.assertEqual(response.status_code, 201, response.content)
+        need = Need.objects.get(pk=response.data["id"])
+        self.assertEqual(need.contact_name, "")
+        self.assertTrue(need.recovery_code.startswith("voice-"))
+
+    def test_admin_can_submit_with_abroad_gps_and_falls_back_to_no_location(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        admin = get_user_model().objects.create_superuser("abroadadmin", "abroad@example.com", "pw123456!")
+        self.client.force_authenticate(admin)
+        response = self.client.post(
+            "/api/needs/voice-guide/",
+            {
+                "campaign": self.campaign.pk,
+                "title": "SOS urgent",
+                "urgency": "critical",
+                "location_description": "Test admin abroad",
+                "latitude": "48.8566",
+                "longitude": "2.3522",
+                "voice_file": SimpleUploadedFile("voice.webm", b"audio", content_type="audio/webm"),
+            },
+            format="multipart",
+        )
+        self.assertEqual(response.status_code, 201, response.content)
+        need = Need.objects.get(pk=response.data["id"])
+        self.assertTrue(need.has_no_location)
+        self.assertIsNone(need.latitude)
+        self.assertIsNone(need.longitude)
