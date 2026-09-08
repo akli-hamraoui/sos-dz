@@ -1721,7 +1721,7 @@ fieldset {
   line-height: 1.5;
   font-size: 13.5px;
 }
-.sosdz-map-popup .leaflet-popup-content > strong:first-child {
+.sosdz-map-popup .leaflet-popup-content strong:first-child {
   display: block;
   margin-block-end: 6px;
   color: var(--sos-green);
