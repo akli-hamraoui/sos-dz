@@ -2993,8 +2993,8 @@ body {
    exposed by the map pages.
 */
 .map-frame {
-  height: clamp(340px, 48vh, 440px);
-  min-height: 340px;
+  height: 420px;
+  min-height: 420px;
   overflow: hidden;
 }
 
@@ -3005,7 +3005,7 @@ body {
 
 @media (max-width: 699px) {
   .map-frame {
-    height: clamp(320px, 52svh, 420px);
-    min-height: 320px;
+    height: 400px;
+    min-height: 400px;
   }
 }
