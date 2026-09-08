@@ -1887,6 +1887,12 @@ fieldset {
    .locate-btn stays reachable (an explicit single tap, not a drag, so it
    never conflicts with page scroll) while the zoom control and map body
    stay blocked until activated. */
+/* Keep the visual hint itself transparent to pointer events. The overlay
+   must not consume the first tap on a marker, popup, or map control. */
+.map-activate-hint-only {
+  pointer-events: none;
+}
+
 .map-activate-overlay {
   position: absolute;
   inset: 0;
