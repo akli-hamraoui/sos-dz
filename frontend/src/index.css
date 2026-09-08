@@ -1713,9 +1713,10 @@ fieldset {
   border-bottom: 1px solid #cfe4d9;
 }
 .sosdz-map-popup .leaflet-popup-content {
-  margin: 14px 16px;
-  min-width: 220px;
-  max-width: min(288px, calc(100vw - 64px));
+  margin: 12px 14px;
+  min-width: 0;
+  width: min(248px, calc(100vw - 56px));
+  max-width: min(248px, calc(100vw - 56px));
   color: var(--text);
   overflow-wrap: anywhere;
   line-height: 1.5;
@@ -1904,17 +1905,17 @@ fieldset {
   left: 50%;
   transform: translateX(-50%);
   z-index: 1300;
-  background: rgba(17, 17, 17, 0.82);
-  color: #fff;
+  background: var(--sos-green-soft);
+  color: var(--sos-green);
+  border: 1px solid #bfe0cb;
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
   padding: 8px 16px;
   border-radius: 999px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 2px 8px rgba(31, 54, 45, 0.14);
   white-space: nowrap;
 }
 .map-deactivate-btn {
-  border: none;
   cursor: pointer;
 }
 
@@ -1926,7 +1927,7 @@ fieldset {
    (top-right) leave that spot clear. */
 .map-international-link {
   position: absolute;
-  top: 12px;
+  top: 56px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 1200;
@@ -2870,7 +2871,9 @@ body {
 
 .deliveries-page .map-activate-hint,
 .deliveries-page .map-deactivate-btn {
-  background: var(--brand-green);
+  background: var(--sos-green-soft);
+  color: var(--sos-green);
+  border-color: #bfe0cb;
 }
 
 .deliveries-page .unknown-position-chip {
