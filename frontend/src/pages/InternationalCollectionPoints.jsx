@@ -256,7 +256,7 @@ export default function InternationalCollectionPoints() {
       } catch {
         return // offline/network failure -- offline banner already informs the user
       } finally {
-        setMapPointsLoading(false)
+        if (!cancelled) setMapPointsLoading(false)
       }
       if (cancelled) return
       setMapHasNothing(pins.length === 0)
@@ -579,6 +579,12 @@ export default function InternationalCollectionPoints() {
           {mapHasNothing && <p className="hint">{t('internationalCollectionPoints.noPointsYet')}</p>}
           <div className="map-frame">
             <div id="intl-cp-map" ref={mapElRef}  />
+            {mapPointsLoading && (
+              <div className="map-points-loader" aria-live="polite" aria-label="Chargement des points">
+                <span className="map-points-loader-spinner" aria-hidden="true" />
+                <span>Chargement des points…</span>
+              </div>
+            )}
             {!mapActive && !fullscreen && (
               <div
                 className="map-activate-overlay"
