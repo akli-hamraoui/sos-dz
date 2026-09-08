@@ -67,9 +67,9 @@ from core.serializers import (
     WilayaSerializer,
 )
 from core.throttling import CreationRateThrottle
+from core.voice_ai import VoiceAIError, extract_need_data, transcribe_audio
 
 logger = logging.getLogger(__name__)
-from core.voice_ai import VoiceAIError, extract_need_data, transcribe_audio
 
 
 def log_admin_action(request, action_name, target):
