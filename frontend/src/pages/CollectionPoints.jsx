@@ -7,7 +7,7 @@ import { useDialog } from '../context/DialogContext'
 import { api } from '../api'
 import { haversineKm, isInAlgeria, getCurrentPosition, RECENTER_BOX_METERS } from '../utils'
 import { fetchDrivingRoute, COLLECTION_POINT_ROUTE_COLOR } from '../routing'
-import { countryFlagEmoji, formatApproxKm, flyerPopupButtonHtml, attachMapPopupBehavior, attachMapPinchZoomOverlay } from '../mapMarkers'
+import { countryFlagEmoji, formatApproxKm, flyerPopupButtonHtml, attachMapPopupBehavior, attachMapTapToActivate, spreadCollectionPointMarkers } from '../mapMarkers'
 import { IconLocate, IconExpand, IconClose, IconGlobeColor, IconAlgeriaFlag } from '../icons'
 import PhotoThumb from '../components/PhotoThumb'
 import PhotoLightbox from '../components/PhotoLightbox'
@@ -211,12 +211,14 @@ export default function CollectionPoints() {
         const straight = L.polyline([from, dest], { color: COLLECTION_POINT_ROUTE_COLOR, weight: 3, dashArray: '4,8' }).addTo(map)
         routeLineRef.current = straight
         map.fitBounds(L.latLngBounds([from, dest]).pad(0.3), { maxZoom: 13, animate: false })
+        requestAnimationFrame(() => map._sosdzCenterOpenPopup?.())
         fetchDrivingRoute(from, dest)
           .then((route) => {
             if (routeLineRef.current !== straight) return // superseded by another click/re-render meanwhile
             map.removeLayer(straight)
             routeLineRef.current = L.polyline(route.coordinates, { color: COLLECTION_POINT_ROUTE_COLOR, weight: 4, dashArray: '1,10', lineCap: 'round' }).addTo(map)
             map.fitBounds(L.latLngBounds(route.coordinates).pad(0.3), { maxZoom: 13, animate: false })
+            requestAnimationFrame(() => map._sosdzCenterOpenPopup?.())
             setRouteInfo({ distanceKm: route.distanceKm, durationMin: route.durationMin })
           })
           .catch(() => setRouteInfo('unavailable'))
@@ -264,14 +266,14 @@ export default function CollectionPoints() {
           // popupopen fires for whichever popup is currently open
           // regardless of which marker it belongs to. Opening the photo
           // never closes this popup underneath it.
-          attachMapPopupBehavior(mapRef.current, (photoUrl) => setLightboxPhoto(photoUrl))
+          attachMapPopupBehavior(mapRef.current, (photoUrl) => setLightboxPhoto(photoUrl), activateMap)
           // Also wired from the overlay's own ref callback (for when it
           // remounts later, e.g. deactivate/reactivate) -- done here too
           // since on first mount that ref callback can fire before this
           // effect has actually created the map yet (mapRef.current still
           // null at that point), which would otherwise silently skip
           // wiring it the very first time the page loads.
-          attachMapPinchZoomOverlay(mapRef.current, mapElRef.current?.parentElement?.querySelector('.map-activate-overlay'), activateMap)
+          attachMapTapToActivate(mapRef.current, activateMap)
         }
         
 
@@ -330,10 +332,11 @@ export default function CollectionPoints() {
               '<span class="cp-marker-pin"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2c8f67" stroke-width="2" ' +
               'stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 7.5 12 3l8.5 4.5v9L12 21l-8.5-4.5v-9Z"/>' +
               '<path d="M3.5 7.5 12 12l8.5-4.5"/><path d="M12 12v9"/></svg></span>',
-            iconSize: [30, 30],
-            iconAnchor: [15, 15],
+            iconSize: [40, 40],
+            iconAnchor: [20, 20],
           })
           const marker = L.marker([p.display_latitude, p.display_longitude], { icon }).addTo(map)
+          marker._sosdzCollectionPoint = true
           // Trajectory from the visitor's own position to this point on
           // click -- same OSRM-backed red line as Deliveries.jsx's own
           // courier-to-destination route. Silently does nothing if
@@ -399,6 +402,7 @@ export default function CollectionPoints() {
           markers.push(marker)
         })
 
+        spreadCollectionPointMarkers(map, markers)
         markersRef.current = markers
         const allPoints = cpsWithPos.map((p) => [p.display_latitude, p.display_longitude])
         const wilayaChanged = prevFilterWilayaRef.current !== filterWilaya
@@ -423,7 +427,11 @@ export default function CollectionPoints() {
   const recenterOnMe = async () => {
     const map = mapRef.current
     if (!map) return
-    const pos = await getCurrentPosition()
+    const pos = await getCurrentPosition({
+      maximumAge: 30000,
+      timeout: 3000,
+      enableHighAccuracy: false,
+    })
     // Unlike the passive/automatic geolocation attempts elsewhere on this
     // page (smartZoom's own best-effort default view), this button is a
     // deliberate tap -- staying silent on failure just looks broken (most
@@ -508,11 +516,46 @@ export default function CollectionPoints() {
   const enterFullscreen = () => {
     activateMap()
     setFullscreen(true)
+
+    // Use the native Fullscreen API when the browser supports it. The CSS
+    // fullscreen class remains the fallback for browsers that reject or do
+    // not expose requestFullscreen (notably some iOS contexts).
+    const frame = mapFrameRef.current
+    if (frame?.requestFullscreen) {
+      frame.requestFullscreen({ navigationUI: 'hide' }).catch(() => {
+        // CSS fallback is already active through setFullscreen(true).
+      })
+    }
   }
   const exitFullscreen = () => {
+    const frame = mapFrameRef.current
+    if (document.fullscreenElement === frame) {
+      const exitPromise = document.exitFullscreen?.()
+      exitPromise?.catch(() => {})
+    }
     setFullscreen(false)
     deactivateMap()
   }
+
+  // Keep React state synchronized with browser fullscreen (including the
+  // Android back/escape gesture) and refresh Leaflet after the frame changes
+  // size. Leaflet documents invalidateSize() as the required call after a
+  // map container is resized dynamically.
+  useEffect(() => {
+    const onFullscreenChange = () => {
+      const nativeFullscreen = document.fullscreenElement === mapFrameRef.current
+      setFullscreen(nativeFullscreen)
+      if (!nativeFullscreen) deactivateMap()
+
+      requestAnimationFrame(() => {
+        mapRef.current?.invalidateSize({ pan: false, animate: false })
+        requestAnimationFrame(() => mapRef.current?.invalidateSize({ pan: false, animate: false }))
+      })
+    }
+
+    document.addEventListener('fullscreenchange', onFullscreenChange)
+    return () => document.removeEventListener('fullscreenchange', onFullscreenChange)
+  }, [])
 
   // The container's on-screen size changes (inline height 600 <-> fixed
   // full-viewport) purely via CSS (see .map-frame-fullscreen), which
@@ -655,8 +698,7 @@ export default function CollectionPoints() {
         <div className="map-wrap">
           {mapHasNothing && <p className="hint">{t('collectionPoints.noPointsYet')}</p>}
           <div
-            className="map-frame"
-            
+            className={`map-frame${fullscreen ? ' map-frame-fullscreen' : ''}`}
             ref={mapFrameRef}
           >
             <div id="cp-map" ref={mapElRef} style={{ height: '100%' }} />
@@ -668,12 +710,7 @@ export default function CollectionPoints() {
             )}
             {!mapActive && !fullscreen && (
               <div
-                className="map-activate-overlay"
-                onClick={activateMap}
-                role="button"
-                tabIndex={0}
-                aria-label={t('map.tapToInteract')}
-                ref={(el) => attachMapPinchZoomOverlay(mapRef.current, el, activateMap)}
+                className="map-activate-overlay map-activate-hint-only"
               >
                 <span className="map-activate-hint">{t('map.tapToInteract')}</span>
               </div>

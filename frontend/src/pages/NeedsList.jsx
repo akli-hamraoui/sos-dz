@@ -6,7 +6,7 @@ import { useApp } from '../context/AppContext'
 import { useDialog } from '../context/DialogContext'
 import { api } from '../api'
 import { urgencyColor, haversineKm, isInAlgeria, getCurrentPosition, RECENTER_BOX_METERS } from '../utils'
-import { flyerPopupButtonHtml, attachMapPopupBehavior, attachMapPinchZoomOverlay } from '../mapMarkers'
+import { flyerPopupButtonHtml, attachMapPopupBehavior, attachMapTapToActivate } from '../mapMarkers'
 import PhotoThumb from '../components/PhotoThumb'
 import PhotoLightbox from '../components/PhotoLightbox'
 import { IconLocate, IconExpand, IconClose } from '../icons'
@@ -203,14 +203,14 @@ export default function NeedsList() {
           // See CollectionPoints.jsx's own equivalent registration -- wires
           // up any popup's "view photo" link to the shared PhotoLightbox
           // without closing the popup underneath it.
-          attachMapPopupBehavior(mapRef.current, (photoUrl) => setLightboxPhoto(photoUrl))
+          attachMapPopupBehavior(mapRef.current, (photoUrl) => setLightboxPhoto(photoUrl), activateMap)
           // Also wired from the overlay's own ref callback (for when it
           // remounts later, e.g. deactivate/reactivate) -- done here too
           // since on first mount that ref callback can fire before this
           // effect has actually created the map yet (mapRef.current still
           // null at that point), which would otherwise silently skip
           // wiring it the very first time the page loads.
-          attachMapPinchZoomOverlay(mapRef.current, mapElRef.current?.parentElement?.querySelector('.map-activate-overlay'), activateMap)
+          attachMapTapToActivate(mapRef.current, activateMap)
         }
         
 
@@ -328,7 +328,11 @@ export default function NeedsList() {
   const recenterOnMe = async () => {
     const map = mapRef.current
     if (!map) return
-    const pos = await getCurrentPosition()
+    const pos = await getCurrentPosition({
+      maximumAge: 30000,
+      timeout: 3000,
+      enableHighAccuracy: false,
+    })
     // See CollectionPoints.jsx's own recenterOnMe -- an explicit tap
     // deserves feedback on failure.
     if (!pos) {
@@ -382,11 +386,46 @@ export default function NeedsList() {
   const enterFullscreen = () => {
     activateMap()
     setFullscreen(true)
+
+    // Use the native Fullscreen API when the browser supports it. The CSS
+    // fullscreen class remains the fallback for browsers that reject or do
+    // not expose requestFullscreen (notably some iOS contexts).
+    const frame = mapFrameRef.current
+    if (frame?.requestFullscreen) {
+      frame.requestFullscreen({ navigationUI: 'hide' }).catch(() => {
+        // CSS fallback is already active through setFullscreen(true).
+      })
+    }
   }
   const exitFullscreen = () => {
+    const frame = mapFrameRef.current
+    if (document.fullscreenElement === frame) {
+      const exitPromise = document.exitFullscreen?.()
+      exitPromise?.catch(() => {})
+    }
     setFullscreen(false)
     deactivateMap()
   }
+
+  // Keep React state synchronized with browser fullscreen (including the
+  // Android back/escape gesture) and refresh Leaflet after the frame changes
+  // size. Leaflet documents invalidateSize() as the required call after a
+  // map container is resized dynamically.
+  useEffect(() => {
+    const onFullscreenChange = () => {
+      const nativeFullscreen = document.fullscreenElement === mapFrameRef.current
+      setFullscreen(nativeFullscreen)
+      if (!nativeFullscreen) deactivateMap()
+
+      requestAnimationFrame(() => {
+        mapRef.current?.invalidateSize({ pan: false, animate: false })
+        requestAnimationFrame(() => mapRef.current?.invalidateSize({ pan: false, animate: false }))
+      })
+    }
+
+    document.addEventListener('fullscreenchange', onFullscreenChange)
+    return () => document.removeEventListener('fullscreenchange', onFullscreenChange)
+  }, [])
 
   useEffect(() => {
     const map = mapRef.current
@@ -523,8 +562,7 @@ export default function NeedsList() {
         <div className="map-wrap">
           {mapHasNothing && <p className="hint">{t('needsList.noActiveNeeds')}</p>}
           <div
-            className="map-frame"
-            
+            className={`map-frame${fullscreen ? ' map-frame-fullscreen' : ''}`}
             ref={mapFrameRef}
           >
             <div id="main-map" ref={mapElRef} style={{ height: '100%' }} />
@@ -536,12 +574,7 @@ export default function NeedsList() {
             )}
             {!mapActive && !fullscreen && (
               <div
-                className="map-activate-overlay"
-                onClick={activateMap}
-                role="button"
-                tabIndex={0}
-                aria-label={t('map.tapToInteract')}
-                ref={(el) => attachMapPinchZoomOverlay(mapRef.current, el, activateMap)}
+                className="map-activate-overlay map-activate-hint-only"
               >
                 <span className="map-activate-hint">{t('map.tapToInteract')}</span>
               </div>

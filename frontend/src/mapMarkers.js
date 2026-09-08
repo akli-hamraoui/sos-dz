@@ -4,6 +4,8 @@
 // used separately by NeedsList.jsx and CollectionPoints.jsx, factored out
 // here rather than a third copy-pasted inline SVG string.
 
+import L from 'leaflet'
+
 export const NEED_SOS_ICON = '<img src="/icons/need-marker-sos.png" width="18" height="18" alt="" style="filter:invert(1)" />'
 
 export const CP_BOX_SVG =
@@ -45,8 +47,65 @@ export function collectionPointIcon(L) {
   return L.divIcon({
     className: 'cp-marker-icon',
     html: `<span class="cp-marker-pin">${CP_BOX_SVG}</span>`,
-    iconSize: [30, 30],
-    iconAnchor: [15, 15],
+    iconSize: [40, 40],
+    iconAnchor: [20, 20],
+  })
+}
+
+// Give nearby collection-point pins a little breathing room without changing
+// their real geographic coordinates. The offsets are applied to the inner
+// visual pin, so the marker remains clickable at its original location.
+// Recomputed after zoom because pixel distances change with zoom level.
+export function spreadCollectionPointMarkers(map, markers, minDistance = 46) {
+  if (!map || !Array.isArray(markers)) return
+
+  map._sosdzCollectionMarkers = markers
+  if (!map._sosdzCollectionSpreadZoomWired) {
+    map._sosdzCollectionSpreadZoomWired = true
+    map.on('zoomend', () => {
+      spreadCollectionPointMarkers(map, map._sosdzCollectionMarkers || [], minDistance)
+    })
+  }
+
+  const cpMarkers = markers.filter((marker) => marker?._sosdzCollectionPoint && marker._icon)
+  if (!cpMarkers.length) return
+
+  const positions = cpMarkers.map((marker) => map.latLngToContainerPoint(marker.getLatLng()))
+  const offsets = cpMarkers.map(() => ({ x: 0, y: 0 }))
+
+  // A few relaxation passes are enough for the small clusters visible on
+  // mobile, while keeping the displacement subtle.
+  for (let pass = 0; pass < 5; pass += 1) {
+    for (let i = 0; i < positions.length; i += 1) {
+      for (let j = i + 1; j < positions.length; j += 1) {
+        const ax = positions[i].x + offsets[i].x
+        const ay = positions[i].y + offsets[i].y
+        const bx = positions[j].x + offsets[j].x
+        const by = positions[j].y + offsets[j].y
+        const dx = bx - ax
+        const dy = by - ay
+        const distance = Math.hypot(dx, dy)
+
+        if (distance >= minDistance) continue
+
+        const safeDistance = distance || 1
+        const push = (minDistance - safeDistance) / 2 + 1
+        const ux = dx / safeDistance
+        const uy = dy / safeDistance
+        offsets[i].x -= ux * push
+        offsets[i].y -= uy * push
+        offsets[j].x += ux * push
+        offsets[j].y += uy * push
+      }
+    }
+  }
+
+  cpMarkers.forEach((marker, index) => {
+    const pin = marker._icon?.querySelector('.cp-marker-pin')
+    if (!pin) return
+    const x = Math.max(-24, Math.min(24, offsets[index].x))
+    const y = Math.max(-24, Math.min(24, offsets[index].y))
+    pin.style.transform = `translate3d(${x}px, ${y}px, 0)`
   })
 }
 
@@ -112,166 +171,135 @@ export function flyerPopupButtonHtml(t, photoUrl) {
 // re-centered after map moves while it remains open. This keeps popups
 // readable on mobile and prevents a route fitBounds() from stranding an
 // already-open popup near the edge of the map.
-export function attachMapPopupBehavior(map, onPhoto) {
+// Preserves the map's two-finger pinch gesture while the map is still
+// covered by the tap-to-activate overlay. This is intentionally separate
+// from popup zoom: the popup itself must not have custom +/-/1x controls.
+// Activate map interaction only when the user taps the map surface itself.
+// Marker, popup and control clicks are intentionally ignored so the first tap
+// on a collection point, SOS need or courier opens that point normally instead
+// of being consumed by the map's "tap to interact" mode.
+export function attachMapTapToActivate(map, onActivate) {
+  if (!map || map._sosdzTapActivationWired) return
+  map._sosdzTapActivationWired = true
+
+  map.on('click', (event) => {
+    const target = event?.originalEvent?.target
+    if (target?.closest?.('.leaflet-marker-icon, .leaflet-popup, .leaflet-control, button, a')) return
+    onActivate?.()
+  })
+}
+
+export function attachMapPopupBehavior(map, onPhoto, onActivate) {
   if (!map) return
 
-  const centerPopup = (popup) => {
-    requestAnimationFrame(() => {
+  let openPopup = null
+
+  // Keep the popup inside the map frame while centering it in the usable
+  // viewport. The bottom interaction chip is part of the frame, so reserve
+  // only its footprint and never the page/bottom navigation. The popup pane
+  // itself is layered above the map controls by CSS, so the controls cannot
+  // cover the popup.
+  const centerPopupOnScreen = (popup) => {
+    const center = () => {
+      if (!map._container?.isConnected || !popup?.isOpen?.()) return
+
       const mapEl = map.getContainer()
-      const popupEl = popup?.getElement()
+      const popupEl = popup.getElement()
       if (!mapEl || !popupEl) return
 
       const mapRect = mapEl.getBoundingClientRect()
       const popupRect = popupEl.getBoundingClientRect()
       if (!mapRect.width || !mapRect.height || !popupRect.width || !popupRect.height) return
 
-      const mapCenterX = mapRect.left + mapRect.width / 2
-      const mapCenterY = mapRect.top + mapRect.height / 2
+      const frame = mapEl.closest('.map-frame')
+      const bottomControls = frame?.querySelectorAll('.map-activate-hint, .map-deactivate-btn') || []
+      let bottomReserve = 0
+      bottomControls.forEach((control) => {
+        const rect = control.getBoundingClientRect()
+        const overlapsMap = rect.bottom > mapRect.top && rect.top < mapRect.bottom
+        if (overlapsMap) {
+          bottomReserve = Math.max(bottomReserve, Math.min(76, mapRect.bottom - rect.top + 8))
+        }
+      })
+
+      const padding = Math.min(10, Math.max(6, mapRect.width * 0.02))
+      const targetCenterX = mapRect.left + mapRect.width / 2
+      const targetCenterY = mapRect.top + (mapRect.height - bottomReserve) / 2
+
+      // Clamp the desired popup center so the whole card remains inside the
+      // map frame. This also handles narrow phones/tablets without pushing
+      // the map unnecessarily far away from the selected point.
+      const minCenterX = mapRect.left + padding + popupRect.width / 2
+      const maxCenterX = mapRect.right - padding - popupRect.width / 2
+      const minCenterY = mapRect.top + padding + popupRect.height / 2
+      const maxCenterY = mapRect.bottom - padding - bottomReserve - popupRect.height / 2
+      const desiredCenterX = Math.min(Math.max(targetCenterX, minCenterX), maxCenterX)
+      const desiredCenterY = Math.min(Math.max(targetCenterY, minCenterY), maxCenterY)
+
       const popupCenterX = popupRect.left + popupRect.width / 2
       const popupCenterY = popupRect.top + popupRect.height / 2
-      const dx = mapCenterX - popupCenterX
-      const dy = mapCenterY - popupCenterY
+      const dx = popupCenterX - desiredCenterX
+      const dy = popupCenterY - desiredCenterY
 
-      if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
-        map.panBy([dx, dy], { animate: true, duration: 0.18 })
+      if (Math.abs(dx) > 1 || Math.abs(dy) > 1) {
+        map.panBy([dx, dy], { animate: false })
       }
+    }
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(center)
     })
+    // A short delayed pass catches the final popup size after fonts/content
+    // settle and also catches the transition from the inactive map hint to
+    // the active "Quitter la carte" chip.
+    setTimeout(center, 120)
+    setTimeout(center, 320)
+  }
+
+  // Exposed only for map actions such as route fitBounds(): those actions
+  // intentionally move the map after the popup has opened, so the popup gets
+  // one fresh centering pass without installing a permanent moveend listener.
+  map._sosdzCenterOpenPopup = () => {
+    if (openPopup) centerPopupOnScreen(openPopup)
   }
 
   const onOpen = (e) => {
     const popup = e.popup
-    const btn = popup.getElement()?.querySelector('.popup-photo-btn')
-    if (btn && onPhoto) btn.onclick = () => onPhoto(btn.dataset.photoUrl)
-    attachPopupPinchZoom(popup.getElement())
+    const popupEl = popup.getElement()
+    openPopup = popup
 
-    const recenter = () => centerPopup(popup)
-    popup._sosdzRecenter = recenter
-    map.on('moveend', recenter)
-    centerPopup(popup)
+    // A marker click is a deliberate interaction with the map. Open the
+    // popup normally AND wake the map on that same first tap; the tap must
+    // never be consumed by the "Touchez pour déplacer la carte" mode.
+    onActivate?.()
+
+    if (popupEl) {
+      // Leaflet normally stops touch/mouse events on popup content. Allow
+      // dragging from the popup body while keeping links/buttons clickable.
+      L.DomEvent.off(popupEl, 'mousedown touchstart')
+
+      popupEl.querySelectorAll('a, button, .leaflet-popup-close-button').forEach((control) => {
+        if (control.dataset.mapDragGuard) return
+        control.dataset.mapDragGuard = '1'
+        const stop = (event) => event.stopPropagation()
+        control.addEventListener('mousedown', stop)
+        control.addEventListener('touchstart', stop, { passive: true })
+      })
+    }
+
+    const btn = popupEl?.querySelector('.popup-photo-btn')
+    if (btn && onPhoto) btn.onclick = () => onPhoto(btn.dataset.photoUrl)
+
+    centerPopupOnScreen(popup)
   }
 
   const onClose = (e) => {
-    const recenter = e.popup?._sosdzRecenter
-    if (recenter) map.off('moveend', recenter)
+    if (e.popup === openPopup) openPopup = null
     if (e.popup) delete e.popup._sosdzRecenter
   }
 
   map.on('popupopen', onOpen)
   map.on('popupclose', onClose)
-}
-
-export function attachPopupPinchZoom(popupEl) {
-  // The *wrapper* (the actual white rounded box -- background, border,
-  // shadow, close button and all), not just its own .leaflet-popup-content
-  // child -- scaling only the text left the box around it its original
-  // size, so the enlarged text just spilled out past its own edges instead
-  // of the whole popup growing together, reported live (screenshot showed
-  // giant overflowing text next to an unchanged box). Never the outer
-  // .leaflet-popup itself: Leaflet positions that element with its own
-  // `transform: translate3d(...)`, and a second `transform` on the same
-  // element would replace that positioning outright, not add to it.
-  const wrapper = popupEl?.querySelector('.leaflet-popup-content-wrapper')
-  if (!wrapper) return
-  // Every open (even a repeat open of the same marker) starts back at the
-  // popup's natural size -- a pinch left over from a previous look at this
-  // same point shouldn't still be applied the next time it's opened.
-  // Bottom-center origin (roughly where the little tip/arrow meets the
-  // box) so pinching grows the popup from the point anchored to the map,
-  // instead of drifting away from it.
-  wrapper.style.transformOrigin = 'center bottom'
-  wrapper.style.transform = 'scale(1)'
-  wrapper._pinchScale = 1
-  // Each marker keeps the same popup DOM element across repeated opens, and
-  // 'popupopen' fires again on every one of those -- guard against wiring
-  // the same element's touch listeners more than once (they'd otherwise
-  // pile up, each firing the same pinch on every later touch).
-  if (wrapper.dataset.pinchZoomWired) return
-  wrapper.dataset.pinchZoomWired = '1'
-  let startDist = 0
-  let startScale = 1
-
-  const touchDist = (touches) => Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY)
-
-  const onTouchStart = (e) => {
-    if (e.touches.length !== 2) return
-    e.preventDefault()
-    e.stopPropagation()
-    startDist = touchDist(e.touches)
-    startScale = wrapper._pinchScale
-  }
-  const onTouchMove = (e) => {
-    if (e.touches.length !== 2 || !startDist) return
-    e.preventDefault()
-    e.stopPropagation()
-    // Clamped 1x-3x -- shrinking below the popup's own natural size would
-    // make it harder to read, the opposite of the point of this gesture.
-    wrapper._pinchScale = Math.min(3, Math.max(1, startScale * (touchDist(e.touches) / startDist)))
-    wrapper.style.transform = `scale(${wrapper._pinchScale})`
-  }
-  const onTouchEnd = (e) => {
-    if (e.touches.length >= 2) return
-    startDist = 0
-  }
-  wrapper.addEventListener('touchstart', onTouchStart, { passive: false })
-  wrapper.addEventListener('touchmove', onTouchMove, { passive: false })
-  wrapper.addEventListener('touchend', onTouchEnd, { passive: false })
-  wrapper.addEventListener('touchcancel', onTouchEnd, { passive: false })
-}
-
-// Lets a two-finger pinch zoom the map immediately, even before the usual
-// single-finger "tap to activate" step (see each map page's own mapActive) --
-// reported live: pinching on the map zoomed the whole page instead of the
-// map, since the map starts "asleep" behind a full-cover overlay div (a
-// plain sibling of Leaflet's own container, not a descendant of it) that
-// swallows every touch so a one-finger drag reads as page-scroll rather than
-// a map pan. A one-finger gesture genuinely needs that tap-first step (it's
-// ambiguous with scrolling); a two-finger pinch never is, so there's no
-// reason to gate it the same way -- outside the overlay/map entirely,
-// nothing here runs and the browser's own native pinch-zooms the page,
-// exactly as it already does today.
-// Handled by hand (computing zoom from the pinch distance and calling
-// map.setZoomAround directly) rather than just enabling Leaflet's own
-// TouchZoom, because a touch starting on the overlay never bubbles to
-// Leaflet's container-scoped listener in the first place -- it's a sibling
-// element, not an ancestor. Once the map is actually awake (mapActive, the
-// overlay unmounted) Leaflet's real TouchZoom (enabled in activateMap)
-// already handles every pinch correctly on its own; this only covers the
-// asleep-overlay gap. onActivate is called once the pinch ends, so the map
-// is left "awake" afterwards (matching having just directly interacted with
-// it) the same as a tap would have left it.
-export function attachMapPinchZoomOverlay(map, overlayEl, onActivate) {
-  if (!map || !overlayEl || overlayEl.dataset.pinchZoomWired) return
-  overlayEl.dataset.pinchZoomWired = '1'
-  let startDist = 0
-  let startZoom = 0
-  let center = null
-
-  const touchDist = (touches) => Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY)
-  const touchMidpoint = (touches) => [(touches[0].clientX + touches[1].clientX) / 2, (touches[0].clientY + touches[1].clientY) / 2]
-
-  const onTouchStart = (e) => {
-    if (e.touches.length !== 2) return
-    e.preventDefault()
-    startDist = touchDist(e.touches)
-    startZoom = map.getZoom()
-    const [mx, my] = touchMidpoint(e.touches)
-    const rect = map.getContainer().getBoundingClientRect()
-    center = map.containerPointToLatLng([mx - rect.left, my - rect.top])
-  }
-  const onTouchMove = (e) => {
-    if (e.touches.length !== 2 || !startDist) return
-    e.preventDefault()
-    map.setZoomAround(center, startZoom + Math.log2(touchDist(e.touches) / startDist), { animate: false })
-  }
-  const onTouchEnd = (e) => {
-    if (e.touches.length >= 2) return
-    if (startDist) onActivate?.()
-    startDist = 0
-  }
-  overlayEl.addEventListener('touchstart', onTouchStart, { passive: false })
-  overlayEl.addEventListener('touchmove', onTouchMove, { passive: false })
-  overlayEl.addEventListener('touchend', onTouchEnd, { passive: false })
-  overlayEl.addEventListener('touchcancel', onTouchEnd, { passive: false })
 }
 
 export function needPopupHtml(t, p, statusLabel) {

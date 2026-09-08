@@ -7,7 +7,7 @@ import { useDialog } from '../context/DialogContext'
 import { api } from '../api'
 import { maskPhone, formatDate, getCurrentPosition, RECENTER_BOX_METERS } from '../utils'
 import { fetchDrivingRoute, ROUTE_COLOR } from '../routing'
-import { flyerPopupButtonHtml, attachMapPopupBehavior, attachMapPinchZoomOverlay } from '../mapMarkers'
+import { flyerPopupButtonHtml, attachMapPopupBehavior, attachMapTapToActivate } from '../mapMarkers'
 import PhotoThumb from '../components/PhotoThumb'
 import PhotoLightbox from '../components/PhotoLightbox'
 import { IconTruck, IconLocate, IconExpand, IconClose } from '../icons'
@@ -161,14 +161,14 @@ export default function Deliveries() {
         // See CollectionPoints.jsx's own equivalent registration -- wires
         // up any popup's "view photo" link to the shared PhotoLightbox
         // without closing the popup underneath it.
-        attachMapPopupBehavior(mapRef.current, (photoUrl) => setLightboxPhoto(photoUrl))
+        attachMapPopupBehavior(mapRef.current, (photoUrl) => setLightboxPhoto(photoUrl), activateMap)
         // Also wired from the overlay's own ref callback (for when it
         // remounts later, e.g. deactivate/reactivate) -- done here too
         // since on first mount that ref callback can fire before this
         // effect has actually created the map yet (mapRef.current still
         // null at that point), which would otherwise silently skip wiring
         // it the very first time the page loads.
-        attachMapPinchZoomOverlay(mapRef.current, mapElRef.current?.parentElement?.querySelector('.map-activate-overlay'), activateMap)
+        attachMapTapToActivate(mapRef.current, activateMap)
       }
       
       let locations
@@ -266,12 +266,14 @@ export default function Deliveries() {
           // destination well outside the visible area once a trajectory is
           // drawn -- zoom out just enough to fit both ends of the line.
           map.fitBounds(L.latLngBounds([from, dest]).pad(0.3), { maxZoom: 13, animate: false })
+          requestAnimationFrame(() => map._sosdzCenterOpenPopup?.())
           fetchDrivingRoute(from, dest)
             .then((route) => {
               if (routeLineRef.current !== straight) return // superseded by another click/re-render meanwhile
               map.removeLayer(straight)
               routeLineRef.current = L.polyline(route.coordinates, { color: ROUTE_COLOR, weight: 4, dashArray: '1,10', lineCap: 'round' }).addTo(map)
               map.fitBounds(L.latLngBounds(route.coordinates).pad(0.3), { maxZoom: 13, animate: false })
+              requestAnimationFrame(() => map._sosdzCenterOpenPopup?.())
             })
             .catch(() => {
               /* routing service unreachable -- the basic straight line drawn above stays as-is */
@@ -306,7 +308,11 @@ export default function Deliveries() {
   const recenterOnMe = async () => {
     const map = mapRef.current
     if (!map) return
-    const pos = await getCurrentPosition()
+    const pos = await getCurrentPosition({
+      maximumAge: 30000,
+      timeout: 3000,
+      enableHighAccuracy: false,
+    })
     // See CollectionPoints.jsx's own recenterOnMe -- an explicit tap
     // deserves feedback on failure.
     if (!pos) {
@@ -357,11 +363,46 @@ export default function Deliveries() {
   const enterFullscreen = () => {
     activateMap()
     setFullscreen(true)
+
+    // Use the native Fullscreen API when the browser supports it. The CSS
+    // fullscreen class remains the fallback for browsers that reject or do
+    // not expose requestFullscreen (notably some iOS contexts).
+    const frame = mapFrameRef.current
+    if (frame?.requestFullscreen) {
+      frame.requestFullscreen({ navigationUI: 'hide' }).catch(() => {
+        // CSS fallback is already active through setFullscreen(true).
+      })
+    }
   }
   const exitFullscreen = () => {
+    const frame = mapFrameRef.current
+    if (document.fullscreenElement === frame) {
+      const exitPromise = document.exitFullscreen?.()
+      exitPromise?.catch(() => {})
+    }
     setFullscreen(false)
     deactivateMap()
   }
+
+  // Keep React state synchronized with browser fullscreen (including the
+  // Android back/escape gesture) and refresh Leaflet after the frame changes
+  // size. Leaflet documents invalidateSize() as the required call after a
+  // map container is resized dynamically.
+  useEffect(() => {
+    const onFullscreenChange = () => {
+      const nativeFullscreen = document.fullscreenElement === mapFrameRef.current
+      setFullscreen(nativeFullscreen)
+      if (!nativeFullscreen) deactivateMap()
+
+      requestAnimationFrame(() => {
+        mapRef.current?.invalidateSize({ pan: false, animate: false })
+        requestAnimationFrame(() => mapRef.current?.invalidateSize({ pan: false, animate: false }))
+      })
+    }
+
+    document.addEventListener('fullscreenchange', onFullscreenChange)
+    return () => document.removeEventListener('fullscreenchange', onFullscreenChange)
+  }, [])
 
   useEffect(() => {
     const map = mapRef.current
@@ -535,8 +576,7 @@ export default function Deliveries() {
               bubble below, never a separate "nothing to show" message
               standing in for the map. */}
           <div
-            className="map-frame"
-            
+            className={`map-frame${fullscreen ? ' map-frame-fullscreen' : ''}`}
             ref={mapFrameRef}
           >
             <div id="deliveries-map" ref={mapElRef} style={{ height: '100%' }} />
@@ -548,12 +588,7 @@ export default function Deliveries() {
             )}
             {!mapActive && !fullscreen && (
               <div
-                className="map-activate-overlay"
-                onClick={activateMap}
-                role="button"
-                tabIndex={0}
-                aria-label={t('map.tapToInteract')}
-                ref={(el) => attachMapPinchZoomOverlay(mapRef.current, el, activateMap)}
+                className="map-activate-overlay map-activate-hint-only"
               >
                 <span className="map-activate-hint">{t('map.tapToInteract')}</span>
               </div>
