@@ -9,7 +9,7 @@ import { urgencyColor, haversineKm, isInAlgeria, getCurrentPosition, RECENTER_BO
 import { flyerPopupButtonHtml, attachPopupPinchZoom, attachMapPinchZoomOverlay } from '../mapMarkers'
 import PhotoThumb from '../components/PhotoThumb'
 import PhotoLightbox from '../components/PhotoLightbox'
-import { IconLocate } from '../icons'
+import { IconLocate, IconExpand, IconClose } from '../icons'
 
 function statusLabel(t, s) {
   return t(`status.${s}`, s)
@@ -578,6 +578,22 @@ export default function NeedsList() {
               </button>
             )}
             
+            {!fullscreen && (
+              <button
+                type="button"
+                className="expand-btn"
+                onClick={enterFullscreen}
+                aria-label={t('map.viewFullscreen')}
+                title={t('map.viewFullscreen')}
+              >
+                <IconExpand width={18} height={18} />
+              </button>
+            )}
+            {fullscreen && (
+              <button type="button" className="exit-fullscreen-btn" onClick={exitFullscreen} aria-label={t('map.exitFullscreen')} title={t('map.exitFullscreen')}>
+                <IconClose width={20} height={20} />
+              </button>
+            )}
             <button type="button" className="locate-btn" onClick={recenterOnMe} aria-label={t('map.recenterOnMe')} title={t('map.recenterOnMe')}>
               <IconLocate width={18} height={18} />
             </button>
