@@ -523,7 +523,7 @@ export default function NeedsList() {
         <div className="map-wrap">
           {mapHasNothing && <p className="hint">{t('needsList.noActiveNeeds')}</p>}
           <div
-            className="map-frame"
+            className={`map-frame${fullscreen ? ' map-frame-fullscreen' : ''}`}
             
             ref={mapFrameRef}
           >
