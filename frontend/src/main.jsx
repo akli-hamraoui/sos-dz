@@ -44,10 +44,12 @@ window.L = L
 // Leaflet re-run the same auto-pan check on every subsequent map move,
 // not just on open, so it also self-corrects after fitBounds.
 L.Popup.mergeOptions({
-  maxWidth: 260,
-  autoPanPaddingTopLeft: [16, 90],
-  autoPanPaddingBottomRight: [16, 16],
-  keepInView: true,
+  maxWidth: 320,
+  className: 'sosdz-map-popup',
+  // Popup positioning is handled centrally by attachMapPopupBehavior() so
+  // every map page uses the same centered behavior.
+  autoPan: false,
+  keepInView: false,
 })
 // Registers the `gestureHandling` map option used on every Leaflet map in
 // this app (see NeedsList/CollectionPoints/NeedDetail): a single finger on
