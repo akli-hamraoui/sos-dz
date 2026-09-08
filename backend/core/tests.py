@@ -3788,3 +3788,25 @@ class UrgentSOSVoiceAnalysisTests(BaseAPITestCase):
         need = Need.objects.get(pk=response.data["id"])
         self.assertEqual(need.contact_name, "")
         self.assertTrue(need.recovery_code.startswith("voice-"))
+
+    def test_admin_can_submit_with_abroad_gps_and_falls_back_to_no_location(self):
+        admin = get_user_model().objects.create_superuser("abroadadmin", "abroad@example.com", "pw123456!")
+        self.client.force_authenticate(admin)
+        response = self.client.post(
+            "/api/needs/voice-guide/",
+            {
+                "campaign": self.campaign.pk,
+                "title": "SOS urgent",
+                "urgency": "critical",
+                "location_description": "Test admin abroad",
+                "latitude": "48.8566",
+                "longitude": "2.3522",
+                "voice_file": SimpleUploadedFile("voice.webm", b"audio", content_type="audio/webm"),
+            },
+            format="multipart",
+        )
+        self.assertEqual(response.status_code, 201, response.content)
+        need = Need.objects.get(pk=response.data["id"])
+        self.assertTrue(need.has_no_location)
+        self.assertIsNone(need.latitude)
+        self.assertIsNone(need.longitude)
