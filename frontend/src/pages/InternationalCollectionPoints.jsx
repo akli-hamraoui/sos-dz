@@ -39,6 +39,7 @@ export default function InternationalCollectionPoints() {
   const [points, setPoints] = useState([])
   const [viewMode, setViewMode] = useState('map')
   const [mapHasNothing, setMapHasNothing] = useState(false)
+  const [mapPointsLoading, setMapPointsLoading] = useState(false)
   // Filters tucked behind this toggle instead of always expanded -- same
   // collapsed-by-default pattern as CollectionPoints.jsx/NeedsList.jsx/
   // Deliveries.jsx, so this page's own location/search fields don't always
