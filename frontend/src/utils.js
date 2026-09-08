@@ -85,11 +85,17 @@ export const RECENTER_BOX_METERS = 200000
 // geolocation call elsewhere (Deliveries.jsx's drawRouteToPoint). Resolves
 // to null (never rejects) on denial/unavailability/timeout so callers can
 // stay best-effort/silent, matching the rest of the app's geolocation UX.
-export function getCurrentPosition() {
+export function getCurrentPosition(options = {}) {
   return new Promise((resolve) => {
     if (!navigator.geolocation) {
       resolve(null)
       return
+    }
+    const timeout = options.timeout ?? 8000
+    const positionOptions = {
+      enableHighAccuracy: options.enableHighAccuracy ?? false,
+      maximumAge: options.maximumAge ?? 0,
+      timeout,
     }
     let settled = false
     const settle = (value) => {
@@ -100,9 +106,9 @@ export function getCurrentPosition() {
     navigator.geolocation.getCurrentPosition(
       (pos) => settle([pos.coords.latitude, pos.coords.longitude]),
       () => settle(null),
-      { timeout: 8000 }
+      positionOptions
     )
-    setTimeout(() => settle(null), 10000)
+    setTimeout(() => settle(null), Math.max(timeout + 1000, 10000))
   })
 }
 
