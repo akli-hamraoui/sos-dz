@@ -17,7 +17,7 @@ import { IconTruck, IconLocate, IconExpand, IconClose } from '../icons'
 // see index.css --collection-accent) -- reused here instead of the
 // previous grey/black truck so a courier marker reads as "SOS DZ's own"
 // rather than a generic dark pin.
-const TRUCK_GREEN = '#2f6b52'
+const TRUCK_GREEN = '#2c8f67'
 
 // Maps Pickup.responder_type values to the same labels already used at
 // take-charge time (TakeCharge.jsx) -- reused here as the closest existing
@@ -227,10 +227,11 @@ export default function Deliveries() {
           : t('deliveries.departureMarkerLabel') + (loc.departure_description ? ` (${loc.departure_description})` : '')
         const photoBtn = flyerPopupButtonHtml(t, loc.photo)
         marker.bindPopup(
-          `<strong>${loc.responder_name}</strong><br>${t('deliveries.bringing')}: ${loc.content_brought || '—'}<br>` +
+          `<div class="deliveries-map-popup"><strong>${loc.responder_name}</strong><br>${t('deliveries.bringing')}: ${loc.content_brought || '—'}<br>` +
             `<em>${statusLine}</em><br><a href="/pickups/${loc.pickup_id}">${t('deliveries.viewTransporterDetail')}</a>` +
             `<br><a href="${destHref}">${destLabel}</a>` +
-            (photoBtn ? `<br>${photoBtn}` : '')
+            (photoBtn ? `<br>${photoBtn}` : '') +
+            `</div>`
         )
         // Trajectory to the destination on click -- silently skipped (no
         // line, no error, the rest of the marker/popup still works) when
@@ -385,7 +386,7 @@ export default function Deliveries() {
   }, [fullscreen])
 
   return (
-    <section className="needs-page needs-page-map-fill">
+    <section className="needs-page deliveries-page needs-page-map-fill">
       {/* Starting a delivery (previously two buttons in a second toolbar
           right here) is now reachable from the header's own truck
           QuickActions menu (App.jsx) -- same two destinations
