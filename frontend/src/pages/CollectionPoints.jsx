@@ -303,10 +303,13 @@ export default function CollectionPoints() {
       if (filterWilaya) params.set('wilaya', filterWilaya)
       if (search) params.set('search', search)
       const qs = params.toString() ? `?${params.toString()}` : ''
+      setMapPointsLoading(true)
       try {
         cpPins = await api(`/collection-points/locations/${qs}`)
       } catch {
         return // offline/network failure -- offline banner already informs the user
+      } finally {
+        setMapPointsLoading(false)
       }
       if (cancelled) return
       setMapHasNothing(cpPins.length === 0)
