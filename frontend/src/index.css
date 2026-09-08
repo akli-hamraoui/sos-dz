@@ -3325,3 +3325,56 @@ body {
  .urgent-sos-actions>*{flex-basis:100%;}
  .urgent-sos-language button{flex:1;}
 }
+
+/* --- Footer mobile/admin stability fix -------------------------------- */
+
+/* Keep the bottom navigation anchored to the viewport on every route,
+   including admin mode. Prevent page/layout overflow from making the
+   navigation appear displaced horizontally or vertically on mobile. */
+html,
+body,
+#root {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+body {
+  overflow-x: hidden;
+}
+
+.bottom-nav {
+  position: fixed !important;
+  inset-inline-start: 0 !important;
+  inset-inline-end: 0 !important;
+  bottom: 0 !important;
+  width: 100% !important;
+  max-width: 100vw !important;
+  margin: 0 !important;
+  transform: none !important;
+  display: grid !important;
+  grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+  z-index: 1100 !important;
+  visibility: visible !important;
+}
+
+.bottom-nav a,
+.bottom-nav button {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+@media (max-width: 699px) {
+  .bottom-nav {
+    padding-inline: 0 !important;
+    padding-block-start: 7px !important;
+    padding-block-end: max(8px, env(safe-area-inset-bottom)) !important;
+  }
+
+  .bottom-nav a,
+  .bottom-nav button {
+    width: 100%;
+    min-width: 0;
+  }
+}
