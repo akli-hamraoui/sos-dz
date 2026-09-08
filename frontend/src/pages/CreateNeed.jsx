@@ -496,9 +496,10 @@ export default function CreateNeed() {
                       <button type="button" className="gallery-thumb-btn" onClick={() => setLightbox({ src: p.previewUrl })}>
                         <img className="gallery-thumb" src={p.previewUrl} alt={t('common.photoAlt')} />
                       </button>
-                      <button type="button" className="link" onClick={() => removeDamagePhoto(idx)}>
-                        <IconTrash width={14} height={14} strokeWidth={2} />
-                      </button>
+                      <button type="button" className="photo-remove-btn" onClick={() => removeDamagePhoto(idx)} aria-label={t('common.delete')}>
+                         <IconTrash width={14} height={14} strokeWidth={2} />
+                         <span>{t('common.delete')}</span>
+                       </button>
                     </div>
                   ))}
                 </div>
