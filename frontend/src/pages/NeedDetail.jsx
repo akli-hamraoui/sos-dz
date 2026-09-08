@@ -126,7 +126,7 @@ export default function NeedDetail() {
       const trail = entry.trail
       if (!trail.length) return
       const latlngs = trail.map((p) => [p.latitude, p.longitude])
-      L.polyline(latlngs, { color: '#2f6b52' }).addTo(map)
+      L.polyline(latlngs, { color: '#2c8f67' }).addTo(map)
       // A truck pin (Uber-style: a small vehicle glyph on a white circle)
       // instead of Leaflet's default blue map-pin icon, so a responder en
       // route reads at a glance as "a delivery," distinct from the
