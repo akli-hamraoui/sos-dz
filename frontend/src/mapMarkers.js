@@ -136,7 +136,9 @@ export function attachMapPopupBehavior(map, onPhoto) {
       // One synchronous pan only. Leaflet's own autoPan guarantees visibility;
       // this pass provides the requested centered presentation.
       if (Math.abs(dx) > 6 || Math.abs(dy) > 6) {
-        map.panBy([dx, dy], { animate: false })
+        // Keep Leaflet's normal pan animation. The important fix is that this
+        // happens only once on popupopen, never from moveend.
+        map.panBy([dx, dy], { animate: true, duration: 0.2, easeLinearity: 0.25 })
       }
     })
   }
