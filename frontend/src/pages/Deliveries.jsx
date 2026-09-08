@@ -10,7 +10,7 @@ import { fetchDrivingRoute, ROUTE_COLOR } from '../routing'
 import { flyerPopupButtonHtml, attachPopupPinchZoom, attachMapPinchZoomOverlay } from '../mapMarkers'
 import PhotoThumb from '../components/PhotoThumb'
 import PhotoLightbox from '../components/PhotoLightbox'
-import { IconTruck, IconLocate } from '../icons'
+import { IconTruck, IconLocate, IconExpand, IconClose } from '../icons'
 
 // Same green already used elsewhere for this app's own accent (the
 // Collecte FAB, "Prendre en charge" button, Home's privacy notice --
@@ -555,6 +555,22 @@ export default function Deliveries() {
               </button>
             )}
             
+            {!fullscreen && (
+              <button
+                type="button"
+                className="expand-btn"
+                onClick={enterFullscreen}
+                aria-label={t('map.viewFullscreen')}
+                title={t('map.viewFullscreen')}
+              >
+                <IconExpand width={18} height={18} />
+              </button>
+            )}
+            {fullscreen && (
+              <button type="button" className="exit-fullscreen-btn" onClick={exitFullscreen} aria-label={t('map.exitFullscreen')} title={t('map.exitFullscreen')}>
+                <IconClose width={20} height={20} />
+              </button>
+            )}
             <button type="button" className="locate-btn" onClick={recenterOnMe} aria-label={t('map.recenterOnMe')} title={t('map.recenterOnMe')}>
               <IconLocate width={18} height={18} />
             </button>
