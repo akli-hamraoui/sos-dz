@@ -189,15 +189,16 @@ export function attachMapTapToActivate(map, onActivate) {
   })
 }
 
-export function attachMapPopupBehavior(map, onPhoto) {
+export function attachMapPopupBehavior(map, onPhoto, onActivate) {
   if (!map) return
 
-  // Center the popup itself in the visible map viewport. Leaflet normally
-  // places the popup above its marker, so centering the marker leaves the
-  // popup too high on small screens. We first wait for Leaflet to finish
-  // measuring the popup, then pan by the exact difference between the popup
-  // center and the map center. This works with the same pixel geometry on
-  // phones, tablets and desktop and does not create a move/recenter loop.
+  let openPopup = null
+
+  // Keep the popup inside the map frame while centering it in the usable
+  // viewport. The bottom interaction chip is part of the frame, so reserve
+  // only its footprint and never the page/bottom navigation. The popup pane
+  // itself is layered above the map controls by CSS, so the controls cannot
+  // cover the popup.
   const centerPopupOnScreen = (popup) => {
     const center = () => {
       if (!map._container?.isConnected || !popup?.isOpen?.()) return
@@ -210,40 +211,67 @@ export function attachMapPopupBehavior(map, onPhoto) {
       const popupRect = popupEl.getBoundingClientRect()
       if (!mapRect.width || !mapRect.height || !popupRect.width || !popupRect.height) return
 
-      const mapCenterX = mapRect.left + mapRect.width / 2
-      // Leave a little visual clearance below the popup in normal map mode:
-      // the fixed "Quitter la carte" chip sits above the bottom navigation and
-      // must never overlap the popup on short mobile/tablet viewports.
-      const exitButton = document.querySelector('.map-deactivate-btn')
-      const exitRect = exitButton?.getBoundingClientRect?.()
-      const reserveBottom = exitRect && exitRect.top < mapRect.bottom
-        ? Math.min(70, Math.max(28, mapRect.bottom - exitRect.top + 12))
-        : 0
-      const mapCenterY = mapRect.top + (mapRect.height - reserveBottom) / 2
+      const frame = mapEl.closest('.map-frame')
+      const bottomControls = frame?.querySelectorAll('.map-activate-hint, .map-deactivate-btn') || []
+      let bottomReserve = 0
+      bottomControls.forEach((control) => {
+        const rect = control.getBoundingClientRect()
+        const overlapsMap = rect.bottom > mapRect.top && rect.top < mapRect.bottom
+        if (overlapsMap) {
+          bottomReserve = Math.max(bottomReserve, Math.min(76, mapRect.bottom - rect.top + 8))
+        }
+      })
+
+      const padding = Math.min(10, Math.max(6, mapRect.width * 0.02))
+      const targetCenterX = mapRect.left + mapRect.width / 2
+      const targetCenterY = mapRect.top + (mapRect.height - bottomReserve) / 2
+
+      // Clamp the desired popup center so the whole card remains inside the
+      // map frame. This also handles narrow phones/tablets without pushing
+      // the map unnecessarily far away from the selected point.
+      const minCenterX = mapRect.left + padding + popupRect.width / 2
+      const maxCenterX = mapRect.right - padding - popupRect.width / 2
+      const minCenterY = mapRect.top + padding + popupRect.height / 2
+      const maxCenterY = mapRect.bottom - padding - bottomReserve - popupRect.height / 2
+      const desiredCenterX = Math.min(Math.max(targetCenterX, minCenterX), maxCenterX)
+      const desiredCenterY = Math.min(Math.max(targetCenterY, minCenterY), maxCenterY)
+
       const popupCenterX = popupRect.left + popupRect.width / 2
       const popupCenterY = popupRect.top + popupRect.height / 2
+      const dx = popupCenterX - desiredCenterX
+      const dy = popupCenterY - desiredCenterY
 
-      const dx = popupCenterX - mapCenterX
-      const dy = popupCenterY - mapCenterY
       if (Math.abs(dx) > 1 || Math.abs(dy) > 1) {
-        // panBy uses the map viewport's pixel coordinate system. Moving by
-        // the popup-minus-map delta places the popup center exactly on the
-        // map center while keeping the popup tip attached to its marker.
         map.panBy([dx, dy], { animate: false })
       }
     }
 
-    // Leaflet lays out the popup asynchronously. Two frames plus a short
-    // fallback cover mobile browser layout, fonts and dynamic popup content.
     requestAnimationFrame(() => {
       requestAnimationFrame(center)
     })
+    // A short delayed pass catches the final popup size after fonts/content
+    // settle and also catches the transition from the inactive map hint to
+    // the active "Quitter la carte" chip.
     setTimeout(center, 120)
+    setTimeout(center, 320)
+  }
+
+  // Exposed only for map actions such as route fitBounds(): those actions
+  // intentionally move the map after the popup has opened, so the popup gets
+  // one fresh centering pass without installing a permanent moveend listener.
+  map._sosdzCenterOpenPopup = () => {
+    if (openPopup) centerPopupOnScreen(openPopup)
   }
 
   const onOpen = (e) => {
     const popup = e.popup
     const popupEl = popup.getElement()
+    openPopup = popup
+
+    // A marker click is a deliberate interaction with the map. Open the
+    // popup normally AND wake the map on that same first tap; the tap must
+    // never be consumed by the "Touchez pour déplacer la carte" mode.
+    onActivate?.()
 
     if (popupEl) {
       // Leaflet normally stops touch/mouse events on popup content. Allow
@@ -266,6 +294,7 @@ export function attachMapPopupBehavior(map, onPhoto) {
   }
 
   const onClose = (e) => {
+    if (e.popup === openPopup) openPopup = null
     if (e.popup) delete e.popup._sosdzRecenter
   }
 
