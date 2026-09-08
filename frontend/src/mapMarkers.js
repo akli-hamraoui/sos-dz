@@ -7,7 +7,7 @@
 export const NEED_SOS_ICON = '<img src="/icons/need-marker-sos.png" width="18" height="18" alt="" style="filter:invert(1)" />'
 
 export const CP_BOX_SVG =
-  '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2f6b52" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+  '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2c8f67" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
   '<path d="M3.5 7.5 12 3l8.5 4.5v9L12 21l-8.5-4.5v-9Z"/><path d="M3.5 7.5 12 12l8.5-4.5"/><path d="M12 12v9"/></svg>'
 
 export function needIcon(L, urgencyColor, urgency) {
