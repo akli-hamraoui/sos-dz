@@ -309,7 +309,7 @@ export default function CollectionPoints() {
       } catch {
         return // offline/network failure -- offline banner already informs the user
       } finally {
-        setMapPointsLoading(false)
+        if (!cancelled) setMapPointsLoading(false)
       }
       if (cancelled) return
       setMapHasNothing(cpPins.length === 0)
@@ -682,6 +682,12 @@ export default function CollectionPoints() {
             ref={mapFrameRef}
           >
             <div id="cp-map" ref={mapElRef} style={{ height: '100%' }} />
+            {mapPointsLoading && (
+              <div className="map-points-loader" aria-live="polite" aria-label="Chargement des points">
+                <span className="map-points-loader-spinner" aria-hidden="true" />
+                <span>Chargement des points…</span>
+              </div>
+            )}
             {!mapActive && !fullscreen && (
               <div
                 className="map-activate-overlay"
