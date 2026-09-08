@@ -2656,3 +2656,180 @@ body {
     min-height: 104px;
   }
 }
+
+
+/* --- Transporteurs / Livraisons : alignement charte SOSDZ v5 ----------------
+   Même langage visuel que les pages Collecte : vert de marque lumineux,
+   surfaces douces, rouge uniquement pour l'état actif/urgence.
+   Scope limité à .deliveries-page pour ne pas modifier les autres listes. */
+
+.deliveries-page {
+  color: var(--text);
+}
+
+.deliveries-page .toolbar {
+  margin-block-end: 12px;
+}
+
+.deliveries-page .filters-toggle {
+  color: var(--text);
+  border-color: var(--border);
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .04);
+}
+
+.deliveries-page .filters-toggle:hover {
+  background: var(--brand-green-soft);
+  border-color: var(--brand-green-border);
+}
+
+.deliveries-page .view-toggle {
+  border-color: var(--border);
+  background: rgba(255, 255, 255, .96);
+}
+
+.deliveries-page .view-toggle button {
+  color: var(--text);
+  background: transparent;
+}
+
+.deliveries-page .view-toggle button.active {
+  background: var(--sos-red);
+  border-color: var(--sos-red);
+  color: #fff;
+}
+
+/* Liste transporteurs : carte blanche, légère et cohérente avec les
+   cartes de collecte. Le vert de marque sert aux éléments positifs,
+   jamais un vert très sombre comme couleur dominante. */
+.deliveries-page .need-card {
+  position: relative;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, .96);
+  border-radius: 16px;
+  box-shadow: 0 2px 10px rgba(31, 54, 45, .05);
+  color: var(--text);
+}
+
+.deliveries-page .need-card:hover {
+  border-color: var(--brand-green-border);
+  box-shadow: 0 4px 16px rgba(44, 143, 103, .10);
+}
+
+.deliveries-page .need-card h3 {
+  color: var(--text);
+}
+
+.deliveries-page .need-card .truck-icon {
+  color: var(--brand-green);
+}
+
+.deliveries-page .need-card .badge-accent {
+  background: var(--brand-green);
+  border-color: var(--brand-green);
+}
+
+.deliveries-page .need-card .badge-muted {
+  background: #f1f3f2;
+  color: #66716c;
+  border-color: #dce3df;
+}
+
+/* Carte transporteurs : le cadre et les contrôles reprennent exactement
+   les surfaces claires de la charte. */
+.deliveries-page .map-frame {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--brand-green-soft);
+  box-shadow: 0 2px 12px rgba(31, 54, 45, .07);
+}
+
+.deliveries-page .locate-btn,
+.deliveries-page .expand-btn {
+  border-color: var(--brand-green-border);
+  color: var(--brand-green);
+  background: rgba(255, 255, 255, .97);
+}
+
+.deliveries-page .locate-btn:hover,
+.deliveries-page .expand-btn:hover {
+  background: var(--brand-green-soft);
+}
+
+.deliveries-page .map-activate-hint,
+.deliveries-page .map-deactivate-btn {
+  background: var(--brand-green);
+}
+
+.deliveries-page .unknown-position-chip {
+  background: rgba(255, 255, 255, .96);
+  border: 1px solid var(--border);
+  color: var(--text);
+  box-shadow: 0 2px 10px rgba(31, 54, 45, .08);
+}
+
+.deliveries-page .unknown-position-pin {
+  color: var(--brand-green);
+}
+
+.deliveries-page .unknown-position-count {
+  background: var(--brand-green);
+  color: #fff;
+}
+
+/* Les marqueurs camion utilisent maintenant le vert de marque SOSDZ
+   (#2c8f67) défini dans Deliveries.jsx, avec la même logique de
+   distinction visuelle pour un départ déclaré. */
+.deliveries-page .pickup-marker-pin {
+  border-color: var(--brand-green);
+  background: rgba(255, 255, 255, .96);
+}
+
+.deliveries-page .pickup-marker-pin-departure {
+  border-color: var(--brand-green-border);
+  background: rgba(248, 251, 249, .96);
+}
+
+.deliveries-page .legend-note {
+  color: #68756f;
+  background: var(--brand-green-soft);
+  border-inline-start: 3px solid var(--brand-green);
+  padding: 8px 10px;
+  border-radius: 8px;
+}
+
+/* Popup d'un transporteur : même hiérarchie visuelle que les cartes. */
+.deliveries-map-popup {
+  color: var(--text);
+}
+
+.deliveries-map-popup strong {
+  color: var(--text);
+  font-size: 15px;
+}
+
+.deliveries-map-popup a {
+  color: var(--brand-green);
+  font-weight: 600;
+}
+
+@media (max-width: 699px) {
+  .deliveries-page .toolbar {
+    gap: 8px;
+  }
+
+  .deliveries-page .view-toggle {
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .deliveries-page .need-card {
+    border-radius: 14px;
+    box-shadow: 0 1px 8px rgba(31, 54, 45, .05);
+  }
+
+  .deliveries-page .map-frame {
+    border-radius: 14px;
+  }
+}
