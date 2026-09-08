@@ -81,10 +81,12 @@ export const RECENTER_BOX_METERS = 200000
 // and silently resolved null before they'd even answered the prompt --
 // reported as "recenter on me"/directions doing nothing on a first try,
 // then working on a second one (permission already granted by then).
-// 8s/10s matches the timeout already used for a comparable one-off
-// geolocation call elsewhere (Deliveries.jsx's drawRouteToPoint). Resolves
-// to null (never rejects) on denial/unavailability/timeout so callers can
-// stay best-effort/silent, matching the rest of the app's geolocation UX.
+// Recenter is an interactive control, so it should feel immediate when the
+// browser already has a recent fix. Accept a cached position up to 30s old;
+ // only fall back to a fresh GPS fix when needed. The short timeout prevents
+// a cold GPS/permission prompt from blocking the UI for many seconds.
+// Resolves to null (never rejects) on denial/unavailability/timeout so callers
+// can stay best-effort/silent, matching the rest of the app's geolocation UX.
 export function getCurrentPosition() {
   return new Promise((resolve) => {
     if (!navigator.geolocation) {
@@ -100,9 +102,9 @@ export function getCurrentPosition() {
     navigator.geolocation.getCurrentPosition(
       (pos) => settle([pos.coords.latitude, pos.coords.longitude]),
       () => settle(null),
-      { timeout: 8000 }
+      { maximumAge: 30000, timeout: 3500, enableHighAccuracy: false }
     )
-    setTimeout(() => settle(null), 10000)
+    setTimeout(() => settle(null), 4500)
   })
 }
 
