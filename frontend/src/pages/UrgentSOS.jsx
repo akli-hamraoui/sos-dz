@@ -83,6 +83,8 @@ export default function UrgentSOS() {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [createdNeedId, setCreatedNeedId] = useState(null)
+  const [accessToken, setAccessToken] = useState('')
+  const [tokenCopied, setTokenCopied] = useState(false)
   const recorderRef = useRef(null)
   const streamRef = useRef(null)
   const chunksRef = useRef([])
@@ -271,6 +273,8 @@ export default function UrgentSOS() {
         return
       }
       const need = result.data
+      setAccessToken(need.access_token || '')
+      setTokenCopied(false)
       saveNeedToken(need.id, { access_token: need.access_token, location_viewer_share_token: need.location_viewer_share_token })
       refreshConfig()
       setCreatedNeedId(need.id)
@@ -279,6 +283,17 @@ export default function UrgentSOS() {
       setError(translateApiError(err, t))
     } finally {
       setBusy(false)
+    }
+  }
+
+  const copyAccessToken = async () => {
+    if (!accessToken) return
+    try {
+      await navigator.clipboard.writeText(accessToken)
+      setTokenCopied(true)
+      window.setTimeout(() => setTokenCopied(false), 2200)
+    } catch {
+      setError(t('urgentSos.copyTokenFailed'))
     }
   }
 
@@ -409,6 +424,18 @@ export default function UrgentSOS() {
             <IconCheckCircle width={52} height={52} />
             <h2>{t('urgentSos.doneTitle')}</h2>
             <p>{t('urgentSos.doneText')}</p>
+            {accessToken && (
+              <div className="urgent-sos-token-box" role="status">
+                <div className="urgent-sos-token-title">{t('urgentSos.tokenTitle')}</div>
+                <p className="urgent-sos-token-warning">{t('urgentSos.tokenWarning')}</p>
+                <div className="urgent-sos-token-row">
+                  <strong className="urgent-sos-token">{accessToken}</strong>
+                  <button type="button" className="urgent-sos-copy-token" onClick={copyAccessToken} aria-label={t('urgentSos.copyToken')}>
+                    📋 {tokenCopied ? t('urgentSos.tokenCopied') : t('urgentSos.copyToken')}
+                  </button>
+                </div>
+              </div>
+            )}
             <div className="urgent-sos-actions">
               {createdNeedId && <button type="button" className="urgent-sos-primary" onClick={() => navigate(`/needs/${createdNeedId}`)}>{t('urgentSos.viewNeed')}</button>}
               <Link to="/" className="urgent-sos-secondary">{t('urgentSos.backHome')}</Link>
