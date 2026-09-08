@@ -1714,8 +1714,9 @@ fieldset {
 }
 .sosdz-map-popup .leaflet-popup-content {
   margin: 14px 16px;
-  min-width: 220px;
-  max-width: min(288px, calc(100vw - 64px));
+  min-width: 0;
+  width: min(270px, calc(100vw - 48px));
+  max-width: min(270px, calc(100vw - 48px));
   color: var(--text);
   overflow-wrap: anywhere;
   line-height: 1.5;
@@ -1904,8 +1905,9 @@ fieldset {
   left: 50%;
   transform: translateX(-50%);
   z-index: 1300;
-  background: rgba(17, 17, 17, 0.82);
-  color: #fff;
+  background: var(--brand-green-soft);
+  color: var(--brand-green);
+  border: 1px solid var(--brand-green-border);
   font-size: 13px;
   font-weight: 500;
   padding: 8px 16px;
@@ -1926,10 +1928,13 @@ fieldset {
    (top-right) leave that spot clear. */
 .map-international-link {
   position: absolute;
-  top: 12px;
+  top: 56px;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 1200;
+  z-index: 1100;
+  max-width: calc(100% - 120px);
+  overflow: hidden;
+  text-overflow: ellipsis;
   display: flex;
   align-items: center;
   gap: 6px;
