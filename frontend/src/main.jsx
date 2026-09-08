@@ -44,8 +44,8 @@ window.L = L
 // Leaflet re-run the same auto-pan check on every subsequent map move,
 // not just on open, so it also self-corrects after fitBounds.
 L.Popup.mergeOptions({
-  maxWidth: 270,
-  maxHeight: 320,
+  maxWidth: 220,
+  maxHeight: 260,
   className: 'sosdz-map-popup',
   // Popup positioning is handled centrally by attachMapPopupBehavior() so
   // every map page uses the same centered behavior.
