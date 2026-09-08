@@ -1717,26 +1717,27 @@ fieldset {
   border-bottom: 1px solid #cfe4d9;
 }
 .sosdz-map-popup .leaflet-popup-content {
-  margin: 10px 12px;
-  padding-block-start: 14px;
-  padding-inline-end: 24px;
+  margin: 6px 8px;
+  padding-block-start: 2px;
+  padding-inline-end: 4px;
   min-width: 0;
-  width: min(220px, calc(100vw - 52px));
-  max-width: min(220px, calc(100vw - 52px));
-  max-height: min(260px, 42vh);
-  overflow-y: auto;
+  width: min(260px, calc(100vw - 44px));
+  max-width: min(260px, calc(100vw - 44px));
+  max-height: none;
+  overflow: visible;
   color: var(--text);
   overflow-wrap: anywhere;
-  line-height: 1.45;
+  line-height: 1.3;
   font-size: 13px;
 }
 .sosdz-map-popup .leaflet-popup-content strong:first-child {
   display: block;
-  margin-block-end: 5px;
-  padding-inline-end: 2px;
+  margin-block-end: 2px;
+  padding-inline-end: 0;
+  max-width: calc(100% - 34px);
   color: var(--sos-green);
   font-size: 14px;
-  line-height: 1.3;
+  line-height: 1.25;
 }
 .sosdz-map-popup .leaflet-popup-close-button {
   top: 7px !important;
@@ -1896,21 +1897,14 @@ fieldset {
   z-index: 900;
   cursor: pointer;
 }
-/* .map-activate-hint and .map-deactivate-btn are fixed to the *viewport*,
-   not the map -- confirmed live: anchoring them inside the map's own box
-   (a tall 600px container, or fullscreen) could leave them scrolled out of
-   view, or drifting as if they were part of the map itself. Pinned just
-   above .bottom-nav instead (same fixed bottom-of-screen spot regardless
-   of where the map's own box currently sits, and never moves as the map
-   pans/zooms underneath), sized to clear .bottom-nav's own height
-   (roughly icon + label + its own top/bottom padding) plus the safe-area
-   inset .bottom-nav itself pads for. Still a child of .map-activate-overlay
-   in the DOM (position:fixed only escapes layout, not event bubbling), so
-   tapping the hint pill still reaches the overlay's own onClick. */
+/* Keep the map interaction controls attached to the map frame, in the same
+   top control row as fullscreen and recenter. This keeps them aligned with
+   the map's own reference frame on mobile, tablet and desktop. */
 .map-activate-hint,
 .map-deactivate-btn {
-  position: fixed;
-  bottom: calc(84px + env(safe-area-inset-bottom));
+  position: absolute;
+  top: 12px;
+  bottom: auto;
   left: 50%;
   transform: translateX(-50%);
   z-index: 1300;
@@ -3261,6 +3255,14 @@ body {
 }
 
 @media (max-width: 699px) {
+  .map-activate-hint,
+  .map-deactivate-btn {
+    top: 12px;
+    bottom: auto;
+    font-size: 12px;
+    padding: 7px 12px;
+  }
+
   .map-international-link {
     left: 10px;
     right: auto;
