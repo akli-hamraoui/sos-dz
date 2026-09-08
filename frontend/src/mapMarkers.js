@@ -212,27 +212,27 @@ export function attachMapPopupBehavior(map, onPhoto, onActivate) {
       if (!mapRect.width || !mapRect.height || !popupRect.width || !popupRect.height) return
 
       const frame = mapEl.closest('.map-frame')
-      const bottomControls = frame?.querySelectorAll('.map-activate-hint, .map-deactivate-btn') || []
-      let bottomReserve = 0
-      bottomControls.forEach((control) => {
+      const topControls = frame?.querySelectorAll('.map-activate-hint, .map-deactivate-btn, .expand-btn, .locate-btn') || []
+      let topReserve = 0
+      topControls.forEach((control) => {
         const rect = control.getBoundingClientRect()
         const overlapsMap = rect.bottom > mapRect.top && rect.top < mapRect.bottom
         if (overlapsMap) {
-          bottomReserve = Math.max(bottomReserve, Math.min(76, mapRect.bottom - rect.top + 8))
+          topReserve = Math.max(topReserve, Math.min(76, rect.bottom - mapRect.top + 8))
         }
       })
 
       const padding = Math.min(10, Math.max(6, mapRect.width * 0.02))
       const targetCenterX = mapRect.left + mapRect.width / 2
-      const targetCenterY = mapRect.top + (mapRect.height - bottomReserve) / 2
+      const targetCenterY = mapRect.top + topReserve + (mapRect.height - topReserve) / 2
 
       // Clamp the desired popup center so the whole card remains inside the
       // map frame. This also handles narrow phones/tablets without pushing
       // the map unnecessarily far away from the selected point.
       const minCenterX = mapRect.left + padding + popupRect.width / 2
       const maxCenterX = mapRect.right - padding - popupRect.width / 2
-      const minCenterY = mapRect.top + padding + popupRect.height / 2
-      const maxCenterY = mapRect.bottom - padding - bottomReserve - popupRect.height / 2
+      const minCenterY = mapRect.top + padding + topReserve + popupRect.height / 2
+      const maxCenterY = mapRect.bottom - padding - popupRect.height / 2
       const desiredCenterX = Math.min(Math.max(targetCenterX, minCenterX), maxCenterX)
       const desiredCenterY = Math.min(Math.max(targetCenterY, minCenterY), maxCenterY)
 
