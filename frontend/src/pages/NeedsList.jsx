@@ -256,6 +256,7 @@ export default function NeedsList() {
       if (search) params.set('search', search)
       const qs = params.toString() ? `?${params.toString()}` : ''
       let needPins = []
+      setMapPointsLoading(true)
       try {
         // This is the SOS/Besoins map specifically -- needs only, never
         // collection points (those get their own map on CollectionPoints.jsx,
@@ -263,6 +264,8 @@ export default function NeedsList() {
         needPins = await api(`/needs/locations/${qs}`)
       } catch {
         return // offline/network failure -- offline banner already informs the user
+      } finally {
+        setMapPointsLoading(false)
       }
       if (cancelled) return
 
