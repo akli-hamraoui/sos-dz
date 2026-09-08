@@ -4,6 +4,8 @@
 // used separately by NeedsList.jsx and CollectionPoints.jsx, factored out
 // here rather than a third copy-pasted inline SVG string.
 
+import L from 'leaflet'
+
 export const NEED_SOS_ICON = '<img src="/icons/need-marker-sos.png" width="18" height="18" alt="" style="filter:invert(1)" />'
 
 export const CP_BOX_SVG =
@@ -136,16 +138,33 @@ export function attachMapPopupBehavior(map, onPhoto) {
       // One synchronous pan only. Leaflet's own autoPan guarantees visibility;
       // this pass provides the requested centered presentation.
       if (Math.abs(dx) > 6 || Math.abs(dy) > 6) {
-        // Keep Leaflet's normal pan animation. The important fix is that this
-        // happens only once on popupopen, never from moveend.
-        map.panBy([dx, dy], { animate: true, duration: 0.2, easeLinearity: 0.25 })
+        // Center immediately. Animating this correction makes the map feel
+        // like it is still trying to recenter after the popup has opened.
+        map.panBy([dx, dy], { animate: false })
       }
     })
   }
 
   const onOpen = (e) => {
     const popup = e.popup
-    const btn = popup.getElement()?.querySelector('.popup-photo-btn')
+    const popupEl = popup.getElement()
+    if (popupEl) {
+      // Leaflet deliberately blocks mousedown/touchstart on popup containers.
+      // That is normally useful, but it also prevents a user from dragging
+      // the map when their finger starts on the popup. Keep click/dblclick
+      // protection for links/buttons, but let the map's drag handler receive
+      // press events from the popup body.
+      L.DomEvent.off(popupEl, 'mousedown touchstart')
+
+      popupEl.querySelectorAll('a, button, .leaflet-popup-close-button').forEach((control) => {
+        if (control.dataset.mapDragGuard) return
+        control.dataset.mapDragGuard = '1'
+        const stop = (event) => event.stopPropagation()
+        control.addEventListener('mousedown', stop)
+        control.addEventListener('touchstart', stop, { passive: true })
+      })
+    }
+    const btn = popupEl?.querySelector('.popup-photo-btn')
     if (btn && onPhoto) btn.onclick = () => onPhoto(btn.dataset.photoUrl)
     attachPopupPinchZoom(popup.getElement())
     centerPopupOnce(popup)
