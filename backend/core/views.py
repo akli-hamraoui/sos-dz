@@ -340,7 +340,20 @@ class NeedViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retriev
             # may speak a different language (or mix languages), so the STT
             # layer must auto-detect the actual recording language.
             transcript = transcribe_audio(audio)
+            logger.info(
+                "Urgent SOS transcription ready: language_hint=%s chars=%s transcript=%r",
+                language, len(transcript), transcript[:5000],
+            )
         except VoiceAIError as exc:
+            logger.error(
+                "Urgent SOS transcription unavailable: language_hint=%s "
+                "audio_name=%s content_type=%s size=%s reason=%s",
+                language,
+                getattr(audio, "name", None),
+                getattr(audio, "content_type", None),
+                getattr(audio, "size", None),
+                exc,
+            )
             return Response({"detail": str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
         except Exception:
             logger.exception("Unexpected urgent SOS voice transcription error")
@@ -348,11 +361,19 @@ class NeedViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retriev
 
         try:
             extraction = extract_need_data(transcript)
+            logger.info(
+                "Urgent SOS LLM extraction succeeded: fields=%s extraction=%s",
+                sorted(extraction.keys()), extraction,
+            )
         except VoiceAIError:
             # A good transcript is still valuable even if the structured LLM
             # extraction is unavailable. The frontend can show the transcript
             # and the user can correct the fields manually before confirming.
-            logger.exception("Urgent SOS transcript succeeded but LLM extraction failed")
+            logger.exception(
+                "Urgent SOS transcript succeeded but LLM extraction failed; "
+                "transcript=%r",
+                transcript[:5000],
+            )
             extraction = {}
         except Exception:
             logger.exception("Unexpected urgent SOS voice extraction error")
