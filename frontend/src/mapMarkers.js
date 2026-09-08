@@ -107,6 +107,59 @@ export function flyerPopupButtonHtml(t, photoUrl) {
 // tapping the flyer button, a link, the popup's own close "x", or a one-
 // finger drag -- is left completely alone. Call once per popup, from the
 // map's own 'popupopen' handler (see each map page).
+// Shared behavior for every Leaflet popup in the application.
+// The popup is centered in the visible map viewport when it opens and
+// re-centered after map moves while it remains open. This keeps popups
+// readable on mobile and prevents a route fitBounds() from stranding an
+// already-open popup near the edge of the map.
+export function attachMapPopupBehavior(map, onPhoto) {
+  if (!map) return
+
+  const centerPopup = (popup) => {
+    requestAnimationFrame(() => {
+      const mapEl = map.getContainer()
+      const popupEl = popup?.getElement()
+      if (!mapEl || !popupEl) return
+
+      const mapRect = mapEl.getBoundingClientRect()
+      const popupRect = popupEl.getBoundingClientRect()
+      if (!mapRect.width || !mapRect.height || !popupRect.width || !popupRect.height) return
+
+      const mapCenterX = mapRect.left + mapRect.width / 2
+      const mapCenterY = mapRect.top + mapRect.height / 2
+      const popupCenterX = popupRect.left + popupRect.width / 2
+      const popupCenterY = popupRect.top + popupRect.height / 2
+      const dx = mapCenterX - popupCenterX
+      const dy = mapCenterY - popupCenterY
+
+      if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
+        map.panBy([dx, dy], { animate: true, duration: 0.18 })
+      }
+    })
+  }
+
+  const onOpen = (e) => {
+    const popup = e.popup
+    const btn = popup.getElement()?.querySelector('.popup-photo-btn')
+    if (btn && onPhoto) btn.onclick = () => onPhoto(btn.dataset.photoUrl)
+    attachPopupPinchZoom(popup.getElement())
+
+    const recenter = () => centerPopup(popup)
+    popup._sosdzRecenter = recenter
+    map.on('moveend', recenter)
+    centerPopup(popup)
+  }
+
+  const onClose = (e) => {
+    const recenter = e.popup?._sosdzRecenter
+    if (recenter) map.off('moveend', recenter)
+    if (e.popup) delete e.popup._sosdzRecenter
+  }
+
+  map.on('popupopen', onOpen)
+  map.on('popupclose', onClose)
+}
+
 export function attachPopupPinchZoom(popupEl) {
   // The *wrapper* (the actual white rounded box -- background, border,
   // shadow, close button and all), not just its own .leaflet-popup-content
