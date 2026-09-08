@@ -573,7 +573,7 @@ export default function InternationalCollectionPoints() {
       {viewMode === 'map' && (
         <div className="map-wrap">
           {mapHasNothing && <p className="hint">{t('internationalCollectionPoints.noPointsYet')}</p>}
-          <div className="map-frame">
+          <div className={`map-frame${fullscreen ? ' map-frame-fullscreen' : ''}`}>
             <div id="intl-cp-map" ref={mapElRef}  />
             {mapPointsLoading && (
               <div className="map-points-loader" aria-live="polite" aria-label="Chargement des points">
