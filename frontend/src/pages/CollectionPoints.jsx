@@ -655,7 +655,7 @@ export default function CollectionPoints() {
         <div className="map-wrap">
           {mapHasNothing && <p className="hint">{t('collectionPoints.noPointsYet')}</p>}
           <div
-            className="map-frame"
+            className={`map-frame${fullscreen ? ' map-frame-fullscreen' : ''}`}
             
             ref={mapFrameRef}
           >
