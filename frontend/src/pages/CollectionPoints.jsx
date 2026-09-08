@@ -423,7 +423,7 @@ export default function CollectionPoints() {
   const recenterOnMe = async () => {
     const map = mapRef.current
     if (!map) return
-    const pos = await getCurrentPosition()
+    const pos = myPosRef.current || await getCurrentPosition()
     // Unlike the passive/automatic geolocation attempts elsewhere on this
     // page (smartZoom's own best-effort default view), this button is a
     // deliberate tap -- staying silent on failure just looks broken (most
@@ -655,8 +655,7 @@ export default function CollectionPoints() {
         <div className="map-wrap">
           {mapHasNothing && <p className="hint">{t('collectionPoints.noPointsYet')}</p>}
           <div
-            className="map-frame"
-            
+            className={`map-frame${fullscreen ? " map-frame-fullscreen" : ""}`}
             ref={mapFrameRef}
           >
             <div id="cp-map" ref={mapElRef} style={{ height: '100%' }} />
