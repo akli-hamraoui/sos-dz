@@ -64,6 +64,7 @@ export default function Deliveries() {
   // unavailable" purely by omission -- see the .noPosition list below).
   const [locatedPickupIds, setLocatedPickupIds] = useState(() => new Set())
   const [mapPointsLoading, setMapPointsLoading] = useState(false)
+  const mapPointsLoadedRef = useRef(false)
   // The position filter applied on top of the server-side-filtered
   // `pickups` -- client-side, since locatedPickupIds is itself only known
   // client-side (derived from the separate live-locations fetch below).
@@ -175,13 +176,17 @@ export default function Deliveries() {
       }
       
       let locations
-      setMapPointsLoading(true)
+      const showInitialLoader = !mapPointsLoadedRef.current
+      if (showInitialLoader) setMapPointsLoading(true)
       try {
         locations = await api('/pickups/live-locations/')
       } catch {
         return // offline/network failure -- silently skip this refresh, the next tick retries
       } finally {
-        if (!cancelled) setMapPointsLoading(false)
+        if (!cancelled) {
+          mapPointsLoadedRef.current = true
+          if (showInitialLoader) setMapPointsLoading(false)
+        }
       }
       // Updated regardless of viewMode -- the list view's "no position"
       // flagging (below) needs this even when the map itself isn't mounted.
