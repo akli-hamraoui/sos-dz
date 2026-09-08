@@ -6,7 +6,7 @@ import { useApp } from '../context/AppContext'
 import { useDialog } from '../context/DialogContext'
 import { api } from '../api'
 import { urgencyColor, haversineKm, isInAlgeria, getCurrentPosition, RECENTER_BOX_METERS } from '../utils'
-import { flyerPopupButtonHtml, attachMapPopupBehavior, attachMapPinchZoomOverlay } from '../mapMarkers'
+import { flyerPopupButtonHtml, attachMapPopupBehavior, attachMapTapToActivate } from '../mapMarkers'
 import PhotoThumb from '../components/PhotoThumb'
 import PhotoLightbox from '../components/PhotoLightbox'
 import { IconLocate, IconExpand, IconClose } from '../icons'
@@ -210,7 +210,7 @@ export default function NeedsList() {
           // effect has actually created the map yet (mapRef.current still
           // null at that point), which would otherwise silently skip
           // wiring it the very first time the page loads.
-          attachMapPinchZoomOverlay(mapRef.current, mapElRef.current?.parentElement?.querySelector('.map-activate-overlay'), activateMap)
+          attachMapTapToActivate(mapRef.current, activateMap)
         }
         
 
@@ -574,12 +574,7 @@ export default function NeedsList() {
             )}
             {!mapActive && !fullscreen && (
               <div
-                className="map-activate-overlay"
-                onClick={activateMap}
-                role="button"
-                tabIndex={0}
-                aria-label={t('map.tapToInteract')}
-                ref={(el) => attachMapPinchZoomOverlay(mapRef.current, el, activateMap)}
+                className="map-activate-overlay map-activate-hint-only"
               >
                 <span className="map-activate-hint">{t('map.tapToInteract')}</span>
               </div>

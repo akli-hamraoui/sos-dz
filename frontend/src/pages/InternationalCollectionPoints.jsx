@@ -6,7 +6,7 @@ import { useDialog } from '../context/DialogContext'
 import { api } from '../api'
 import { geocodeCountryBounds, getCurrentPosition, haversineKm, RECENTER_BOX_METERS } from '../utils'
 import { fetchDrivingRoute, COLLECTION_POINT_ROUTE_COLOR } from '../routing'
-import { countryFlagEmoji, formatApproxKm, flyerPopupButtonHtml, attachMapPopupBehavior, attachMapPinchZoomOverlay, spreadCollectionPointMarkers } from '../mapMarkers'
+import { countryFlagEmoji, formatApproxKm, flyerPopupButtonHtml, attachMapPopupBehavior, attachMapTapToActivate, spreadCollectionPointMarkers } from '../mapMarkers'
 import CountryOrPlaceSearch from '../components/CountryOrPlaceSearch'
 import PhotoThumb from '../components/PhotoThumb'
 import PhotoLightbox from '../components/PhotoLightbox'
@@ -238,7 +238,7 @@ export default function InternationalCollectionPoints() {
           // effect has actually created the map yet (mapRef.current still
           // null at that point), which would otherwise silently skip
           // wiring it the very first time the page loads.
-          attachMapPinchZoomOverlay(mapRef.current, mapElRef.current?.parentElement?.querySelector('.map-activate-overlay'), activateMap)
+          attachMapTapToActivate(mapRef.current, activateMap)
         }
         
 
@@ -625,12 +625,7 @@ export default function InternationalCollectionPoints() {
             )}
             {!mapActive && !fullscreen && (
               <div
-                className="map-activate-overlay"
-                onClick={activateMap}
-                role="button"
-                tabIndex={0}
-                aria-label={t('map.tapToInteract')}
-                ref={(el) => attachMapPinchZoomOverlay(mapRef.current, el, activateMap)}
+                className="map-activate-overlay map-activate-hint-only"
               >
                 <span className="map-activate-hint">{t('map.tapToInteract')}</span>
               </div>
