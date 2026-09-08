@@ -5,7 +5,7 @@ import L from 'leaflet'
 import { useApp } from '../context/AppContext'
 import { api } from '../api'
 import CommentThread from '../components/CommentThread'
-import { truckIcon } from '../mapMarkers'
+import { truckIcon, attachMapPopupBehavior } from '../mapMarkers'
 import PickupManager from '../components/PickupManager'
 
 // A pickup/delivery's own dedicated page -- recovering access to one (see
@@ -56,8 +56,9 @@ export default function PickupDetail() {
       maxZoom: 19,
     }).addTo(map)
     L.control.attribution({ prefix: false }).addTo(map)
+    attachMapPopupBehavior(map)
     const point = [position.latitude, position.longitude]
-    L.marker(point, { icon: truckIcon(L, position.is_live) }).addTo(map)
+    L.marker(point, { icon: truckIcon(L, position.is_live) }).addTo(map).bindPopup(`<strong>${position.is_live ? t('deliveries.liveMarkerLabel') : t('deliveries.departureMarkerLabel')}</strong>`)
     map.setView(point, 15)
     return () => map.remove()
     // eslint-disable-next-line react-hooks/exhaustive-deps
