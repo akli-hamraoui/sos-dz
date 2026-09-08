@@ -1,3 +1,4 @@
+import logging
 import secrets
 import subprocess
 from functools import lru_cache
@@ -66,6 +67,8 @@ from core.serializers import (
     WilayaSerializer,
 )
 from core.throttling import CreationRateThrottle
+
+logger = logging.getLogger(__name__)
 from core.voice_ai import VoiceAIError, extract_need_data, transcribe_audio
 
 
