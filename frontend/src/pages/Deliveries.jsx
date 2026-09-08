@@ -63,6 +63,7 @@ export default function Deliveries() {
   // neither and so are never on the map at all (never "position
   // unavailable" purely by omission -- see the .noPosition list below).
   const [locatedPickupIds, setLocatedPickupIds] = useState(() => new Set())
+  const [mapPointsLoading, setMapPointsLoading] = useState(false)
   // The position filter applied on top of the server-side-filtered
   // `pickups` -- client-side, since locatedPickupIds is itself only known
   // client-side (derived from the separate live-locations fetch below).
