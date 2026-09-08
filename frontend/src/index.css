@@ -2833,3 +2833,153 @@ body {
     border-radius: 14px;
   }
 }
+
+/* --- SOSDZ UI charter v6: mobile fit + menu direction + green active states --- */
+
+/* Keep the quick-action dropdown attached below its trigger.
+   On mobile the header shortcut row is above the page content, so opening
+   upward can place the menu behind the browser/header area. */
+.quick-actions-menu {
+  top: calc(100% + 8px);
+  bottom: auto;
+  z-index: 1600;
+}
+
+/* Active/selected UI states use the charter green instead of SOS red.
+   Emergency SOS surfaces and explicit danger actions remain red. */
+.topbar-nav-desktop a.active,
+.topbar-nav-mobile a.active,
+.bottom-nav a.active,
+.view-toggle button.active,
+.deliveries-page .view-toggle button.active {
+  background: var(--brand-green) !important;
+  border-color: var(--brand-green) !important;
+  color: #fff !important;
+}
+
+.quick-actions-btn[aria-expanded="true"] {
+  background: var(--brand-green-soft);
+  border-color: var(--brand-green-border);
+  color: var(--brand-green);
+}
+
+.home-create-trigger[aria-expanded="true"] {
+  box-shadow: 0 0 0 2px var(--brand-green-border);
+}
+
+/* Mobile home: bring the complete five-card action stack into the initial
+   viewport, including the full "Qui sommes-nous ?" card above the fixed
+   bottom navigation. */
+@media (max-width: 699px) {
+  .home {
+    padding: 4px 10px 10px;
+  }
+
+  .home-tagline {
+    margin-bottom: 6px;
+    font-size: clamp(15px, 4.2vw, 18px);
+    line-height: 1.16;
+  }
+
+  .home-sos-card {
+    min-height: 92px;
+    margin-bottom: 7px;
+    padding: 10px;
+    gap: 8px;
+    border-radius: 13px;
+  }
+
+  .home-sos-icon {
+    width: 46px;
+    height: 46px;
+    -webkit-mask-size: 29px;
+    mask-size: 29px;
+  }
+
+  .home-sos-copy {
+    gap: 1px;
+  }
+
+  .home-sos-copy strong {
+    font-size: clamp(17px, 4.8vw, 21px);
+  }
+
+  .home-sos-copy span,
+  .home-sos-copy small {
+    font-size: clamp(11px, 3.1vw, 13px);
+  }
+
+  .home-card-arrow {
+    font-size: 31px;
+  }
+
+  .home-collection-grid {
+    gap: 7px;
+    margin-bottom: 7px;
+  }
+
+  .home-collection-card {
+    min-height: 132px;
+    padding: 10px 9px;
+    border-radius: 12px;
+  }
+
+  .home-card-icon {
+    width: 38px;
+    height: 38px;
+    margin-bottom: 6px;
+  }
+
+  .home-collection-card strong,
+  .home-create-copy strong,
+  .home-about-copy strong {
+    font-size: clamp(14px, 3.8vw, 16px);
+    line-height: 1.1;
+  }
+
+  .home-collection-card > span:not(.home-card-icon),
+  .home-create-copy > span,
+  .home-about-copy > span {
+    margin-top: 3px;
+    font-size: 11px;
+    line-height: 1.22;
+  }
+
+  .home-collection-card em,
+  .home-create-copy em,
+  .home-about-copy em {
+    padding-top: 4px;
+    font-size: 11px;
+  }
+
+  .home-collection-card em b,
+  .home-create-copy em b,
+  .home-about-copy em b {
+    margin-inline-start: 5px;
+    font-size: 18px;
+  }
+
+  .home-create-card {
+    margin-bottom: 7px;
+  }
+
+  .home-create-trigger,
+  .home-about-card {
+    grid-template-columns: 43px minmax(0, 1fr);
+    gap: 8px;
+    min-height: 76px;
+    padding: 10px;
+    border-radius: 12px;
+  }
+
+  .home-create-trigger .home-card-icon,
+  .home-about-card .home-card-icon {
+    width: 40px;
+    height: 40px;
+  }
+
+  .home-create-copy em,
+  .home-about-copy em {
+    margin-top: 3px;
+  }
+}
