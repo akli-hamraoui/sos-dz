@@ -375,7 +375,8 @@ export default function Deliveries() {
   const exitFullscreen = () => {
     const frame = mapFrameRef.current
     if (document.fullscreenElement === frame) {
-      document.exitFullscreen?.().catch(() => {})
+      const exitPromise = document.exitFullscreen?.()
+      exitPromise?.catch(() => {})
     }
     setFullscreen(false)
     deactivateMap()
