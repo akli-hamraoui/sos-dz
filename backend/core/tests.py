@@ -3779,6 +3779,42 @@ class UrgentSOSVoiceAnalysisTests(BaseAPITestCase):
         transcribe.assert_called_once()
         extract.assert_called_once()
 
+    def test_analysis_keeps_transcript_when_llm_extraction_fails(self):
+        from unittest.mock import patch
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from core.voice_ai import VoiceAIError
+
+        with patch("core.views.is_algeria_ip", return_value=True),              patch("core.views.transcribe_audio", return_value="Je suis Ahmed et j'ai besoin d'eau."),              patch("core.views.extract_need_data", side_effect=VoiceAIError("LLM unavailable")):
+            response = self.client.post(
+                "/api/needs/voice-guide/analyze/",
+                {"audio": SimpleUploadedFile("voice.webm", b"audio", content_type="audio/webm"), "language": "fr"},
+                format="multipart",
+            )
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(response.data["transcript"], "Je suis Ahmed et j'ai besoin d'eau.")
+        self.assertEqual(response.data["extraction"], {})
+        self.assertEqual(Need.objects.count(), 0)
+
+    @override_settings(GROQ_API_KEY="test-groq-key")
+    def test_whisper_auto_detects_language_instead_of_forcing_ui_language(self):
+        from unittest.mock import Mock, patch
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from core.voice_ai import transcribe_audio
+
+        upload = SimpleUploadedFile("voice.webm", b"audio", content_type="audio/webm")
+        response = Mock()
+        response.ok = True
+        response.json.return_value = {"text": "Bonjour, j'ai besoin d'eau."}
+
+        with patch("core.voice_ai.requests.post", return_value=response) as post:
+            transcript = transcribe_audio(upload, language="ar")
+
+        self.assertEqual(transcript, "Bonjour, j'ai besoin d'eau.")
+        request_data = post.call_args.kwargs["data"]
+        self.assertNotIn("language", request_data)
+        self.assertEqual(request_data["model"], "whisper-large-v3-turbo")
+
     def test_voice_creation_allows_anonymous_report_with_private_recovery_code(self):
         from unittest.mock import patch
         from django.core.files.uploadedfile import SimpleUploadedFile
