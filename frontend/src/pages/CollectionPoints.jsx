@@ -264,7 +264,7 @@ export default function CollectionPoints() {
           // popupopen fires for whichever popup is currently open
           // regardless of which marker it belongs to. Opening the photo
           // never closes this popup underneath it.
-          attachMapPopupBehavior(mapRef.current, (photoUrl) => setLightboxPhoto(photoUrl))
+          attachMapPopupBehavior(mapRef.current, (photoUrl) => setLightboxPhoto(photoUrl), activateMap)
           // Also wired from the overlay's own ref callback (for when it
           // remounts later, e.g. deactivate/reactivate) -- done here too
           // since on first mount that ref callback can fire before this
