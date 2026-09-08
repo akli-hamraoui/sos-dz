@@ -336,13 +336,49 @@ class NeedViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retriev
             return Response({"detail": "The audio file is too large."}, status=status.HTTP_400_BAD_REQUEST)
         language = request.data.get("language", "fr")
         try:
-            transcript = transcribe_audio(audio, language)
-            extraction = extract_need_data(transcript)
+            # Do not force the browser/UI language onto Whisper. The reporter
+            # may speak a different language (or mix languages), so the STT
+            # layer must auto-detect the actual recording language.
+            transcript = transcribe_audio(audio)
+            logger.info(
+                "Urgent SOS transcription ready: language_hint=%s chars=%s transcript=%r",
+                language, len(transcript), transcript[:5000],
+            )
         except VoiceAIError as exc:
+            logger.error(
+                "Urgent SOS transcription unavailable: language_hint=%s "
+                "audio_name=%s content_type=%s size=%s reason=%s",
+                language,
+                getattr(audio, "name", None),
+                getattr(audio, "content_type", None),
+                getattr(audio, "size", None),
+                exc,
+            )
             return Response({"detail": str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
         except Exception:
-            logger.exception("Unexpected urgent SOS voice analysis error")
-            return Response({"detail": "Voice analysis is temporarily unavailable."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+            logger.exception("Unexpected urgent SOS voice transcription error")
+            return Response({"detail": "Voice transcription is temporarily unavailable."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+        try:
+            extraction = extract_need_data(transcript)
+            logger.info(
+                "Urgent SOS LLM extraction succeeded: fields=%s extraction=%s",
+                sorted(extraction.keys()), extraction,
+            )
+        except VoiceAIError:
+            # A good transcript is still valuable even if the structured LLM
+            # extraction is unavailable. The frontend can show the transcript
+            # and the user can correct the fields manually before confirming.
+            logger.exception(
+                "Urgent SOS transcript succeeded but LLM extraction failed; "
+                "transcript=%r",
+                transcript[:5000],
+            )
+            extraction = {}
+        except Exception:
+            logger.exception("Unexpected urgent SOS voice extraction error")
+            extraction = {}
+
         return Response({"transcript": transcript, "extraction": extraction})
 
     @action(detail=False, methods=["post"], url_path="voice-guide")
@@ -382,7 +418,15 @@ class NeedViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retriev
                 data["longitude"] = ""
                 data["wilaya"] = ""
         request._full_data = data
-        return self.create(request, *args, **kwargs)
+        response = self.create(request, *args, **kwargs)
+        # The guided SOS recovery code is the code the reporter can use later
+        # to recover/delete the SOS. The regular Need response intentionally
+        # does not expose recovery_code, so add it only to this dedicated
+        # voice-SOS response where it is explicitly shown once on the final
+        # screen.
+        if response.status_code == status.HTTP_201_CREATED:
+            response.data["recovery_code"] = data.get("recovery_code", "")
+        return response
 
     @action(detail=False, methods=["get"], url_path="check-duplicates")
     def check_duplicates(self, request):
