@@ -126,7 +126,7 @@ export default function NeedDetail() {
       const trail = entry.trail
       if (!trail.length) return
       const latlngs = trail.map((p) => [p.latitude, p.longitude])
-      L.polyline(latlngs, { color: '#111' }).addTo(map)
+      L.polyline(latlngs, { color: '#2f6b52' }).addTo(map)
       // A truck pin (Uber-style: a small vehicle glyph on a white circle)
       // instead of Leaflet's default blue map-pin icon, so a responder en
       // route reads at a glance as "a delivery," distinct from the
@@ -159,7 +159,7 @@ export default function NeedDetail() {
         fetchDrivingRoute(latlngs[latlngs.length - 1], dest)
           .then((route) => {
             if (mapRef.current !== map) return // map was torn down/re-rendered since this fetch started
-            L.polyline(route.coordinates, { color: '#2f6fed', weight: 4, dashArray: '1,10', lineCap: 'round' }).addTo(map)
+            L.polyline(route.coordinates, { color: '#2563eb', weight: 4, dashArray: '1,10', lineCap: 'round' }).addTo(map)
             map.fitBounds(L.latLngBounds([...allPoints, ...route.coordinates]).pad(0.3), { maxZoom: 15 })
             setRouteInfo({ distanceKm: route.distanceKm, durationMin: route.durationMin })
           })

@@ -1,18 +1,29 @@
 :root {
-  --accent: #111;
+  --accent: #d91f31;
+  --accent-hover: #b91c2c;
+  --sos-red: #d91f31;
+  --sos-red-soft: #fbe4e4;
+  --sos-green: #2f6b52;
+  --sos-green-bright: #137d50;
+  --sos-green-soft: #edf9f4;
+  --sos-blue: #2563eb;
+  --sos-blue-soft: #eaf4ff;
+  --sos-orange: #df9100;
+  --sos-orange-soft: #fff8e9;
+  --focus-ring: rgba(37, 99, 235, 0.22);
   /* Only other color the bottom-nav FABs use, so the "add a need" vs. "add
      a collection point" action reads apart from across the room, not just
      on close reading of the label underneath. */
   --collection-accent: #2f6b52;
-  --bg: #fafafa;
+  --bg: #f7faf8;
   --card: #fff;
-  --border: #e4e4e4;
+  --border: #dfe7e2;
   --danger: #c0392b;
   --critical: #d92626;
   --medium: #e08a1e;
   --low: #cbb400;
-  --text: #111;
-  --text-muted: #6b6b6b;
+  --text: #15213a;
+  --text-muted: #5c6878;
 }
 
 * {
@@ -99,8 +110,8 @@ a {
 }
 
 .readonly-banner {
-  background: #fff3cd;
-  color: #664d03;
+  background: #fff8e9;
+  color: #7a5200;
 }
 
 .readonly-banner svg {
@@ -108,8 +119,8 @@ a {
 }
 
 .offline-banner {
-  background: #e7f1ff;
-  color: #084298;
+  background: #eaf4ff;
+  color: #1d4f91;
 }
 
 .offline-banner svg {
@@ -133,8 +144,8 @@ a {
   font-weight: 600;
   letter-spacing: 0.03em;
   text-transform: uppercase;
-  color: #0f7a4a;
-  background: #e3f1e7;
+  color: var(--sos-green-bright);
+  background: var(--sos-green-soft);
   border: 1px solid #bfe0cb;
   border-radius: 999px;
   padding: 3px 10px;
@@ -158,7 +169,7 @@ a {
      which this isn't. Kept as quiet as a section eyebrow: no background,
      muted color, small caps-style type. */
   display: block;
-  color: #6b6b6b;
+  color: var(--text-muted);
   font-size: clamp(11px, 3vw, 13px);
   font-weight: 600;
   text-transform: uppercase;
@@ -186,7 +197,7 @@ a {
   background: none;
   padding: 4px 0;
   margin-block: 0 6px;
-  color: #6b6b6b;
+  color: var(--text-muted);
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
@@ -420,7 +431,7 @@ main {
   padding: 28px 12px 32px;
   color: #15213a;
 }
-home-tagline {
+.home-tagline {
   max-width: 420px;
   margin: 0 0 26px;
   color: #546173;
@@ -605,9 +616,62 @@ home-tagline {
   color: #d88500;
 }
 .home-btn-create-menu {
-  inset-inline: 18px;
-  top: calc(100% - 4px);
-  z-index: 20;
+  position: absolute;
+  inset-inline: 0;
+  top: calc(100% + 8px);
+  z-index: 50;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 15px;
+  background: rgba(255, 255, 255, .98);
+  box-shadow: 0 12px 30px rgba(21, 33, 58, .16);
+}
+.home-btn-create-menu a {
+  display: flex;
+  min-width: 0;
+  min-height: 54px;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 9px;
+  padding: 11px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--text);
+  background: var(--card);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.25;
+  transition: background .16s ease, border-color .16s ease, transform .16s ease;
+}
+.home-btn-create-menu a:first-child {
+  border-color: #b9dfcb;
+  background: var(--sos-green-soft);
+  color: #20583f;
+}
+.home-btn-create-menu a:last-child {
+  border-color: #c8dcfb;
+  background: var(--sos-blue-soft);
+  color: #1f55a4;
+}
+.home-btn-create-menu a:hover {
+  transform: translateY(-1px);
+}
+.home-btn-create-menu a:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+.home-btn-create-menu svg {
+  flex: 0 0 auto;
+}
+.home-btn-create-menu a:first-child svg {
+  color: var(--sos-green);
+}
+.home-btn-create-menu a:last-child svg {
+  color: var(--sos-blue);
 }
 .home-about-card {
   display: grid;
@@ -678,20 +742,29 @@ home-tagline {
   padding: 10px 18px;
   border-radius: 14px;
   border: 1px solid var(--border);
-  background: #fff;
+  background: var(--card);
   cursor: pointer;
   font-size: 15px;
   text-decoration: none;
-  color: #111;
+  color: var(--text);
+  transition: background .18s ease, border-color .18s ease, transform .18s ease, box-shadow .18s ease;
+}
+.btn:hover {
+  border-color: #c8d6ce;
+  box-shadow: 0 4px 12px rgba(21, 33, 58, .07);
 }
 .btn-primary {
   background: var(--accent);
   color: #fff;
   border-color: var(--accent);
 }
+.btn-primary:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
 .btn-danger {
-  color: var(--danger);
-  border-color: var(--danger);
+  color: var(--sos-red);
+  border-color: var(--sos-red);
 }
 /* The main "start a delivery from here" call to action (NeedDetail/
    CollectionPointDetail) -- same green as the bottom-nav's own Collecte
@@ -734,7 +807,7 @@ home-tagline {
 .link {
   background: none;
   border: none;
-  color: #555;
+  color: var(--sos-blue);
   text-decoration: underline;
   cursor: pointer;
   padding: 0;
@@ -812,13 +885,14 @@ label {
   height: 44px;
   border: 1px solid var(--border);
   border-radius: 50%;
-  color: #111;
-  background: #fff;
+  color: var(--sos-green);
+  background: var(--card);
   text-decoration: none;
   flex-shrink: 0;
 }
 .social-link:hover {
-  background: var(--bg);
+  background: var(--sos-green-soft);
+  border-color: #bfe0cb;
 }
 .checkbox-label {
   flex-direction: row;
@@ -1026,7 +1100,8 @@ fieldset {
   cursor: pointer;
 }
 .view-toggle button.active {
-  background: var(--accent);
+  background: var(--sos-green);
+  border-color: var(--sos-green);
   color: #fff;
 }
 .view-toggle button:first-child {
@@ -1046,7 +1121,11 @@ fieldset {
   padding: 14px;
   margin-block-end: 12px;
   text-decoration: none;
-  color: #111;
+  color: var(--text);
+}
+.need-card:hover {
+  border-color: #bfe0cb;
+  box-shadow: 0 6px 18px rgba(21, 33, 58, .07);
 }
 .need-card-description {
   font-size: 13px;
@@ -1158,11 +1237,11 @@ fieldset {
 
 .status {
   font-size: 13px;
-  color: #555;
+  color: var(--text-muted);
 }
 .hint {
   font-size: 13px;
-  color: #777;
+  color: var(--text-muted);
   font-style: italic;
 }
 .error {
@@ -1370,8 +1449,8 @@ fieldset {
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  background: #fff;
-  border: 2px solid #111;
+  background: var(--card);
+  border: 2px solid var(--sos-green);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
 }
 /* One bubble per city/wilaya-centroid fallback position shared by several
@@ -1387,8 +1466,8 @@ fieldset {
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  background: #fbbf24;
-  border: 2px solid #111;
+  background: #f3ce97;
+  border: 2px solid var(--sos-orange);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
   font-weight: 700;
   font-size: 14px;
@@ -1417,8 +1496,8 @@ fieldset {
   height: 18px;
   padding-inline: 3px;
   border-radius: 9px;
-  background: #fff;
-  border: 2px solid #111;
+  background: var(--card);
+  border: 2px solid var(--sos-green);
   color: #111;
   font-size: 11px;
   font-weight: 700;
@@ -2115,4 +2194,248 @@ footer {
 :root[dir='rtl'] .badge,
 :root[dir='rtl'] .status {
   direction: rtl;
+}
+
+/* --- SOSDZ global visual identity ---------------------------------------
+   Shared surface language for every page. This is intentionally cosmetic:
+   no layout, routing, content, translations or functionality are changed. */
+:where(button, input, select, textarea, a):focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.page,
+.detail-page,
+.form-page,
+.list-page,
+.help-page,
+.about-page,
+.legal-page,
+.support-page,
+.report-page {
+  color: var(--text);
+}
+
+.page h1,
+.page h2,
+.page h3,
+.detail-page h1,
+.detail-page h2,
+.detail-page h3,
+.form-page h1,
+.form-page h2,
+.form-page h3,
+.list-page h1,
+.list-page h2,
+.list-page h3 {
+  color: var(--text);
+}
+
+input:not([type='checkbox']):not([type='radio']),
+select,
+textarea {
+  background: var(--card);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+input:not([type='checkbox']):not([type='radio']):focus,
+select:focus,
+textarea:focus {
+  border-color: var(--sos-blue);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+  outline: none;
+}
+
+/* Reusable panels/cards across pages. Existing component-specific styles
+   remain authoritative where a semantic status color is required. */
+.collection-point-card,
+.international-collection-point-card,
+.delivery-card,
+.pickup-card,
+.detail-card,
+.info-card,
+.support-card,
+.help-card,
+.legal-card,
+.about-card {
+  border-color: var(--border);
+  background: var(--card);
+}
+
+.collection-point-card:hover,
+.international-collection-point-card:hover,
+.delivery-card:hover,
+.pickup-card:hover,
+.detail-card:hover,
+.info-card:hover,
+.support-card:hover,
+.help-card:hover,
+.about-card:hover {
+  border-color: #bfe0cb;
+}
+
+/* Semantic action helpers already used by the application. */
+.action-primary,
+.create-action,
+.add-action {
+  background: var(--sos-green);
+  border-color: var(--sos-green);
+  color: #fff;
+}
+
+.action-primary:hover,
+.create-action:hover,
+.add-action:hover {
+  background: #245640;
+  border-color: #245640;
+}
+
+.action-international,
+.international-action {
+  background: var(--sos-blue);
+  border-color: var(--sos-blue);
+  color: #fff;
+}
+
+.action-danger,
+.emergency-action {
+  background: var(--sos-red);
+  border-color: var(--sos-red);
+  color: #fff;
+}
+
+/* Existing map controls inherit the same surface language. */
+.map-control,
+.map-controls button,
+.map-legend,
+.legend,
+.filters-panel {
+  border-color: var(--border);
+  background: rgba(255, 255, 255, .96);
+  color: var(--text);
+}
+
+
+
+/* --- SOSDZ home sizing / responsive card system ----------------------- */
+.home-sos-card,
+.home-collection-card,
+.home-create-trigger,
+.home-about-card {
+  min-width: 0;
+}
+.home-collection-card > span:not(.home-card-icon),
+.home-create-copy > span,
+.home-about-copy > span,
+.home-collection-card strong,
+.home-create-copy strong,
+.home-about-copy strong {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 699px) {
+  .home {
+    width: min(100%, 620px);
+    padding: 18px 12px 28px;
+  }
+  .home-tagline {
+    margin-bottom: 16px;
+    font-size: clamp(16px, 4.5vw, 20px);
+  }
+  .home-sos-card {
+    min-height: 112px;
+    margin-bottom: 12px;
+    padding: 14px;
+    border-radius: 14px;
+    grid-template-columns: 58px minmax(0, 1fr) auto;
+    gap: 10px;
+  }
+  .home-sos-icon {
+    width: 56px;
+    height: 56px;
+  }
+  .home-sos-copy strong {
+    font-size: clamp(18px, 5.2vw, 23px);
+  }
+  .home-sos-copy span,
+  .home-sos-copy small {
+    font-size: clamp(12px, 3.5vw, 14px);
+  }
+  .home-card-arrow {
+    font-size: 38px;
+  }
+  .home-collection-grid {
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .home-collection-card {
+    min-height: 170px;
+    padding: 14px 12px;
+    border-radius: 14px;
+  }
+  .home-card-icon {
+    width: 48px;
+    height: 48px;
+    margin-bottom: 10px;
+  }
+  .home-collection-card strong,
+  .home-create-copy strong,
+  .home-about-copy strong {
+    font-size: clamp(15px, 4.1vw, 18px);
+  }
+  .home-collection-card > span:not(.home-card-icon),
+  .home-create-copy > span,
+  .home-about-copy > span {
+    margin-top: 6px;
+    font-size: 13px;
+  }
+  .home-collection-card em,
+  .home-create-copy em,
+  .home-about-copy em {
+    padding-top: 8px;
+    font-size: 13px;
+  }
+  .home-create-card {
+    margin-bottom: 12px;
+  }
+  .home-create-trigger,
+  .home-about-card {
+    grid-template-columns: 58px minmax(0, 1fr);
+    gap: 10px;
+    min-height: 118px;
+    padding: 14px;
+    border-radius: 14px;
+  }
+  .home-create-trigger .home-card-icon,
+  .home-about-card .home-card-icon {
+    width: 52px;
+    height: 52px;
+  }
+  .home-btn-create-menu {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 8px;
+  }
+}
+@media (min-width: 700px) {
+  .home {
+    width: min(100%, 760px);
+  }
+  .home-sos-card {
+    min-height: 124px;
+  }
+  .home-collection-card {
+    min-height: 190px;
+  }
+}
+@media (min-width: 1100px) {
+  .home {
+    width: min(100%, 820px);
+  }
+  .home-collection-grid {
+    gap: 16px;
+  }
+  .home-collection-card {
+    min-height: 200px;
+  }
 }
