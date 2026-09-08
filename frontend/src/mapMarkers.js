@@ -136,9 +136,11 @@ export function attachMapPopupBehavior(map, onPhoto) {
       // One synchronous pan only. Leaflet's own autoPan guarantees visibility;
       // this pass provides the requested centered presentation.
       if (Math.abs(dx) > 6 || Math.abs(dy) > 6) {
-        // Keep Leaflet's normal pan animation. The important fix is that this
-        // happens only once on popupopen, never from moveend.
-        map.panBy([dx, dy], { animate: true, duration: 0.2, easeLinearity: 0.25 })
+        // Apply one immediate correction. The popup is intentionally centered
+        // only when it opens: never recenter from moveend, because that fights
+        // the user's pan/zoom gesture and makes the map feel like it is moving
+        // by itself.
+        map.panBy([dx, dy], { animate: false })
       }
     })
   }
@@ -156,9 +158,47 @@ export function attachMapPopupBehavior(map, onPhoto) {
     if (e.popup) delete e.popup._sosdzRecenter
   }
 
+  // Leaflet deliberately stops touch propagation from popup content.
+  // That is correct for links/buttons, but it also means a finger starting
+  // on ordinary popup text cannot start a map drag. Forward only
+  // non-interactive one-finger touches to Leaflet's existing drag handler.
+  // Links/buttons/close controls remain fully clickable.
+  if (!map._sosdzPopupDragWired) {
+    const container = map.getContainer()
+    let draggingFromPopup = false
+    const isInteractive = (target) =>
+      !!target?.closest?.('a,button,input,textarea,select,[role="button"]')
+    const draggable = () => map.dragging?._draggable
+
+    container.addEventListener('touchstart', (e) => {
+      if (e.touches.length !== 1 || !e.target?.closest?.('.leaflet-popup-content-wrapper') || isInteractive(e.target)) return
+      const d = draggable()
+      if (!d) return
+      draggingFromPopup = true
+      d._onDown(e)
+    }, true)
+
+    container.addEventListener('touchmove', (e) => {
+      if (!draggingFromPopup || e.touches.length !== 1) return
+      const d = draggable()
+      if (d) d._onMove(e)
+    }, true)
+
+    const endPopupDrag = (e) => {
+      if (!draggingFromPopup) return
+      draggingFromPopup = false
+      const d = draggable()
+      if (d) d._onUp(e)
+    }
+    container.addEventListener('touchend', endPopupDrag, true)
+    container.addEventListener('touchcancel', endPopupDrag, true)
+    map._sosdzPopupDragWired = true
+  }
+
   map.on('popupopen', onOpen)
   map.on('popupclose', onClose)
 }
+
 export function attachPopupPinchZoom(popupEl) {
   // The *wrapper* (the actual white rounded box -- background, border,
   // shadow, close button and all), not just its own .leaflet-popup-content
