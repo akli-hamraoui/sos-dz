@@ -171,7 +171,6 @@ export function attachPopupMapDrag(map, popupEl) {
   wrapper.dataset.mapDragWired = '1'
 
   let lastPoint = null
-  let moved = false
 
   const isInteractive = (target) => !!target?.closest?.('a,button,input,select,textarea,[role="button"]')
 
@@ -182,7 +181,6 @@ export function attachPopupMapDrag(map, popupEl) {
     }
     const touch = e.touches[0]
     lastPoint = { x: touch.clientX, y: touch.clientY }
-    moved = false
     e.stopPropagation()
   }
 
@@ -192,7 +190,6 @@ export function attachPopupMapDrag(map, popupEl) {
     const dx = touch.clientX - lastPoint.x
     const dy = touch.clientY - lastPoint.y
     if (Math.abs(dx) + Math.abs(dy) < 1) return
-    moved = true
     e.preventDefault()
     e.stopPropagation()
     map.panBy([dx, dy], { animate: false })
@@ -201,7 +198,6 @@ export function attachPopupMapDrag(map, popupEl) {
 
   const onTouchEnd = () => {
     lastPoint = null
-    moved = false
   }
 
   wrapper.addEventListener('touchstart', onTouchStart, { capture: true, passive: false })
