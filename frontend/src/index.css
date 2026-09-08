@@ -1715,8 +1715,10 @@ fieldset {
 .sosdz-map-popup .leaflet-popup-content {
   margin: 14px 16px;
   min-width: 0;
-  width: min(260px, calc(100vw - 48px));
-  max-width: min(260px, calc(100vw - 48px));
+  width: min(250px, calc(100vw - 56px));
+  max-width: min(250px, calc(100vw - 56px));
+  max-height: min(320px, 48vh);
+  overflow-y: auto;
   color: var(--text);
   overflow-wrap: anywhere;
   line-height: 1.45;
@@ -1930,7 +1932,8 @@ fieldset {
   position: absolute;
   top: 12px;
   left: 12px;
-  right: 108px;
+  right: auto;
+  max-width: calc(100% - 24px);
   z-index: 1200;
   display: flex;
   align-items: center;
@@ -1948,6 +1951,49 @@ fieldset {
   overflow: hidden;
   text-overflow: ellipsis;
   justify-content: center;
+  top: 56px;
+}
+
+/* Compact popup zoom controls. They stay inside the popup card and remain
+   clickable while the popup body itself can be used to drag the map. */
+.popup-zoom-controls {
+  position: absolute;
+  top: 7px;
+  inset-inline-end: 42px;
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 2px 8px rgba(21, 33, 58, 0.12);
+  pointer-events: auto;
+}
+.popup-zoom-btn {
+  width: 25px;
+  height: 25px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--sos-green-soft);
+  color: var(--sos-green);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+.popup-zoom-reset {
+  width: 29px;
+  font-size: 10px;
+}
+.popup-zoom-btn:active {
+  transform: scale(0.94);
 }
 
 /* Prototype, solution 2: expand the map into a full-viewport overlay --
@@ -1982,12 +2028,23 @@ fieldset {
 .map-frame-fullscreen {
   position: fixed !important;
   inset: 0 !important;
-  z-index: 2000;
+  z-index: 3000;
   width: 100vw;
   height: 100dvh !important;
+  max-height: 100dvh;
+  overflow: hidden;
+  overscroll-behavior: contain;
+  background: var(--brand-green-soft);
   min-height: 100dvh !important;
   border-radius: 0;
 }
+.map-frame-fullscreen:fullscreen {
+  width: 100vw;
+  height: 100dvh;
+  max-height: 100dvh;
+  border-radius: 0;
+}
+
 .exit-fullscreen-btn {
   position: absolute;
   top: 12px;
@@ -3198,8 +3255,9 @@ body {
 @media (max-width: 699px) {
   .map-international-link {
     left: 10px;
-    right: 104px;
-    max-width: none;
+    right: auto;
+    top: 56px;
+    max-width: calc(100% - 20px);
   }
 
   .map-frame-fullscreen {
@@ -3208,8 +3266,9 @@ body {
   }
 
   .sosdz-map-popup .leaflet-popup-content {
-    width: min(260px, calc(100vw - 48px)) !important;
-    max-width: min(260px, calc(100vw - 48px)) !important;
+    width: min(240px, calc(100vw - 56px)) !important;
+    max-width: min(240px, calc(100vw - 56px)) !important;
+    max-height: min(280px, 42vh);
     margin: 12px 14px;
     font-size: 13px;
   }
