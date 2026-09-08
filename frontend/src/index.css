@@ -1930,7 +1930,7 @@ fieldset {
    (top-right) leave that spot clear. */
 .map-international-link {
   position: absolute;
-  top: 12px;
+  top: 56px;
   left: 12px;
   right: auto;
   max-width: calc(100% - 24px);
@@ -1951,7 +1951,6 @@ fieldset {
   overflow: hidden;
   text-overflow: ellipsis;
   justify-content: center;
-  top: 56px;
 }
 
 /* Compact popup zoom controls. They stay inside the popup card and remain
