@@ -24,6 +24,7 @@ export default function CollectionPoints() {
   // this is deliberately not persisted.
   const [viewMode, setViewMode] = useState('map')
   const [mapHasNothing, setMapHasNothing] = useState(false)
+  const [mapPointsLoading, setMapPointsLoading] = useState(false)
   // Filters (search + wilaya) tucked behind this toggle instead of always
   // expanded -- collapsed by default so the map/list below starts right
   // under a compact single-row toolbar instead of losing a big chunk of a
