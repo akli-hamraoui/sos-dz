@@ -266,12 +266,14 @@ export default function Deliveries() {
           // destination well outside the visible area once a trajectory is
           // drawn -- zoom out just enough to fit both ends of the line.
           map.fitBounds(L.latLngBounds([from, dest]).pad(0.3), { maxZoom: 13, animate: false })
+        requestAnimationFrame(() => map._sosdzCenterOpenPopup?.())
           fetchDrivingRoute(from, dest)
             .then((route) => {
               if (routeLineRef.current !== straight) return // superseded by another click/re-render meanwhile
               map.removeLayer(straight)
               routeLineRef.current = L.polyline(route.coordinates, { color: ROUTE_COLOR, weight: 4, dashArray: '1,10', lineCap: 'round' }).addTo(map)
               map.fitBounds(L.latLngBounds(route.coordinates).pad(0.3), { maxZoom: 13, animate: false })
+            requestAnimationFrame(() => map._sosdzCenterOpenPopup?.())
             })
             .catch(() => {
               /* routing service unreachable -- the basic straight line drawn above stays as-is */
