@@ -30,7 +30,7 @@ class VoiceAIRequestTests(TestCase):
         uploaded_name, uploaded_file, uploaded_type = request["files"]["file"]
         self.assertEqual(uploaded_name, "urgent-sos.webm")
         self.assertEqual(uploaded_type, "audio/webm")
-        self.assertEqual(uploaded_file.read(), b"fake-audio")
+        self.assertEqual(uploaded_file, b"fake-audio")
 
     @override_settings(GROQ_API_KEY="test-groq-key")
     def test_transcription_converts_provider_error_to_voice_ai_error(self):
