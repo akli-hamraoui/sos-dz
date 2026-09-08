@@ -228,54 +228,41 @@ export function attachMapPinchZoomOverlay(map, overlayEl, onActivate) {
 export function attachMapPopupBehavior(map, onPhoto) {
   if (!map) return
 
-  // Opened popups are positioned from their marker. On every form factor we
-  // first put the marker itself at the center of the map, then only apply the
-  // minimum extra pan needed to keep the complete popup inside the map.
-  // This is deliberately one-way: there is no moveend listener, so opening a
-  // popup cannot create a pan/recenter feedback loop or a gray/blank map.
-  const centerPopupOnPoint = (popup) => {
+  // Center the popup itself in the visible map viewport. Leaflet normally
+  // places the popup above its marker, so centering the marker leaves the
+  // popup too high on small screens. We first wait for Leaflet to finish
+  // measuring the popup, then pan by the exact difference between the popup
+  // center and the map center. This works with the same pixel geometry on
+  // phones, tablets and desktop and does not create a move/recenter loop.
+  const centerPopupOnScreen = (popup) => {
     const center = () => {
       if (!map._container?.isConnected || !popup?.isOpen?.()) return
 
       const mapEl = map.getContainer()
       const popupEl = popup.getElement()
-      const latLng = popup.getLatLng?.() || popup._source?.getLatLng?.()
-      if (!mapEl || !popupEl || !latLng) return
-
-      // The point is the source of truth. Center it first instead of centering
-      // the popup rectangle itself (which moves the marker away from the
-      // popup's tip, exactly like the mobile screenshots showed).
-      map.setView(latLng, map.getZoom(), { animate: false })
+      if (!mapEl || !popupEl) return
 
       const mapRect = mapEl.getBoundingClientRect()
       const popupRect = popupEl.getBoundingClientRect()
       if (!mapRect.width || !mapRect.height || !popupRect.width || !popupRect.height) return
 
-      const padding = Math.min(16, Math.max(8, mapRect.width * 0.025))
-      let dx = 0
-      let dy = 0
+      const mapCenterX = mapRect.left + mapRect.width / 2
+      const mapCenterY = mapRect.top + mapRect.height / 2
+      const popupCenterX = popupRect.left + popupRect.width / 2
+      const popupCenterY = popupRect.top + popupRect.height / 2
 
-      // Keep the whole popup visible when the marker is close to an edge.
-      // Normally these stay zero because the marker is centered.
-      if (popupRect.left < mapRect.left + padding) {
-        dx = mapRect.left + padding - popupRect.left
-      } else if (popupRect.right > mapRect.right - padding) {
-        dx = mapRect.right - padding - popupRect.right
-      }
-
-      if (popupRect.top < mapRect.top + padding) {
-        dy = mapRect.top + padding - popupRect.top
-      } else if (popupRect.bottom > mapRect.bottom - padding) {
-        dy = mapRect.bottom - padding - popupRect.bottom
-      }
-
+      const dx = popupCenterX - mapCenterX
+      const dy = popupCenterY - mapCenterY
       if (Math.abs(dx) > 1 || Math.abs(dy) > 1) {
+        // panBy uses the map viewport's pixel coordinate system. Moving by
+        // the popup-minus-map delta places the popup center exactly on the
+        // map center while keeping the popup tip attached to its marker.
         map.panBy([dx, dy], { animate: false })
       }
     }
 
-    // Leaflet can finish popup layout one or two frames after popupopen.
-    // Re-measure after the final layout as well; no continuous listener.
+    // Leaflet lays out the popup asynchronously. Two frames plus a short
+    // fallback cover mobile browser layout, fonts and dynamic popup content.
     requestAnimationFrame(() => {
       requestAnimationFrame(center)
     })
@@ -303,7 +290,7 @@ export function attachMapPopupBehavior(map, onPhoto) {
     const btn = popupEl?.querySelector('.popup-photo-btn')
     if (btn && onPhoto) btn.onclick = () => onPhoto(btn.dataset.photoUrl)
 
-    centerPopupOnPoint(popup)
+    centerPopupOnScreen(popup)
   }
 
   const onClose = (e) => {
