@@ -154,46 +154,14 @@ export default function NeedsList() {
       map.fitBounds(L.latLngBounds(points).pad(0.3), { maxZoom: 12, animate: false })
       return
     }
-    // No wilaya filter: show the visitor's actual position if they're
-    // genuinely in Algeria, otherwise (diaspora abroad, geolocation
-    // denied/unavailable) zoom to the concerned wilayas instead of a
-    // generic country-wide view.
-    const doZoom = (userLatLng) => {
-      if (userLatLng && isInAlgeria(userLatLng[0], userLatLng[1])) {
-        const nearby = points.filter((pt) => haversineKm(userLatLng, pt) <= 50)
-        if (nearby.length) {
-          map.fitBounds(L.latLngBounds(nearby).pad(0.3), { maxZoom: 11, animate: false })
-        } else {
-          map.setView(userLatLng, 9)
-        }
-        return
-      }
-      zoomToConcernedWilayas(map)
-    }
-    // Safety net: getCurrentPosition's own `timeout: 3000` is meant to
-    // guarantee one of the two callbacks fires within 3s, but that's not
-    // honored by every browser/environment (confirmed: neither callback
-    // ever fired, even well past 3s, in a headless Chromium with no
-    // geolocation permission granted) -- without this, the map would be
-    // stuck with no view/zoom ever set, and Leaflet never actually paints
-    // any marker onto an un-viewed map. `settle` ensures doZoom runs
-    // exactly once regardless of which path (real callback or fallback)
-    // gets there first.
-    let settled = false
-    const settle = (userLatLng) => {
-      if (settled) return
-      settled = true
-      doZoom(userLatLng)
-    }
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => settle([pos.coords.latitude, pos.coords.longitude]),
-        () => settle(null),
-        { timeout: 3000 }
-      )
-      setTimeout(() => settle(null), 3500)
+    // No wilaya filter: this page is Algeria-only. Do not wait for browser
+    // geolocation before choosing the initial camera. The API already returns
+    // Algeria-only points, so frame them immediately. GPS is only used by the
+    // explicit "Me localiser" button.
+    if (points.length) {
+      map.fitBounds(L.latLngBounds(points).pad(0.3), { maxZoom: 11, animate: false })
     } else {
-      settle(null)
+      zoomToConcernedWilayas(map)
     }
   }
 
