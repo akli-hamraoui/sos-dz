@@ -7,7 +7,7 @@ import { useDialog } from '../context/DialogContext'
 import { api } from '../api'
 import { haversineKm, isInAlgeria, getCurrentPosition, RECENTER_BOX_METERS } from '../utils'
 import { fetchDrivingRoute, COLLECTION_POINT_ROUTE_COLOR } from '../routing'
-import { countryFlagEmoji, formatApproxKm, flyerPopupButtonHtml, attachMapPopupBehavior, attachMapPinchZoomOverlay } from '../mapMarkers'
+import { countryFlagEmoji, formatApproxKm, flyerPopupButtonHtml, attachMapPopupBehavior, attachMapPinchZoomOverlay, spreadCollectionPointMarkers } from '../mapMarkers'
 import { IconLocate, IconExpand, IconClose, IconGlobeColor, IconAlgeriaFlag } from '../icons'
 import PhotoThumb from '../components/PhotoThumb'
 import PhotoLightbox from '../components/PhotoLightbox'
@@ -330,10 +330,11 @@ export default function CollectionPoints() {
               '<span class="cp-marker-pin"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2c8f67" stroke-width="2" ' +
               'stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 7.5 12 3l8.5 4.5v9L12 21l-8.5-4.5v-9Z"/>' +
               '<path d="M3.5 7.5 12 12l8.5-4.5"/><path d="M12 12v9"/></svg></span>',
-            iconSize: [30, 30],
-            iconAnchor: [15, 15],
+            iconSize: [40, 40],
+            iconAnchor: [20, 20],
           })
           const marker = L.marker([p.display_latitude, p.display_longitude], { icon }).addTo(map)
+          marker._sosdzCollectionPoint = true
           // Trajectory from the visitor's own position to this point on
           // click -- same OSRM-backed red line as Deliveries.jsx's own
           // courier-to-destination route. Silently does nothing if
@@ -399,6 +400,7 @@ export default function CollectionPoints() {
           markers.push(marker)
         })
 
+        spreadCollectionPointMarkers(map, markers)
         markersRef.current = markers
         const allPoints = cpsWithPos.map((p) => [p.display_latitude, p.display_longitude])
         const wilayaChanged = prevFilterWilayaRef.current !== filterWilaya
