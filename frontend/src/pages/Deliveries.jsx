@@ -183,10 +183,8 @@ export default function Deliveries() {
       } catch {
         return // offline/network failure -- silently skip this refresh, the next tick retries
       } finally {
-        if (!cancelled) {
-          mapPointsLoadedRef.current = true
-          if (showInitialLoader) setMapPointsLoading(false)
-        }
+        mapPointsLoadedRef.current = true
+        if (showInitialLoader) setMapPointsLoading(false)
       }
       // Updated regardless of viewMode -- the list view's "no position"
       // flagging (below) needs this even when the map itself isn't mounted.
