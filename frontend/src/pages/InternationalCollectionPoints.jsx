@@ -250,10 +250,13 @@ export default function InternationalCollectionPoints() {
       const params = new URLSearchParams({ international: '1' })
       if (filterCountry) params.set('country', filterCountry)
       if (search) params.set('search', search)
+      setMapPointsLoading(true)
       try {
         pins = await api(`/collection-points/locations/?${params.toString()}`)
       } catch {
         return // offline/network failure -- offline banner already informs the user
+      } finally {
+        setMapPointsLoading(false)
       }
       if (cancelled) return
       setMapHasNothing(pins.length === 0)
