@@ -3790,6 +3790,7 @@ class UrgentSOSVoiceAnalysisTests(BaseAPITestCase):
         self.assertTrue(need.recovery_code.startswith("voice-"))
 
     def test_admin_can_submit_with_abroad_gps_and_falls_back_to_no_location(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
         admin = get_user_model().objects.create_superuser("abroadadmin", "abroad@example.com", "pw123456!")
         self.client.force_authenticate(admin)
         response = self.client.post(
