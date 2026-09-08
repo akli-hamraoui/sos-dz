@@ -3312,6 +3312,14 @@ body {
 .urgent-sos-confirm{background:var(--sos-red);border-color:var(--sos-red);box-shadow:0 8px 20px rgba(239,43,59,.2);}
 .urgent-sos-confirm:hover{background:#d92839;}
 .urgent-sos-error{margin:14px 0 0!important;padding:12px 14px;border-radius:12px;background:#fff1f2;color:#a61d2d!important;border:1px solid #ffd1d6;font-weight:600;}
+.urgent-sos-token-box{width:100%;box-sizing:border-box;margin:6px 0 4px;padding:18px;border:2px solid var(--brand-green);border-radius:18px;background:linear-gradient(180deg,#f2fbf6,#fff);box-shadow:0 8px 24px rgba(44,143,103,.12);text-align:left;}
+.urgent-sos-token-title{color:var(--brand-green);font-size:16px;font-weight:900;text-transform:uppercase;letter-spacing:.05em;}
+.urgent-sos-token-warning{margin:7px 0 14px!important;color:var(--brand-green)!important;font-size:16px;line-height:1.45;font-weight:800;}
+.urgent-sos-token-row{display:flex;align-items:center;gap:10px;}
+.urgent-sos-token{flex:1;min-width:0;padding:13px 12px;border-radius:12px;background:#e8f7ef;color:#178257;font-size:clamp(17px,4.5vw,22px);line-height:1.2;letter-spacing:.04em;overflow-wrap:anywhere;word-break:break-word;}
+.urgent-sos-copy-token{flex:0 0 auto;min-height:48px;padding:0 14px;border:1px solid var(--brand-green);border-radius:12px;background:#fff;color:var(--brand-green);font-weight:900;cursor:pointer;}
+.urgent-sos-copy-token:active{transform:translateY(1px);}
+
 @media(max-width:699px){
  .urgent-sos-page{padding:4px 10px calc(88px + env(safe-area-inset-bottom));}
  .urgent-sos-hero{align-items:flex-start;gap:10px;}
