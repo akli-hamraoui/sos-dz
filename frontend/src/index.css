@@ -2983,3 +2983,29 @@ body {
     margin-top: 3px;
   }
 }
+
+
+/* --- SOSDZ map performance/layout v1 ---------------------------------
+   All map pages share one predictable frame. Desktop/tablet maps are
+   compact enough to fit below the page controls without requiring a
+   second scroll just to reach the bottom of the map; mobile keeps its
+   own viewport-aware height. Fullscreen map mode is intentionally not
+   exposed by the map pages.
+*/
+.map-frame {
+  height: clamp(340px, 48vh, 440px);
+  min-height: 340px;
+  overflow: hidden;
+}
+
+.map-frame > [id$="-map"] {
+  height: 100%;
+  min-height: 0;
+}
+
+@media (max-width: 699px) {
+  .map-frame {
+    height: clamp(320px, 52svh, 420px);
+    min-height: 320px;
+  }
+}
