@@ -328,7 +328,11 @@ export default function NeedsList() {
   const recenterOnMe = async () => {
     const map = mapRef.current
     if (!map) return
-    const pos = await getCurrentPosition()
+    const pos = await getCurrentPosition({
+      maximumAge: 30000,
+      timeout: 3000,
+      enableHighAccuracy: false,
+    })
     // See CollectionPoints.jsx's own recenterOnMe -- an explicit tap
     // deserves feedback on failure.
     if (!pos) {
@@ -382,11 +386,46 @@ export default function NeedsList() {
   const enterFullscreen = () => {
     activateMap()
     setFullscreen(true)
+
+    // Use the native Fullscreen API when the browser supports it. The CSS
+    // fullscreen class remains the fallback for browsers that reject or do
+    // not expose requestFullscreen (notably some iOS contexts).
+    const frame = mapFrameRef.current
+    if (frame?.requestFullscreen) {
+      frame.requestFullscreen({ navigationUI: 'hide' }).catch(() => {
+        // CSS fallback is already active through setFullscreen(true).
+      })
+    }
   }
   const exitFullscreen = () => {
+    const frame = mapFrameRef.current
+    if (document.fullscreenElement === frame) {
+      const exitPromise = document.exitFullscreen?.()
+      exitPromise?.catch(() => {})
+    }
     setFullscreen(false)
     deactivateMap()
   }
+
+  // Keep React state synchronized with browser fullscreen (including the
+  // Android back/escape gesture) and refresh Leaflet after the frame changes
+  // size. Leaflet documents invalidateSize() as the required call after a
+  // map container is resized dynamically.
+  useEffect(() => {
+    const onFullscreenChange = () => {
+      const nativeFullscreen = document.fullscreenElement === mapFrameRef.current
+      setFullscreen(nativeFullscreen)
+      if (!nativeFullscreen) deactivateMap()
+
+      requestAnimationFrame(() => {
+        mapRef.current?.invalidateSize({ pan: false, animate: false })
+        requestAnimationFrame(() => mapRef.current?.invalidateSize({ pan: false, animate: false }))
+      })
+    }
+
+    document.addEventListener('fullscreenchange', onFullscreenChange)
+    return () => document.removeEventListener('fullscreenchange', onFullscreenChange)
+  }, [])
 
   useEffect(() => {
     const map = mapRef.current
@@ -523,8 +562,7 @@ export default function NeedsList() {
         <div className="map-wrap">
           {mapHasNothing && <p className="hint">{t('needsList.noActiveNeeds')}</p>}
           <div
-            className="map-frame"
-            
+            className={`map-frame${fullscreen ? ' map-frame-fullscreen' : ''}`}
             ref={mapFrameRef}
           >
             <div id="main-map" ref={mapElRef} style={{ height: '100%' }} />

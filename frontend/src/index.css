@@ -1031,25 +1031,29 @@ fieldset {
 }
 .media-capture-card .photo-thumb {
   min-width: 0;
+  width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
 }
 .media-capture-card .photo-thumb img {
   width: 64px;
   height: 64px;
   object-fit: cover;
   border-radius: 9px;
+  flex: 0 0 auto;
 }
 .photo-remove-btn {
-  display: inline-flex;
+  display: inline-flex !important;
   align-items: center;
   justify-content: center;
   gap: 4px;
   width: 100%;
-  min-height: 28px;
-  padding: 5px 6px;
+  min-height: 32px;
+  box-sizing: border-box;
+  margin-top: 1px;
+  padding: 6px 5px;
   border: 1px solid #e6b8b4;
   border-radius: 9px;
   background: #fff7f6;
@@ -1475,8 +1479,8 @@ fieldset {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   background: var(--card);
   border: 2px solid var(--sos-green);
@@ -1714,12 +1718,15 @@ fieldset {
 }
 .sosdz-map-popup .leaflet-popup-content {
   margin: 14px 16px;
-  min-width: 220px;
-  max-width: min(288px, calc(100vw - 64px));
+  min-width: 0;
+  width: min(250px, calc(100vw - 56px));
+  max-width: min(250px, calc(100vw - 56px));
+  max-height: min(320px, 48vh);
+  overflow-y: auto;
   color: var(--text);
   overflow-wrap: anywhere;
-  line-height: 1.5;
-  font-size: 13.5px;
+  line-height: 1.45;
+  font-size: 13px;
 }
 .sosdz-map-popup .leaflet-popup-content strong:first-child {
   display: block;
@@ -1904,8 +1911,9 @@ fieldset {
   left: 50%;
   transform: translateX(-50%);
   z-index: 1300;
-  background: rgba(17, 17, 17, 0.82);
-  color: #fff;
+  background: var(--brand-green-soft);
+  color: var(--brand-green);
+  border: 1px solid var(--brand-green-border);
   font-size: 13px;
   font-weight: 500;
   padding: 8px 16px;
@@ -1926,9 +1934,10 @@ fieldset {
    (top-right) leave that spot clear. */
 .map-international-link {
   position: absolute;
-  top: 12px;
-  left: 50%;
-  transform: translateX(-50%);
+  top: 56px;
+  left: 12px;
+  right: auto;
+  max-width: calc(100% - 24px);
   z-index: 1200;
   display: flex;
   align-items: center;
@@ -1943,6 +1952,51 @@ fieldset {
   text-decoration: none;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  justify-content: center;
+}
+
+/* Compact popup zoom controls. They stay inside the popup card and remain
+   clickable while the popup body itself can be used to drag the map. */
+.popup-zoom-controls {
+  position: absolute;
+  top: 7px;
+  inset-inline-end: 42px;
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 2px 8px rgba(21, 33, 58, 0.12);
+  pointer-events: auto;
+}
+.popup-zoom-btn {
+  width: 25px;
+  height: 25px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--sos-green-soft);
+  color: var(--sos-green);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+.popup-zoom-reset {
+  width: 29px;
+  font-size: 10px;
+}
+.popup-zoom-btn:active {
+  transform: scale(0.94);
 }
 
 /* Prototype, solution 2: expand the map into a full-viewport overlay --
@@ -1975,11 +2029,25 @@ fieldset {
    height switches to 100% inline (see CollectionPoints.jsx) since an
    inline style can't be beaten by a class alone. */
 .map-frame-fullscreen {
-  position: fixed;
-  inset: 0;
-  z-index: 2000; /* above the topbar/bottom nav, this *is* the whole screen now */
-  height: 100vh;
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 3000;
+  width: 100vw;
+  height: 100dvh !important;
+  max-height: 100dvh;
+  overflow: hidden;
+  overscroll-behavior: contain;
+  background: var(--brand-green-soft);
+  min-height: 100dvh !important;
+  border-radius: 0;
 }
+.map-frame-fullscreen:fullscreen {
+  width: 100vw;
+  height: 100dvh;
+  max-height: 100dvh;
+  border-radius: 0;
+}
+
 .exit-fullscreen-btn {
   position: absolute;
   top: 12px;
@@ -2870,7 +2938,9 @@ body {
 
 .deliveries-page .map-activate-hint,
 .deliveries-page .map-deactivate-btn {
-  background: var(--brand-green);
+  background: var(--brand-green-soft);
+  color: var(--brand-green);
+  border: 1px solid var(--brand-green-border);
 }
 
 .deliveries-page .unknown-position-chip {
@@ -3175,5 +3245,40 @@ body {
   .map-points-loader {
     padding: 9px 12px;
     font-size: 12px;
+  }
+}
+
+
+/* Map popup interaction: the popup body is part of the map gesture surface.
+   Leaflet's popup container normally blocks touch/mouse press events, so the
+   shared popup behavior explicitly re-enables map dragging from the popup.
+   Keep the browser from turning the gesture into page scrolling. */
+.sosdz-map-popup .leaflet-popup-content-wrapper {
+  touch-action: none;
+}
+
+@media (max-width: 699px) {
+  .map-international-link {
+    left: 10px;
+    right: auto;
+    top: 56px;
+    max-width: calc(100% - 20px);
+  }
+
+  .map-frame-fullscreen {
+    height: 100dvh !important;
+    min-height: 100dvh !important;
+  }
+
+  .sosdz-map-popup .leaflet-popup-content {
+    width: min(240px, calc(100vw - 56px)) !important;
+    max-width: min(240px, calc(100vw - 56px)) !important;
+    max-height: min(280px, 42vh);
+    margin: 12px 14px;
+    font-size: 13px;
+  }
+
+  .sosdz-map-popup .leaflet-popup-content strong:first-child {
+    font-size: 14px;
   }
 }
