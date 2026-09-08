@@ -83,6 +83,7 @@ def extract_need_data(transcript):
     payload = {
         "model": getattr(settings, "OPENAI_EXTRACTION_MODEL", "gpt-5.6-luna"),
         "input": prompt,
+        "store": False,
         "text": {
             "format": {
                 "type": "json_schema",
