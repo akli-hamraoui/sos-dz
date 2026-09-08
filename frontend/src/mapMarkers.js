@@ -174,34 +174,54 @@ export function flyerPopupButtonHtml(t, photoUrl) {
 export function attachMapPopupBehavior(map, onPhoto) {
   if (!map) return
 
-  // Leaflet already provides autoPan for popups. Add only one centering pass
-  // after the popup DOM exists. Never recenter from moveend: panBy() inside a
-  // moveend handler creates a feedback loop and can make the tile layer look
-  // blank/gray while the map keeps moving.
-  const centerPopupOnce = (popup) => {
-    // Leaflet can finish laying out the popup one frame after popupopen.
-    // Do two animation frames plus one short delayed pass so the final
-    // measured box -- not the intermediate height -- is what gets centered.
-    // There is deliberately no moveend listener, so user panning never
-    // triggers a recenter loop.
+  // Opened popups are positioned from their marker. On every form factor we
+  // first put the marker itself at the center of the map, then only apply the
+  // minimum extra pan needed to keep the complete popup inside the map.
+  // This is deliberately one-way: there is no moveend listener, so opening a
+  // popup cannot create a pan/recenter feedback loop or a gray/blank map.
+  const centerPopupOnPoint = (popup) => {
     const center = () => {
       if (!map._container?.isConnected || !popup?.isOpen?.()) return
+
       const mapEl = map.getContainer()
       const popupEl = popup.getElement()
-      if (!mapEl || !popupEl) return
+      const latLng = popup.getLatLng?.() || popup._source?.getLatLng?.()
+      if (!mapEl || !popupEl || !latLng) return
+
+      // The point is the source of truth. Center it first instead of centering
+      // the popup rectangle itself (which moves the marker away from the
+      // popup's tip, exactly like the mobile screenshots showed).
+      map.setView(latLng, map.getZoom(), { animate: false })
 
       const mapRect = mapEl.getBoundingClientRect()
       const popupRect = popupEl.getBoundingClientRect()
       if (!mapRect.width || !mapRect.height || !popupRect.width || !popupRect.height) return
 
-      const dx = (mapRect.left + mapRect.width / 2) - (popupRect.left + popupRect.width / 2)
-      const dy = (mapRect.top + mapRect.height / 2) - (popupRect.top + popupRect.height / 2)
+      const padding = Math.min(16, Math.max(8, mapRect.width * 0.025))
+      let dx = 0
+      let dy = 0
 
-      if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
+      // Keep the whole popup visible when the marker is close to an edge.
+      // Normally these stay zero because the marker is centered.
+      if (popupRect.left < mapRect.left + padding) {
+        dx = mapRect.left + padding - popupRect.left
+      } else if (popupRect.right > mapRect.right - padding) {
+        dx = mapRect.right - padding - popupRect.right
+      }
+
+      if (popupRect.top < mapRect.top + padding) {
+        dy = mapRect.top + padding - popupRect.top
+      } else if (popupRect.bottom > mapRect.bottom - padding) {
+        dy = mapRect.bottom - padding - popupRect.bottom
+      }
+
+      if (Math.abs(dx) > 1 || Math.abs(dy) > 1) {
         map.panBy([dx, dy], { animate: false })
       }
     }
 
+    // Leaflet can finish popup layout one or two frames after popupopen.
+    // Re-measure after the final layout as well; no continuous listener.
     requestAnimationFrame(() => {
       requestAnimationFrame(center)
     })
@@ -211,12 +231,10 @@ export function attachMapPopupBehavior(map, onPhoto) {
   const onOpen = (e) => {
     const popup = e.popup
     const popupEl = popup.getElement()
+
     if (popupEl) {
-      // Leaflet deliberately blocks mousedown/touchstart on popup containers.
-      // That is normally useful, but it also prevents a user from dragging
-      // the map when their finger starts on the popup. Keep click/dblclick
-      // protection for links/buttons, but let the map's drag handler receive
-      // press events from the popup body.
+      // Leaflet normally stops touch/mouse events on popup content. Allow
+      // dragging from the popup body while keeping links/buttons clickable.
       L.DomEvent.off(popupEl, 'mousedown touchstart')
 
       popupEl.querySelectorAll('a, button, .leaflet-popup-close-button').forEach((control) => {
@@ -227,181 +245,19 @@ export function attachMapPopupBehavior(map, onPhoto) {
         control.addEventListener('touchstart', stop, { passive: true })
       })
     }
+
     const btn = popupEl?.querySelector('.popup-photo-btn')
     if (btn && onPhoto) btn.onclick = () => onPhoto(btn.dataset.photoUrl)
-    attachPopupPinchZoom(popup.getElement(), map)
-    centerPopupOnce(popup)
+
+    centerPopupOnPoint(popup)
   }
 
   const onClose = (e) => {
-    // No moveend listener is registered per popup anymore.
     if (e.popup) delete e.popup._sosdzRecenter
   }
 
   map.on('popupopen', onOpen)
   map.on('popupclose', onClose)
-}
-export function attachPopupPinchZoom(popupEl, map) {
-  // The popup wrapper is the visual box that Leaflet positions inside the
-  // popup container. Scaling this wrapper keeps the background, text and
-  // close button together while Leaflet keeps control of the outer position.
-  const wrapper = popupEl?.querySelector('.leaflet-popup-content-wrapper')
-  if (!wrapper) return
-
-  wrapper.style.transformOrigin = 'center bottom'
-  wrapper.style.transform = 'scale(1)'
-  wrapper._pinchScale = 1
-
-  const clampScale = (value) => Math.min(2, Math.max(1, value))
-  const applyScale = (value, recenter = true) => {
-    wrapper._pinchScale = clampScale(value)
-    wrapper.style.transform = `scale(${wrapper._pinchScale})`
-    if (!recenter || !map?.getContainer) return
-
-    requestAnimationFrame(() => {
-      if (!map._container?.isConnected || !popupEl?.isConnected) return
-      const mapRect = map.getContainer().getBoundingClientRect()
-      const popupRect = popupEl.getBoundingClientRect()
-      const dx = (mapRect.left + mapRect.width / 2) - (popupRect.left + popupRect.width / 2)
-      const dy = (mapRect.top + mapRect.height / 2) - (popupRect.top + popupRect.height / 2)
-      if (Math.abs(dx) > 4 || Math.abs(dy) > 4) map.panBy([dx, dy], { animate: false })
-    })
-  }
-
-  // Explicit +/-/reset controls make zooming usable without relying on a
-  // precise two-finger gesture. They are created once per popup DOM node.
-  if (!wrapper.querySelector('.popup-zoom-controls')) {
-    const controls = document.createElement('div')
-    controls.className = 'popup-zoom-controls'
-    controls.setAttribute('aria-label', 'Zoom de la popup')
-    controls.innerHTML =
-      '<button type="button" class="popup-zoom-btn" data-popup-zoom="out" aria-label="Réduire la popup">−</button>' +
-      '<button type="button" class="popup-zoom-btn popup-zoom-reset" data-popup-zoom="reset" aria-label="Taille normale">1×</button>' +
-      '<button type="button" class="popup-zoom-btn" data-popup-zoom="in" aria-label="Agrandir la popup">+</button>'
-    wrapper.appendChild(controls)
-
-    controls.querySelectorAll('button').forEach((button) => {
-      const stop = (event) => {
-        event.stopPropagation()
-      }
-      button.addEventListener('mousedown', stop)
-      button.addEventListener('touchstart', stop, { passive: true })
-      button.addEventListener('click', (event) => {
-        event.preventDefault()
-        event.stopPropagation()
-        const action = button.dataset.popupZoom
-        if (action === 'in') applyScale(wrapper._pinchScale + 0.25)
-        else if (action === 'out') applyScale(wrapper._pinchScale - 0.25)
-        else applyScale(1)
-      })
-    })
-  }
-
-  // Avoid wiring the same popup DOM element more than once. Re-opening a
-  // marker still resets the scale above, but the listeners themselves stay
-  // attached exactly once.
-  if (wrapper.dataset.pinchZoomWired) return
-  wrapper.dataset.pinchZoomWired = '1'
-
-  let startDist = 0
-  let startScale = 1
-
-  const touchDist = (touches) =>
-    Math.hypot(
-      touches[0].clientX - touches[1].clientX,
-      touches[0].clientY - touches[1].clientY
-    )
-
-  const onTouchStart = (event) => {
-    if (event.touches.length !== 2) return
-    event.preventDefault()
-    event.stopPropagation()
-    startDist = touchDist(event.touches)
-    startScale = wrapper._pinchScale
-  }
-
-  const onTouchMove = (event) => {
-    if (event.touches.length !== 2 || !startDist) return
-    event.preventDefault()
-    event.stopPropagation()
-    applyScale(startScale * (touchDist(event.touches) / startDist), false)
-  }
-
-  const onTouchEnd = (event) => {
-    if (event.touches.length >= 2) return
-    if (startDist) {
-      startDist = 0
-      requestAnimationFrame(() => {
-        if (!map?.getContainer || !popupEl?.isConnected) return
-        const mapRect = map.getContainer().getBoundingClientRect()
-        const popupRect = popupEl.getBoundingClientRect()
-        const dx = (mapRect.left + mapRect.width / 2) - (popupRect.left + popupRect.width / 2)
-        const dy = (mapRect.top + mapRect.height / 2) - (popupRect.top + popupRect.height / 2)
-        if (Math.abs(dx) > 4 || Math.abs(dy) > 4) map.panBy([dx, dy], { animate: false })
-      })
-    }
-  }
-
-  wrapper.addEventListener('touchstart', onTouchStart, { passive: false })
-  wrapper.addEventListener('touchmove', onTouchMove, { passive: false })
-  wrapper.addEventListener('touchend', onTouchEnd, { passive: false })
-  wrapper.addEventListener('touchcancel', onTouchEnd, { passive: false })
-}
-
-// Lets a two-finger pinch zoom the map immediately, even before the usual
-// single-finger "tap to activate" step (see each map page's own mapActive) --
-// reported live: pinching on the map zoomed the whole page instead of the
-// map, since the map starts "asleep" behind a full-cover overlay div (a
-// plain sibling of Leaflet's own container, not a descendant of it) that
-// swallows every touch so a one-finger drag reads as page-scroll rather than
-// a map pan. A one-finger gesture genuinely needs that tap-first step (it's
-// ambiguous with scrolling); a two-finger pinch never is, so there's no
-// reason to gate it the same way -- outside the overlay/map entirely,
-// nothing here runs and the browser's own native pinch-zooms the page,
-// exactly as it already does today.
-// Handled by hand (computing zoom from the pinch distance and calling
-// map.setZoomAround directly) rather than just enabling Leaflet's own
-// TouchZoom, because a touch starting on the overlay never bubbles to
-// Leaflet's container-scoped listener in the first place -- it's a sibling
-// element, not an ancestor. Once the map is actually awake (mapActive, the
-// overlay unmounted) Leaflet's real TouchZoom (enabled in activateMap)
-// already handles every pinch correctly on its own; this only covers the
-// asleep-overlay gap. onActivate is called once the pinch ends, so the map
-// is left "awake" afterwards (matching having just directly interacted with
-// it) the same as a tap would have left it.
-export function attachMapPinchZoomOverlay(map, overlayEl, onActivate) {
-  if (!map || !overlayEl || overlayEl.dataset.pinchZoomWired) return
-  overlayEl.dataset.pinchZoomWired = '1'
-  let startDist = 0
-  let startZoom = 0
-  let center = null
-
-  const touchDist = (touches) => Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY)
-  const touchMidpoint = (touches) => [(touches[0].clientX + touches[1].clientX) / 2, (touches[0].clientY + touches[1].clientY) / 2]
-
-  const onTouchStart = (e) => {
-    if (e.touches.length !== 2) return
-    e.preventDefault()
-    startDist = touchDist(e.touches)
-    startZoom = map.getZoom()
-    const [mx, my] = touchMidpoint(e.touches)
-    const rect = map.getContainer().getBoundingClientRect()
-    center = map.containerPointToLatLng([mx - rect.left, my - rect.top])
-  }
-  const onTouchMove = (e) => {
-    if (e.touches.length !== 2 || !startDist) return
-    e.preventDefault()
-    map.setZoomAround(center, startZoom + Math.log2(touchDist(e.touches) / startDist), { animate: false })
-  }
-  const onTouchEnd = (e) => {
-    if (e.touches.length >= 2) return
-    if (startDist) onActivate?.()
-    startDist = 0
-  }
-  overlayEl.addEventListener('touchstart', onTouchStart, { passive: false })
-  overlayEl.addEventListener('touchmove', onTouchMove, { passive: false })
-  overlayEl.addEventListener('touchend', onTouchEnd, { passive: false })
-  overlayEl.addEventListener('touchcancel', onTouchEnd, { passive: false })
 }
 
 export function needPopupHtml(t, p, statusLabel) {
