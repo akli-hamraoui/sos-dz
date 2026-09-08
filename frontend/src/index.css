@@ -2996,6 +2996,7 @@ body {
   height: 420px;
   min-height: 420px;
   overflow: hidden;
+  position: relative;
 }
 
 .map-frame > [id$="-map"] {
@@ -3007,6 +3008,19 @@ body {
   .map-frame {
     height: 400px;
     min-height: 400px;
+  }
+}
+
+/* International map uses the same shared frame as every other map page.
+   Keep the historical 600px rule from overriding the responsive frame. */
+.map-frame[style*="600px"] {
+  height: 420px !important;
+  min-height: 420px !important;
+}
+@media (max-width: 699px) {
+  .map-frame[style*="600px"] {
+    height: 400px !important;
+    min-height: 400px !important;
   }
 }
 

@@ -131,7 +131,7 @@ export default function NeedsList() {
       .filter((w) => w.centroid_latitude != null && w.centroid_longitude != null)
       .map((w) => [w.centroid_latitude, w.centroid_longitude])
     if (centroids.length) {
-      map.fitBounds(L.latLngBounds(centroids).pad(0.2), { maxZoom: 8 })
+      map.fitBounds(L.latLngBounds(centroids).pad(0.2), { maxZoom: 8, animate: false })
     } else {
       map.setView([28.0, 2.6], 5) // last-resort fallback, e.g. before campaigns have loaded yet
     }
@@ -151,7 +151,7 @@ export default function NeedsList() {
         }
         return
       }
-      map.fitBounds(L.latLngBounds(points).pad(0.3), { maxZoom: 12 })
+      map.fitBounds(L.latLngBounds(points).pad(0.3), { maxZoom: 12, animate: false })
       return
     }
     // No wilaya filter: show the visitor's actual position if they're
@@ -162,7 +162,7 @@ export default function NeedsList() {
       if (userLatLng && isInAlgeria(userLatLng[0], userLatLng[1])) {
         const nearby = points.filter((pt) => haversineKm(userLatLng, pt) <= 50)
         if (nearby.length) {
-          map.fitBounds(L.latLngBounds(nearby).pad(0.3), { maxZoom: 11 })
+          map.fitBounds(L.latLngBounds(nearby).pad(0.3), { maxZoom: 11, animate: false })
         } else {
           map.setView(userLatLng, 9)
         }

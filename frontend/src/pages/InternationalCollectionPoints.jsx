@@ -108,13 +108,13 @@ export default function InternationalCollectionPoints() {
         }
         const straight = L.polyline([from, dest], { color: COLLECTION_POINT_ROUTE_COLOR, weight: 3, dashArray: '4,8' }).addTo(map)
         routeLineRef.current = straight
-        map.fitBounds(L.latLngBounds([from, dest]).pad(0.3), { maxZoom: 13 })
+        map.fitBounds(L.latLngBounds([from, dest]).pad(0.3), { maxZoom: 13, animate: false })
         fetchDrivingRoute(from, dest)
           .then((route) => {
             if (routeLineRef.current !== straight) return // superseded by another click/re-render meanwhile
             map.removeLayer(straight)
             routeLineRef.current = L.polyline(route.coordinates, { color: COLLECTION_POINT_ROUTE_COLOR, weight: 4, dashArray: '1,10', lineCap: 'round' }).addTo(map)
-            map.fitBounds(L.latLngBounds(route.coordinates).pad(0.3), { maxZoom: 13 })
+            map.fitBounds(L.latLngBounds(route.coordinates).pad(0.3), { maxZoom: 13, animate: false })
             setRouteInfo({ distanceKm: route.distanceKm, durationMin: route.durationMin })
           })
           .catch(() => setRouteInfo('unavailable'))
@@ -373,7 +373,7 @@ export default function InternationalCollectionPoints() {
         }
         hasFramedRef.current = true
         if (withPos.length) {
-          map.fitBounds(L.latLngBounds(withPos.map((p) => [p.display_latitude, p.display_longitude])).pad(0.3), { maxZoom: 12 })
+          map.fitBounds(L.latLngBounds(withPos.map((p) => [p.display_latitude, p.display_longitude])).pad(0.3), { maxZoom: 12, animate: false })
         } else if (filterCountry) {
           geocodeCountryBounds(filterCountry, i18n.language)
             .then((bounds) => {
@@ -383,7 +383,7 @@ export default function InternationalCollectionPoints() {
                 // from 6 so a small country (Qatar, Singapore...) isn't
                 // left looking oddly distant just because a much bigger
                 // country's cap was applied uniformly to all of them.
-                map.fitBounds(L.latLngBounds([bounds.south, bounds.west], [bounds.north, bounds.east]).pad(0.05), { maxZoom: 8 })
+                map.fitBounds(L.latLngBounds([bounds.south, bounds.west], [bounds.north, bounds.east]).pad(0.05), { maxZoom: 8, animate: false })
               } else {
                 defaultZoom(map)
               }

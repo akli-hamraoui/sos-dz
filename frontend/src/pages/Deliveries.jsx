@@ -64,6 +64,7 @@ export default function Deliveries() {
   // unavailable" purely by omission -- see the .noPosition list below).
   const [locatedPickupIds, setLocatedPickupIds] = useState(() => new Set())
   const [mapPointsLoading, setMapPointsLoading] = useState(false)
+  const mapPointsLoadedRef = useRef(false)
   // The position filter applied on top of the server-side-filtered
   // `pickups` -- client-side, since locatedPickupIds is itself only known
   // client-side (derived from the separate live-locations fetch below).
@@ -175,13 +176,17 @@ export default function Deliveries() {
       }
       
       let locations
-      setMapPointsLoading(true)
+      const showInitialLoader = !mapPointsLoadedRef.current
+      if (showInitialLoader) setMapPointsLoading(true)
       try {
         locations = await api('/pickups/live-locations/')
       } catch {
         return // offline/network failure -- silently skip this refresh, the next tick retries
       } finally {
-        if (!cancelled) setMapPointsLoading(false)
+        if (!cancelled) {
+          mapPointsLoadedRef.current = true
+          if (showInitialLoader) setMapPointsLoading(false)
+        }
       }
       // Updated regardless of viewMode -- the list view's "no position"
       // flagging (below) needs this even when the map itself isn't mounted.
@@ -266,13 +271,13 @@ export default function Deliveries() {
           // markers themselves (see fitView below), which can leave the
           // destination well outside the visible area once a trajectory is
           // drawn -- zoom out just enough to fit both ends of the line.
-          map.fitBounds(L.latLngBounds([from, dest]).pad(0.3), { maxZoom: 13 })
+          map.fitBounds(L.latLngBounds([from, dest]).pad(0.3), { maxZoom: 13, animate: false })
           fetchDrivingRoute(from, dest)
             .then((route) => {
               if (routeLineRef.current !== straight) return // superseded by another click/re-render meanwhile
               map.removeLayer(straight)
               routeLineRef.current = L.polyline(route.coordinates, { color: ROUTE_COLOR, weight: 4, dashArray: '1,10', lineCap: 'round' }).addTo(map)
-              map.fitBounds(L.latLngBounds(route.coordinates).pad(0.3), { maxZoom: 13 })
+              map.fitBounds(L.latLngBounds(route.coordinates).pad(0.3), { maxZoom: 13, animate: false })
             })
             .catch(() => {
               /* routing service unreachable -- the basic straight line drawn above stays as-is */
@@ -282,7 +287,7 @@ export default function Deliveries() {
       })
       if (fitView) {
         if (locationsToRender.length > 1) {
-          map.fitBounds(L.latLngBounds(locationsToRender.map((l) => [l.latitude, l.longitude])).pad(0.3), { maxZoom: 13 })
+          map.fitBounds(L.latLngBounds(locationsToRender.map((l) => [l.latitude, l.longitude])).pad(0.3), { maxZoom: 13, animate: false })
         } else if (locationsToRender.length === 1) {
           map.setView([locationsToRender[0].latitude, locationsToRender[0].longitude], 13)
         } else {
