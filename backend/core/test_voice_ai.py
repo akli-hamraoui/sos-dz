@@ -25,7 +25,8 @@ class VoiceAIRequestTests(TestCase):
         request = post.call_args.kwargs
         self.assertNotIn("language", request["data"])
         self.assertEqual(request["data"]["model"], "whisper-large-v3-turbo")
-        self.assertIs(request["data"]["temperature"], 0.0)
+        self.assertEqual(request["data"]["temperature"], 0.0)
+        self.assertIsInstance(request["data"]["temperature"], float)
         uploaded_name, uploaded_file, uploaded_type = request["files"]["file"]
         self.assertEqual(uploaded_name, "urgent-sos.webm")
         self.assertEqual(uploaded_type, "audio/webm")
