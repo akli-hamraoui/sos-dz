@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useApp } from '../context/AppContext'
-import { api, apiUpload, createOrQueue } from '../api'
+import { api, apiUpload } from '../api'
 import { translateApiError } from '../apiErrors'
 import { IconCheckCircle, IconMic } from '../icons'
 import { audioUrlFor } from '../voiceGuide'
@@ -85,6 +85,9 @@ export default function UrgentSOS() {
   const [createdNeedId, setCreatedNeedId] = useState(null)
   const [recoveryCode, setRecoveryCode] = useState('')
   const [tokenCopied, setTokenCopied] = useState(false)
+  const [accessToken, setAccessToken] = useState('')
+  const [accessTokenCopied, setAccessTokenCopied] = useState(false)
+  const [tokenSaved, setTokenSaved] = useState(false)
   const recorderRef = useRef(null)
   const streamRef = useRef(null)
   const chunksRef = useRef([])
@@ -241,6 +244,13 @@ export default function UrgentSOS() {
     setBusy(true)
     setError('')
     try {
+      // Do not put the guided SOS publication into the generic offline queue:
+      // the reporter must receive the recovery password and access token
+      // immediately on this screen. A queued emergency submission cannot
+      // safely promise that those credentials have been saved.
+      const submissionRecoveryCode = `voice-${crypto.randomUUID().replaceAll('-', '').slice(0, 12)}`
+      setRecoveryCode(submissionRecoveryCode)
+      const formData = new FormData()
       const fields = {
         campaign: activeCampaign.id,
         wilaya: wilayaId || '',
@@ -248,36 +258,39 @@ export default function UrgentSOS() {
         title: extracted.title || 'SOS urgent',
         estimated_quantity: extracted.estimated_quantity || '',
         commune: extracted.commune || '',
-        location_description: extracted.location_description || 'Sans localisation',
         contact_name: extracted.contact_name || 'Anonyme',
         contact_phone: extracted.contact_phone || '',
         organization_or_person_name: extracted.organization_or_person_name || '',
-        // CreateNeed's established model stores the user-facing free-text need in
-        // location_description. Keep both the detected location and the full
-        // LLM description there so no useful spoken detail is silently lost.
+        // Keep the detected location and the full spoken description so no
+        // useful detail from the transcription is silently lost.
         location_description: [extracted.location_description, extracted.description || transcript].filter(Boolean).join(' — ') || 'Sans localisation',
         latitude: gps?.latitude ?? '',
         longitude: gps?.longitude ?? '',
-        // Guided SOS is deliberately published with a safe recovery code
-        // omitted: the access token returned by the existing Need flow is
-        // the primary recovery mechanism for this emergency path.
+        recovery_code: submissionRecoveryCode,
       }
-      const result = await createOrQueue({
-        type: 'need',
-        endpoint: '/api/needs/voice-guide/',
-        fields,
-        files: { voice_file: new File([voiceBlob], 'urgent-sos.webm', { type: voiceBlob.type || 'audio/webm' }) },
+      Object.entries(fields).forEach(([key, value]) => {
+        if (value !== null && value !== undefined && value !== '') formData.append(key, value)
       })
-      if (result.queued) {
-        setStep(STEP.DONE)
-        return
-      }
-      const need = result.data
-      setRecoveryCode(need.recovery_code || '')
+      formData.append(
+        'voice_file',
+        new File([voiceBlob], 'urgent-sos.webm', { type: voiceBlob.type || 'audio/webm' }),
+      )
+      const need = await apiUpload('/needs/voice-guide/', formData)
+      const returnedRecoveryCode = need.recovery_code || submissionRecoveryCode
+      const returnedAccessToken = need.access_token || ''
+      setRecoveryCode(returnedRecoveryCode)
+      setAccessToken(returnedAccessToken)
       setTokenCopied(false)
-      saveNeedToken(need.id, { access_token: need.access_token, location_viewer_share_token: need.location_viewer_share_token })
+      setAccessTokenCopied(false)
+      setTokenSaved(Boolean(returnedAccessToken))
+      if (need.id) {
+        saveNeedToken(need.id, {
+          access_token: returnedAccessToken,
+          location_viewer_share_token: need.location_viewer_share_token,
+        })
+        setCreatedNeedId(need.id)
+      }
       refreshConfig()
-      setCreatedNeedId(need.id)
       setStep(STEP.DONE)
     } catch (err) {
       setError(translateApiError(err, t))
@@ -292,6 +305,17 @@ export default function UrgentSOS() {
       await navigator.clipboard.writeText(recoveryCode)
       setTokenCopied(true)
       window.setTimeout(() => setTokenCopied(false), 2200)
+    } catch {
+      setError(t('urgentSos.copyTokenFailed'))
+    }
+  }
+
+  const copyStoredAccessToken = async () => {
+    if (!accessToken) return
+    try {
+      await navigator.clipboard.writeText(accessToken)
+      setAccessTokenCopied(true)
+      window.setTimeout(() => setAccessTokenCopied(false), 2200)
     } catch {
       setError(t('urgentSos.copyTokenFailed'))
     }
@@ -396,6 +420,7 @@ export default function UrgentSOS() {
             <div className="urgent-sos-step-label">{t('urgentSos.step', { current: 4, total: 4 })}</div>
             <h2>{t('urgentSos.reviewTitle')}</h2>
             <p>{t('urgentSos.reviewText')}</p>
+            <AudioGuide lang={lang} step={7} />
             {transcript && (
               <details className="urgent-sos-transcript">
                 <summary>{t('urgentSos.showTranscript')}</summary>
@@ -424,6 +449,8 @@ export default function UrgentSOS() {
             <IconCheckCircle width={52} height={52} />
             <h2>{t('urgentSos.doneTitle')}</h2>
             <p>{t('urgentSos.doneText')}</p>
+            <AudioGuide lang={lang} step={8} />
+            {tokenSaved && <p className="urgent-sos-token-saved" role="status">✓ {t('urgentSos.tokenSaved')}</p>}
             {recoveryCode && (
               <div className="urgent-sos-token-box" role="status">
                 <div className="urgent-sos-token-title">{t('urgentSos.tokenTitle')}</div>
@@ -432,6 +459,18 @@ export default function UrgentSOS() {
                   <strong className="urgent-sos-token">{recoveryCode}</strong>
                   <button type="button" className="urgent-sos-copy-token" onClick={copyAccessToken} aria-label={t('urgentSos.copyToken')}>
                     📋 {tokenCopied ? t('urgentSos.tokenCopied') : t('urgentSos.copyToken')}
+                  </button>
+                </div>
+              </div>
+            )}
+            {accessToken && (
+              <div className="urgent-sos-token-box urgent-sos-access-token-box" role="status">
+                <div className="urgent-sos-token-title">{t('urgentSos.accessTokenTitle')}</div>
+                <p className="urgent-sos-token-warning">{t('urgentSos.accessTokenWarning')}</p>
+                <div className="urgent-sos-token-row">
+                  <strong className="urgent-sos-token">{accessToken}</strong>
+                  <button type="button" className="urgent-sos-copy-token" onClick={copyStoredAccessToken} aria-label={t('urgentSos.copyAccessToken')}>
+                    📋 {accessTokenCopied ? t('urgentSos.accessTokenCopied') : t('urgentSos.copyAccessToken')}
                   </button>
                 </div>
               </div>
