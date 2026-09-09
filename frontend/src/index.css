@@ -3454,3 +3454,143 @@ body { overflow-x: hidden; }
  .urgent-sos-language button{flex:1;}
 }
 
+
+
+/* --- Urgent SOS voice page: mobile viewport fit (page scope only) ---
+   Deliberately does not target the global header or bottom navigation.
+   The wizard cards are compacted so the active step fits in the visual
+   viewport on narrow phones instead of creating a second page scroll. */
+@media (max-width: 699px) {
+  .urgent-sos-page {
+    min-height: 0;
+    padding: 2px 8px calc(78px + env(safe-area-inset-bottom));
+  }
+
+  .urgent-sos-shell {
+    width: 100%;
+  }
+
+  .urgent-sos-back {
+    margin: 1px 0 6px;
+    font-size: 13px;
+  }
+
+  .urgent-sos-kicker {
+    margin-bottom: 5px;
+    font-size: 11px;
+  }
+
+  .urgent-sos-hero {
+    margin-bottom: 8px;
+    gap: 8px;
+  }
+
+  .urgent-sos-hero h1 {
+    font-size: 23px;
+  }
+
+  .urgent-sos-hero p {
+    margin-top: 3px;
+    font-size: 12px;
+    line-height: 1.25;
+  }
+
+  .urgent-sos-progress {
+    margin-bottom: 7px;
+  }
+
+  .urgent-sos-card {
+    padding: 13px;
+    border-radius: 15px;
+  }
+
+  .urgent-sos-card h2 {
+    margin-bottom: 5px;
+    font-size: 20px;
+  }
+
+  .urgent-sos-card > p {
+    margin-bottom: 9px;
+    line-height: 1.32;
+    font-size: 13px;
+  }
+
+  .urgent-sos-audio {
+    margin: 8px 0 10px;
+    gap: 6px;
+  }
+
+  .urgent-sos-audio-btn {
+    min-height: 42px;
+    padding-inline: 13px;
+    font-size: 13px;
+  }
+
+  .urgent-sos-language {
+    margin: 5px 0 9px;
+  }
+
+  .urgent-sos-language button {
+    min-height: 40px;
+  }
+
+  .urgent-sos-recording {
+    min-height: 64px;
+    margin: 10px 0;
+  }
+
+  .urgent-sos-primary,
+  .urgent-sos-secondary,
+  .urgent-sos-danger {
+    min-height: 46px;
+    font-size: 14px;
+  }
+
+  .urgent-sos-actions {
+    margin-top: 10px;
+    gap: 7px;
+  }
+
+  .urgent-sos-fields {
+    gap: 7px;
+  }
+
+  .urgent-sos-fields input,
+  .urgent-sos-fields textarea {
+    padding: 9px 10px;
+  }
+
+  .urgent-sos-fields textarea {
+    min-height: 58px;
+  }
+
+  .urgent-sos-token-box {
+    padding: 12px;
+    border-radius: 14px;
+  }
+
+  .urgent-sos-token-warning {
+    margin: 5px 0 9px !important;
+    font-size: 13px;
+    line-height: 1.3;
+  }
+
+  .urgent-sos-token-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .urgent-sos-token {
+    padding: 9px 10px;
+    font-size: 15px;
+  }
+
+  .urgent-sos-copy-token {
+    min-height: 42px;
+  }
+
+  .urgent-sos-token-saved {
+    margin: 0 0 8px !important;
+    font-size: 12px;
+  }
+}
