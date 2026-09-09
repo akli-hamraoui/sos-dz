@@ -77,6 +77,7 @@ export default function UrgentSOS() {
   const [step, setStep] = useState(STEP.INTRO)
   const [lang, setLang] = useState('fr')
   const [recording, setRecording] = useState(false)
+  const [recordingCountdown, setRecordingCountdown] = useState(0)
   const [seconds, setSeconds] = useState(0)
   const [voiceBlob, setVoiceBlob] = useState(null)
   const [previewUrl, setPreviewUrl] = useState('')
@@ -100,12 +101,14 @@ export default function UrgentSOS() {
   const streamRef = useRef(null)
   const chunksRef = useRef([])
   const timerRef = useRef(null)
+  const countdownRef = useRef(null)
 
   const activeCampaign = useMemo(() => campaigns.find((c) => c.status === 'active'), [campaigns])
 
   useEffect(() => {
     return () => {
       clearInterval(timerRef.current)
+      clearInterval(countdownRef.current)
       streamRef.current?.getTracks().forEach((track) => track.stop())
       if (previewUrl) URL.revokeObjectURL(previewUrl)
     }
@@ -134,10 +137,16 @@ export default function UrgentSOS() {
         if (event.data.size) chunksRef.current.push(event.data)
       }
       recorder.onerror = () => {
+        clearInterval(countdownRef.current)
+        setRecordingCountdown(0)
         setRecording(false)
         setError(t('urgentSos.recordingError'))
       }
       recorder.onstop = () => {
+        clearInterval(timerRef.current)
+        clearInterval(countdownRef.current)
+        setRecordingCountdown(0)
+        setRecording(false)
         stream.getTracks().forEach((track) => track.stop())
         streamRef.current = null
         const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'audio/webm' })
@@ -151,19 +160,40 @@ export default function UrgentSOS() {
       }
       recorderRef.current = recorder
       setSeconds(0)
-      setRecording(true)
+      setRecording(false)
+
+      // Give the user three seconds to prepare before the microphone data
+      // starts being captured. This avoids recordings that begin before the
+      // user is ready, especially on mobile where the permission prompt and
+      // the tap-to-speak action can otherwise consume the first seconds.
+      setRecordingCountdown(3)
       recorder.start(250)
-      timerRef.current = setInterval(() => {
-        setSeconds((value) => {
-          if (value + 1 >= MAX_SECONDS) {
-            recorder.stop()
-            clearInterval(timerRef.current)
-            setRecording(false)
+      recorder.pause()
+
+      countdownRef.current = setInterval(() => {
+        setRecordingCountdown((value) => {
+          if (value <= 1) {
+            clearInterval(countdownRef.current)
+            recorder.resume()
+            setRecording(true)
+            timerRef.current = setInterval(() => {
+              setSeconds((current) => {
+                if (current + 1 >= MAX_SECONDS) {
+                  clearInterval(timerRef.current)
+                  setRecording(false)
+                  if (recorder.state !== 'inactive') recorder.stop()
+                }
+                return current + 1
+              })
+            }, 1000)
+            return 0
           }
-          return value + 1
+          return value - 1
         })
       }, 1000)
     } catch (err) {
+      clearInterval(countdownRef.current)
+      setRecordingCountdown(0)
       const message = err?.name === 'NotAllowedError' ? t('urgentSos.microphoneDenied') : t('urgentSos.microphoneUnavailable')
       setError(message)
     }
@@ -171,6 +201,8 @@ export default function UrgentSOS() {
 
   const stopRecording = () => {
     clearInterval(timerRef.current)
+    clearInterval(countdownRef.current)
+    setRecordingCountdown(0)
     setRecording(false)
     if (recorderRef.current?.state !== 'inactive') recorderRef.current.stop()
   }
@@ -258,8 +290,8 @@ export default function UrgentSOS() {
       }
 
       setLocationStatus('success')
-      setStep(STEP.ANALYZE)
-      await analyzeVoice()
+      setStep(STEP.REVIEW)
+      void analyzeVoice()
     } catch (geoError) {
       setGps(null)
       setWilayaId(null)
@@ -293,7 +325,6 @@ export default function UrgentSOS() {
 
   const analyzeVoice = async () => {
     if (!voiceBlob) return
-    setBusy(true)
     setError('')
     try {
       const form = new FormData()
@@ -315,8 +346,6 @@ export default function UrgentSOS() {
       setExtracted(fallbackData)
       setError(translateApiError(err, t))
       setStep(STEP.REVIEW)
-    } finally {
-      setBusy(false)
     }
   }
 
@@ -466,11 +495,22 @@ export default function UrgentSOS() {
             <h2>{t('urgentSos.recordTitle')}</h2>
             <p>{t('urgentSos.recordText')}</p>
             <AudioGuide lang={lang} step={1} />
-            <div className={recording ? 'urgent-sos-recording active' : 'urgent-sos-recording'}>
-              <span className="urgent-sos-recording-dot" aria-hidden="true" />
-              <strong>{recording ? `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}` : t('urgentSos.ready')}</strong>
-            </div>
-            {recording ? (
+            {recordingCountdown > 0 ? (
+              <div className="urgent-sos-countdown" role="status" aria-live="assertive">
+                <span className="urgent-sos-countdown-number">{recordingCountdown}</span>
+                <strong>{t('urgentSos.countdownSpeak')}</strong>
+              </div>
+            ) : (
+              <div className={recording ? 'urgent-sos-recording active' : 'urgent-sos-recording'}>
+                <span className="urgent-sos-recording-dot" aria-hidden="true" />
+                <strong>{recording ? `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}` : t('urgentSos.ready')}</strong>
+              </div>
+            )}
+            {recordingCountdown > 0 ? (
+              <div className="urgent-sos-actions urgent-sos-record-actions">
+                <button type="button" className="urgent-sos-secondary" onClick={stopRecording}>{t('urgentSos.cancelCountdown')}</button>
+              </div>
+            ) : recording ? (
               <div className="urgent-sos-actions urgent-sos-record-actions">
                 <button type="button" className="urgent-sos-secondary urgent-sos-previous" onClick={goToPreviousStep}>{t('urgentSos.previous')}</button>
                 <button type="button" className="urgent-sos-danger" onClick={stopRecording}>⏹ {t('urgentSos.stop')}</button>
@@ -555,7 +595,7 @@ export default function UrgentSOS() {
             )}
             <div className="urgent-sos-actions">
               <button type="button" className="urgent-sos-secondary" onClick={goToPreviousStep} disabled={locating || busy}>{t('urgentSos.previous')}</button>
-              <button type="button" className="urgent-sos-secondary" onClick={() => { setError(''); setLocationStatus('skipped'); setGps(null); setStep(STEP.ANALYZE); analyzeVoice() }} disabled={locating || busy}>
+              <button type="button" className="urgent-sos-secondary" onClick={() => { setError(''); setLocationStatus('skipped'); setGps(null); setStep(STEP.REVIEW); void analyzeVoice() }} disabled={locating || busy}>
                 {t('urgentSos.noLocation')}
               </button>
               <button type="button" className="urgent-sos-primary" onClick={chooseLocation} disabled={locating || busy}>
