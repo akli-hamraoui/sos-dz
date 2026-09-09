@@ -5,12 +5,12 @@ import { useApp } from '../context/AppContext'
 import { api, apiUpload } from '../api'
 import { translateApiError } from '../apiErrors'
 import { IconMic } from '../icons'
-import { audioUrlFor } from '../voiceGuide'
+import { audioUrlFor, playGuideAudio } from '../voiceGuide'
 
 const STEP = { INTRO: 0, RECORD: 1, PREVIEW: 2, LOCATION: 3, REVIEW: 4 }
 const MAX_SECONDS = 180
 
-function AudioGuide({ lang, step, audioPaused, onAudioPauseChange, onEnded }) {
+function AudioGuide({ lang, step, audioPaused, onAudioPauseChange, onEnded, autoPlay = true }) {
   const { t } = useTranslation()
   const ref = useRef(null)
   const [playing, setPlaying] = useState(false)
@@ -30,6 +30,8 @@ function AudioGuide({ lang, step, audioPaused, onAudioPauseChange, onEnded }) {
         cancelled = true
       }
     }
+
+    if (!autoPlay) return () => { cancelled = true }
 
     // Try to start automatically on every step. Browsers may reject
     // autoplay; in that case the same button remains available and the
@@ -51,7 +53,7 @@ function AudioGuide({ lang, step, audioPaused, onAudioPauseChange, onEnded }) {
       audio.pause()
       audio.currentTime = 0
     }
-  }, [lang, step, audioPaused])
+  }, [lang, step, audioPaused, autoPlay])
 
   const toggle = () => {
     const audio = ref.current
@@ -328,6 +330,7 @@ export default function UrgentSOS() {
       }
 
       setLocationStatus('success')
+      playGuideAudio(lang, 3)
       setStep(STEP.REVIEW)
       void analyzeVoice()
 
@@ -688,7 +691,7 @@ export default function UrgentSOS() {
               <small>{t('urgentSos.wilayaHelp')}</small>
             </div>
 
-            <AudioGuide lang={lang} step={2} audioPaused={audioPaused} onAudioPauseChange={setAudioPaused} />
+            <AudioGuide lang={lang} step={2} audioPaused={audioPaused} onAudioPauseChange={setAudioPaused} autoPlay={false} />
 
             {locationStatus === 'success' && gps && (
               <div className="urgent-sos-location-status success" role="status">
@@ -715,6 +718,7 @@ export default function UrgentSOS() {
                 setError('')
                 setLocationStatus('skipped')
                 setGps(null)
+                playGuideAudio(lang, 4)
                 setStep(STEP.REVIEW)
                 void analyzeVoice()
               }} disabled={locating || busy}>
