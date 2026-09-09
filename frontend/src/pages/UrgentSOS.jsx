@@ -394,9 +394,11 @@ export default function UrgentSOS() {
         if (value !== null && value !== undefined && value !== '') formData.append(key, value)
       })
 
+      const audioType = voiceBlob.type || 'audio/webm'
+      const audioExtension = audioType.includes('mp4') ? 'mp4' : audioType.includes('ogg') ? 'ogg' : 'webm'
       formData.append(
         'voice_file',
-        new File([voiceBlob], 'urgent-sos.webm', { type: voiceBlob.type || 'audio/webm' }),
+        new File([voiceBlob], `urgent-sos.${audioExtension}`, { type: audioType }),
       )
 
       const need = await apiUpload('/needs/voice-guide/', formData)
