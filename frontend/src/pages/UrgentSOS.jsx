@@ -622,7 +622,7 @@ export default function UrgentSOS() {
                         {wilaya.name}
                       </button>
                     ))}
-                </div>
+                </div>}
               </div>
               <small>{t('urgentSos.wilayaHelp')}</small>
             </div>
