@@ -223,6 +223,24 @@ export default function UrgentSOS() {
     }
   }
 
+  const cancelUnfinishedRecording = () => {
+    clearInterval(timerRef.current)
+    clearInterval(countdownTimerRef.current)
+    timerRef.current = null
+    countdownTimerRef.current = null
+    setRecordingCountdown(0)
+    setRecording(false)
+    chunksRef.current = []
+    const recorder = recorderRef.current
+    recorderRef.current = null
+    if (recorder && recorder.state !== 'inactive') {
+      try { recorder.onstop = null } catch {}
+      try { recorder.stop() } catch {}
+    }
+    streamRef.current?.getTracks().forEach((track) => track.stop())
+    streamRef.current = null
+  }
+
   const stopRecording = () => {
     clearInterval(timerRef.current)
     clearInterval(countdownTimerRef.current)
@@ -341,7 +359,16 @@ export default function UrgentSOS() {
 
   const goToPreviousStep = () => {
     setError('')
-    if (step === STEP.RECORD) return setStep(STEP.INTRO)
+    if (step === STEP.RECORD) {
+      if (recording || recordingCountdown > 0) {
+        cancelUnfinishedRecording()
+        setVoiceBlob(null)
+        if (previewUrl) URL.revokeObjectURL(previewUrl)
+        setPreviewUrl('')
+        setSeconds(0)
+      }
+      return setStep(STEP.INTRO)
+    }
     if (step === STEP.PREVIEW) return setStep(STEP.RECORD)
     if (step === STEP.LOCATION) return setStep(STEP.PREVIEW)
     if (step === STEP.REVIEW) return setStep(STEP.LOCATION)
@@ -592,7 +619,7 @@ export default function UrgentSOS() {
             <h2>{t('urgentSos.previewTitle')}</h2>
             <p>{t('urgentSos.previewText')}</p>
             <audio className="urgent-sos-preview" controls src={previewUrl} />
-            <AudioGuide lang={lang} step={2} audioPaused={audioPaused} onAudioPauseChange={setAudioPaused} />
+            <AudioGuide lang={lang} step={6} audioPaused={audioPaused} onAudioPauseChange={setAudioPaused} />
             <div className="urgent-sos-actions urgent-sos-preview-actions">
               <button type="button" className="urgent-sos-secondary urgent-sos-previous" onClick={goToPreviousStep}>{t('urgentSos.previous')}</button>
               <button type="button" className="urgent-sos-secondary" onClick={restartRecording}>{t('urgentSos.rerecord')}</button>
@@ -609,32 +636,56 @@ export default function UrgentSOS() {
 
             <div className="urgent-sos-wilaya-field">
               <label htmlFor="urgent-sos-wilaya">{t('urgentSos.wilayaOptional')}</label>
-              <input
-                id="urgent-sos-wilaya"
-                type="search"
-                list="urgent-sos-wilaya-options"
-                value={wilayaSearch}
-                onChange={(e) => {
-                  const value = e.target.value
-                  setWilayaSearch(value)
-                  const selected = activeCampaignWilayas.find(
-                    (w) => String(w.name || '').trim().toLocaleLowerCase() === value.trim().toLocaleLowerCase(),
-                  )
-                  setWilayaId(selected?.id || null)
-                }}
-                placeholder={t('urgentSos.wilayaSearchPlaceholder')}
-                autoComplete="off"
-                aria-label={t('urgentSos.wilayaSearchPlaceholder')}
-              />
-              <datalist id="urgent-sos-wilaya-options">
-                {activeCampaignWilayas.map((wilaya) => (
-                  <option key={wilaya.id} value={wilaya.name} />
-                ))}
-              </datalist>
+              <div className="urgent-sos-wilaya-combobox">
+                <input
+                  id="urgent-sos-wilaya"
+                  type="search"
+                  value={wilayaSearch}
+                  onChange={(e) => {
+                    setWilayaSearch(e.target.value)
+                    setWilayaId(null)
+                  }}
+                  onFocus={() => setWilayaSearch(wilayaSearch)}
+                  placeholder={t('urgentSos.wilayaSearchPlaceholder')}
+                  autoComplete="off"
+                  aria-label={t('urgentSos.wilayaSearchPlaceholder')}
+                />
+                {wilayaSearch && (
+                  <button
+                    type="button"
+                    className="urgent-sos-wilaya-reset"
+                    onClick={() => {
+                      setWilayaSearch('')
+                      setWilayaId(null)
+                    }}
+                    aria-label={t('urgentSos.wilayaReset')}
+                    title={t('urgentSos.wilayaReset')}
+                  >×</button>
+                )}
+                <span className="urgent-sos-wilaya-chevron" aria-hidden="true">⌄</span>
+                <div className="urgent-sos-wilaya-options" role="listbox">
+                  {activeCampaignWilayas
+                    .filter((w) => String(w.name || '').toLocaleLowerCase().includes(wilayaSearch.trim().toLocaleLowerCase()))
+                    .slice(0, 12)
+                    .map((wilaya) => (
+                      <button
+                        key={wilaya.id}
+                        type="button"
+                        className="urgent-sos-wilaya-option"
+                        onClick={() => {
+                          setWilayaId(wilaya.id)
+                          setWilayaSearch(wilaya.name)
+                        }}
+                      >
+                        {wilaya.name}
+                      </button>
+                    ))}
+                </div>
+              </div>
               <small>{t('urgentSos.wilayaHelp')}</small>
             </div>
 
-            <AudioGuide lang={lang} step={3} audioPaused={audioPaused} onAudioPauseChange={setAudioPaused} />
+            <AudioGuide lang={lang} step={2} audioPaused={audioPaused} onAudioPauseChange={setAudioPaused} />
 
             {locationStatus === 'success' && gps && (
               <div className="urgent-sos-location-status success" role="status">
@@ -764,7 +815,6 @@ export default function UrgentSOS() {
                 )}
 
                 <div className="urgent-sos-actions">
-                  {createdNeedId && <button type="button" className="urgent-sos-primary" onClick={() => navigate(`/needs/${createdNeedId}`)}>{t('urgentSos.viewNeed')}</button>}
                   <Link to="/" className="urgent-sos-secondary">{t('urgentSos.backHome')}</Link>
                 </div>
               </>
