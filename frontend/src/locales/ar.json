@@ -599,6 +599,7 @@
     "previous": "السابق",
     "wilayaOptional": "الولاية (اختياري)",
     "wilayaPlaceholder": "اختر ولاية إذا أردت",
+    "wilayaSearchPlaceholder": "ابحث عن ولاية (مثال: تيزي)",
     "wilayaHelp": "تظهر فقط الولايات المعنية بالنداء الحالي.",
     "step": "الخطوة {{current}} من {{total}}",
     "recordTitle": "سجل نداء الاستغاثة",
