@@ -22,6 +22,7 @@ function AudioGuide({ lang, step }) {
       if (audio) {
         audio.pause()
         audio.currentTime = 0
+        audio.load()
       }
     }
   }, [lang, step])
@@ -30,6 +31,8 @@ function AudioGuide({ lang, step }) {
     const audio = ref.current
     if (!audio) return
     if (audio.paused) {
+      setSupported(true)
+      audio.load()
       audio.play().then(() => setPlaying(true)).catch(() => setSupported(false))
     } else {
       audio.pause()
@@ -42,7 +45,9 @@ function AudioGuide({ lang, step }) {
       <audio
         ref={ref}
         src={audioUrlFor(lang, step)}
-        preload="metadata"
+        preload="auto"
+        playsInline
+        onLoadedData={() => setSupported(true)}
         onEnded={() => setPlaying(false)}
         onError={() => setSupported(false)}
       />
@@ -345,12 +350,12 @@ export default function UrgentSOS() {
       if (!returnedAccessToken) {
         throw new Error(t('urgentSos.tokenMissing'))
       }
+      setTokenSaved(Boolean(returnedAccessToken))
       if (need.id) {
         await Promise.resolve(saveNeedToken(need.id, {
           access_token: returnedAccessToken,
           location_viewer_share_token: need.location_viewer_share_token,
         }))
-        setTokenSaved(Boolean(returnedAccessToken))
         setCreatedNeedId(need.id)
       }
       refreshConfig()
@@ -397,6 +402,21 @@ export default function UrgentSOS() {
             <h1>{pageTitle}</h1>
             <p>{t('urgentSos.subtitle')}</p>
           </div>
+        </div>
+
+        <div className="urgent-sos-stepper" aria-label={t('urgentSos.progressLabel')}>
+          {[
+            [STEP.INTRO, t('urgentSos.stepIntro')],
+            [STEP.RECORD, t('urgentSos.stepRecord')],
+            [STEP.PREVIEW, t('urgentSos.stepPreview')],
+            [STEP.LOCATION, t('urgentSos.stepLocation')],
+            [STEP.REVIEW, t('urgentSos.stepReview')],
+          ].map(([item, label], index) => (
+            <div key={item} className={step >= item ? 'done' : ''} data-current={step === item}>
+              <span>{index + 1}</span>
+              <small>{label}</small>
+            </div>
+          ))}
         </div>
 
         <div className="urgent-sos-progress" aria-label={t('urgentSos.progressLabel')}>
