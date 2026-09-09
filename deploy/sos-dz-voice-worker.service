@@ -1,0 +1,17 @@
+[Unit]
+Description=SOS DZ guided voice transcription worker
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/sos-dz
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/sos-dz/backend-venv/bin/python /opt/sos-dz/backend/manage.py process_voice_sos --interval 2
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
