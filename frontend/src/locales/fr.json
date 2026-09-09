@@ -599,6 +599,7 @@
     "previous": "Précédent",
     "wilayaOptional": "Wilaya (facultatif)",
     "wilayaPlaceholder": "Choisir une wilaya si vous le souhaitez",
+    "wilayaSearchPlaceholder": "Rechercher une wilaya (ex. Tizi)",
     "wilayaHelp": "Seules les wilayas concernées par le SOS en cours sont proposées.",
     "step": "Étape {{current}} sur {{total}}",
     "recordTitle": "Enregistrez votre SOS",
