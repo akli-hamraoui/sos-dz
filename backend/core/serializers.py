@@ -479,6 +479,7 @@ class NeedCreateSerializer(serializers.ModelSerializer):
             "wilaya",
             "commune",
             "location_description",
+            "description",
             "latitude",
             "longitude",
             "contact_name",
@@ -531,10 +532,11 @@ class NeedCreateSerializer(serializers.ModelSerializer):
             )
             if not admin_voice_sos:
                 validate_algeria_bounds(lat, lon)
-        description = (attrs.get("location_description") or "").strip()
+        description = (attrs.get("description") or "").strip()
+        location_description = (attrs.get("location_description") or "").strip()
         voice_file = attrs.get("voice_file")
         video_file = attrs.get("video_file")
-        if not description and not voice_file and not video_file:
+        if not description and not location_description and not voice_file and not video_file:
             raise serializers.ValidationError(
                 "Please provide at least one of: a text description, a voice message, or a video."
             )
