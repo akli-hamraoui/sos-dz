@@ -519,8 +519,12 @@ export default function UrgentSOS() {
                 ⚠️ {t('urgentSos.locationOutsideAlgeria')}
               </div>
             )}
-            {locationStatus === 'error' && error && (
-              <div className="urgent-sos-location-status error" role="alert">{error}</div>
+            {locationStatus === 'error' && (
+              <div className="urgent-sos-location-status error urgent-sos-location-help" role="alert">
+                <strong>{t('urgentSos.locationNoGpsTitle')}</strong>
+                <span>{error || t('urgentSos.locationError')}</span>
+                <span>{t('urgentSos.locationSelectWilaya')}</span>
+              </div>
             )}
             <div className="urgent-sos-actions">
               <button type="button" className="urgent-sos-secondary" onClick={goToPreviousStep} disabled={locating || busy}>{t('urgentSos.previous')}</button>
