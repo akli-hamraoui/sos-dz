@@ -3900,3 +3900,37 @@ body { overflow-x: hidden; }
     max-height:88px;
   }
 }
+
+/* --- Footer active item: uniform mobile selection tile ----------------- */
+
+/* All selected footer items use the exact same tile dimensions. This keeps
+   short labels (Accueil/SOS) and two-line labels (Collecte Algérie/
+   Collecte Internationale) visually homogeneous. The width stays inside
+   each 5-column cell on very narrow phones, while 74px is the desktop/mobile
+   upper bound so the international label gets the extra room it needs. */
+.bottom-nav a.active {
+  width: min(74px, calc(100% - 8px)) !important;
+  height: 72px !important;
+  min-height: 72px !important;
+  margin-inline: auto !important;
+  padding: 7px 4px !important;
+  box-sizing: border-box !important;
+  border-radius: 16px !important;
+  justify-content: center !important;
+  gap: 2px !important;
+  overflow: visible !important;
+}
+
+.bottom-nav a.active .icon {
+  width: 26px;
+  height: 26px;
+  flex: 0 0 26px;
+  margin-inline: auto;
+}
+
+.bottom-nav a.active .nav-label-2line {
+  max-width: 100%;
+  white-space: normal;
+  text-align: center;
+  line-height: 1.12;
+}
