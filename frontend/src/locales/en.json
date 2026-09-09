@@ -596,6 +596,8 @@
     "recordText": "Speak naturally. Say everything that may help: who you are, what you need, where you are and why it is urgent.",
     "ready": "Ready to record",
     "start": "Start recording",
+    "countdownSpeak": "Get ready… you will speak in a few seconds.",
+    "cancelCountdown": "Cancel",
     "stop": "Stop recording",
     "recording": "Recording in progress",
     "previewTitle": "Listen to your message",
