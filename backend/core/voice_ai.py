@@ -233,6 +233,19 @@ def process_voice_need(need_id):
             raise VoiceAIError("Voice recording is missing.")
 
         transcript = transcribe_audio(need.voice_file)
+        # Keep the full transcription in logs for post-incident diagnosis.
+        # WARNING: this may contain personal information; protect/rotate logs
+        # according to the production retention policy.
+        logger.info(
+            "VOICE_SOS_TRANSCRIPTION need_id=%s language=%s chars=%s transcript=%r",
+            need.pk,
+            getattr(need, "language", None),
+            len(transcript or ""),
+            transcript,
+        )
+        if not transcript or not transcript.strip():
+            raise VoiceAIError("Whisper returned an empty transcription.")
+
         extraction = extract_need_data(transcript)
 
         # The transcript is the source-of-truth description. LLM fields only
