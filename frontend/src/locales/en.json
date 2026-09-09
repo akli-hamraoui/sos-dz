@@ -622,7 +622,7 @@
     "confirm": "Confirm SOS",
     "sending": "Sending…",
     "doneTitle": "Urgent SOS created",
-    "doneText": "Your SOS is saved. Listen to the two final instructions, then copy your token before leaving this page.",
+    "doneText": "Your SOS is saved. Copy and keep your access token before leaving this page.",
     "tokenTitle": "Token to copy",
     "tokenWarning": "Copy and keep this token so you can recover and manage your SOS later.",
     "copyToken": "Copy",
