@@ -1,4 +1,5 @@
 from unittest.mock import Mock, patch
+import unittest
 import os
 import tempfile
 
@@ -181,3 +182,21 @@ class VoiceNeedProcessingTests(TestCase):
         need.refresh_from_db()
         self.assertEqual(need.voice_processing_status, Need.VOICE_PROCESSING_FAILED)
         self.assertIn("No speech", need.voice_processing_error)
+
+
+class RealWhisperSmokeTest(TestCase):
+    @unittest.skipUnless(
+        os.getenv("VOICE_SMOKE_AUDIO"),
+        "Set VOICE_SMOKE_AUDIO to a real browser-recorded audio file to run the local Whisper smoke test.",
+    )
+    def test_real_browser_audio_produces_transcription(self):
+        path = os.environ["VOICE_SMOKE_AUDIO"]
+        with open(path, "rb") as handle:
+            upload = SimpleUploadedFile(
+                os.path.basename(path),
+                handle.read(),
+                content_type="audio/webm",
+            )
+
+        result = transcribe_audio(upload)
+        self.assertTrue(result.strip())
