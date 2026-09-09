@@ -73,7 +73,7 @@ const fallbackData = {
 export default function UrgentSOS() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const { config, campaigns, saveNeedToken, refreshConfig } = useApp()
+  const { config, campaigns, activeCampaignWilayas, saveNeedToken, refreshConfig } = useApp()
   const [step, setStep] = useState(STEP.INTRO)
   const [lang, setLang] = useState('fr')
   const [recording, setRecording] = useState(false)
@@ -243,25 +243,15 @@ export default function UrgentSOS() {
         return
       }
 
-      if (insideAlgeria) {
+      if (!wilayaId && insideAlgeria) {
         try {
           const suggestion = await api(`/wilayas/nearest/?lat=${latitude}&lon=${longitude}`)
           setWilayaId(suggestion.id || null)
         } catch {
-          // The precise coordinates remain usable even if the nearest-wilaya
-          // convenience lookup is temporarily unavailable.
-          setWilayaId(null)
+          // Manual wilaya selection and precise GPS remain usable even if
+          // the convenience nearest-wilaya lookup is unavailable.
         }
-      } else {
-        // Admin-only abroad GPS: keep the real coordinates and let the
-        // backend choose the campaign's fallback wilaya without inventing a
-        // wilaya from an out-of-country coordinate.
-        setWilayaId(null)
       }
-      /*
-
-        setWilayaId(null)
-      } */
 
       setLocationStatus('success')
       setStep(STEP.ANALYZE)
@@ -279,6 +269,14 @@ export default function UrgentSOS() {
     } finally {
       setLocating(false)
     }
+  }
+
+  const goToPreviousStep = () => {
+    setError('')
+    if (step === STEP.RECORD) return setStep(STEP.INTRO)
+    if (step === STEP.PREVIEW) return setStep(STEP.RECORD)
+    if (step === STEP.LOCATION) return setStep(STEP.PREVIEW)
+    if (step === STEP.REVIEW) return setStep(STEP.LOCATION)
   }
 
   const analyzeVoice = async () => {
@@ -478,6 +476,7 @@ export default function UrgentSOS() {
             <p>{t('urgentSos.previewText')}</p>
             <audio className="urgent-sos-preview" controls src={previewUrl} />
             <div className="urgent-sos-actions">
+              <button type="button" className="urgent-sos-secondary" onClick={goToPreviousStep}>{t('urgentSos.previous')}</button>
               <button type="button" className="urgent-sos-secondary" onClick={restartRecording}>{t('urgentSos.rerecord')}</button>
               <button type="button" className="urgent-sos-primary" onClick={() => setStep(STEP.LOCATION)}>{t('urgentSos.continue')}</button>
             </div>
@@ -489,6 +488,20 @@ export default function UrgentSOS() {
             <div className="urgent-sos-step-label">{t('urgentSos.step', { current: 3, total: 4 })}</div>
             <h2>{t('urgentSos.locationTitle')}</h2>
             <p>{t('urgentSos.locationText')}</p>
+            <div className="urgent-sos-wilaya-field">
+              <label htmlFor="urgent-sos-wilaya">{t('urgentSos.wilayaOptional')}</label>
+              <select
+                id="urgent-sos-wilaya"
+                value={wilayaId || ''}
+                onChange={(e) => setWilayaId(e.target.value || null)}
+              >
+                <option value="">{t('urgentSos.wilayaPlaceholder')}</option>
+                {activeCampaignWilayas.map((wilaya) => (
+                  <option key={wilaya.id} value={wilaya.id}>{wilaya.name}</option>
+                ))}
+              </select>
+              <small>{t('urgentSos.wilayaHelp')}</small>
+            </div>
             <AudioGuide lang={lang} step={2} />
             {locationStatus === 'success' && gps && (
               <div className="urgent-sos-location-status success" role="status">
@@ -505,7 +518,8 @@ export default function UrgentSOS() {
               <div className="urgent-sos-location-status error" role="alert">{error}</div>
             )}
             <div className="urgent-sos-actions">
-              <button type="button" className="urgent-sos-secondary" onClick={() => { setError(''); setLocationStatus('skipped'); setGps(null); setWilayaId(null); setStep(STEP.ANALYZE); analyzeVoice() }} disabled={locating || busy}>
+              <button type="button" className="urgent-sos-secondary" onClick={goToPreviousStep} disabled={locating || busy}>{t('urgentSos.previous')}</button>
+              <button type="button" className="urgent-sos-secondary" onClick={() => { setError(''); setLocationStatus('skipped'); setGps(null); setStep(STEP.ANALYZE); analyzeVoice() }} disabled={locating || busy}>
                 {t('urgentSos.noLocation')}
               </button>
               <button type="button" className="urgent-sos-primary" onClick={chooseLocation} disabled={locating || busy}>
@@ -544,6 +558,7 @@ export default function UrgentSOS() {
             </div>
             {error && <p className="urgent-sos-error" role="alert">{error}</p>}
             <div className="urgent-sos-actions">
+              <button type="button" className="urgent-sos-secondary" onClick={goToPreviousStep} disabled={busy}>{t('urgentSos.previous')}</button>
               <button type="button" className="urgent-sos-secondary" onClick={restartRecording} disabled={busy}>{t('urgentSos.restart')}</button>
               <button type="button" className="urgent-sos-primary urgent-sos-confirm" onClick={submit} disabled={busy}>
                 🚨 {busy ? t('urgentSos.sending') : t('urgentSos.confirm')}
