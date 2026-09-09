@@ -115,6 +115,7 @@ export default function UrgentSOS() {
   const [gps, setGps] = useState(null)
   const [wilayaId, setWilayaId] = useState(null)
   const [wilayaSearch, setWilayaSearch] = useState('')
+  const [wilayaOpen, setWilayaOpen] = useState(false)
   const [locating, setLocating] = useState(false)
   const [locationStatus, setLocationStatus] = useState('idle')
   const [locationAccuracy, setLocationAccuracy] = useState(null)
@@ -645,7 +646,7 @@ export default function UrgentSOS() {
                     setWilayaSearch(e.target.value)
                     setWilayaId(null)
                   }}
-                  onFocus={() => setWilayaSearch(wilayaSearch)}
+                  onFocus={() => setWilayaOpen(true)}
                   placeholder={t('urgentSos.wilayaSearchPlaceholder')}
                   autoComplete="off"
                   aria-label={t('urgentSos.wilayaSearchPlaceholder')}
@@ -657,13 +658,14 @@ export default function UrgentSOS() {
                     onClick={() => {
                       setWilayaSearch('')
                       setWilayaId(null)
+                      setWilayaOpen(false)
                     }}
                     aria-label={t('urgentSos.wilayaReset')}
                     title={t('urgentSos.wilayaReset')}
                   >×</button>
                 )}
                 <span className="urgent-sos-wilaya-chevron" aria-hidden="true">⌄</span>
-                <div className="urgent-sos-wilaya-options" role="listbox">
+                {wilayaOpen && <div className="urgent-sos-wilaya-options" role="listbox">
                   {activeCampaignWilayas
                     .filter((w) => String(w.name || '').toLocaleLowerCase().includes(wilayaSearch.trim().toLocaleLowerCase()))
                     .slice(0, 12)
@@ -675,6 +677,7 @@ export default function UrgentSOS() {
                         onClick={() => {
                           setWilayaId(wilaya.id)
                           setWilayaSearch(wilaya.name)
+                          setWilayaOpen(false)
                         }}
                       >
                         {wilaya.name}
