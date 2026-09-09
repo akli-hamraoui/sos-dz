@@ -116,7 +116,6 @@ export default function UrgentSOS() {
   const [busy, setBusy] = useState(false)
   const [audioPaused, setAudioPaused] = useState(false)
   const [submitted, setSubmitted] = useState(false)
-  const [createdNeedId, setCreatedNeedId] = useState(null)
   const [recoveryCode, setRecoveryCode] = useState('')
   const [tokenCopied, setTokenCopied] = useState(false)
   const [accessToken, setAccessToken] = useState('')
@@ -358,7 +357,6 @@ export default function UrgentSOS() {
     }
     if (step === STEP.PREVIEW) return setStep(STEP.RECORD)
     if (step === STEP.LOCATION) return setStep(STEP.PREVIEW)
-    if (step === STEP.REVIEW) return setStep(STEP.LOCATION)
   }
 
 
@@ -368,7 +366,6 @@ export default function UrgentSOS() {
       return
     }
 
-    manualEditRef.current = true
     setBusy(true)
     setError('')
 
@@ -413,8 +410,7 @@ export default function UrgentSOS() {
       setAccessTokenCopied(false)
 
       if (need.id) {
-        setCreatedNeedId(need.id)
-        if (returnedAccessToken) {
+          if (returnedAccessToken) {
           try {
             await Promise.resolve(saveNeedToken(need.id, {
               access_token: returnedAccessToken,
@@ -674,6 +670,7 @@ export default function UrgentSOS() {
             <AudioGuide lang={lang} step={6} audioPaused={audioPaused} onAudioPauseChange={setAudioPaused} />
             <h2>{t('urgentSos.tokenTitle')}</h2>
             <p>{t('urgentSos.doneText')}</p>
+            {processingStatus === 'pending' && <p className="urgent-sos-processing-note">⏳ {t('urgentSos.processingText')}</p>}
             <AudioGuide lang={lang} step={7} audioPaused={audioPaused} onAudioPauseChange={setAudioPaused} />
             {accessToken && (
               <div className="urgent-sos-token-box urgent-sos-access-token-box" role="status">
