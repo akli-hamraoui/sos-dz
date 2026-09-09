@@ -92,17 +92,6 @@ function AudioGuide({ lang, step, audioPaused, onAudioPauseChange, onEnded, auto
   )
 }
 
-const fallbackData = {
-  title: 'SOS urgent',
-  contact_name: 'Anonyme',
-  contact_phone: '',
-  estimated_quantity: '',
-  commune: '',
-  location_description: 'Sans localisation',
-  organization_or_person_name: '',
-  description: '',
-}
-
 export default function UrgentSOS() {
   const { t } = useTranslation()
   const navigate = useNavigate()
@@ -122,8 +111,7 @@ export default function UrgentSOS() {
   const [locationStatus, setLocationStatus] = useState('idle')
   const [locationAccuracy, setLocationAccuracy] = useState(null)
   const [locationDecision, setLocationDecision] = useState(false)
-  const [transcript, setTranscript] = useState('')
-  const [extracted, setExtracted] = useState(fallbackData)
+  const [processingStatus, setProcessingStatus] = useState('pending')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [audioPaused, setAudioPaused] = useState(false)
@@ -138,7 +126,6 @@ export default function UrgentSOS() {
   const chunksRef = useRef([])
   const timerRef = useRef(null)
   const countdownTimerRef = useRef(null)
-  const manualEditRef = useRef(false)
 
   const activeCampaign = useMemo(() => campaigns.find((c) => c.status === 'active'), [campaigns])
 
@@ -257,12 +244,9 @@ export default function UrgentSOS() {
     setVoiceBlob(null)
     if (previewUrl) URL.revokeObjectURL(previewUrl)
     setPreviewUrl('')
-    setTranscript('')
-    setExtracted(fallbackData)
     setError('')
     setSubmitted(false)
     setLocationDecision(false)
-    manualEditRef.current = false
     setStep(STEP.RECORD)
   }
 
@@ -377,49 +361,6 @@ export default function UrgentSOS() {
     if (step === STEP.REVIEW) return setStep(STEP.LOCATION)
   }
 
-  const analyzeVoice = async () => {
-    if (!voiceBlob) return
-    try {
-      const form = new FormData()
-      form.append('audio', new File([voiceBlob], 'urgent-sos.webm', { type: voiceBlob.type || 'audio/webm' }))
-      form.append('language', lang)
-      const result = await apiUpload('/needs/voice-guide/analyze/', form)
-      const data = { ...fallbackData, ...(result.extraction || {}) }
-      data.title = data.title || fallbackData.title
-      data.contact_name = data.contact_name || fallbackData.contact_name
-      data.location_description = data.location_description || fallbackData.location_description
-      data.description = result.transcript || data.description || ''
-
-      // Never let a late AI response overwrite fields the reporter already
-      // corrected or the data used by an already-submitted SOS.
-      if (!manualEditRef.current && !submitted) {
-        setTranscript(result.transcript || '')
-        setExtracted(data)
-      } else if (!manualEditRef.current) {
-        setTranscript(result.transcript || '')
-      }
-
-      // A successful transcription with no structured extraction is still
-      // usable: the fallback fields remain editable and submission is never
-      // blocked by the LLM.
-      if (!Object.keys(result.extraction || {}).length && result.transcript) {
-        setError(t('urgentSos.analysisPartial'))
-      }
-    } catch (err) {
-      // AI is an optional helper. The review step stays available with safe
-      // fallback values even when Whisper/LLM is unavailable.
-      if (!manualEditRef.current && !submitted) {
-        setTranscript('')
-        setExtracted(fallbackData)
-      }
-      setError(translateApiError(err, t))
-    }
-  }
-
-  const updateField = (key, value) => {
-    manualEditRef.current = true
-    setExtracted((current) => ({ ...current, [key]: value }))
-  }
 
   const submit = async () => {
     if (!voiceBlob || !activeCampaign) {
@@ -440,14 +381,13 @@ export default function UrgentSOS() {
         campaign: activeCampaign.id,
         wilaya: gps ? '' : (wilayaId || ''),
         urgency: 'critical',
-        title: extracted.title || 'SOS urgent',
-        estimated_quantity: extracted.estimated_quantity || '',
-        commune: extracted.commune || '',
-        contact_name: extracted.contact_name || 'Anonyme',
-        contact_phone: extracted.contact_phone || '',
-        organization_or_person_name: extracted.organization_or_person_name || '',
-        location_description: extracted.location_description || 'Sans localisation',
-        description: transcript || extracted.description || '',
+        title: 'SOS urgent',
+        estimated_quantity: '',
+        commune: '',
+        contact_name: 'Anonyme',
+        contact_phone: '',
+        organization_or_person_name: '',
+        location_description: gps ? 'Localisation GPS confirmée' : 'Sans localisation',
         latitude: gps?.latitude ?? '',
         longitude: gps?.longitude ?? '',
         recovery_code: submissionRecoveryCode,
@@ -466,6 +406,7 @@ export default function UrgentSOS() {
       const returnedRecoveryCode = need.recovery_code || submissionRecoveryCode
       const returnedAccessToken = need.access_token || ''
 
+      setProcessingStatus(need.voice_processing_status || 'pending')
       setRecoveryCode(returnedRecoveryCode)
       setAccessToken(returnedAccessToken)
       setTokenCopied(false)
