@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { useApp } from '../context/AppContext'
 import { api, apiUpload } from '../api'
 import { translateApiError } from '../apiErrors'
-import { IconCheckCircle, IconMic } from '../icons'
+import { IconMic } from '../icons'
 import { audioUrlFor } from '../voiceGuide'
 
 const STEP = { INTRO: 0, RECORD: 1, PREVIEW: 2, LOCATION: 3, REVIEW: 4 }
@@ -129,7 +129,6 @@ export default function UrgentSOS() {
   const [tokenCopied, setTokenCopied] = useState(false)
   const [accessToken, setAccessToken] = useState('')
   const [accessTokenCopied, setAccessTokenCopied] = useState(false)
-  const [tokenSaved, setTokenSaved] = useState(false)
   const recorderRef = useRef(null)
   const streamRef = useRef(null)
   const chunksRef = useRef([])
@@ -285,19 +284,22 @@ export default function UrgentSOS() {
         return
       }
 
+      setLocationStatus('success')
+      setStep(STEP.REVIEW)
+      void analyzeVoice()
+
+      // The nearest-wilaya lookup is only a convenience. Do it after the
+      // review screen is available so a slow lookup can never make the
+      // wizard look stuck.
       if (!wilayaId && insideAlgeria) {
         try {
           const suggestion = await api(`/wilayas/nearest/?lat=${latitude}&lon=${longitude}`)
           setWilayaId(suggestion.id || null)
         } catch {
-          // Manual wilaya selection and precise GPS remain usable even if
-          // the convenience nearest-wilaya lookup is unavailable.
+          // GPS remains authoritative; a missing convenience suggestion is
+          // not a reason to block the SOS.
         }
       }
-
-      setLocationStatus('success')
-      setStep(STEP.REVIEW)
-      void analyzeVoice()
     } catch (geoError) {
       setGps(null)
       setWilayaId(null)
@@ -416,7 +418,6 @@ export default function UrgentSOS() {
       setTokenCopied(false)
       setAccessTokenCopied(false)
 
-      setTokenSaved(Boolean(returnedAccessToken))
       if (need.id) {
         setCreatedNeedId(need.id)
         if (returnedAccessToken) {
