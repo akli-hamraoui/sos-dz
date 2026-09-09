@@ -227,6 +227,7 @@
     "editedOn": "عُدّل في {{date}}",
     "manageMyNeed": "إدارة احتياجي",
     "cancelThisNeed": "إلغاء هذا الاحتياج",
+    "cancelNeedConfirm": "هل أنت متأكد من رغبتك في إلغاء هذا الاحتياج؟ هذا الإجراء نهائي.",
     "addUpdateGps": "إضافة/تحديث الموقع الدقيق",
     "shareLiveTracking": "مشاركة التتبع المباشر",
     "shareLink": "رابط المشاركة",
