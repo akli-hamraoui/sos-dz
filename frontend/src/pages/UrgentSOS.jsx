@@ -277,11 +277,11 @@ export default function UrgentSOS() {
 
   const filteredWilayas = useMemo(() => {
     const query = wilayaSearch.trim().toLocaleLowerCase()
-    if (!query) return wilayas
-    return wilayas.filter((wilaya) =>
+    if (!query) return activeCampaignWilayas
+    return activeCampaignWilayas.filter((wilaya) =>
       String(wilaya.name || '').toLocaleLowerCase().includes(query)
     )
-  }, [wilayas, wilayaSearch])
+  }, [activeCampaignWilayas, wilayaSearch])
 
   const goToPreviousStep = () => {
     setError('')
@@ -521,7 +521,7 @@ export default function UrgentSOS() {
                 value={wilayaId || ''}
                 onChange={(e) => {
                   setWilayaId(e.target.value || null)
-                  const selected = wilayas.find((w) => String(w.id) === String(e.target.value))
+                  const selected = activeCampaignWilayas.find((w) => String(w.id) === String(e.target.value))
                   if (selected) setWilayaSearch(selected.name)
                 }}
                 size={wilayaSearch ? Math.min(Math.max(filteredWilayas.length, 1), 4) : 1}
