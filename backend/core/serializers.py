@@ -377,6 +377,8 @@ class NeedPublicSerializer(serializers.ModelSerializer):
             "video_moderated_by",
             "damage_photos",
             "overall_status",
+            "voice_processing_status",
+            "voice_processing_error",
             "covered_quantity",
             "is_cancelled",
             "cancellation_reason",
