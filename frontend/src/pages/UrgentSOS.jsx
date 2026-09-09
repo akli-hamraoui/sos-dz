@@ -769,29 +769,11 @@ export default function UrgentSOS() {
             ) : (
               <>
                 <div className="urgent-sos-final-badge">✓ {t('urgentSos.doneTitle')}</div>
-                <h2>{t('urgentSos.doneTitle')}</h2>
+                <h2>{t('urgentSos.tokenTitle')}</h2>
                 <p>{t('urgentSos.doneText')}</p>
                 <div className="urgent-sos-final-warning" role="alert">
-                  🔐 <strong>{t('urgentSos.finalPasswordWarning')}</strong>
+                  🔐 <strong>{t('urgentSos.tokenWarning')}</strong>
                 </div>
-
-                {finalAudioStep === 7 && (
-                  <AudioGuide
-                    lang={lang}
-                    step={7}
-                    audioPaused={audioPaused}
-                    onAudioPauseChange={setAudioPaused}
-                    onEnded={() => setFinalAudioStep(8)}
-                  />
-                )}
-                {finalAudioStep === 8 && (
-                  <AudioGuide
-                    lang={lang}
-                    step={8}
-                    audioPaused={audioPaused}
-                    onAudioPauseChange={setAudioPaused}
-                  />
-                )}
 
                 {error && <p className="urgent-sos-error" role="alert">{error}</p>}
 
