@@ -641,7 +641,7 @@
     "confirm": "Confirmer le SOS",
     "sending": "Envoi…",
     "doneTitle": "SOS urgent créé",
-    "doneText": "Votre SOS est enregistré. Écoutez les deux dernières instructions, puis copiez votre token avant de quitter cette page.",
+    "doneText": "Votre SOS est enregistré. Copiez et conservez votre token avant de quitter cette page.",
     "finalPasswordWarning": "Écoutez les instructions finales, puis copiez votre token avant de quitter cette page.",
     "tokenMissing": "Le serveur n’a pas renvoyé le token d’accès. Le SOS n’est pas considéré comme terminé. Réessayez.",
     "tokenTitle": "Token à copier",
