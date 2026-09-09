@@ -123,6 +123,7 @@ class VoiceNeedProcessingTests(TestCase):
             contact_name="Anonyme",
             recovery_code="voice-test-1",
             voice_processing_status=Need.VOICE_PROCESSING_PENDING,
+            voice_file=SimpleUploadedFile("urgent-sos.webm", b"fake-audio", content_type="audio/webm"),
         )
 
         transcript = "Je m'appelle Nadia, je suis à Béjaïa et nous avons besoin d'eau pour vingt familles."
