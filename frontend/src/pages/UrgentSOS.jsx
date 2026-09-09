@@ -513,7 +513,7 @@ export default function UrgentSOS() {
         )}
 
         {step === STEP.REVIEW && (
-          <div className="urgent-sos-card">
+          <div className="urgent-sos-card urgent-sos-review-card">
             <div className="urgent-sos-step-label">{t('urgentSos.step', { current: 4, total: 4 })}</div>
             <h2>{t('urgentSos.reviewTitle')}</h2>
             <p>{t('urgentSos.reviewText')}</p>
@@ -542,7 +542,7 @@ export default function UrgentSOS() {
         )}
 
         {step === STEP.DONE && (
-          <div className="urgent-sos-card urgent-sos-center">
+          <div className="urgent-sos-card urgent-sos-center urgent-sos-done-card">
             <IconCheckCircle width={52} height={52} />
             <div className="urgent-sos-final-badge">✓ {t('urgentSos.doneTitle')}</div>
             <h2>{t('urgentSos.doneTitle')}</h2>
