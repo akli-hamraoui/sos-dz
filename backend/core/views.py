@@ -250,6 +250,11 @@ class NeedViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retriev
 
     def get_queryset(self):
         qs = super().get_queryset()
+        # Pending/failed guided voice SOS records have a valid token but are
+        # not ready for public discovery. Detail/recovery access remains
+        # available; only collection endpoints are filtered.
+        if self.action in ("list", "locations"):
+            qs = qs.exclude(voice_processing_status__in=[Need.VOICE_PROCESSING_PENDING, Need.VOICE_PROCESSING_FAILED])
         wilaya = self.request.query_params.get("wilaya")
         campaign = self.request.query_params.get("campaign")
         search = self.request.query_params.get("search")
@@ -291,6 +296,14 @@ class NeedViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retriev
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         need = serializer.save()
+
+        if self.action == "create_via_voice_guide" and need.voice_file:
+            # Return the token immediately. Whisper + LLM are handled by the
+            # dedicated worker and the need stays hidden from public lists/map
+            # until the complete transcript and structured extraction exist.
+            need.voice_processing_status = Need.VOICE_PROCESSING_PENDING
+            need.voice_processing_error = ""
+            need.save(update_fields=["voice_processing_status", "voice_processing_error", "last_modified_at"])
 
         if need.video_file:
             need.video_moderation_status = moderate_video_field(need.video_file)
