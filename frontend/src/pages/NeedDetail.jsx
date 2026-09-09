@@ -208,7 +208,7 @@ export default function NeedDetail() {
     // access token is already held by the app and sent with the PATCH.
     // Ask for an explicit Yes/No confirmation so the user cannot mistake
     // the dialog for a field where a token or reason must be entered.
-    const confirmed = await showConfirm(t('needDetail.cancelThisNeed') + '?')
+    const confirmed = await showConfirm(t('needDetail.cancelNeedConfirm'))
     if (!confirmed) return
     try {
       // Wait for the server-side cancellation before refreshing/navigating.
