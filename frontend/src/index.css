@@ -3991,3 +3991,116 @@ body { overflow-x: hidden; }
   line-height: 1;
   font-weight: 800;
 }
+
+/* --- SOS vocal: searchable wilaya combobox + viewport-safe controls --- */
+.urgent-sos-wilaya-combobox{
+  position:relative;
+  display:flex;
+  align-items:center;
+}
+.urgent-sos-wilaya-combobox input{
+  width:100%;
+  min-height:48px;
+  box-sizing:border-box;
+  padding:0 92px 0 13px;
+  border:1px solid var(--border);
+  border-radius:13px;
+  background:#fff;
+  color:var(--text);
+  font:inherit;
+}
+.urgent-sos-wilaya-combobox input:focus{
+  outline:none;
+  border-color:var(--brand-green);
+  box-shadow:0 0 0 3px rgba(44,143,103,.1);
+}
+.urgent-sos-wilaya-chevron{
+  position:absolute;
+  right:52px;
+  top:50%;
+  transform:translateY(-50%);
+  pointer-events:none;
+  color:#64716c;
+  font-size:22px;
+  line-height:1;
+}
+.urgent-sos-wilaya-reset{
+  position:absolute;
+  right:7px;
+  top:50%;
+  transform:translateY(-50%);
+  width:40px;
+  height:40px;
+  border:1px solid #cfd9d4;
+  border-radius:10px;
+  background:#f7f9f8;
+  color:#4f5c57;
+  font-size:28px;
+  line-height:1;
+  font-weight:700;
+  cursor:pointer;
+  display:grid;
+  place-items:center;
+  z-index:3;
+}
+.urgent-sos-wilaya-reset:hover{
+  background:#eef3f0;
+  border-color:#aebbb5;
+}
+.urgent-sos-wilaya-options{
+  position:absolute;
+  z-index:20;
+  left:0;
+  right:0;
+  top:calc(100% + 5px);
+  max-height:180px;
+  overflow-y:auto;
+  padding:5px;
+  border:1px solid var(--border);
+  border-radius:13px;
+  background:#fff;
+  box-shadow:0 12px 28px rgba(31,54,45,.16);
+}
+.urgent-sos-wilaya-option{
+  display:block;
+  width:100%;
+  min-height:42px;
+  padding:8px 11px;
+  border:0;
+  border-radius:9px;
+  background:#fff;
+  color:var(--text);
+  text-align:left;
+  font:inherit;
+  cursor:pointer;
+}
+.urgent-sos-wilaya-option:hover,
+.urgent-sos-wilaya-option:focus{
+  background:var(--brand-green-soft);
+  color:var(--brand-green);
+  outline:none;
+}
+@media(max-width:699px){
+  .urgent-sos-page{
+    min-height:calc(100dvh - 180px);
+  }
+  .urgent-sos-shell{
+    max-height:calc(100dvh - 190px);
+  }
+  .urgent-sos-wilaya-combobox input{
+    min-height:46px;
+    padding-right:96px;
+  }
+  .urgent-sos-wilaya-reset{
+    width:42px;
+    height:42px;
+    font-size:29px;
+  }
+  .urgent-sos-wilaya-options{
+    max-height:150px;
+  }
+  .urgent-sos-countdown{
+    min-height:82px;
+    margin:8px 0;
+  }
+}
