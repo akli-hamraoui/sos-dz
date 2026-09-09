@@ -3968,3 +3968,10 @@ body { overflow-x: hidden; }
 .urgent-sos-progress{
   grid-template-columns:repeat(4,minmax(0,1fr));
 }
+
+@media(max-width:699px){
+  .urgent-sos-preview-actions > button{
+    font-size:14px;
+    padding-inline:4px;
+  }
+}
