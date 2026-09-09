@@ -271,6 +271,9 @@ class Need(IdentityListingMixin, AuditMixin, models.Model):
     # least one of description/voice/video" instead, since any one of the
     # three can carry the actual content of the request.
     location_description = models.TextField(blank=True)
+    # Full original voice transcription. The LLM may extract structured fields,
+    # but it must never replace or summarize this source text.
+    description = models.TextField(blank=True)
     latitude = models.FloatField(null=True, blank=True)
     longitude = models.FloatField(null=True, blank=True)
     position_accuracy = models.CharField(max_length=20, choices=POSITION_CHOICES, default=POSITION_APPROXIMATE)
