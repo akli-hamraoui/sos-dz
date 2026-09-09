@@ -3733,3 +3733,108 @@ body { overflow-x: hidden; }
     grid-column:auto;
   }
 }
+
+/* --- SOS vocal wizard: optional campaign wilaya + compact navigation ----
+   Page-scoped only. No header/footer selectors are used here. */
+.urgent-sos-wilaya-field{
+  display:grid;
+  gap:5px;
+  margin:8px 0 10px;
+}
+.urgent-sos-wilaya-field label{
+  color:var(--text);
+  font-size:13px;
+  font-weight:800;
+}
+.urgent-sos-wilaya-field select{
+  width:100%;
+  min-height:44px;
+  border:1px solid var(--border);
+  border-radius:12px;
+  background:#fff;
+  color:var(--text);
+  padding:0 12px;
+  font:inherit;
+}
+.urgent-sos-wilaya-field select:focus{
+  outline:none;
+  border-color:var(--brand-green);
+  box-shadow:0 0 0 3px rgba(44,143,103,.1);
+}
+.urgent-sos-wilaya-field small{
+  color:var(--text-muted);
+  font-size:11px;
+  line-height:1.25;
+}
+.urgent-sos-previous{
+  min-width:0;
+}
+.urgent-sos-record-actions .urgent-sos-record-button{
+  width:auto;
+  flex:1 1 220px;
+}
+@media(max-width:699px){
+  /* Keep the active wizard step inside the page viewport as far as the
+     content naturally permits; the page itself owns the compact spacing. */
+  .urgent-sos-page{
+    overflow-x:hidden;
+  }
+  .urgent-sos-card{
+    padding:11px;
+  }
+  .urgent-sos-card h2{
+    font-size:19px;
+  }
+  .urgent-sos-card > p{
+    font-size:12px;
+    line-height:1.25;
+    margin-bottom:7px;
+  }
+  .urgent-sos-wilaya-field{
+    margin:5px 0 7px;
+  }
+  .urgent-sos-wilaya-field select{
+    min-height:40px;
+    font-size:13px;
+  }
+  .urgent-sos-wilaya-field small{
+    font-size:10px;
+  }
+  .urgent-sos-actions{
+    margin-top:7px;
+    gap:6px;
+  }
+  .urgent-sos-actions .urgent-sos-previous{
+    flex:0 0 auto;
+    width:auto;
+    min-height:40px;
+    padding-inline:12px;
+    font-size:12px;
+  }
+  .urgent-sos-record-actions .urgent-sos-record-button{
+    flex:1 1 auto;
+    min-height:46px;
+  }
+  .urgent-sos-location-status{
+    margin:6px 0 0;
+    padding:7px 9px;
+  }
+  .urgent-sos-preview{
+    margin:4px 0;
+  }
+  .urgent-sos-review-card .urgent-sos-fields{
+    gap:5px;
+  }
+  .urgent-sos-review-card .urgent-sos-fields input,
+  .urgent-sos-review-card .urgent-sos-fields textarea{
+    padding:7px 9px;
+  }
+  .urgent-sos-review-card .urgent-sos-fields textarea{
+    min-height:48px;
+    max-height:64px;
+  }
+  .urgent-sos-review-card .urgent-sos-transcript{
+    padding:8px 10px;
+    margin-bottom:8px;
+  }
+}
