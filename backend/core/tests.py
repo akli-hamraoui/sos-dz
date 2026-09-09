@@ -3796,24 +3796,29 @@ class UrgentSOSVoiceAnalysisTests(BaseAPITestCase):
         self.assertEqual(response.data["extraction"], {})
         self.assertEqual(Need.objects.count(), 0)
 
-    @override_settings(GROQ_API_KEY="test-groq-key")
+    @override_settings(
+        VOICE_WHISPER_MODEL="small",
+        VOICE_WHISPER_DEVICE="cpu",
+        VOICE_WHISPER_COMPUTE_TYPE="int8",
+    )
     def test_whisper_auto_detects_language_instead_of_forcing_ui_language(self):
         from unittest.mock import Mock, patch
         from django.core.files.uploadedfile import SimpleUploadedFile
         from core.voice_ai import transcribe_audio
 
-        upload = SimpleUploadedFile("voice.webm", b"audio", content_type="audio/webm")
-        response = Mock()
-        response.ok = True
-        response.json.return_value = {"text": "Bonjour, j'ai besoin d'eau."}
+        upload = SimpleUploadedFile("voice.webm", b"fake-audio", content_type="audio/webm")
+        model = Mock()
+        model.transcribe.return_value = (
+            iter([Mock(text="Bonjour, j'ai besoin d'eau.")]),
+            Mock(language="fr"),
+        )
 
-        with patch("core.voice_ai.requests.post", return_value=response) as post:
+        with patch("core.voice_ai._whisper_model", return_value=model):
             transcript = transcribe_audio(upload, language="ar")
 
         self.assertEqual(transcript, "Bonjour, j'ai besoin d'eau.")
-        request_data = post.call_args.kwargs["data"]
-        self.assertNotIn("language", request_data)
-        self.assertEqual(request_data["model"], "whisper-large-v3-turbo")
+        _, kwargs = model.transcribe.call_args
+        self.assertNotIn("language", kwargs)
 
     def test_voice_creation_allows_anonymous_report_with_private_recovery_code(self):
         from unittest.mock import patch
