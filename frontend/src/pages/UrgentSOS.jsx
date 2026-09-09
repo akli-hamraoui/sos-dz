@@ -243,14 +243,25 @@ export default function UrgentSOS() {
         return
       }
 
-      try {
-        const suggestion = await api(`/wilayas/nearest/?lat=${latitude}&lon=${longitude}`)
-        setWilayaId(suggestion.id || null)
-      } catch {
-        // The precise coordinates remain usable even if the nearest-wilaya
-        // convenience lookup is temporarily unavailable.
+      if (insideAlgeria) {
+        try {
+          const suggestion = await api(`/wilayas/nearest/?lat=${latitude}&lon=${longitude}`)
+          setWilayaId(suggestion.id || null)
+        } catch {
+          // The precise coordinates remain usable even if the nearest-wilaya
+          // convenience lookup is temporarily unavailable.
+          setWilayaId(null)
+        }
+      } else {
+        // Admin-only abroad GPS: keep the real coordinates and let the
+        // backend choose the campaign's fallback wilaya without inventing a
+        // wilaya from an out-of-country coordinate.
         setWilayaId(null)
       }
+      /*
+
+        setWilayaId(null)
+      } */
 
       setLocationStatus('success')
       setStep(STEP.ANALYZE)
