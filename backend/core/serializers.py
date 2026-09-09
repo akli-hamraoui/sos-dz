@@ -19,6 +19,7 @@ from core.models import (
     Wilaya,
 )
 from core.media_validation import validate_video_duration, validate_video_size
+from core.permissions import is_request_admin
 from core.validators import check_recovery_code_available, is_within_algeria_bounds, validate_algeria_bounds, validate_social_url
 
 
@@ -508,14 +509,25 @@ class NeedCreateSerializer(serializers.ModelSerializer):
             if wilaya is None:
                 raise serializers.ValidationError({"wilaya": "This field is required."})
             attrs["wilaya"] = wilaya
-            attrs["has_no_location"] = True
+            # A fallback wilaya is only administrative metadata. If precise
+            # GPS was supplied (admin SOS voice abroad), keep the listing as
+            # precisely located instead of marking it as "no location".
+            if attrs.get("latitude") is None or attrs.get("longitude") is None:
+                attrs["has_no_location"] = True
         elif not campaign.authorized_wilayas.filter(pk=wilaya.pk).exists():
             raise serializers.ValidationError(
                 "This wilaya is not authorized for the selected campaign."
             )
         lat, lon = attrs.get("latitude"), attrs.get("longitude")
         if lat is not None or lon is not None:
-            validate_algeria_bounds(lat, lon)
+            request = self.context.get("request")
+            view = self.context.get("view")
+            admin_voice_sos = (
+                getattr(view, "action", None) == "create_via_voice_guide"
+                and is_request_admin(request)
+            )
+            if not admin_voice_sos:
+                validate_algeria_bounds(lat, lon)
         description = (attrs.get("location_description") or "").strip()
         voice_file = attrs.get("voice_file")
         video_file = attrs.get("video_file")

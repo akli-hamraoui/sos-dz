@@ -3832,7 +3832,7 @@ class UrgentSOSVoiceAnalysisTests(BaseAPITestCase):
         self.assertEqual(response.data["recovery_code"], need.recovery_code)
         self.assertTrue(response.data["recovery_code"])
 
-    def test_admin_can_submit_with_abroad_gps_and_falls_back_to_no_location(self):
+    def test_admin_can_submit_with_abroad_gps_for_voice_sos(self):
         from django.core.files.uploadedfile import SimpleUploadedFile
         admin = get_user_model().objects.create_superuser("abroadadmin", "abroad@example.com", "pw123456!")
         self.client.force_authenticate(admin)
@@ -3851,6 +3851,7 @@ class UrgentSOSVoiceAnalysisTests(BaseAPITestCase):
         )
         self.assertEqual(response.status_code, 201, response.content)
         need = Need.objects.get(pk=response.data["id"])
-        self.assertTrue(need.has_no_location)
-        self.assertIsNone(need.latitude)
-        self.assertIsNone(need.longitude)
+        self.assertFalse(need.has_no_location)
+        self.assertEqual(float(need.latitude), 48.8566)
+        self.assertEqual(float(need.longitude), 2.3522)
+        self.assertEqual(need.position_accuracy, Need.POSITION_EXACT)

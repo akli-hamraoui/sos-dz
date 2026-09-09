@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useApp } from '../context/AppContext'
-import { api, apiUpload, createOrQueue } from '../api'
+import { api, apiUpload } from '../api'
 import { translateApiError } from '../apiErrors'
 import { IconCheckCircle, IconMic } from '../icons'
 import { audioUrlFor } from '../voiceGuide'
@@ -22,6 +22,7 @@ function AudioGuide({ lang, step }) {
       if (audio) {
         audio.pause()
         audio.currentTime = 0
+        audio.load()
       }
     }
   }, [lang, step])
@@ -30,6 +31,8 @@ function AudioGuide({ lang, step }) {
     const audio = ref.current
     if (!audio) return
     if (audio.paused) {
+      setSupported(true)
+      audio.load()
       audio.play().then(() => setPlaying(true)).catch(() => setSupported(false))
     } else {
       audio.pause()
@@ -42,7 +45,9 @@ function AudioGuide({ lang, step }) {
       <audio
         ref={ref}
         src={audioUrlFor(lang, step)}
-        preload="metadata"
+        preload="auto"
+        playsInline
+        onLoadedData={() => setSupported(true)}
         onEnded={() => setPlaying(false)}
         onError={() => setSupported(false)}
       />
@@ -68,7 +73,7 @@ const fallbackData = {
 export default function UrgentSOS() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const { config, campaigns, saveNeedToken, refreshConfig } = useApp()
+  const { config, campaigns, activeCampaignWilayas, saveNeedToken, refreshConfig } = useApp()
   const [step, setStep] = useState(STEP.INTRO)
   const [lang, setLang] = useState('fr')
   const [recording, setRecording] = useState(false)
@@ -77,7 +82,10 @@ export default function UrgentSOS() {
   const [previewUrl, setPreviewUrl] = useState('')
   const [gps, setGps] = useState(null)
   const [wilayaId, setWilayaId] = useState(null)
+  const [wilayaSearch, setWilayaSearch] = useState('')
   const [locating, setLocating] = useState(false)
+  const [locationStatus, setLocationStatus] = useState('idle')
+  const [locationAccuracy, setLocationAccuracy] = useState(null)
   const [transcript, setTranscript] = useState('')
   const [extracted, setExtracted] = useState(fallbackData)
   const [error, setError] = useState('')
@@ -85,6 +93,9 @@ export default function UrgentSOS() {
   const [createdNeedId, setCreatedNeedId] = useState(null)
   const [recoveryCode, setRecoveryCode] = useState('')
   const [tokenCopied, setTokenCopied] = useState(false)
+  const [accessToken, setAccessToken] = useState('')
+  const [accessTokenCopied, setAccessTokenCopied] = useState(false)
+  const [tokenSaved, setTokenSaved] = useState(false)
   const recorderRef = useRef(null)
   const streamRef = useRef(null)
   const chunksRef = useRef([])
@@ -174,32 +185,110 @@ export default function UrgentSOS() {
     setStep(STEP.RECORD)
   }
 
-  const chooseLocation = () => {
+  const chooseLocation = async () => {
     setError('')
+    setLocationStatus('locating')
+    setLocationAccuracy(null)
+
     if (!navigator.geolocation) {
-      setStep(STEP.ANALYZE)
-      analyzeVoice()
+      setLocationStatus('error')
+      setError(t('urgentSos.locationUnsupported'))
       return
     }
+
+    const getPosition = (options) => new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(resolve, reject, options)
+    })
+
     setLocating(true)
-    navigator.geolocation.getCurrentPosition(async (position) => {
-      const { latitude, longitude } = position.coords
-      setGps({ latitude, longitude })
+    try {
+      let position
       try {
-        const suggestion = await api(`/wilayas/nearest/?lat=${latitude}&lon=${longitude}`)
-        setWilayaId(suggestion.id)
-      } catch {
-        // GPS remains useful even when nearest-wilaya lookup is unavailable.
-      } finally {
-        setLocating(false)
-        setStep(STEP.ANALYZE)
-        analyzeVoice()
+        // First try the precise GPS/Wi-Fi fix. A short cached fix is accepted
+        // so Android does not wait unnecessarily when a recent position exists.
+        position = await getPosition({
+          enableHighAccuracy: true,
+          timeout: 12000,
+          maximumAge: 30000,
+        })
+      } catch (firstError) {
+        // A high-accuracy request can time out indoors or on some Android
+        // devices. Retry with the lower-power provider before declaring failure.
+        position = await getPosition({
+          enableHighAccuracy: false,
+          timeout: 10000,
+          maximumAge: 300000,
+        })
       }
-    }, () => {
-      setLocating(false)
+
+      const { latitude, longitude, accuracy } = position.coords
+      if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+        throw new Error('invalid-position')
+      }
+
+      setGps({ latitude, longitude })
+      setLocationAccuracy(Number.isFinite(accuracy) ? Math.round(accuracy) : null)
+      // When precise GPS succeeds, it is authoritative: do not submit a manually
+      // selected wilaya (or a nearest-wilaya suggestion) alongside the coordinates.
+      setWilayaId(null)
+
+      // The normal user flow remains Algeria-only. Admins testing this
+      // dedicated SOS voice page may keep their real GPS coordinates even
+      // when physically abroad; the backend applies the same scope server-side.
+      const insideAlgeria =
+        latitude >= 18.9 && latitude <= 37.3 &&
+        longitude >= -8.7 && longitude <= 12.0
+
+      if (!insideAlgeria && !config.is_admin) {
+        setGps(null)
+        setWilayaId(null)
+        setLocationStatus('outside')
+        setError(t('urgentSos.locationOutsideAlgeria'))
+        return
+      }
+
+      if (!wilayaId && insideAlgeria) {
+        try {
+          const suggestion = await api(`/wilayas/nearest/?lat=${latitude}&lon=${longitude}`)
+          setWilayaId(suggestion.id || null)
+        } catch {
+          // Manual wilaya selection and precise GPS remain usable even if
+          // the convenience nearest-wilaya lookup is unavailable.
+        }
+      }
+
+      setLocationStatus('success')
       setStep(STEP.ANALYZE)
-      analyzeVoice()
-    }, { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 })
+      await analyzeVoice()
+    } catch (geoError) {
+      setGps(null)
+      setWilayaId(null)
+      setLocationStatus('error')
+      const message =
+        geoError?.code === 1 ? t('urgentSos.locationDenied') :
+        geoError?.code === 2 ? t('urgentSos.locationUnavailable') :
+        geoError?.code === 3 ? t('urgentSos.locationTimeout') :
+        t('urgentSos.locationError')
+      setError(message)
+    } finally {
+      setLocating(false)
+    }
+  }
+
+  const filteredWilayas = useMemo(() => {
+    const query = wilayaSearch.trim().toLocaleLowerCase()
+    if (!query) return wilayas
+    return wilayas.filter((wilaya) =>
+      String(wilaya.name || '').toLocaleLowerCase().includes(query)
+    )
+  }, [wilayas, wilayaSearch])
+
+  const goToPreviousStep = () => {
+    setError('')
+    if (step === STEP.RECORD) return setStep(STEP.INTRO)
+    if (step === STEP.PREVIEW) return setStep(STEP.RECORD)
+    if (step === STEP.LOCATION) return setStep(STEP.PREVIEW)
+    if (step === STEP.REVIEW) return setStep(STEP.LOCATION)
   }
 
   const analyzeVoice = async () => {
@@ -241,43 +330,56 @@ export default function UrgentSOS() {
     setBusy(true)
     setError('')
     try {
+      // Do not put the guided SOS publication into the generic offline queue:
+      // the reporter must receive the recovery password and access token
+      // immediately on this screen. A queued emergency submission cannot
+      // safely promise that those credentials have been saved.
+      const submissionRecoveryCode = `voice-${crypto.randomUUID().replaceAll('-', '').slice(0, 12)}`
+      setRecoveryCode(submissionRecoveryCode)
+      const formData = new FormData()
       const fields = {
         campaign: activeCampaign.id,
-        wilaya: wilayaId || '',
+        wilaya: gps ? '' : (wilayaId || ''),
         urgency: 'critical',
         title: extracted.title || 'SOS urgent',
         estimated_quantity: extracted.estimated_quantity || '',
         commune: extracted.commune || '',
-        location_description: extracted.location_description || 'Sans localisation',
         contact_name: extracted.contact_name || 'Anonyme',
         contact_phone: extracted.contact_phone || '',
         organization_or_person_name: extracted.organization_or_person_name || '',
-        // CreateNeed's established model stores the user-facing free-text need in
-        // location_description. Keep both the detected location and the full
-        // LLM description there so no useful spoken detail is silently lost.
+        // Keep the detected location and the full spoken description so no
+        // useful detail from the transcription is silently lost.
         location_description: [extracted.location_description, extracted.description || transcript].filter(Boolean).join(' — ') || 'Sans localisation',
         latitude: gps?.latitude ?? '',
         longitude: gps?.longitude ?? '',
-        // Guided SOS is deliberately published with a safe recovery code
-        // omitted: the access token returned by the existing Need flow is
-        // the primary recovery mechanism for this emergency path.
+        recovery_code: submissionRecoveryCode,
       }
-      const result = await createOrQueue({
-        type: 'need',
-        endpoint: '/api/needs/voice-guide/',
-        fields,
-        files: { voice_file: new File([voiceBlob], 'urgent-sos.webm', { type: voiceBlob.type || 'audio/webm' }) },
+      Object.entries(fields).forEach(([key, value]) => {
+        if (value !== null && value !== undefined && value !== '') formData.append(key, value)
       })
-      if (result.queued) {
-        setStep(STEP.DONE)
-        return
-      }
-      const need = result.data
-      setRecoveryCode(need.recovery_code || '')
+      formData.append(
+        'voice_file',
+        new File([voiceBlob], 'urgent-sos.webm', { type: voiceBlob.type || 'audio/webm' }),
+      )
+      const need = await apiUpload('/needs/voice-guide/', formData)
+      const returnedRecoveryCode = need.recovery_code || submissionRecoveryCode
+      const returnedAccessToken = need.access_token || ''
+      setRecoveryCode(returnedRecoveryCode)
+      setAccessToken(returnedAccessToken)
       setTokenCopied(false)
-      saveNeedToken(need.id, { access_token: need.access_token, location_viewer_share_token: need.location_viewer_share_token })
+      setAccessTokenCopied(false)
+      if (!returnedAccessToken) {
+        throw new Error(t('urgentSos.tokenMissing'))
+      }
+      setTokenSaved(Boolean(returnedAccessToken))
+      if (need.id) {
+        await Promise.resolve(saveNeedToken(need.id, {
+          access_token: returnedAccessToken,
+          location_viewer_share_token: need.location_viewer_share_token,
+        }))
+        setCreatedNeedId(need.id)
+      }
       refreshConfig()
-      setCreatedNeedId(need.id)
       setStep(STEP.DONE)
     } catch (err) {
       setError(translateApiError(err, t))
@@ -297,12 +399,22 @@ export default function UrgentSOS() {
     }
   }
 
+  const copyStoredAccessToken = async () => {
+    if (!accessToken) return
+    try {
+      await navigator.clipboard.writeText(accessToken)
+      setAccessTokenCopied(true)
+      window.setTimeout(() => setAccessTokenCopied(false), 2200)
+    } catch {
+      setError(t('urgentSos.copyTokenFailed'))
+    }
+  }
+
   const pageTitle = t('urgentSos.title')
 
   return (
     <section className="urgent-sos-page">
       <div className="urgent-sos-shell">
-        <Link to="/" className="urgent-sos-back">← {t('urgentSos.back')}</Link>
         <div className="urgent-sos-kicker">🚨 {t('urgentSos.kicker')}</div>
         <div className="urgent-sos-hero">
           <div className="urgent-sos-icon" aria-hidden="true"><IconMic width={34} height={34} /></div>
@@ -310,6 +422,21 @@ export default function UrgentSOS() {
             <h1>{pageTitle}</h1>
             <p>{t('urgentSos.subtitle')}</p>
           </div>
+        </div>
+
+        <div className="urgent-sos-stepper" aria-label={t('urgentSos.progressLabel')}>
+          {[
+            [STEP.INTRO, t('urgentSos.stepIntro')],
+            [STEP.RECORD, t('urgentSos.stepRecord')],
+            [STEP.PREVIEW, t('urgentSos.stepPreview')],
+            [STEP.LOCATION, t('urgentSos.stepLocation')],
+            [STEP.REVIEW, t('urgentSos.stepReview')],
+          ].map(([item, label], index) => (
+            <div key={item} className={step >= item ? 'done' : ''} data-current={step === item}>
+              <span>{index + 1}</span>
+              <small>{label}</small>
+            </div>
+          ))}
         </div>
 
         <div className="urgent-sos-progress" aria-label={t('urgentSos.progressLabel')}>
@@ -344,11 +471,17 @@ export default function UrgentSOS() {
               <strong>{recording ? `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}` : t('urgentSos.ready')}</strong>
             </div>
             {recording ? (
-              <button type="button" className="urgent-sos-danger" onClick={stopRecording}>⏹ {t('urgentSos.stop')}</button>
+              <div className="urgent-sos-actions urgent-sos-record-actions">
+                <button type="button" className="urgent-sos-secondary urgent-sos-previous" onClick={goToPreviousStep}>{t('urgentSos.previous')}</button>
+                <button type="button" className="urgent-sos-danger" onClick={stopRecording}>⏹ {t('urgentSos.stop')}</button>
+              </div>
             ) : (
+              <div className="urgent-sos-actions urgent-sos-record-actions">
+              <button type="button" className="urgent-sos-secondary urgent-sos-previous" onClick={goToPreviousStep}>{t('urgentSos.previous')}</button>
               <button type="button" className="urgent-sos-primary urgent-sos-record-button" onClick={startRecording}>
                 <IconMic width={22} height={22} /> {t('urgentSos.start')}
               </button>
+              </div>
             )}
           </div>
         )}
@@ -360,6 +493,7 @@ export default function UrgentSOS() {
             <p>{t('urgentSos.previewText')}</p>
             <audio className="urgent-sos-preview" controls src={previewUrl} />
             <div className="urgent-sos-actions">
+              <button type="button" className="urgent-sos-secondary urgent-sos-previous" onClick={goToPreviousStep}>{t('urgentSos.previous')}</button>
               <button type="button" className="urgent-sos-secondary" onClick={restartRecording}>{t('urgentSos.rerecord')}</button>
               <button type="button" className="urgent-sos-primary" onClick={() => setStep(STEP.LOCATION)}>{t('urgentSos.continue')}</button>
             </div>
@@ -371,9 +505,57 @@ export default function UrgentSOS() {
             <div className="urgent-sos-step-label">{t('urgentSos.step', { current: 3, total: 4 })}</div>
             <h2>{t('urgentSos.locationTitle')}</h2>
             <p>{t('urgentSos.locationText')}</p>
+            <div className="urgent-sos-wilaya-field">
+              <label htmlFor="urgent-sos-wilaya-search">{t('urgentSos.wilayaOptional')}</label>
+              <input
+                id="urgent-sos-wilaya-search"
+                type="search"
+                value={wilayaSearch}
+                onChange={(e) => setWilayaSearch(e.target.value)}
+                placeholder={t('urgentSos.wilayaSearchPlaceholder')}
+                autoComplete="off"
+                aria-label={t('urgentSos.wilayaSearchPlaceholder')}
+              />
+              <select
+                id="urgent-sos-wilaya"
+                value={wilayaId || ''}
+                onChange={(e) => {
+                  setWilayaId(e.target.value || null)
+                  const selected = wilayas.find((w) => String(w.id) === String(e.target.value))
+                  if (selected) setWilayaSearch(selected.name)
+                }}
+                size={wilayaSearch ? Math.min(Math.max(filteredWilayas.length, 1), 4) : 1}
+                aria-label={t('urgentSos.wilayaPlaceholder')}
+              >
+                <option value="">{t('urgentSos.wilayaPlaceholder')}</option>
+                {filteredWilayas.map((wilaya) => (
+                  <option key={wilaya.id} value={wilaya.id}>{wilaya.name}</option>
+                ))}
+              </select>
+              <small>{t('urgentSos.wilayaHelp')}</small>
+            </div>
             <AudioGuide lang={lang} step={2} />
+            {locationStatus === 'success' && gps && (
+              <div className="urgent-sos-location-status success" role="status">
+                ✓ {t('urgentSos.locationDetected')}
+                {locationAccuracy ? ` · ±${locationAccuracy} m` : ''}
+              </div>
+            )}
+            {locationStatus === 'outside' && (
+              <div className="urgent-sos-location-status warning" role="status">
+                ⚠️ {t('urgentSos.locationOutsideAlgeria')}
+              </div>
+            )}
+            {locationStatus === 'error' && (
+              <div className="urgent-sos-location-status error urgent-sos-location-help" role="alert">
+                <strong>{t('urgentSos.locationNoGpsTitle')}</strong>
+                <span>{error || t('urgentSos.locationError')}</span>
+                <span>{t('urgentSos.locationSelectWilaya')}</span>
+              </div>
+            )}
             <div className="urgent-sos-actions">
-              <button type="button" className="urgent-sos-secondary" onClick={() => { setStep(STEP.ANALYZE); analyzeVoice() }} disabled={locating || busy}>
+              <button type="button" className="urgent-sos-secondary" onClick={goToPreviousStep} disabled={locating || busy}>{t('urgentSos.previous')}</button>
+              <button type="button" className="urgent-sos-secondary" onClick={() => { setError(''); setLocationStatus('skipped'); setGps(null); setStep(STEP.ANALYZE); analyzeVoice() }} disabled={locating || busy}>
                 {t('urgentSos.noLocation')}
               </button>
               <button type="button" className="urgent-sos-primary" onClick={chooseLocation} disabled={locating || busy}>
@@ -392,10 +574,11 @@ export default function UrgentSOS() {
         )}
 
         {step === STEP.REVIEW && (
-          <div className="urgent-sos-card">
+          <div className="urgent-sos-card urgent-sos-review-card">
             <div className="urgent-sos-step-label">{t('urgentSos.step', { current: 4, total: 4 })}</div>
             <h2>{t('urgentSos.reviewTitle')}</h2>
             <p>{t('urgentSos.reviewText')}</p>
+            <AudioGuide lang={lang} step={7} />
             {transcript && (
               <details className="urgent-sos-transcript">
                 <summary>{t('urgentSos.showTranscript')}</summary>
@@ -411,6 +594,7 @@ export default function UrgentSOS() {
             </div>
             {error && <p className="urgent-sos-error" role="alert">{error}</p>}
             <div className="urgent-sos-actions">
+              <button type="button" className="urgent-sos-secondary" onClick={goToPreviousStep} disabled={busy}>{t('urgentSos.previous')}</button>
               <button type="button" className="urgent-sos-secondary" onClick={restartRecording} disabled={busy}>{t('urgentSos.restart')}</button>
               <button type="button" className="urgent-sos-primary urgent-sos-confirm" onClick={submit} disabled={busy}>
                 🚨 {busy ? t('urgentSos.sending') : t('urgentSos.confirm')}
@@ -420,10 +604,16 @@ export default function UrgentSOS() {
         )}
 
         {step === STEP.DONE && (
-          <div className="urgent-sos-card urgent-sos-center">
+          <div className="urgent-sos-card urgent-sos-center urgent-sos-done-card">
             <IconCheckCircle width={52} height={52} />
+            <div className="urgent-sos-final-badge">✓ {t('urgentSos.doneTitle')}</div>
             <h2>{t('urgentSos.doneTitle')}</h2>
             <p>{t('urgentSos.doneText')}</p>
+            <div className="urgent-sos-final-warning" role="alert">
+              🔐 <strong>{t('urgentSos.finalPasswordWarning')}</strong>
+            </div>
+            <AudioGuide lang={lang} step={8} />
+            {tokenSaved && <p className="urgent-sos-token-saved" role="status">✓ {t('urgentSos.tokenSaved')}</p>}
             {recoveryCode && (
               <div className="urgent-sos-token-box" role="status">
                 <div className="urgent-sos-token-title">{t('urgentSos.tokenTitle')}</div>
@@ -432,6 +622,18 @@ export default function UrgentSOS() {
                   <strong className="urgent-sos-token">{recoveryCode}</strong>
                   <button type="button" className="urgent-sos-copy-token" onClick={copyAccessToken} aria-label={t('urgentSos.copyToken')}>
                     📋 {tokenCopied ? t('urgentSos.tokenCopied') : t('urgentSos.copyToken')}
+                  </button>
+                </div>
+              </div>
+            )}
+            {accessToken && (
+              <div className="urgent-sos-token-box urgent-sos-access-token-box" role="status">
+                <div className="urgent-sos-token-title">{t('urgentSos.accessTokenTitle')}</div>
+                <p className="urgent-sos-token-warning">{t('urgentSos.accessTokenWarning')}</p>
+                <div className="urgent-sos-token-row">
+                  <strong className="urgent-sos-token">{accessToken}</strong>
+                  <button type="button" className="urgent-sos-copy-token" onClick={copyStoredAccessToken} aria-label={t('urgentSos.copyAccessToken')}>
+                    📋 {accessTokenCopied ? t('urgentSos.accessTokenCopied') : t('urgentSos.copyAccessToken')}
                   </button>
                 </div>
               </div>

@@ -404,19 +404,10 @@ class NeedViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retriev
         data = request.data.copy()
         if not ((data.get("contact_name") or "").strip() and (data.get("contact_phone") or "").strip()) and not (data.get("recovery_code") or "").strip():
             data["recovery_code"] = "voice-" + secrets.token_urlsafe(9)[:12]
-        # Admins may test the flow while physically abroad. The Need model
-        # remains Algeria-based, so an admin GPS fix outside Algeria is not
-        # fabricated into an Algerian coordinate: simply fall back to the
-        # existing no-location semantics.
-        if is_admin_request(request) and data.get("latitude") not in ("", None) and data.get("longitude") not in ("", None):
-            try:
-                outside_algeria = not is_within_algeria_bounds(float(data["latitude"]), float(data["longitude"]))
-            except (TypeError, ValueError):
-                outside_algeria = True
-            if outside_algeria:
-                data["latitude"] = ""
-                data["longitude"] = ""
-                data["wilaya"] = ""
+        # Voice SOS is an admin-only exception to the normal Algeria write
+        # restriction: keep the administrator's real GPS coordinates even
+        # when they are outside Algeria. Do not silently convert a valid GPS
+        # fix into "no location".
         request._full_data = data
         response = self.create(request, *args, **kwargs)
         # The guided SOS recovery code is the code the reporter can use later

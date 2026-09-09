@@ -3454,3 +3454,449 @@ body { overflow-x: hidden; }
  .urgent-sos-language button{flex:1;}
 }
 
+
+
+/* --- Urgent SOS voice page: mobile viewport fit (page scope only) ---
+   Deliberately does not target the global header or bottom navigation.
+   The wizard cards are compacted so the active step fits in the visual
+   viewport on narrow phones instead of creating a second page scroll. */
+@media (max-width: 699px) {
+  .urgent-sos-page {
+    min-height: 0;
+    padding: 2px 8px calc(78px + env(safe-area-inset-bottom));
+  }
+
+  .urgent-sos-shell {
+    width: 100%;
+  }
+
+  .urgent-sos-back {
+    margin: 1px 0 6px;
+    font-size: 13px;
+  }
+
+  .urgent-sos-kicker {
+    margin-bottom: 5px;
+    font-size: 11px;
+  }
+
+  .urgent-sos-hero {
+    margin-bottom: 8px;
+    gap: 8px;
+  }
+
+  .urgent-sos-hero h1 {
+    font-size: 23px;
+  }
+
+  .urgent-sos-hero p {
+    margin-top: 3px;
+    font-size: 12px;
+    line-height: 1.25;
+  }
+
+  .urgent-sos-progress {
+    margin-bottom: 7px;
+  }
+
+  .urgent-sos-card {
+    padding: 13px;
+    border-radius: 15px;
+  }
+
+  .urgent-sos-card h2 {
+    margin-bottom: 5px;
+    font-size: 20px;
+  }
+
+  .urgent-sos-card > p {
+    margin-bottom: 9px;
+    line-height: 1.32;
+    font-size: 13px;
+  }
+
+  .urgent-sos-audio {
+    margin: 8px 0 10px;
+    gap: 6px;
+  }
+
+  .urgent-sos-audio-btn {
+    min-height: 42px;
+    padding-inline: 13px;
+    font-size: 13px;
+  }
+
+  .urgent-sos-language {
+    margin: 5px 0 9px;
+  }
+
+  .urgent-sos-language button {
+    min-height: 40px;
+  }
+
+  .urgent-sos-recording {
+    min-height: 64px;
+    margin: 10px 0;
+  }
+
+  .urgent-sos-primary,
+  .urgent-sos-secondary,
+  .urgent-sos-danger {
+    min-height: 46px;
+    font-size: 14px;
+  }
+
+  .urgent-sos-actions {
+    margin-top: 10px;
+    gap: 7px;
+  }
+
+  .urgent-sos-fields {
+    gap: 7px;
+  }
+
+  .urgent-sos-fields input,
+  .urgent-sos-fields textarea {
+    padding: 9px 10px;
+  }
+
+  .urgent-sos-fields textarea {
+    min-height: 58px;
+  }
+
+  .urgent-sos-token-box {
+    padding: 12px;
+    border-radius: 14px;
+  }
+
+  .urgent-sos-token-warning {
+    margin: 5px 0 9px !important;
+    font-size: 13px;
+    line-height: 1.3;
+  }
+
+  .urgent-sos-token-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .urgent-sos-token {
+    padding: 9px 10px;
+    font-size: 15px;
+  }
+
+  .urgent-sos-copy-token {
+    min-height: 42px;
+  }
+
+  .urgent-sos-token-saved {
+    margin: 0 0 8px !important;
+    font-size: 12px;
+  }
+}
+
+
+/* --- SOS vocal wizard polish: page-scoped only --- */
+.urgent-sos-stepper{
+  display:grid;
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:7px;
+  margin:0 0 12px;
+}
+.urgent-sos-stepper>div{
+  min-width:0;
+  display:grid;
+  grid-template-columns:28px 1fr;
+  align-items:center;
+  gap:6px;
+  padding:7px 8px;
+  border:1px solid var(--border);
+  border-radius:13px;
+  background:rgba(255,255,255,.82);
+  color:#7b8781;
+}
+.urgent-sos-stepper>div>span{
+  width:28px;
+  height:28px;
+  display:grid;
+  place-items:center;
+  border-radius:50%;
+  background:#edf1ef;
+  font-size:12px;
+  font-weight:900;
+}
+.urgent-sos-stepper>div.done{
+  border-color:#bfe1cf;
+  background:#f1faf5;
+  color:var(--brand-green);
+}
+.urgent-sos-stepper>div.done>span{
+  background:var(--brand-green);
+  color:#fff;
+}
+.urgent-sos-stepper>div[data-current="true"]{
+  box-shadow:0 0 0 2px rgba(44,143,103,.10);
+}
+.urgent-sos-stepper small{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:11px;
+  font-weight:800;
+}
+.urgent-sos-location-status{
+  margin:9px 0 0;
+  padding:10px 12px;
+  border-radius:12px;
+  font-size:13px;
+  font-weight:700;
+  line-height:1.35;
+}
+.urgent-sos-location-status.success{background:#edf9f4;color:#16734c;border:1px solid #c8e8d7;}
+.urgent-sos-location-status.warning{background:#fff8e9;color:#8a5a00;border:1px solid #f0dfb0;}
+.urgent-sos-location-status.error{background:#fff1f2;color:#a61d2d;border:1px solid #ffd1d6;}
+.urgent-sos-final-badge{
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  margin-bottom:2px;
+  padding:6px 11px;
+  border-radius:999px;
+  background:#edf9f4;
+  color:var(--brand-green);
+  font-size:12px;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.05em;
+}
+.urgent-sos-final-warning{
+  width:100%;
+  box-sizing:border-box;
+  margin:10px 0 4px;
+  padding:13px 14px;
+  border:2px solid #e7b93e;
+  border-radius:14px;
+  background:#fff9e8;
+  color:#704b00;
+  text-align:left;
+  line-height:1.4;
+}
+.urgent-sos-done-card .urgent-sos-audio{
+  margin:9px 0;
+}
+.urgent-sos-review-card .urgent-sos-fields{
+  grid-template-columns:repeat(2,minmax(0,1fr));
+}
+.urgent-sos-review-card .urgent-sos-fields label:last-child{
+  grid-column:1 / -1;
+}
+
+@media(max-width:699px){
+  .urgent-sos-stepper{
+    gap:4px;
+    margin-bottom:7px;
+  }
+  .urgent-sos-stepper>div{
+    display:flex;
+    justify-content:center;
+    padding:4px 2px;
+    border-radius:10px;
+  }
+  .urgent-sos-stepper>div>span{
+    width:23px;
+    height:23px;
+    font-size:10px;
+  }
+  .urgent-sos-stepper small{
+    display:none;
+  }
+  .urgent-sos-location-status{
+    padding:8px 10px;
+    font-size:12px;
+  }
+  .urgent-sos-final-warning{
+    margin-top:7px;
+    padding:10px 11px;
+    font-size:13px;
+  }
+  .urgent-sos-done-card{
+    gap:5px;
+  }
+  .urgent-sos-done-card .urgent-sos-token-box{
+    margin:2px 0;
+  }
+  .urgent-sos-review-card .urgent-sos-fields{
+    grid-template-columns:1fr;
+  }
+  .urgent-sos-review-card .urgent-sos-fields label:last-child{
+    grid-column:auto;
+  }
+}
+
+/* --- SOS vocal wizard: optional campaign wilaya + compact navigation ----
+   Page-scoped only. No header/footer selectors are used here. */
+.urgent-sos-wilaya-field{
+  display:grid;
+  gap:5px;
+  margin:8px 0 10px;
+}
+.urgent-sos-wilaya-field label{
+  color:var(--text);
+  font-size:13px;
+  font-weight:800;
+}
+.urgent-sos-wilaya-field select{
+  width:100%;
+  min-height:44px;
+  border:1px solid var(--border);
+  border-radius:12px;
+  background:#fff;
+  color:var(--text);
+  padding:0 12px;
+  font:inherit;
+}
+.urgent-sos-wilaya-field select:focus{
+  outline:none;
+  border-color:var(--brand-green);
+  box-shadow:0 0 0 3px rgba(44,143,103,.1);
+}
+.urgent-sos-wilaya-field small{
+  color:var(--text-muted);
+  font-size:11px;
+  line-height:1.25;
+}
+.urgent-sos-previous{
+  min-width:0;
+}
+.urgent-sos-record-actions .urgent-sos-record-button{
+  width:auto;
+  flex:1 1 220px;
+}
+@media(max-width:699px){
+  /* Keep the active wizard step inside the page viewport as far as the
+     content naturally permits; the page itself owns the compact spacing. */
+  .urgent-sos-page{
+    overflow-x:hidden;
+  }
+  .urgent-sos-card{
+    padding:11px;
+  }
+  .urgent-sos-card h2{
+    font-size:19px;
+  }
+  .urgent-sos-card > p{
+    font-size:12px;
+    line-height:1.25;
+    margin-bottom:7px;
+  }
+  .urgent-sos-wilaya-field{
+    margin:5px 0 7px;
+  }
+  .urgent-sos-wilaya-field select{
+    min-height:40px;
+    font-size:13px;
+  }
+  .urgent-sos-wilaya-field small{
+    font-size:10px;
+  }
+  .urgent-sos-actions{
+    margin-top:7px;
+    gap:6px;
+  }
+  .urgent-sos-actions .urgent-sos-previous{
+    flex:0 0 auto;
+    width:auto;
+    min-height:40px;
+    padding-inline:12px;
+    font-size:12px;
+  }
+  .urgent-sos-record-actions .urgent-sos-record-button{
+    flex:1 1 auto;
+    min-height:46px;
+  }
+  .urgent-sos-location-status{
+    margin:6px 0 0;
+    padding:7px 9px;
+  }
+  .urgent-sos-preview{
+    margin:4px 0;
+  }
+  .urgent-sos-review-card .urgent-sos-fields{
+    gap:5px;
+  }
+  .urgent-sos-review-card .urgent-sos-fields input,
+  .urgent-sos-review-card .urgent-sos-fields textarea{
+    padding:7px 9px;
+  }
+  .urgent-sos-review-card .urgent-sos-fields textarea{
+    min-height:48px;
+    max-height:64px;
+  }
+  .urgent-sos-review-card .urgent-sos-transcript{
+    padding:8px 10px;
+    margin-bottom:8px;
+  }
+}
+
+/* SOS voice location fallback: compact and page-scoped. */
+.urgent-sos-location-help{
+  display:grid;
+  gap:2px;
+  line-height:1.2;
+  padding:7px 9px;
+  margin:6px 0;
+  font-size:11px;
+}
+.urgent-sos-location-help strong{
+  font-size:12px;
+}
+.urgent-sos-location-help span{
+  display:block;
+}
+@media(max-width:699px){
+  .urgent-sos-location-help{
+    padding:6px 8px;
+    margin:5px 0;
+    font-size:10px;
+  }
+  .urgent-sos-location-help strong{
+    font-size:11px;
+  }
+  .urgent-sos-card .urgent-sos-actions{
+    flex-wrap:nowrap;
+  }
+  .urgent-sos-card .urgent-sos-actions > button{
+    min-width:0;
+    flex:1 1 0;
+    padding-inline:8px;
+  }
+}
+
+/* Searchable wilaya picker: SOS voice page only. */
+.urgent-sos-wilaya-field input[type="search"]{
+  width:100%;
+  min-height:40px;
+  box-sizing:border-box;
+  border:1px solid var(--border);
+  border-radius:10px;
+  background:#fff;
+  color:var(--text);
+  padding:7px 10px;
+  font:inherit;
+}
+.urgent-sos-wilaya-field select[size]{
+  min-height:72px;
+  max-height:112px;
+  overflow-y:auto;
+}
+@media(max-width:699px){
+  .urgent-sos-wilaya-field input[type="search"]{
+    min-height:36px;
+    font-size:12px;
+  }
+  .urgent-sos-wilaya-field select[size]{
+    min-height:64px;
+    max-height:88px;
+  }
+}

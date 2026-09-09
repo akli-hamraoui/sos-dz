@@ -1,9 +1,11 @@
 from unittest.mock import Mock, patch
+import os
+import tempfile
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 
-from core.voice_ai import VoiceAIError, extract_need_data, transcribe_audio
+from core.voice_ai import VoiceAIError, _configure_whisper_cache, extract_need_data, transcribe_audio
 
 
 class _Segment:
@@ -30,6 +32,16 @@ class VoiceAIRequestTests(TestCase):
         self.assertEqual(kwargs["beam_size"], 5)
         self.assertTrue(kwargs["vad_filter"])
         self.assertTrue(kwargs["condition_on_previous_text"])
+
+
+    def test_whisper_cache_uses_writable_application_directory(self):
+        with tempfile.TemporaryDirectory() as root:
+            with override_settings(REPO_ROOT=root):
+                cache_dir = _configure_whisper_cache()
+
+            self.assertEqual(cache_dir, os.path.join(root, ".cache", "huggingface"))
+            self.assertEqual(os.environ["HF_HOME"], cache_dir)
+            self.assertEqual(os.environ["HF_HUB_CACHE"], os.path.join(cache_dir, "hub"))
 
     def test_transcription_converts_local_provider_error_to_voice_ai_error(self):
         upload = SimpleUploadedFile("urgent-sos.webm", b"fake-audio", content_type="audio/webm")
