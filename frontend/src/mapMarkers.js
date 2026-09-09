@@ -246,14 +246,12 @@ export function attachMapPopupBehavior(map, onPhoto, onActivate) {
       }
     }
 
+    // One stable centering pass after Leaflet has laid out the popup.
+    // Delayed recentering causes a visible jump/flicker when asynchronous
+    // map content finishes loading.
     requestAnimationFrame(() => {
       requestAnimationFrame(center)
     })
-    // A short delayed pass catches the final popup size after fonts/content
-    // settle and also catches the transition from the inactive map hint to
-    // the active "Quitter la carte" chip.
-    setTimeout(center, 120)
-    setTimeout(center, 320)
   }
 
   // Exposed only for map actions such as route fitBounds(): those actions
