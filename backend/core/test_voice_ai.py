@@ -6,59 +6,53 @@ from django.test import TestCase, override_settings
 from core.voice_ai import VoiceAIError, extract_need_data, transcribe_audio
 
 
-class VoiceAIRequestTests(TestCase):
-    @override_settings(GROQ_API_KEY="test-groq-key")
-    def test_transcription_sends_valid_numeric_temperature_and_auto_detects_language(self):
-        upload = SimpleUploadedFile(
-            "urgent-sos.webm",
-            b"fake-audio",
-            content_type="audio/webm",
-        )
-        response = Mock()
-        response.ok = True
-        response.json.return_value = {"text": "Je suis à Blida et j'ai besoin d'eau."}
+class _Segment:
+    def __init__(self, text):
+        self.text = text
 
-        with patch("core.voice_ai.requests.post", return_value=response) as post:
+
+class _Info:
+    language = "fr"
+
+
+class VoiceAIRequestTests(TestCase):
+    @override_settings(VOICE_WHISPER_MODEL="small", VOICE_WHISPER_DEVICE="cpu", VOICE_WHISPER_COMPUTE_TYPE="int8")
+    def test_transcription_uses_local_whisper_and_auto_detects_language(self):
+        upload = SimpleUploadedFile("urgent-sos.webm", b"fake-audio", content_type="audio/webm")
+        model = Mock()
+        model.transcribe.return_value = (iter([_Segment("Je suis à Blida et j'ai besoin d'eau.")]), _Info())
+
+        with patch("core.voice_ai._whisper_model", return_value=model):
             result = transcribe_audio(upload, language="ar")
 
         self.assertEqual(result, "Je suis à Blida et j'ai besoin d'eau.")
-        request = post.call_args.kwargs
-        self.assertNotIn("language", request["data"])
-        self.assertEqual(request["data"]["model"], "whisper-large-v3-turbo")
-        self.assertEqual(request["data"]["temperature"], 0.0)
-        self.assertIsInstance(request["data"]["temperature"], float)
-        uploaded_name, uploaded_file, uploaded_type = request["files"]["file"]
-        self.assertEqual(uploaded_name, "urgent-sos.webm")
-        self.assertEqual(uploaded_type, "audio/webm")
-        self.assertEqual(uploaded_file, b"fake-audio")
+        args, kwargs = model.transcribe.call_args
+        self.assertEqual(kwargs["beam_size"], 5)
+        self.assertTrue(kwargs["vad_filter"])
+        self.assertTrue(kwargs["condition_on_previous_text"])
 
-    @override_settings(GROQ_API_KEY="test-groq-key")
-    def test_transcription_converts_provider_error_to_voice_ai_error(self):
+    def test_transcription_converts_local_provider_error_to_voice_ai_error(self):
         upload = SimpleUploadedFile("urgent-sos.webm", b"fake-audio", content_type="audio/webm")
-        response = Mock()
-        response.ok = False
-        response.status_code = 400
-        response.text = '{"error":"invalid request"}'
+        model = Mock()
+        model.transcribe.side_effect = RuntimeError("boom")
 
-        with patch("core.voice_ai.requests.post", return_value=response):
+        with patch("core.voice_ai._whisper_model", return_value=model):
             with self.assertRaises(VoiceAIError):
                 transcribe_audio(upload)
 
-    @override_settings(GROQ_API_KEY="test-groq-key")
-    def test_extraction_accepts_strict_json_schema_response(self):
+    @override_settings(VOICE_LLM_URL="http://127.0.0.1:11434/api/chat", VOICE_LLM_MODEL="qwen2.5:3b")
+    def test_extraction_uses_local_qwen_and_strict_json_schema(self):
         response = Mock()
         response.ok = True
         response.json.return_value = {
-            "choices": [{
-                "message": {
-                    "content": (
-                        '{"title":"Besoin d’eau","contact_name":"Ahmed",'
-                        '"contact_phone":"0555000000","estimated_quantity":"",'
-                        '"commune":"","location_description":"Blida",'
-                        '"organization_or_person_name":"","description":"Besoin d’eau."}'
-                    )
-                }
-            }]
+            "message": {
+                "content": (
+                    '{"title":"Besoin d’eau","contact_name":"Ahmed",'
+                    '"contact_phone":"0555000000","estimated_quantity":"",'
+                    '"commune":"","location_description":"Blida",'
+                    '"organization_or_person_name":"","description":"Besoin d’eau."}'
+                )
+            }
         }
 
         with patch("core.voice_ai.requests.post", return_value=response) as post:
@@ -67,5 +61,30 @@ class VoiceAIRequestTests(TestCase):
         self.assertEqual(result["contact_name"], "Ahmed")
         self.assertEqual(result["location_description"], "Blida")
         payload = post.call_args.kwargs["json"]
-        self.assertEqual(payload["model"], "qwen/qwen3.8-27b")
-        self.assertTrue(payload["response_format"]["json_schema"]["strict"])
+        self.assertEqual(payload["model"], "qwen2.5:3b")
+        self.assertEqual(payload["stream"], False)
+        self.assertEqual(payload["options"]["temperature"], 0)
+        self.assertEqual(payload["format"]["type"], "object")
+        self.assertEqual(payload["format"]["properties"]["contact_name"]["type"], "string")
+
+    def test_extraction_provider_error_becomes_voice_ai_error(self):
+        response = Mock()
+        response.ok = False
+        response.status_code = 503
+        response.text = "Ollama unavailable"
+
+        with patch("core.voice_ai.requests.post", return_value=response):
+            with self.assertRaises(VoiceAIError):
+                extract_need_data("Besoin urgent à Alger.")
+
+    def test_arabic_transcript_is_sent_unchanged_to_local_llm(self):
+        response = Mock()
+        response.ok = True
+        response.json.return_value = {"message": {"content": '{"title":"","contact_name":"","contact_phone":"","estimated_quantity":"","commune":"","location_description":"الجزائر","organization_or_person_name":"","description":"أحتاج إلى دواء."}'}}
+
+        transcript = "أنا في الجزائر وأحتاج إلى دواء."
+        with patch("core.voice_ai.requests.post", return_value=response) as post:
+            result = extract_need_data(transcript)
+
+        self.assertEqual(result["location_description"], "الجزائر")
+        self.assertIn(transcript, post.call_args.kwargs["json"]["messages"][0]["content"])
