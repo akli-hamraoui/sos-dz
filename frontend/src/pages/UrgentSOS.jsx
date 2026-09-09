@@ -580,7 +580,7 @@ export default function UrgentSOS() {
 
         {step === STEP.RECORD && (
           <div className="urgent-sos-card">
-            <div className="urgent-sos-step-label">{t('urgentSos.step', { current: 1, total: 4 })}</div>
+            <div className="urgent-sos-step-label">{t('urgentSos.step', { current: 1, total: 3 })}</div>
             <h2>{t('urgentSos.recordTitle')}</h2>
             <p>{t('urgentSos.recordText')}</p>
             <AudioGuide lang={lang} step={1} audioPaused={audioPaused} onAudioPauseChange={setAudioPaused} />
@@ -617,7 +617,7 @@ export default function UrgentSOS() {
 
         {step === STEP.PREVIEW && (
           <div className="urgent-sos-card">
-            <div className="urgent-sos-step-label">{t('urgentSos.step', { current: 2, total: 4 })}</div>
+            <div className="urgent-sos-step-label">{t('urgentSos.step', { current: 2, total: 3 })}</div>
             <h2>{t('urgentSos.previewTitle')}</h2>
             <p>{t('urgentSos.previewText')}</p>
             <audio className="urgent-sos-preview" controls src={previewUrl} />
@@ -632,7 +632,7 @@ export default function UrgentSOS() {
 
         {step === STEP.LOCATION && !locationDecision && !submitted && (
           <div className="urgent-sos-card">
-            <div className="urgent-sos-step-label">{t('urgentSos.step', { current: 3, total: 4 })}</div>
+            <div className="urgent-sos-step-label">{t('urgentSos.step', { current: 3, total: 3 })}</div>
             <h2>{t('urgentSos.locationTitle')}</h2>
             <p>{t('urgentSos.locationText')}</p>
 
