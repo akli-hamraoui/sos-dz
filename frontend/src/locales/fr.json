@@ -622,6 +622,8 @@
     "locationTimeout": "La localisation prend trop de temps. Réessayez ou continuez sans localisation.",
     "locationUnsupported": "Ce navigateur ne permet pas d’utiliser la localisation.",
     "locationError": "Impossible d’obtenir votre position. Réessayez ou continuez sans localisation.",
+    "locationNoGpsTitle": "Pas de géolocalisation possible",
+    "locationSelectWilaya": "Veuillez sélectionner la wilaya si vous souhaitez indiquer une zone. Cette sélection reste facultative.",
     "analyzingTitle": "Analyse de votre SOS",
     "analyzingText": "Nous transcrivons votre message et recherchons les informations utiles. Cela peut prendre quelques secondes.",
     "reviewTitle": "Vérifiez votre SOS",
