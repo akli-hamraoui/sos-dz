@@ -195,7 +195,8 @@ class AppConfigurationView(APIView):
         # what there actually is to look at right now, not a count that
         # only ever grows.
         data["needs_open_count"] = Need.objects.filter(
-            overall_status__in=[Need.STATUS_OPEN, Need.STATUS_PARTIALLY_COVERED]
+            overall_status__in=[Need.STATUS_OPEN, Need.STATUS_PARTIALLY_COVERED],
+            voice_processing_status=Need.VOICE_PROCESSING_READY,
         ).count()
         # country_code="" is the national/Algeria case (see
         # CollectionPoint.country_code) -- without this filter an
