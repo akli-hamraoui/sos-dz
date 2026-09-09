@@ -403,7 +403,6 @@ export default function UrgentSOS() {
   return (
     <section className="urgent-sos-page">
       <div className="urgent-sos-shell">
-        <Link to="/" className="urgent-sos-back">← {t('urgentSos.back')}</Link>
         <div className="urgent-sos-kicker">🚨 {t('urgentSos.kicker')}</div>
         <div className="urgent-sos-hero">
           <div className="urgent-sos-icon" aria-hidden="true"><IconMic width={34} height={34} /></div>
