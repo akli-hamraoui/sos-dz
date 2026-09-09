@@ -3454,3 +3454,33 @@ body { overflow-x: hidden; }
  .urgent-sos-language button{flex:1;}
 }
 
+
+/* Active footer item: the green selection surface must cover both the
+   icon and its full label, including two-line labels on mobile. */
+.bottom-nav > a.active {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-direction: column !important;
+  min-height: 78px !important;
+  padding: 7px 8px 9px !important;
+  margin: 2px 3px !important;
+  border-radius: 20px !important;
+  box-sizing: border-box !important;
+  overflow: visible !important;
+}
+
+.bottom-nav > a.active > span,
+.bottom-nav > a.active .nav-label {
+  line-height: 1.12 !important;
+  text-align: center !important;
+}
+
+@media (max-width: 699px) {
+  .bottom-nav > a.active {
+    min-height: 80px !important;
+    padding: 7px 7px 10px !important;
+    margin: 2px 2px !important;
+    border-radius: 20px !important;
+  }
+}
