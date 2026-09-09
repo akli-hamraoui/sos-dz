@@ -8,7 +8,7 @@ import { IconMic } from '../icons'
 import { audioUrlFor } from '../voiceGuide'
 
 const STEP = { INTRO: 0, RECORD: 1, PREVIEW: 2, LOCATION: 3, REVIEW: 4 }
-const MAX_SECONDS = 180
+const MAX_SECONDS = 240
 
 function AudioGuide({ lang, step, audioPaused, onAudioPauseChange, onEnded }) {
   const { t } = useTranslation()
@@ -108,6 +108,7 @@ export default function UrgentSOS() {
   const [step, setStep] = useState(STEP.INTRO)
   const [lang, setLang] = useState('fr')
   const [recording, setRecording] = useState(false)
+  const [recordingCountdown, setRecordingCountdown] = useState(0)
   const [seconds, setSeconds] = useState(0)
   const [voiceBlob, setVoiceBlob] = useState(null)
   const [previewUrl, setPreviewUrl] = useState('')
@@ -133,6 +134,7 @@ export default function UrgentSOS() {
   const streamRef = useRef(null)
   const chunksRef = useRef([])
   const timerRef = useRef(null)
+  const countdownRef = useRef(null)
   const manualEditRef = useRef(false)
 
   const activeCampaign = useMemo(() => campaigns.find((c) => c.status === 'active'), [campaigns])
@@ -140,6 +142,7 @@ export default function UrgentSOS() {
   useEffect(() => {
     return () => {
       clearInterval(timerRef.current)
+      clearInterval(countdownRef.current)
       streamRef.current?.getTracks().forEach((track) => track.stop())
       if (previewUrl) URL.revokeObjectURL(previewUrl)
     }
@@ -168,10 +171,16 @@ export default function UrgentSOS() {
         if (event.data.size) chunksRef.current.push(event.data)
       }
       recorder.onerror = () => {
+        clearInterval(countdownRef.current)
+        setRecordingCountdown(0)
         setRecording(false)
         setError(t('urgentSos.recordingError'))
       }
       recorder.onstop = () => {
+        clearInterval(timerRef.current)
+        clearInterval(countdownRef.current)
+        setRecordingCountdown(0)
+        setRecording(false)
         stream.getTracks().forEach((track) => track.stop())
         streamRef.current = null
         const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'audio/webm' })
@@ -185,16 +194,27 @@ export default function UrgentSOS() {
       }
       recorderRef.current = recorder
       setSeconds(0)
-      setRecording(true)
-      recorder.start(250)
-      timerRef.current = setInterval(() => {
-        setSeconds((value) => {
-          if (value + 1 >= MAX_SECONDS) {
-            recorder.stop()
-            clearInterval(timerRef.current)
-            setRecording(false)
+      setRecording(false)
+      setRecordingCountdown(2)
+      countdownRef.current = setInterval(() => {
+        setRecordingCountdown((value) => {
+          if (value <= 1) {
+            clearInterval(countdownRef.current)
+            recorder.start(250)
+            setRecording(true)
+            timerRef.current = setInterval(() => {
+              setSeconds((current) => {
+                if (current + 1 >= MAX_SECONDS) {
+                  clearInterval(timerRef.current)
+                  setRecording(false)
+                  if (recorder.state !== 'inactive') recorder.stop()
+                }
+                return current + 1
+              })
+            }, 1000)
+            return 0
           }
-          return value + 1
+          return value - 1
         })
       }, 1000)
     } catch (err) {
@@ -205,8 +225,16 @@ export default function UrgentSOS() {
 
   const stopRecording = () => {
     clearInterval(timerRef.current)
+    clearInterval(countdownRef.current)
+    setRecordingCountdown(0)
     setRecording(false)
-    if (recorderRef.current?.state !== 'inactive') recorderRef.current.stop()
+    if (recorderRef.current?.state !== 'inactive') {
+      recorderRef.current.stop()
+    } else if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop())
+      streamRef.current = null
+      recorderRef.current = null
+    }
   }
 
   const restartRecording = () => {
@@ -533,11 +561,22 @@ export default function UrgentSOS() {
             <h2>{t('urgentSos.recordTitle')}</h2>
             <p>{t('urgentSos.recordText')}</p>
             <AudioGuide lang={lang} step={1} audioPaused={audioPaused} onAudioPauseChange={setAudioPaused} />
-            <div className={recording ? 'urgent-sos-recording active' : 'urgent-sos-recording'}>
-              <span className="urgent-sos-recording-dot" aria-hidden="true" />
-              <strong>{recording ? `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}` : t('urgentSos.ready')}</strong>
-            </div>
-            {recording ? (
+            {recordingCountdown > 0 ? (
+              <div className="urgent-sos-countdown" role="status" aria-live="assertive">
+                <span className="urgent-sos-countdown-number">{recordingCountdown}</span>
+                <strong>{t('urgentSos.countdownSpeak')}</strong>
+              </div>
+            ) : (
+              <div className={recording ? 'urgent-sos-recording active' : 'urgent-sos-recording'}>
+                <span className="urgent-sos-recording-dot" aria-hidden="true" />
+                <strong>{recording ? `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}` : t('urgentSos.ready')}</strong>
+              </div>
+            )}
+            {recordingCountdown > 0 ? (
+              <div className="urgent-sos-actions urgent-sos-record-actions">
+                <button type="button" className="urgent-sos-secondary" onClick={stopRecording}>{t('urgentSos.cancelCountdown')}</button>
+              </div>
+            ) : recording ? (
               <div className="urgent-sos-actions urgent-sos-record-actions">
                 <button type="button" className="urgent-sos-secondary urgent-sos-previous" onClick={goToPreviousStep}>{t('urgentSos.previous')}</button>
                 <button type="button" className="urgent-sos-danger" onClick={stopRecording}>⏹ {t('urgentSos.stop')}</button>
