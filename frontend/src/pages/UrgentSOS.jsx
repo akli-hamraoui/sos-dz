@@ -7,7 +7,7 @@ import { translateApiError } from '../apiErrors'
 import { IconMic } from '../icons'
 import { audioUrlFor, playGuideAudio } from '../voiceGuide'
 
-const STEP = { INTRO: 0, RECORD: 1, PREVIEW: 2, LOCATION: 3, REVIEW: 4 }
+const STEP = { INTRO: 0, RECORD: 1, PREVIEW: 2, LOCATION: 3 }
 const MAX_SECONDS = 180
 
 function AudioGuide({ lang, step, audioPaused, onAudioPauseChange, onEnded, autoPlay = true }) {
@@ -121,6 +121,7 @@ export default function UrgentSOS() {
   const [locating, setLocating] = useState(false)
   const [locationStatus, setLocationStatus] = useState('idle')
   const [locationAccuracy, setLocationAccuracy] = useState(null)
+  const [locationDecision, setLocationDecision] = useState(false)
   const [transcript, setTranscript] = useState('')
   const [extracted, setExtracted] = useState(fallbackData)
   const [error, setError] = useState('')
@@ -260,7 +261,7 @@ export default function UrgentSOS() {
     setExtracted(fallbackData)
     setError('')
     setSubmitted(false)
-    setFinalAudioStep(null)
+    setLocationDecision(false)
     manualEditRef.current = false
     setStep(STEP.RECORD)
   }
@@ -330,7 +331,7 @@ export default function UrgentSOS() {
 
       setLocationStatus('success')
       playGuideAudio(lang, 3)
-      setStep(STEP.REVIEW)
+      setLocationDecision(true)
       void analyzeVoice()
 
       // The nearest-wilaya lookup is only a convenience. Do it after the
@@ -541,7 +542,6 @@ export default function UrgentSOS() {
             [STEP.RECORD, t('urgentSos.stepRecord')],
             [STEP.PREVIEW, t('urgentSos.stepPreview')],
             [STEP.LOCATION, t('urgentSos.stepLocation')],
-            [STEP.REVIEW, t('urgentSos.stepReview')],
           ].map(([item, label], index) => {
             const current = step === STEP.INTRO ? index === 0 : step === item
             const done = step === STEP.INTRO ? index === 0 : step >= item
@@ -555,7 +555,7 @@ export default function UrgentSOS() {
         </div>
 
         <div className="urgent-sos-progress" aria-label={t('urgentSos.progressLabel')}>
-          {[STEP.RECORD, STEP.PREVIEW, STEP.LOCATION, STEP.REVIEW].map((item, index) => (
+          {[STEP.RECORD, STEP.PREVIEW, STEP.LOCATION].map((item, index) => (
             <span
               key={item}
               className={(step === STEP.INTRO && index === 0) || step >= item ? 'active' : ''}
@@ -621,7 +621,7 @@ export default function UrgentSOS() {
             <h2>{t('urgentSos.previewTitle')}</h2>
             <p>{t('urgentSos.previewText')}</p>
             <audio className="urgent-sos-preview" controls src={previewUrl} />
-            <AudioGuide lang={lang} step={6} audioPaused={audioPaused} onAudioPauseChange={setAudioPaused} />
+            {/* fr_6 is played only after the SOS is successfully sent. */}
             <div className="urgent-sos-actions urgent-sos-preview-actions">
               <button type="button" className="urgent-sos-secondary urgent-sos-previous" onClick={goToPreviousStep}>{t('urgentSos.previous')}</button>
               <button type="button" className="urgent-sos-secondary" onClick={restartRecording}>{t('urgentSos.rerecord')}</button>
@@ -717,7 +717,7 @@ export default function UrgentSOS() {
                 setLocationStatus('skipped')
                 setGps(null)
                 playGuideAudio(lang, 4)
-                setStep(STEP.REVIEW)
+                setLocationDecision(true)
                 void analyzeVoice()
               }} disabled={locating || busy}>
                 {t('urgentSos.noLocation')}
@@ -729,83 +729,52 @@ export default function UrgentSOS() {
           </div>
         )}
 
-        {step === STEP.REVIEW && (
-          <div className={`urgent-sos-card urgent-sos-review-card${submitted ? " urgent-sos-done-card" : ""}`}>
-            <div className="urgent-sos-step-label">{t('urgentSos.step', { current: 4, total: 4 })}</div>
-
-            {!submitted ? (
-              <>
-                <h2>{t('urgentSos.reviewTitle')}</h2>
-                <p>{t('urgentSos.reviewText')}</p>
-                <AudioGuide lang={lang} step={5} audioPaused={audioPaused} onAudioPauseChange={setAudioPaused} />
-
-                {transcript && (
-                  <details className="urgent-sos-transcript">
-                    <summary>{t('urgentSos.showTranscript')}</summary>
-                    <p>{transcript}</p>
-                  </details>
-                )}
-
-                <div className="urgent-sos-fields">
-                  <label>{t('urgentSos.name')}<input value={extracted.contact_name || ''} onChange={(e) => updateField('contact_name', e.target.value)} /></label>
-                  <label>{t('urgentSos.phone')}<input inputMode="tel" value={extracted.contact_phone || ''} onChange={(e) => updateField('contact_phone', e.target.value)} /></label>
-                  <label>{t('urgentSos.need')}<input value={extracted.title || ''} onChange={(e) => updateField('title', e.target.value)} /></label>
-                  <label>{t('urgentSos.location')}<input value={extracted.location_description || ''} onChange={(e) => updateField('location_description', e.target.value)} /></label>
-                  <label>{t('urgentSos.description')}<textarea rows="4" value={extracted.description || ''} onChange={(e) => updateField('description', e.target.value)} /></label>
+        {step === STEP.LOCATION && submitted && (
+          <div className="urgent-sos-card urgent-sos-done-card">
+            <div className="urgent-sos-final-badge">✓ {t('urgentSos.doneTitle')}</div>
+            <AudioGuide lang={lang} step={6} audioPaused={audioPaused} onAudioPauseChange={setAudioPaused} />
+            <h2>{t('urgentSos.tokenTitle')}</h2>
+            <p>{t('urgentSos.doneText')}</p>
+            <AudioGuide lang={lang} step={7} audioPaused={audioPaused} onAudioPauseChange={setAudioPaused} />
+            {accessToken && (
+              <div className="urgent-sos-token-box urgent-sos-access-token-box" role="status">
+                <div className="urgent-sos-token-title">{t('urgentSos.accessTokenTitle')}</div>
+                <p className="urgent-sos-token-warning">{t('urgentSos.accessTokenWarning')}</p>
+                <div className="urgent-sos-token-row">
+                  <strong className="urgent-sos-token">{accessToken}</strong>
+                  <button type="button" className="urgent-sos-copy-token" onClick={copyStoredAccessToken}>{accessTokenCopied ? t('urgentSos.accessTokenCopied') : t('urgentSos.copyAccessToken')}</button>
                 </div>
-
-                {error && <p className="urgent-sos-error" role="alert">{error}</p>}
-
-                <div className="urgent-sos-actions">
-                  <button type="button" className="urgent-sos-secondary" onClick={goToPreviousStep} disabled={busy}>{t('urgentSos.previous')}</button>
-                  <button type="button" className="urgent-sos-secondary" onClick={restartRecording} disabled={busy}>{t('urgentSos.restart')}</button>
-                  <button type="button" className="urgent-sos-primary urgent-sos-confirm" onClick={submit} disabled={busy}>
-                    🚨 {busy ? t('urgentSos.sending') : t('urgentSos.confirm')}
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="urgent-sos-final-badge">✓ {t('urgentSos.doneTitle')}</div>
-                <h2>{t('urgentSos.tokenTitle')}</h2>
-                <p>{t('urgentSos.doneText')}</p>
-                {error && <p className="urgent-sos-error" role="alert">{error}</p>}
-
-                {accessToken && (
-                  <div className="urgent-sos-token-box urgent-sos-access-token-box" role="status">
-                    <div className="urgent-sos-token-title">{t('urgentSos.accessTokenTitle')}</div>
-                    <p className="urgent-sos-token-warning">{t('urgentSos.accessTokenWarning')}</p>
-                    <div className="urgent-sos-token-row">
-                      <strong className="urgent-sos-token">{accessToken}</strong>
-                      <button type="button" className="urgent-sos-copy-token" onClick={copyStoredAccessToken} aria-label={t('urgentSos.copyAccessToken')}>
-                        📋 {accessTokenCopied ? t('urgentSos.accessTokenCopied') : t('urgentSos.copyAccessToken')}
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {!accessToken && recoveryCode && (
-                  <div className="urgent-sos-token-box" role="status">
-                    <div className="urgent-sos-token-title">{t('urgentSos.tokenTitle')}</div>
-                    <p className="urgent-sos-token-warning">{t('urgentSos.tokenWarning')}</p>
-                    <div className="urgent-sos-token-row">
-                      <strong className="urgent-sos-token">{recoveryCode}</strong>
-                      <button type="button" className="urgent-sos-copy-token" onClick={copyAccessToken} aria-label={t('urgentSos.copyToken')}>
-                        📋 {tokenCopied ? t('urgentSos.tokenCopied') : t('urgentSos.copyToken')}
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                <div className="urgent-sos-actions">
-                  <Link to="/" className="urgent-sos-secondary">{t('urgentSos.backHome')}</Link>
-                </div>
-              </>
+              </div>
             )}
+            {!accessToken && recoveryCode && (
+              <div className="urgent-sos-token-box" role="status">
+                <div className="urgent-sos-token-title">{t('urgentSos.tokenTitle')}</div>
+                <p className="urgent-sos-token-warning">{t('urgentSos.tokenWarning')}</p>
+                <div className="urgent-sos-token-row">
+                  <strong className="urgent-sos-token">{recoveryCode}</strong>
+                  <button type="button" className="urgent-sos-copy-token" onClick={copyAccessToken}>{tokenCopied ? t('urgentSos.tokenCopied') : t('urgentSos.copyToken')}</button>
+                </div>
+              </div>
+            )}
+            <AudioGuide lang={lang} step={8} audioPaused={audioPaused} onAudioPauseChange={setAudioPaused} />
+            <div className="urgent-sos-actions"><Link to="/" className="urgent-sos-secondary">{t('urgentSos.backHome')}</Link></div>
           </div>
         )}
 
-        {error && step !== STEP.REVIEW && <p className="urgent-sos-error" role="alert">{error}</p>}
+        {step === STEP.LOCATION && !submitted && locationDecision && (
+          <div className="urgent-sos-validation-panel">
+            <AudioGuide lang={lang} step={5} audioPaused={audioPaused} onAudioPauseChange={setAudioPaused} />
+            <p>{t('urgentSos.validationReady')}</p>
+            {error && <p className="urgent-sos-error" role="alert">{error}</p>}
+            <div className="urgent-sos-actions">
+              <button type="button" className="urgent-sos-secondary" onClick={() => setLocationDecision(false)} disabled={busy}>{t('urgentSos.previous')}</button>
+              <button type="button" className="urgent-sos-primary urgent-sos-confirm" onClick={submit} disabled={busy}>🚨 {busy ? t('urgentSos.sending') : t('urgentSos.confirm')}</button>
+            </div>
+          </div>
+        )}
+
+
+        
       </div>
     </section>
   )
