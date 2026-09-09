@@ -228,14 +228,14 @@ export default function UrgentSOS() {
       setGps({ latitude, longitude })
       setLocationAccuracy(Number.isFinite(accuracy) ? Math.round(accuracy) : null)
 
-      // The SOS backend only publishes coordinates inside Algeria. In admin
-      // mode, a phone physically outside Algeria must not be turned into a
-      // fake Algerian position, so make that case explicit to the reporter.
+      // The normal user flow remains Algeria-only. Admins testing this
+      // dedicated SOS voice page may keep their real GPS coordinates even
+      // when physically abroad; the backend applies the same scope server-side.
       const insideAlgeria =
         latitude >= 18.9 && latitude <= 37.3 &&
         longitude >= -8.7 && longitude <= 12.0
 
-      if (!insideAlgeria) {
+      if (!insideAlgeria && !config.is_admin) {
         setGps(null)
         setWilayaId(null)
         setLocationStatus('outside')
