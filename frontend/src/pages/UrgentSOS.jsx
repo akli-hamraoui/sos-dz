@@ -732,7 +732,7 @@ export default function UrgentSOS() {
         )}
 
         {step === STEP.REVIEW && (
-          <div className="urgent-sos-card urgent-sos-review-card">
+          <div className={`urgent-sos-card urgent-sos-review-card${submitted ? " urgent-sos-done-card" : ""}`}>
             <div className="urgent-sos-step-label">{t('urgentSos.step', { current: 4, total: 4 })}</div>
 
             {!submitted ? (
