@@ -4169,3 +4169,63 @@ body { overflow-x: hidden; }
     min-height:38px;
   }
 }
+
+
+/* SOS vocal: keep the final token state fully visible on phone screens. */
+@media (max-width: 699px) {
+  .urgent-sos-done-card {
+    min-height: 0;
+    box-sizing: border-box;
+    padding: 9px 10px;
+  }
+  .urgent-sos-done-card .urgent-sos-final-badge {
+    margin-bottom: 0;
+    padding: 4px 8px;
+    font-size: 10px;
+  }
+  .urgent-sos-done-card h2 {
+    margin: 2px 0 3px;
+    font-size: 18px;
+  }
+  .urgent-sos-done-card > p {
+    margin-bottom: 4px;
+    font-size: 11px;
+    line-height: 1.2;
+  }
+  .urgent-sos-done-card .urgent-sos-audio {
+    margin: 4px 0;
+  }
+  .urgent-sos-done-card .urgent-sos-audio-btn {
+    min-height: 36px;
+    padding-inline: 10px;
+    font-size: 11px;
+  }
+  .urgent-sos-done-card .urgent-sos-token-box {
+    margin: 3px 0;
+    padding: 8px;
+  }
+  .urgent-sos-done-card .urgent-sos-token-warning {
+    margin: 3px 0 5px !important;
+    font-size: 11px;
+    line-height: 1.2;
+  }
+  .urgent-sos-done-card .urgent-sos-token {
+    padding: 7px 8px;
+    font-size: 14px;
+  }
+  .urgent-sos-done-card .urgent-sos-copy-token {
+    min-height: 38px;
+    font-size: 12px;
+  }
+  .urgent-sos-done-card .urgent-sos-actions {
+    margin-top: 4px;
+  }
+  .urgent-sos-validation-panel {
+    margin-top: 5px;
+  }
+  .urgent-sos-validation-panel > p {
+    margin: 3px 0;
+    font-size: 12px;
+    line-height: 1.2;
+  }
+}
