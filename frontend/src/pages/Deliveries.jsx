@@ -272,8 +272,13 @@ export default function Deliveries() {
               if (routeLineRef.current !== straight) return // superseded by another click/re-render meanwhile
               map.removeLayer(straight)
               routeLineRef.current = L.polyline(route.coordinates, { color: ROUTE_COLOR, weight: 4, dashArray: '1,10', lineCap: 'round' }).addTo(map)
-              map.fitBounds(L.latLngBounds(route.coordinates).pad(0.3), { maxZoom: 13, animate: false })
-              requestAnimationFrame(() => map._sosdzCenterOpenPopup?.())
+              // The straight-line fit above already frames both endpoints. Once the
+
+              // road route arrives, replace only the line geometry: fitting the map a
+
+              // second time here makes the open popup jump/flicker when the routing
+
+              // request completes a moment after the user's tap.
             })
             .catch(() => {
               /* routing service unreachable -- the basic straight line drawn above stays as-is */
