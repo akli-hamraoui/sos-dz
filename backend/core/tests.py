@@ -1,4 +1,5 @@
 import subprocess
+from django.core.files.uploadedfile import SimpleUploadedFile
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -272,6 +273,66 @@ class VoiceGuideEndpointTests(BaseAPITestCase):
         self.assertEqual(resp.status_code, 201, resp.content)
         need = Need.objects.get(pk=resp.data["id"])
         self.assertTrue(need.has_no_location)
+
+    def test_voice_create_returns_token_immediately_and_queues_processing(self):
+        from unittest.mock import patch
+
+        audio = SimpleUploadedFile("urgent-sos.webm", b"fake-webm", content_type="audio/webm")
+        payload = self._payload(
+            title="SOS urgent",
+            contact_name="",
+            contact_phone="",
+            recovery_code="voicequeue1",
+            voice_file=audio,
+        )
+        with patch("core.views.is_algeria_ip", return_value=True):
+            resp = self.client.post("/api/needs/voice-guide/", payload, format="multipart")
+
+        self.assertEqual(resp.status_code, 201, resp.content)
+        self.assertIn("access_token", resp.data)
+        self.assertEqual(resp.data["voice_processing_status"], Need.VOICE_PROCESSING_PENDING)
+        need = Need.objects.get(pk=resp.data["id"])
+        self.assertEqual(need.voice_processing_status, Need.VOICE_PROCESSING_PENDING)
+
+        public_list = self.client.get("/api/needs/")
+        self.assertEqual(public_list.status_code, 200)
+        self.assertFalse(any(row["id"] == need.pk for row in public_list.data["results"]))
+
+        locations = self.client.get("/api/needs/locations/")
+        self.assertEqual(locations.status_code, 200)
+        self.assertFalse(any(row["id"] == need.pk for row in locations.data))
+
+    def test_voice_analyze_endpoint_transcription_and_llm_are_wired(self):
+        from unittest.mock import patch
+
+        audio = SimpleUploadedFile("urgent-sos.webm", b"fake-webm", content_type="audio/webm")
+        transcript = "Je suis à Blida et j'ai besoin d'eau."
+        extraction = {
+            "title": "Besoin d'eau",
+            "contact_name": "",
+            "contact_phone": "",
+            "estimated_quantity": "",
+            "commune": "Blida",
+            "location_description": "Blida",
+            "organization_or_person_name": "",
+            "description": transcript,
+        }
+        with patch("core.views.is_algeria_ip", return_value=True), patch(
+            "core.views.transcribe_audio", return_value=transcript
+        ) as transcribe, patch(
+            "core.views.extract_need_data", return_value=extraction
+        ) as extract:
+            resp = self.client.post(
+                "/api/needs/voice-guide/analyze/",
+                {"audio": audio, "language": "fr"},
+                format="multipart",
+            )
+
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.assertEqual(resp.data["transcript"], transcript)
+        self.assertEqual(resp.data["extraction"], extraction)
+        transcribe.assert_called_once()
+        extract.assert_called_once_with(transcript)
 
     def test_ordinary_needs_endpoint_unaffected_by_this_restriction(self):
         """The regular CreateNeed.jsx path must never be gated by this --
