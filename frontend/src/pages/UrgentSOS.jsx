@@ -630,7 +630,7 @@ export default function UrgentSOS() {
           </div>
         )}
 
-        {step === STEP.LOCATION && (
+        {step === STEP.LOCATION && !locationDecision && !submitted && (
           <div className="urgent-sos-card">
             <div className="urgent-sos-step-label">{t('urgentSos.step', { current: 3, total: 4 })}</div>
             <h2>{t('urgentSos.locationTitle')}</h2>
