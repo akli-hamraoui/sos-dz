@@ -162,11 +162,11 @@ export default function UrgentSOS() {
       setSeconds(0)
       setRecording(false)
 
-      // Give the user three seconds to prepare before the microphone data
+      // Give the user two seconds to prepare before the microphone data
       // starts being captured. This avoids recordings that begin before the
       // user is ready, especially on mobile where the permission prompt and
       // the tap-to-speak action can otherwise consume the first seconds.
-      setRecordingCountdown(3)
+      setRecordingCountdown(2)
 
       countdownRef.current = setInterval(() => {
         setRecordingCountdown((value) => {
