@@ -2149,13 +2149,18 @@ fieldset {
 }
 .bottom-nav .icon {
   display: flex;
+  align-items: center;
+  justify-content: center;
   color: #555;
   position: relative; /* anchors .nav-badge */
+  width: 24px;
+  height: 24px;
+  margin-inline: auto;
 }
 .nav-badge {
   position: absolute;
-  top: -6px;
-  inset-inline-end: -10px;
+  top: -5px;
+  inset-inline-end: -7px;
   background: var(--danger);
   color: #fff;
   font-size: 9px;
@@ -2191,7 +2196,7 @@ fieldset {
    nav icons -- at the default offset the badge sat partly over the icon
    itself instead of clear of it, so these two get pushed further out. */
 .map-indicator-shift {
-  inset-inline-end: -9px;
+  inset-inline-end: -7px;
 }
 .bottom-nav a.active {
   /* Same solid pill treatment as the Liste/Carte toggle's .active state
