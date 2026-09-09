@@ -3417,6 +3417,10 @@ body { overflow-x: hidden; }
 .urgent-sos-recording.active{background:#fff1f2;color:var(--sos-red);}
 .urgent-sos-recording-dot{width:12px;height:12px;border-radius:50%;background:#b7c3be;}
 .urgent-sos-recording.active .urgent-sos-recording-dot{background:var(--sos-red);box-shadow:0 0 0 7px rgba(239,43,59,.1);animation:urgent-sos-pulse 1.2s infinite;}
+.urgent-sos-countdown{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:150px;margin:18px 0;border-radius:20px;background:#f2fbf6;color:var(--brand-green);text-align:center;}
+.urgent-sos-countdown-number{font-size:clamp(64px,18vw,104px);font-weight:900;line-height:.95;letter-spacing:-.04em;}
+.urgent-sos-countdown strong{font-size:clamp(16px,4vw,20px);}
+
 @keyframes urgent-sos-pulse{50%{transform:scale(.7);opacity:.6}}
 .urgent-sos-record-button{min-height:60px;width:100%;font-size:17px;}
 .urgent-sos-preview{width:100%;margin:8px 0;border-radius:12px;}
