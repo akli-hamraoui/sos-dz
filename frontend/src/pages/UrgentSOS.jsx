@@ -268,6 +268,7 @@ export default function UrgentSOS() {
       // When precise GPS succeeds, it is authoritative: do not submit a manually
       // selected wilaya (or a nearest-wilaya suggestion) alongside the coordinates.
       setWilayaId(null)
+      setWilayaSearch('')
 
       // The normal user flow remains Algeria-only. Admins testing this
       // dedicated SOS voice page may keep their real GPS coordinates even
