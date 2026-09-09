@@ -108,6 +108,7 @@ export default function UrgentSOS() {
   const [step, setStep] = useState(STEP.INTRO)
   const [lang, setLang] = useState('fr')
   const [recording, setRecording] = useState(false)
+  const [recordingCountdown, setRecordingCountdown] = useState(0)
   const [seconds, setSeconds] = useState(0)
   const [voiceBlob, setVoiceBlob] = useState(null)
   const [previewUrl, setPreviewUrl] = useState('')
@@ -133,6 +134,7 @@ export default function UrgentSOS() {
   const streamRef = useRef(null)
   const chunksRef = useRef([])
   const timerRef = useRef(null)
+  const countdownTimerRef = useRef(null)
   const manualEditRef = useRef(false)
 
   const activeCampaign = useMemo(() => campaigns.find((c) => c.status === 'active'), [campaigns])
@@ -140,6 +142,7 @@ export default function UrgentSOS() {
   useEffect(() => {
     return () => {
       clearInterval(timerRef.current)
+      clearInterval(countdownTimerRef.current)
       streamRef.current?.getTracks().forEach((track) => track.stop())
       if (previewUrl) URL.revokeObjectURL(previewUrl)
     }
@@ -185,16 +188,33 @@ export default function UrgentSOS() {
       }
       recorderRef.current = recorder
       setSeconds(0)
-      setRecording(true)
-      recorder.start(250)
-      timerRef.current = setInterval(() => {
-        setSeconds((value) => {
-          if (value + 1 >= MAX_SECONDS) {
-            recorder.stop()
-            clearInterval(timerRef.current)
-            setRecording(false)
+      setRecording(false)
+      setRecordingCountdown(2)
+
+      const startCapture = () => {
+        clearInterval(countdownTimerRef.current)
+        setRecordingCountdown(0)
+        setRecording(true)
+        recorder.start(250)
+        timerRef.current = setInterval(() => {
+          setSeconds((value) => {
+            if (value + 1 >= MAX_SECONDS) {
+              recorder.stop()
+              clearInterval(timerRef.current)
+              setRecording(false)
+            }
+            return value + 1
+          })
+        }, 1000)
+      }
+
+      countdownTimerRef.current = setInterval(() => {
+        setRecordingCountdown((value) => {
+          if (value <= 1) {
+            startCapture()
+            return 0
           }
-          return value + 1
+          return value - 1
         })
       }, 1000)
     } catch (err) {
@@ -205,8 +225,11 @@ export default function UrgentSOS() {
 
   const stopRecording = () => {
     clearInterval(timerRef.current)
+    clearInterval(countdownTimerRef.current)
+    setRecordingCountdown(0)
     setRecording(false)
     if (recorderRef.current?.state !== 'inactive') recorderRef.current.stop()
+    else streamRef.current?.getTracks().forEach((track) => track.stop())
   }
 
   const restartRecording = () => {
@@ -533,11 +556,22 @@ export default function UrgentSOS() {
             <h2>{t('urgentSos.recordTitle')}</h2>
             <p>{t('urgentSos.recordText')}</p>
             <AudioGuide lang={lang} step={1} audioPaused={audioPaused} onAudioPauseChange={setAudioPaused} />
-            <div className={recording ? 'urgent-sos-recording active' : 'urgent-sos-recording'}>
-              <span className="urgent-sos-recording-dot" aria-hidden="true" />
-              <strong>{recording ? `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}` : t('urgentSos.ready')}</strong>
-            </div>
-            {recording ? (
+            {recordingCountdown > 0 ? (
+              <div className="urgent-sos-countdown" role="status" aria-live="assertive">
+                <strong>{t('urgentSos.countdownSpeak')}</strong>
+                <span className="urgent-sos-countdown-number">{recordingCountdown}</span>
+              </div>
+            ) : (
+              <div className={recording ? 'urgent-sos-recording active' : 'urgent-sos-recording'}>
+                <span className="urgent-sos-recording-dot" aria-hidden="true" />
+                <strong>{recording ? `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}` : t('urgentSos.ready')}</strong>
+              </div>
+            )}
+            {recordingCountdown > 0 ? (
+              <div className="urgent-sos-actions urgent-sos-record-actions">
+                <button type="button" className="urgent-sos-secondary" onClick={stopRecording}>{t('urgentSos.cancelCountdown')}</button>
+              </div>
+            ) : recording ? (
               <div className="urgent-sos-actions urgent-sos-record-actions">
                 <button type="button" className="urgent-sos-secondary urgent-sos-previous" onClick={goToPreviousStep}>{t('urgentSos.previous')}</button>
                 <button type="button" className="urgent-sos-danger" onClick={stopRecording}>⏹ {t('urgentSos.stop')}</button>
