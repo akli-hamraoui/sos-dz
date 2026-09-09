@@ -3959,3 +3959,12 @@ body { overflow-x: hidden; }
     margin-top:8px;
   }
 }
+
+
+/* Four-step SOS vocal wizard (the intro is not counted as a form step). */
+.urgent-sos-stepper{
+  grid-template-columns:repeat(4,minmax(0,1fr));
+}
+.urgent-sos-progress{
+  grid-template-columns:repeat(4,minmax(0,1fr));
+}
