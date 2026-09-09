@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import tempfile
 from functools import lru_cache
 
 import requests
@@ -33,6 +34,37 @@ class VoiceAIError(Exception):
     pass
 
 
+def _configure_whisper_cache():
+    """Choose a cache writable by the Gunicorn service account.
+
+    Production Gunicorn runs as www-data and its HOME may resolve to
+    /var/www, which is not writable on this VPS. faster-whisper delegates
+    model downloads to Hugging Face, so an unwritable HOME otherwise turns
+    the first transcription request into a 503. Prefer the application
+    cache when writable and fall back to /tmp when the deploy directory is
+    root-owned.
+    """
+    candidates = [
+        os.path.join(str(getattr(settings, "REPO_ROOT", "/opt/sos-dz")), ".cache", "huggingface"),
+        os.path.join(tempfile.gettempdir(), "sos-dz-huggingface"),
+    ]
+    for cache_dir in candidates:
+        try:
+            os.makedirs(cache_dir, exist_ok=True)
+            probe = os.path.join(cache_dir, ".write-test")
+            with open(probe, "w", encoding="utf-8") as handle:
+                handle.write("ok")
+            os.unlink(probe)
+            os.environ["HF_HOME"] = cache_dir
+            os.environ["HF_HUB_CACHE"] = os.path.join(cache_dir, "hub")
+            os.environ["HUGGINGFACE_HUB_CACHE"] = os.path.join(cache_dir, "hub")
+            logger.info("Local Whisper cache configured: path=%s", cache_dir)
+            return cache_dir
+        except OSError as exc:
+            logger.warning("Whisper cache unavailable: path=%s error=%s", cache_dir, exc)
+    raise VoiceAIError("Voice transcription cache is not writable.")
+
+
 @lru_cache(maxsize=1)
 def _whisper_model():
     """Load one local Whisper model and reuse it for the process lifetime.
@@ -42,6 +74,9 @@ def _whisper_model():
     required.
     """
     try:
+        # Configure the cache BEFORE importing faster-whisper/huggingface_hub,
+        # because those libraries read cache environment variables at import time.
+        _configure_whisper_cache()
         from faster_whisper import WhisperModel
     except ImportError as exc:
         logger.exception("Local Whisper dependency is missing")
