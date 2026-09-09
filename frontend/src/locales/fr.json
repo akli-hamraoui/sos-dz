@@ -606,7 +606,7 @@
     "recordText": "Parlez naturellement. Dites tout ce qui peut aider : qui vous êtes, ce dont vous avez besoin, où vous êtes et pourquoi c'est urgent.",
     "ready": "Prêt à enregistrer",
     "start": "Démarrer l'enregistrement",
-    "countdownSpeak": "Préparez-vous… vous allez parler dans quelques secondes.",
+    "countdownSpeak": "L’enregistrement va démarrer dans",
     "cancelCountdown": "Annuler",
     "stop": "Arrêter l'enregistrement",
     "recording": "Enregistrement en cours",
