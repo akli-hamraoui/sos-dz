@@ -228,6 +228,9 @@ export default function UrgentSOS() {
 
       setGps({ latitude, longitude })
       setLocationAccuracy(Number.isFinite(accuracy) ? Math.round(accuracy) : null)
+      // When precise GPS succeeds, it is authoritative: do not submit a manually
+      // selected wilaya (or a nearest-wilaya suggestion) alongside the coordinates.
+      setWilayaId(null)
 
       // The normal user flow remains Algeria-only. Admins testing this
       // dedicated SOS voice page may keep their real GPS coordinates even
@@ -336,7 +339,7 @@ export default function UrgentSOS() {
       const formData = new FormData()
       const fields = {
         campaign: activeCampaign.id,
-        wilaya: wilayaId || '',
+        wilaya: gps ? '' : (wilayaId || ''),
         urgency: 'critical',
         title: extracted.title || 'SOS urgent',
         estimated_quantity: extracted.estimated_quantity || '',
