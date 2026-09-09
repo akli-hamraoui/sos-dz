@@ -332,7 +332,6 @@ export default function UrgentSOS() {
       setLocationStatus('success')
       playGuideAudio(lang, 3)
       setLocationDecision(true)
-      void analyzeVoice()
 
       // The nearest-wilaya lookup is only a convenience. Do it after the
       // review screen is available so a slow lookup can never make the
@@ -718,7 +717,6 @@ export default function UrgentSOS() {
                 setGps(null)
                 playGuideAudio(lang, 4)
                 setLocationDecision(true)
-                void analyzeVoice()
               }} disabled={locating || busy}>
                 {t('urgentSos.noLocation')}
               </button>
