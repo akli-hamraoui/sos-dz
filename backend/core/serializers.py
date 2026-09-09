@@ -19,6 +19,7 @@ from core.models import (
     Wilaya,
 )
 from core.media_validation import validate_video_duration, validate_video_size
+from core.permissions import is_request_admin
 from core.validators import check_recovery_code_available, is_within_algeria_bounds, validate_algeria_bounds, validate_social_url
 
 
@@ -515,7 +516,14 @@ class NeedCreateSerializer(serializers.ModelSerializer):
             )
         lat, lon = attrs.get("latitude"), attrs.get("longitude")
         if lat is not None or lon is not None:
-            validate_algeria_bounds(lat, lon)
+            request = self.context.get("request")
+            view = self.context.get("view")
+            admin_voice_sos = (
+                getattr(view, "action", None) == "create_via_voice_guide"
+                and is_request_admin(request)
+            )
+            if not admin_voice_sos:
+                validate_algeria_bounds(lat, lon)
         description = (attrs.get("location_description") or "").strip()
         voice_file = attrs.get("voice_file")
         video_file = attrs.get("video_file")
