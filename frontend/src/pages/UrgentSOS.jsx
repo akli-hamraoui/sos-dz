@@ -167,14 +167,12 @@ export default function UrgentSOS() {
       // user is ready, especially on mobile where the permission prompt and
       // the tap-to-speak action can otherwise consume the first seconds.
       setRecordingCountdown(3)
-      recorder.start(250)
-      recorder.pause()
 
       countdownRef.current = setInterval(() => {
         setRecordingCountdown((value) => {
           if (value <= 1) {
             clearInterval(countdownRef.current)
-            recorder.resume()
+            recorder.start(250)
             setRecording(true)
             timerRef.current = setInterval(() => {
               setSeconds((current) => {
@@ -204,7 +202,13 @@ export default function UrgentSOS() {
     clearInterval(countdownRef.current)
     setRecordingCountdown(0)
     setRecording(false)
-    if (recorderRef.current?.state !== 'inactive') recorderRef.current.stop()
+    if (recorderRef.current?.state !== 'inactive') {
+      recorderRef.current.stop()
+    } else if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop())
+      streamRef.current = null
+      recorderRef.current = null
+    }
   }
 
   const restartRecording = () => {
