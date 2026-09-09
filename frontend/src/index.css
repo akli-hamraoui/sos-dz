@@ -1919,18 +1919,23 @@ fieldset {
   position: absolute;
   top: 12px;
   bottom: auto;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 90px;
+  right: auto;
+  transform: none;
   z-index: 1300;
+  width: min(330px, calc(100% - 180px));
+  box-sizing: border-box;
   background: var(--brand-green-soft);
   color: var(--brand-green);
   border: 1px solid var(--brand-green-border);
   font-size: 13px;
   font-weight: 500;
-  padding: 8px 16px;
+  padding: 7px 12px;
   border-radius: 999px;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .map-deactivate-btn {
   border: none;
