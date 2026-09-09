@@ -361,6 +361,7 @@ class NeedPublicSerializer(serializers.ModelSerializer):
             "wilaya_name",
             "commune",
             "location_description",
+            "description",
             "latitude",
             "longitude",
             "position_accuracy",
