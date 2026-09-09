@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import L from 'leaflet'
 import { useApp } from '../context/AppContext'
@@ -35,6 +35,7 @@ const NEED_SOS_ICON = '<img src="/icons/need-marker-sos.png" width="18" height="
 
 export default function NeedsList() {
   const { t } = useTranslation()
+  const location = useLocation()
   const { activeCampaignWilayas } = useApp()
   const { showAlert } = useDialog()
   const [filterWilaya, setFilterWilaya] = useState('')
@@ -121,6 +122,15 @@ export default function NeedsList() {
   useEffect(() => {
     loadNeeds().catch(() => {}) // offline/network failure -- offline banner already informs the user, nothing more to do here
   }, [loadNeeds])
+
+  // A detail page can cancel a need and navigate back here. The map removes
+  // its marker immediately, but the list must also re-query the backend so
+  // the cancelled need cannot remain as a stale card.
+  useEffect(() => {
+    if (location.pathname === '/needs') {
+      loadNeeds().catch(() => {})
+    }
+  }, [location.key, location.pathname, loadNeeds])
 
   // Frames the active campaign's authorized wilayas (the affected zones,
   // e.g. the 18 fire wilayas) rather than a flat whole-country view --
