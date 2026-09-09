@@ -509,7 +509,11 @@ class NeedCreateSerializer(serializers.ModelSerializer):
             if wilaya is None:
                 raise serializers.ValidationError({"wilaya": "This field is required."})
             attrs["wilaya"] = wilaya
-            attrs["has_no_location"] = True
+            # A fallback wilaya is only administrative metadata. If precise
+            # GPS was supplied (admin SOS voice abroad), keep the listing as
+            # precisely located instead of marking it as "no location".
+            if attrs.get("latitude") is None or attrs.get("longitude") is None:
+                attrs["has_no_location"] = True
         elif not campaign.authorized_wilayas.filter(pk=wilaya.pk).exists():
             raise serializers.ValidationError(
                 "This wilaya is not authorized for the selected campaign."
