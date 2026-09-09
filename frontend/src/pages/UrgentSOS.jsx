@@ -102,6 +102,10 @@ export default function UrgentSOS() {
   const timerRef = useRef(null)
 
   const activeCampaign = useMemo(() => campaigns.find((c) => c.status === 'active'), [campaigns])
+  // This page must use the same authorized wilayas list as the SOS needs flow.
+  // Keep the local alias explicit: referencing an undeclared `wilayas` here
+  // previously caused a React render crash and a completely blank /urgent-sos page.
+  const sosWilayas = activeCampaignWilayas || []
 
   useEffect(() => {
     return () => {
