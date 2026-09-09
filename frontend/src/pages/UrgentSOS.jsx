@@ -358,7 +358,7 @@ export default function UrgentSOS() {
       data.title = data.title || fallbackData.title
       data.contact_name = data.contact_name || fallbackData.contact_name
       data.location_description = data.location_description || fallbackData.location_description
-      data.description = data.description || result.transcript || ''
+      data.description = result.transcript || data.description || ''
 
       // Never let a late AI response overwrite fields the reporter already
       // corrected or the data used by an already-submitted SOS.
@@ -416,9 +416,8 @@ export default function UrgentSOS() {
         contact_name: extracted.contact_name || 'Anonyme',
         contact_phone: extracted.contact_phone || '',
         organization_or_person_name: extracted.organization_or_person_name || '',
-        location_description: [extracted.location_description, extracted.description || transcript]
-          .filter(Boolean)
-          .join(' — ') || 'Sans localisation',
+        location_description: extracted.location_description || 'Sans localisation',
+        description: transcript || extracted.description || '',
         latitude: gps?.latitude ?? '',
         longitude: gps?.longitude ?? '',
         recovery_code: submissionRecoveryCode,
