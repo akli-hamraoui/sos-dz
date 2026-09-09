@@ -217,7 +217,7 @@ export default function NeedDetail() {
       // stale list while the map has already removed its pin.
       await editNeed({ is_cancelled: true, cancellation_reason: '' })
       refreshConfig()
-      navigate('/needs', { replace: true })
+      navigate('/needs', { replace: true, state: { needsChanged: true } })
     } catch (e) {
       showAlert(translateApiError(e, t))
     }
