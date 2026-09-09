@@ -78,6 +78,8 @@ export default function UrgentSOS() {
   const [gps, setGps] = useState(null)
   const [wilayaId, setWilayaId] = useState(null)
   const [locating, setLocating] = useState(false)
+  const [locationStatus, setLocationStatus] = useState('idle')
+  const [locationAccuracy, setLocationAccuracy] = useState(null)
   const [transcript, setTranscript] = useState('')
   const [extracted, setExtracted] = useState(fallbackData)
   const [error, setError] = useState('')
@@ -177,32 +179,90 @@ export default function UrgentSOS() {
     setStep(STEP.RECORD)
   }
 
-  const chooseLocation = () => {
+  const chooseLocation = async () => {
     setError('')
+    setLocationStatus('locating')
+    setLocationAccuracy(null)
+
     if (!navigator.geolocation) {
-      setStep(STEP.ANALYZE)
-      analyzeVoice()
+      setLocationStatus('error')
+      setError(t('urgentSos.locationUnsupported'))
       return
     }
+
+    const getPosition = (options) => new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(resolve, reject, options)
+    })
+
     setLocating(true)
-    navigator.geolocation.getCurrentPosition(async (position) => {
-      const { latitude, longitude } = position.coords
+    try {
+      let position
+      try {
+        // First try the precise GPS/Wi-Fi fix. A short cached fix is accepted
+        // so Android does not wait unnecessarily when a recent position exists.
+        position = await getPosition({
+          enableHighAccuracy: true,
+          timeout: 12000,
+          maximumAge: 30000,
+        })
+      } catch (firstError) {
+        // A high-accuracy request can time out indoors or on some Android
+        // devices. Retry with the lower-power provider before declaring failure.
+        position = await getPosition({
+          enableHighAccuracy: false,
+          timeout: 10000,
+          maximumAge: 300000,
+        })
+      }
+
+      const { latitude, longitude, accuracy } = position.coords
+      if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+        throw new Error('invalid-position')
+      }
+
       setGps({ latitude, longitude })
+      setLocationAccuracy(Number.isFinite(accuracy) ? Math.round(accuracy) : null)
+
+      // The SOS backend only publishes coordinates inside Algeria. In admin
+      // mode, a phone physically outside Algeria must not be turned into a
+      // fake Algerian position, so make that case explicit to the reporter.
+      const insideAlgeria =
+        latitude >= 18.9 && latitude <= 37.3 &&
+        longitude >= -8.7 && longitude <= 12.0
+
+      if (!insideAlgeria) {
+        setGps(null)
+        setWilayaId(null)
+        setLocationStatus('outside')
+        setError(t('urgentSos.locationOutsideAlgeria'))
+        return
+      }
+
       try {
         const suggestion = await api(`/wilayas/nearest/?lat=${latitude}&lon=${longitude}`)
-        setWilayaId(suggestion.id)
+        setWilayaId(suggestion.id || null)
       } catch {
-        // GPS remains useful even when nearest-wilaya lookup is unavailable.
-      } finally {
-        setLocating(false)
-        setStep(STEP.ANALYZE)
-        analyzeVoice()
+        // The precise coordinates remain usable even if the nearest-wilaya
+        // convenience lookup is temporarily unavailable.
+        setWilayaId(null)
       }
-    }, () => {
-      setLocating(false)
+
+      setLocationStatus('success')
       setStep(STEP.ANALYZE)
-      analyzeVoice()
-    }, { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 })
+      await analyzeVoice()
+    } catch (geoError) {
+      setGps(null)
+      setWilayaId(null)
+      setLocationStatus('error')
+      const message =
+        geoError?.code === 1 ? t('urgentSos.locationDenied') :
+        geoError?.code === 2 ? t('urgentSos.locationUnavailable') :
+        geoError?.code === 3 ? t('urgentSos.locationTimeout') :
+        t('urgentSos.locationError')
+      setError(message)
+    } finally {
+      setLocating(false)
+    }
   }
 
   const analyzeVoice = async () => {
@@ -282,12 +342,15 @@ export default function UrgentSOS() {
       setAccessToken(returnedAccessToken)
       setTokenCopied(false)
       setAccessTokenCopied(false)
-      setTokenSaved(Boolean(returnedAccessToken))
+      if (!returnedAccessToken) {
+        throw new Error(t('urgentSos.tokenMissing'))
+      }
       if (need.id) {
-        saveNeedToken(need.id, {
+        await Promise.resolve(saveNeedToken(need.id, {
           access_token: returnedAccessToken,
           location_viewer_share_token: need.location_viewer_share_token,
-        })
+        }))
+        setTokenSaved(Boolean(returnedAccessToken))
         setCreatedNeedId(need.id)
       }
       refreshConfig()
@@ -396,8 +459,22 @@ export default function UrgentSOS() {
             <h2>{t('urgentSos.locationTitle')}</h2>
             <p>{t('urgentSos.locationText')}</p>
             <AudioGuide lang={lang} step={2} />
+            {locationStatus === 'success' && gps && (
+              <div className="urgent-sos-location-status success" role="status">
+                ✓ {t('urgentSos.locationDetected')}
+                {locationAccuracy ? ` · ±${locationAccuracy} m` : ''}
+              </div>
+            )}
+            {locationStatus === 'outside' && (
+              <div className="urgent-sos-location-status warning" role="status">
+                ⚠️ {t('urgentSos.locationOutsideAlgeria')}
+              </div>
+            )}
+            {locationStatus === 'error' && error && (
+              <div className="urgent-sos-location-status error" role="alert">{error}</div>
+            )}
             <div className="urgent-sos-actions">
-              <button type="button" className="urgent-sos-secondary" onClick={() => { setStep(STEP.ANALYZE); analyzeVoice() }} disabled={locating || busy}>
+              <button type="button" className="urgent-sos-secondary" onClick={() => { setError(''); setLocationStatus('skipped'); setGps(null); setWilayaId(null); setStep(STEP.ANALYZE); analyzeVoice() }} disabled={locating || busy}>
                 {t('urgentSos.noLocation')}
               </button>
               <button type="button" className="urgent-sos-primary" onClick={chooseLocation} disabled={locating || busy}>
@@ -447,8 +524,12 @@ export default function UrgentSOS() {
         {step === STEP.DONE && (
           <div className="urgent-sos-card urgent-sos-center">
             <IconCheckCircle width={52} height={52} />
+            <div className="urgent-sos-final-badge">✓ {t('urgentSos.doneTitle')}</div>
             <h2>{t('urgentSos.doneTitle')}</h2>
             <p>{t('urgentSos.doneText')}</p>
+            <div className="urgent-sos-final-warning" role="alert">
+              🔐 <strong>{t('urgentSos.finalPasswordWarning')}</strong>
+            </div>
             <AudioGuide lang={lang} step={8} />
             {tokenSaved && <p className="urgent-sos-token-saved" role="status">✓ {t('urgentSos.tokenSaved')}</p>}
             {recoveryCode && (
