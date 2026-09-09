@@ -100,3 +100,84 @@ class VoiceAIRequestTests(TestCase):
 
         self.assertEqual(result["location_description"], "الجزائر")
         self.assertIn(transcript, post.call_args.kwargs["json"]["messages"][0]["content"])
+
+
+class VoiceNeedProcessingTests(TestCase):
+    def test_process_voice_need_saves_full_transcript_and_structured_fields(self):
+        from core.models import Campaign, DisasterType, Need, Wilaya
+
+        disaster = DisasterType.objects.create(name="Wildfire", icon="fire")
+        campaign = Campaign.objects.create(
+            campaign_name="Voice processing test",
+            disaster_type=disaster,
+            status=Campaign.STATUS_ACTIVE,
+        )
+        wilaya = Wilaya.objects.first()
+        campaign.authorized_wilayas.add(wilaya)
+        need = Need.objects.create(
+            campaign=campaign,
+            title="SOS urgent",
+            urgency=Need.URGENCY_CRITICAL,
+            wilaya=wilaya,
+            contact_name="Anonyme",
+            recovery_code="voice-test-1",
+            voice_processing_status=Need.VOICE_PROCESSING_PENDING,
+        )
+
+        transcript = "Je m'appelle Nadia, je suis à Béjaïa et nous avons besoin d'eau pour vingt familles."
+        extraction = {
+            "title": "Besoin d'eau",
+            "contact_name": "Nadia",
+            "contact_phone": "0555000000",
+            "estimated_quantity": "vingt familles",
+            "commune": "Béjaïa",
+            "location_description": "Béjaïa",
+            "organization_or_person_name": "",
+            "description": "Résumé LLM qui ne doit pas remplacer la transcription.",
+        }
+
+        from unittest.mock import patch
+        with patch("core.voice_ai.transcribe_audio", return_value=transcript), patch(
+            "core.voice_ai.extract_need_data", return_value=extraction
+        ):
+            from core.voice_ai import process_voice_need
+            process_voice_need(need.pk)
+
+        need.refresh_from_db()
+        self.assertEqual(need.description, transcript)
+        self.assertEqual(need.contact_name, "Nadia")
+        self.assertEqual(need.contact_phone, "0555000000")
+        self.assertEqual(need.estimated_quantity, "vingt familles")
+        self.assertEqual(need.location_description, "Béjaïa")
+        self.assertEqual(need.voice_processing_status, Need.VOICE_PROCESSING_READY)
+        self.assertEqual(need.voice_processing_error, "")
+
+    def test_process_voice_need_marks_failed_when_transcription_fails(self):
+        from core.models import Campaign, DisasterType, Need, Wilaya
+
+        disaster = DisasterType.objects.create(name="Flood", icon="flood")
+        campaign = Campaign.objects.create(
+            campaign_name="Voice failure test",
+            disaster_type=disaster,
+            status=Campaign.STATUS_ACTIVE,
+        )
+        wilaya = Wilaya.objects.first()
+        campaign.authorized_wilayas.add(wilaya)
+        need = Need.objects.create(
+            campaign=campaign,
+            title="SOS urgent",
+            urgency=Need.URGENCY_CRITICAL,
+            wilaya=wilaya,
+            contact_name="Anonyme",
+            recovery_code="voice-test-2",
+            voice_processing_status=Need.VOICE_PROCESSING_PENDING,
+        )
+
+        from unittest.mock import patch
+        with patch("core.voice_ai.transcribe_audio", side_effect=VoiceAIError("No speech was detected.")):
+            from core.voice_ai import process_voice_need
+            process_voice_need(need.pk)
+
+        need.refresh_from_db()
+        self.assertEqual(need.voice_processing_status, Need.VOICE_PROCESSING_FAILED)
+        self.assertIn("No speech", need.voice_processing_error)
