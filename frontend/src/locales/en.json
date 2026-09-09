@@ -624,7 +624,7 @@
     "sending": "Sending…",
     "doneTitle": "Urgent SOS created",
     "doneText": "Your SOS is saved. Copy and keep your access token before leaving this page.",
-    "processingText": "Your voice message is being transcribed and analyzed. It will appear on the map when processing is complete."
+    "processingText": "Your voice message is being transcribed and analyzed. It will appear on the map when processing is complete.",
     "tokenTitle": "Token to copy",
     "tokenWarning": "Copy and keep this token so you can recover and manage your SOS later.",
     "copyToken": "Copy",
