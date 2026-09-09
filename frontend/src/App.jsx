@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { Navigate, Routes, Route, Link, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useApp } from './context/AppContext'
@@ -497,7 +498,7 @@ export default function App() {
         </p>
       </footer>
 
-      <BottomNav />
+      {createPortal(<BottomNav />, document.body)}
     </>
   )
 }
