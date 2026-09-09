@@ -460,11 +460,17 @@ export default function UrgentSOS() {
               <strong>{recording ? `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}` : t('urgentSos.ready')}</strong>
             </div>
             {recording ? (
-              <button type="button" className="urgent-sos-danger" onClick={stopRecording}>⏹ {t('urgentSos.stop')}</button>
+              <div className="urgent-sos-actions urgent-sos-record-actions">
+                <button type="button" className="urgent-sos-secondary urgent-sos-previous" onClick={goToPreviousStep}>{t('urgentSos.previous')}</button>
+                <button type="button" className="urgent-sos-danger" onClick={stopRecording}>⏹ {t('urgentSos.stop')}</button>
+              </div>
             ) : (
+              <div className="urgent-sos-actions urgent-sos-record-actions">
+              <button type="button" className="urgent-sos-secondary urgent-sos-previous" onClick={goToPreviousStep}>{t('urgentSos.previous')}</button>
               <button type="button" className="urgent-sos-primary urgent-sos-record-button" onClick={startRecording}>
                 <IconMic width={22} height={22} /> {t('urgentSos.start')}
               </button>
+              </div>
             )}
           </div>
         )}
@@ -476,7 +482,7 @@ export default function UrgentSOS() {
             <p>{t('urgentSos.previewText')}</p>
             <audio className="urgent-sos-preview" controls src={previewUrl} />
             <div className="urgent-sos-actions">
-              <button type="button" className="urgent-sos-secondary" onClick={goToPreviousStep}>{t('urgentSos.previous')}</button>
+              <button type="button" className="urgent-sos-secondary urgent-sos-previous" onClick={goToPreviousStep}>{t('urgentSos.previous')}</button>
               <button type="button" className="urgent-sos-secondary" onClick={restartRecording}>{t('urgentSos.rerecord')}</button>
               <button type="button" className="urgent-sos-primary" onClick={() => setStep(STEP.LOCATION)}>{t('urgentSos.continue')}</button>
             </div>
