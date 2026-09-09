@@ -2204,13 +2204,19 @@ fieldset {
   inset-inline-end: -7px;
 }
 .bottom-nav a.active {
-  /* Same solid pill treatment as the Liste/Carte toggle's .active state
-     (.view-toggle button.active) -- a clear "this is the one you clicked"
-     background, not just a color change on already-small 11px text. */
+  /* Keep the green selected pill around the COMPLETE icon + label,
+     including the explicit two-line labels. */
   color: #fff;
   background: var(--accent);
   border-radius: 14px;
-  padding: 4px 12px;
+  padding: 7px 14px;
+  min-width: 62px;
+  min-height: 50px;
+  width: fit-content;
+  max-width: calc(100% - 6px);
+  box-sizing: border-box;
+  justify-self: center;
+  align-self: center;
 }
 .bottom-nav a.active .icon {
   color: #fff;
