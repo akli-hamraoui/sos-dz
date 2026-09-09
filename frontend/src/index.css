@@ -3274,6 +3274,14 @@ body { overflow-x: hidden; }
    Leaflet's popup container normally blocks touch/mouse press events, so the
    shared popup behavior explicitly re-enables map dragging from the popup.
    Keep the browser from turning the gesture into page scrolling. */
+.map-frame .leaflet-popup-pane {
+  z-index: 1400;
+}
+
+.sosdz-map-popup {
+  z-index: 1401 !important;
+}
+
 .sosdz-map-popup .leaflet-popup-content-wrapper {
   touch-action: none;
 }
