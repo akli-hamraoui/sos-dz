@@ -3462,8 +3462,9 @@ body { overflow-x: hidden; }
   align-items: center !important;
   justify-content: center !important;
   flex-direction: column !important;
-  min-height: 78px !important;
-  padding: 7px 8px 9px !important;
+  width: calc(100% - 6px) !important;
+  min-height: 82px !important;
+  padding: 8px 7px 10px !important;
   margin: 2px 3px !important;
   border-radius: 20px !important;
   box-sizing: border-box !important;
@@ -3478,9 +3479,10 @@ body { overflow-x: hidden; }
 
 @media (max-width: 699px) {
   .bottom-nav > a.active {
-    min-height: 80px !important;
-    padding: 7px 7px 10px !important;
-    margin: 2px 2px !important;
+    width: calc(100% - 6px) !important;
+    min-height: 82px !important;
+    padding: 8px 6px 10px !important;
+    margin: 2px 3px !important;
     border-radius: 20px !important;
   }
 }
