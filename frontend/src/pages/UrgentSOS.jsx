@@ -127,7 +127,6 @@ export default function UrgentSOS() {
   const [busy, setBusy] = useState(false)
   const [audioPaused, setAudioPaused] = useState(false)
   const [submitted, setSubmitted] = useState(false)
-  const [finalAudioStep, setFinalAudioStep] = useState(null)
   const [createdNeedId, setCreatedNeedId] = useState(null)
   const [recoveryCode, setRecoveryCode] = useState('')
   const [tokenCopied, setTokenCopied] = useState(false)
@@ -488,7 +487,6 @@ export default function UrgentSOS() {
 
       refreshConfig()
       setSubmitted(true)
-      setFinalAudioStep(7)
 
       if (!returnedAccessToken) {
         setError(t('urgentSos.tokenMissing'))
@@ -771,10 +769,6 @@ export default function UrgentSOS() {
                 <div className="urgent-sos-final-badge">✓ {t('urgentSos.doneTitle')}</div>
                 <h2>{t('urgentSos.tokenTitle')}</h2>
                 <p>{t('urgentSos.doneText')}</p>
-                <div className="urgent-sos-final-warning" role="alert">
-                  🔐 <strong>{t('urgentSos.tokenWarning')}</strong>
-                </div>
-
                 {error && <p className="urgent-sos-error" role="alert">{error}</p>}
 
                 {accessToken && (
