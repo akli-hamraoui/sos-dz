@@ -4104,3 +4104,68 @@ body { overflow-x: hidden; }
     margin:8px 0;
   }
 }
+
+/* Final SOS confirmation: keep the password/token screen visible on one mobile viewport. */
+@media (max-width:699px){
+  .urgent-sos-done-card{
+    padding:10px 12px;
+  }
+  .urgent-sos-done-card .urgent-sos-final-badge{
+    margin-bottom:4px;
+    padding:6px 9px;
+  }
+  .urgent-sos-done-card h2{
+    margin-bottom:3px;
+    font-size:19px;
+  }
+  .urgent-sos-done-card > p{
+    margin-bottom:6px;
+    line-height:1.2;
+    font-size:12px;
+  }
+  .urgent-sos-done-card .urgent-sos-final-warning{
+    margin:5px 0;
+    padding:7px 9px;
+    font-size:12px;
+    line-height:1.2;
+  }
+  .urgent-sos-done-card .urgent-sos-audio{
+    margin:5px 0;
+  }
+  .urgent-sos-done-card .urgent-sos-audio-btn{
+    min-height:38px;
+    font-size:12px;
+  }
+  .urgent-sos-done-card .urgent-sos-token-box{
+    margin:5px 0 4px;
+    padding:9px;
+  }
+  .urgent-sos-done-card .urgent-sos-token-title{
+    font-size:13px;
+  }
+  .urgent-sos-done-card .urgent-sos-token-warning{
+    margin:3px 0 6px !important;
+    font-size:11px;
+    line-height:1.2;
+  }
+  .urgent-sos-done-card .urgent-sos-token-row{
+    flex-direction:row;
+    align-items:center;
+    gap:6px;
+  }
+  .urgent-sos-done-card .urgent-sos-token{
+    padding:8px;
+    font-size:13px;
+  }
+  .urgent-sos-done-card .urgent-sos-copy-token{
+    min-height:38px;
+    padding:0 9px;
+    font-size:12px;
+  }
+  .urgent-sos-done-card .urgent-sos-actions{
+    margin-top:5px;
+  }
+  .urgent-sos-done-card .urgent-sos-actions .urgent-sos-secondary{
+    min-height:38px;
+  }
+}
