@@ -206,8 +206,17 @@ export default function NeedDetail() {
   const cancelNeed = async () => {
     const reason = await showPrompt(t('needDetail.cancelThisNeed') + '?', '')
     if (reason === null) return
-    editNeed({ is_cancelled: true, cancellation_reason: reason })
-    refreshConfig()
+    try {
+      // Wait for the server-side cancellation before refreshing/navigating.
+      // The list endpoint excludes cancelled needs, so returning only after
+      // this PATCH succeeds prevents the cancelled card from remaining in a
+      // stale list while the map has already removed its pin.
+      await editNeed({ is_cancelled: true, cancellation_reason: reason })
+      refreshConfig()
+      navigate('/needs', { replace: true })
+    } catch (e) {
+      showAlert(translateApiError(e, t))
+    }
   }
 
   const promptUpdateGPS = () => {
