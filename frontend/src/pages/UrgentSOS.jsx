@@ -4,13 +4,13 @@ import { useTranslation } from 'react-i18next'
 import { useApp } from '../context/AppContext'
 import { api, apiUpload } from '../api'
 import { translateApiError } from '../apiErrors'
-import { IconCheckCircle, IconMic } from '../icons'
+import { IconMic } from '../icons'
 import { audioUrlFor } from '../voiceGuide'
 
-const STEP = { INTRO: 0, RECORD: 1, PREVIEW: 2, LOCATION: 3, ANALYZE: 4, REVIEW: 5, DONE: 6 }
+const STEP = { INTRO: 0, RECORD: 1, PREVIEW: 2, LOCATION: 3, REVIEW: 4 }
 const MAX_SECONDS = 180
 
-function AudioGuide({ lang, step }) {
+function AudioGuide({ lang, step, audioPaused, onAudioPauseChange, onEnded }) {
   const { t } = useTranslation()
   const ref = useRef(null)
   const [playing, setPlaying] = useState(false)
@@ -18,25 +18,53 @@ function AudioGuide({ lang, step }) {
 
   useEffect(() => {
     const audio = ref.current
-    return () => {
-      if (audio) {
-        audio.pause()
-        audio.currentTime = 0
-        audio.load()
+    if (!audio) return
+
+    let cancelled = false
+    setPlaying(false)
+
+    if (audioPaused) {
+      audio.pause()
+      audio.currentTime = 0
+      return () => {
+        cancelled = true
       }
     }
-  }, [lang, step])
+
+    // Try to start automatically on every step. Browsers may reject
+    // autoplay; in that case the same button remains available and the
+    // failure never blocks the SOS flow.
+    const timer = window.setTimeout(() => {
+      if (cancelled) return
+      setSupported(true)
+      audio.currentTime = 0
+      audio.play().then(() => {
+        if (!cancelled) setPlaying(true)
+      }).catch(() => {
+        if (!cancelled) setSupported(false)
+      })
+    }, 0)
+
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+      audio.pause()
+      audio.currentTime = 0
+    }
+  }, [lang, step, audioPaused])
 
   const toggle = () => {
     const audio = ref.current
     if (!audio) return
     if (audio.paused) {
       setSupported(true)
-      audio.load()
+      onAudioPauseChange?.(false)
+      audio.currentTime = 0
       audio.play().then(() => setPlaying(true)).catch(() => setSupported(false))
     } else {
       audio.pause()
       setPlaying(false)
+      onAudioPauseChange?.(true)
     }
   }
 
@@ -48,7 +76,10 @@ function AudioGuide({ lang, step }) {
         preload="auto"
         playsInline
         onLoadedData={() => setSupported(true)}
-        onEnded={() => setPlaying(false)}
+        onEnded={() => {
+          setPlaying(false)
+          onEnded?.()
+        }}
         onError={() => setSupported(false)}
       />
       <button type="button" className="urgent-sos-audio-btn" onClick={toggle} aria-label={playing ? t('urgentSos.pauseAudio') : t('urgentSos.playAudio')}>
@@ -77,6 +108,7 @@ export default function UrgentSOS() {
   const [step, setStep] = useState(STEP.INTRO)
   const [lang, setLang] = useState('fr')
   const [recording, setRecording] = useState(false)
+  const [recordingCountdown, setRecordingCountdown] = useState(0)
   const [seconds, setSeconds] = useState(0)
   const [voiceBlob, setVoiceBlob] = useState(null)
   const [previewUrl, setPreviewUrl] = useState('')
@@ -90,22 +122,27 @@ export default function UrgentSOS() {
   const [extracted, setExtracted] = useState(fallbackData)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [audioPaused, setAudioPaused] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
+  const [finalAudioStep, setFinalAudioStep] = useState(null)
   const [createdNeedId, setCreatedNeedId] = useState(null)
   const [recoveryCode, setRecoveryCode] = useState('')
   const [tokenCopied, setTokenCopied] = useState(false)
   const [accessToken, setAccessToken] = useState('')
   const [accessTokenCopied, setAccessTokenCopied] = useState(false)
-  const [tokenSaved, setTokenSaved] = useState(false)
   const recorderRef = useRef(null)
   const streamRef = useRef(null)
   const chunksRef = useRef([])
   const timerRef = useRef(null)
+  const countdownTimerRef = useRef(null)
+  const manualEditRef = useRef(false)
 
   const activeCampaign = useMemo(() => campaigns.find((c) => c.status === 'active'), [campaigns])
 
   useEffect(() => {
     return () => {
       clearInterval(timerRef.current)
+      clearInterval(countdownTimerRef.current)
       streamRef.current?.getTracks().forEach((track) => track.stop())
       if (previewUrl) URL.revokeObjectURL(previewUrl)
     }
@@ -151,16 +188,33 @@ export default function UrgentSOS() {
       }
       recorderRef.current = recorder
       setSeconds(0)
-      setRecording(true)
-      recorder.start(250)
-      timerRef.current = setInterval(() => {
-        setSeconds((value) => {
-          if (value + 1 >= MAX_SECONDS) {
-            recorder.stop()
-            clearInterval(timerRef.current)
-            setRecording(false)
+      setRecording(false)
+      setRecordingCountdown(2)
+
+      const startCapture = () => {
+        clearInterval(countdownTimerRef.current)
+        setRecordingCountdown(0)
+        setRecording(true)
+        recorder.start(250)
+        timerRef.current = setInterval(() => {
+          setSeconds((value) => {
+            if (value + 1 >= MAX_SECONDS) {
+              recorder.stop()
+              clearInterval(timerRef.current)
+              setRecording(false)
+            }
+            return value + 1
+          })
+        }, 1000)
+      }
+
+      countdownTimerRef.current = setInterval(() => {
+        setRecordingCountdown((value) => {
+          if (value <= 1) {
+            startCapture()
+            return 0
           }
-          return value + 1
+          return value - 1
         })
       }, 1000)
     } catch (err) {
@@ -171,8 +225,11 @@ export default function UrgentSOS() {
 
   const stopRecording = () => {
     clearInterval(timerRef.current)
+    clearInterval(countdownTimerRef.current)
+    setRecordingCountdown(0)
     setRecording(false)
     if (recorderRef.current?.state !== 'inactive') recorderRef.current.stop()
+    else streamRef.current?.getTracks().forEach((track) => track.stop())
   }
 
   const restartRecording = () => {
@@ -182,6 +239,9 @@ export default function UrgentSOS() {
     setTranscript('')
     setExtracted(fallbackData)
     setError('')
+    setSubmitted(false)
+    setFinalAudioStep(null)
+    manualEditRef.current = false
     setStep(STEP.RECORD)
   }
 
@@ -231,6 +291,7 @@ export default function UrgentSOS() {
       // When precise GPS succeeds, it is authoritative: do not submit a manually
       // selected wilaya (or a nearest-wilaya suggestion) alongside the coordinates.
       setWilayaId(null)
+      setWilayaSearch('')
 
       // The normal user flow remains Algeria-only. Admins testing this
       // dedicated SOS voice page may keep their real GPS coordinates even
@@ -247,19 +308,22 @@ export default function UrgentSOS() {
         return
       }
 
+      setLocationStatus('success')
+      setStep(STEP.REVIEW)
+      void analyzeVoice()
+
+      // The nearest-wilaya lookup is only a convenience. Do it after the
+      // review screen is available so a slow lookup can never make the
+      // wizard look stuck.
       if (!wilayaId && insideAlgeria) {
         try {
           const suggestion = await api(`/wilayas/nearest/?lat=${latitude}&lon=${longitude}`)
           setWilayaId(suggestion.id || null)
         } catch {
-          // Manual wilaya selection and precise GPS remain usable even if
-          // the convenience nearest-wilaya lookup is unavailable.
+          // GPS remains authoritative; a missing convenience suggestion is
+          // not a reason to block the SOS.
         }
       }
-
-      setLocationStatus('success')
-      setStep(STEP.ANALYZE)
-      await analyzeVoice()
     } catch (geoError) {
       setGps(null)
       setWilayaId(null)
@@ -275,14 +339,6 @@ export default function UrgentSOS() {
     }
   }
 
-  const filteredWilayas = useMemo(() => {
-    const query = wilayaSearch.trim().toLocaleLowerCase()
-    if (!query) return activeCampaignWilayas
-    return activeCampaignWilayas.filter((wilaya) =>
-      String(wilaya.name || '').toLocaleLowerCase().includes(query)
-    )
-  }, [activeCampaignWilayas, wilayaSearch])
-
   const goToPreviousStep = () => {
     setError('')
     if (step === STEP.RECORD) return setStep(STEP.INTRO)
@@ -293,8 +349,6 @@ export default function UrgentSOS() {
 
   const analyzeVoice = async () => {
     if (!voiceBlob) return
-    setBusy(true)
-    setError('')
     try {
       const form = new FormData()
       form.append('audio', new File([voiceBlob], 'urgent-sos.webm', { type: voiceBlob.type || 'audio/webm' }))
@@ -305,37 +359,52 @@ export default function UrgentSOS() {
       data.contact_name = data.contact_name || fallbackData.contact_name
       data.location_description = data.location_description || fallbackData.location_description
       data.description = data.description || result.transcript || ''
-      setTranscript(result.transcript || '')
-      setExtracted(data)
-      setStep(STEP.REVIEW)
+
+      // Never let a late AI response overwrite fields the reporter already
+      // corrected or the data used by an already-submitted SOS.
+      if (!manualEditRef.current && !submitted) {
+        setTranscript(result.transcript || '')
+        setExtracted(data)
+      } else if (!manualEditRef.current) {
+        setTranscript(result.transcript || '')
+      }
+
+      // A successful transcription with no structured extraction is still
+      // usable: the fallback fields remain editable and submission is never
+      // blocked by the LLM.
+      if (!Object.keys(result.extraction || {}).length && result.transcript) {
+        setError(t('urgentSos.analysisPartial'))
+      }
     } catch (err) {
-      // The recording itself remains available; a failed AI analysis must not
-      // prevent the reporter from retrying or continuing with safe fallbacks.
-      setTranscript('')
-      setExtracted(fallbackData)
+      // AI is an optional helper. The review step stays available with safe
+      // fallback values even when Whisper/LLM is unavailable.
+      if (!manualEditRef.current && !submitted) {
+        setTranscript('')
+        setExtracted(fallbackData)
+      }
       setError(translateApiError(err, t))
-      setStep(STEP.REVIEW)
-    } finally {
-      setBusy(false)
     }
   }
 
-  const updateField = (key, value) => setExtracted((current) => ({ ...current, [key]: value }))
+  const updateField = (key, value) => {
+    manualEditRef.current = true
+    setExtracted((current) => ({ ...current, [key]: value }))
+  }
 
   const submit = async () => {
     if (!voiceBlob || !activeCampaign) {
       setError(t('urgentSos.campaignUnavailable'))
       return
     }
+
+    manualEditRef.current = true
     setBusy(true)
     setError('')
+
     try {
-      // Do not put the guided SOS publication into the generic offline queue:
-      // the reporter must receive the recovery password and access token
-      // immediately on this screen. A queued emergency submission cannot
-      // safely promise that those credentials have been saved.
       const submissionRecoveryCode = `voice-${crypto.randomUUID().replaceAll('-', '').slice(0, 12)}`
       setRecoveryCode(submissionRecoveryCode)
+
       const formData = new FormData()
       const fields = {
         campaign: activeCampaign.id,
@@ -347,41 +416,56 @@ export default function UrgentSOS() {
         contact_name: extracted.contact_name || 'Anonyme',
         contact_phone: extracted.contact_phone || '',
         organization_or_person_name: extracted.organization_or_person_name || '',
-        // Keep the detected location and the full spoken description so no
-        // useful detail from the transcription is silently lost.
-        location_description: [extracted.location_description, extracted.description || transcript].filter(Boolean).join(' — ') || 'Sans localisation',
+        location_description: [extracted.location_description, extracted.description || transcript]
+          .filter(Boolean)
+          .join(' — ') || 'Sans localisation',
         latitude: gps?.latitude ?? '',
         longitude: gps?.longitude ?? '',
         recovery_code: submissionRecoveryCode,
       }
+
       Object.entries(fields).forEach(([key, value]) => {
         if (value !== null && value !== undefined && value !== '') formData.append(key, value)
       })
+
       formData.append(
         'voice_file',
         new File([voiceBlob], 'urgent-sos.webm', { type: voiceBlob.type || 'audio/webm' }),
       )
+
       const need = await apiUpload('/needs/voice-guide/', formData)
       const returnedRecoveryCode = need.recovery_code || submissionRecoveryCode
       const returnedAccessToken = need.access_token || ''
+
       setRecoveryCode(returnedRecoveryCode)
       setAccessToken(returnedAccessToken)
       setTokenCopied(false)
       setAccessTokenCopied(false)
-      if (!returnedAccessToken) {
-        throw new Error(t('urgentSos.tokenMissing'))
-      }
-      setTokenSaved(Boolean(returnedAccessToken))
+
       if (need.id) {
-        await Promise.resolve(saveNeedToken(need.id, {
-          access_token: returnedAccessToken,
-          location_viewer_share_token: need.location_viewer_share_token,
-        }))
         setCreatedNeedId(need.id)
+        if (returnedAccessToken) {
+          try {
+            await Promise.resolve(saveNeedToken(need.id, {
+              access_token: returnedAccessToken,
+              location_viewer_share_token: need.location_viewer_share_token,
+            }))
+          } catch (storageError) {
+            setError(translateApiError(storageError, t))
+          }
+        }
       }
+
       refreshConfig()
-      setStep(STEP.DONE)
+      setSubmitted(true)
+      setFinalAudioStep(7)
+
+      if (!returnedAccessToken) {
+        setError(t('urgentSos.tokenMissing'))
+      }
     } catch (err) {
+      // A transport/server failure means the SOS could not be confirmed;
+      // keep the review form visible and allow an immediate retry.
       setError(translateApiError(err, t))
     } finally {
       setBusy(false)
@@ -426,22 +510,28 @@ export default function UrgentSOS() {
 
         <div className="urgent-sos-stepper" aria-label={t('urgentSos.progressLabel')}>
           {[
-            [STEP.INTRO, t('urgentSos.stepIntro')],
             [STEP.RECORD, t('urgentSos.stepRecord')],
             [STEP.PREVIEW, t('urgentSos.stepPreview')],
             [STEP.LOCATION, t('urgentSos.stepLocation')],
             [STEP.REVIEW, t('urgentSos.stepReview')],
-          ].map(([item, label], index) => (
-            <div key={item} className={step >= item ? 'done' : ''} data-current={step === item}>
-              <span>{index + 1}</span>
-              <small>{label}</small>
-            </div>
-          ))}
+          ].map(([item, label], index) => {
+            const current = step === STEP.INTRO ? index === 0 : step === item
+            const done = step === STEP.INTRO ? index === 0 : step >= item
+            return (
+              <div key={item} className={done ? 'done' : ''} data-current={current}>
+                <span>{index + 1}</span>
+                <small>{label}</small>
+              </div>
+            )
+          })}
         </div>
 
         <div className="urgent-sos-progress" aria-label={t('urgentSos.progressLabel')}>
-          {[STEP.INTRO, STEP.RECORD, STEP.PREVIEW, STEP.LOCATION, STEP.REVIEW].map((item) => (
-            <span key={item} className={step >= item ? 'active' : ''} />
+          {[STEP.RECORD, STEP.PREVIEW, STEP.LOCATION, STEP.REVIEW].map((item, index) => (
+            <span
+              key={item}
+              className={(step === STEP.INTRO && index === 0) || step >= item ? 'active' : ''}
+            />
           ))}
         </div>
 
@@ -449,7 +539,7 @@ export default function UrgentSOS() {
           <div className="urgent-sos-card">
             <h2>{t('urgentSos.introTitle')}</h2>
             <p>{t('urgentSos.introText')}</p>
-            <AudioGuide lang={lang} step={0} />
+            <AudioGuide lang={lang} step={0} audioPaused={audioPaused} onAudioPauseChange={setAudioPaused} />
             <div className="urgent-sos-language">
               <button type="button" className={lang === 'fr' ? 'selected' : ''} onClick={() => chooseLanguage('fr')}>Français</button>
               <button type="button" className={lang === 'ar' ? 'selected' : ''} onClick={() => chooseLanguage('ar')}>العربية</button>
@@ -465,12 +555,23 @@ export default function UrgentSOS() {
             <div className="urgent-sos-step-label">{t('urgentSos.step', { current: 1, total: 4 })}</div>
             <h2>{t('urgentSos.recordTitle')}</h2>
             <p>{t('urgentSos.recordText')}</p>
-            <AudioGuide lang={lang} step={1} />
-            <div className={recording ? 'urgent-sos-recording active' : 'urgent-sos-recording'}>
-              <span className="urgent-sos-recording-dot" aria-hidden="true" />
-              <strong>{recording ? `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}` : t('urgentSos.ready')}</strong>
-            </div>
-            {recording ? (
+            <AudioGuide lang={lang} step={1} audioPaused={audioPaused} onAudioPauseChange={setAudioPaused} />
+            {recordingCountdown > 0 ? (
+              <div className="urgent-sos-countdown" role="status" aria-live="assertive">
+                <strong>{t('urgentSos.countdownSpeak')}</strong>
+                <span className="urgent-sos-countdown-number">{recordingCountdown}</span>
+              </div>
+            ) : (
+              <div className={recording ? 'urgent-sos-recording active' : 'urgent-sos-recording'}>
+                <span className="urgent-sos-recording-dot" aria-hidden="true" />
+                <strong>{recording ? `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}` : t('urgentSos.ready')}</strong>
+              </div>
+            )}
+            {recordingCountdown > 0 ? (
+              <div className="urgent-sos-actions urgent-sos-record-actions">
+                <button type="button" className="urgent-sos-secondary" onClick={stopRecording}>{t('urgentSos.cancelCountdown')}</button>
+              </div>
+            ) : recording ? (
               <div className="urgent-sos-actions urgent-sos-record-actions">
                 <button type="button" className="urgent-sos-secondary urgent-sos-previous" onClick={goToPreviousStep}>{t('urgentSos.previous')}</button>
                 <button type="button" className="urgent-sos-danger" onClick={stopRecording}>⏹ {t('urgentSos.stop')}</button>
@@ -492,7 +593,8 @@ export default function UrgentSOS() {
             <h2>{t('urgentSos.previewTitle')}</h2>
             <p>{t('urgentSos.previewText')}</p>
             <audio className="urgent-sos-preview" controls src={previewUrl} />
-            <div className="urgent-sos-actions">
+            <AudioGuide lang={lang} step={2} audioPaused={audioPaused} onAudioPauseChange={setAudioPaused} />
+            <div className="urgent-sos-actions urgent-sos-preview-actions">
               <button type="button" className="urgent-sos-secondary urgent-sos-previous" onClick={goToPreviousStep}>{t('urgentSos.previous')}</button>
               <button type="button" className="urgent-sos-secondary" onClick={restartRecording}>{t('urgentSos.rerecord')}</button>
               <button type="button" className="urgent-sos-primary" onClick={() => setStep(STEP.LOCATION)}>{t('urgentSos.continue')}</button>
@@ -505,36 +607,36 @@ export default function UrgentSOS() {
             <div className="urgent-sos-step-label">{t('urgentSos.step', { current: 3, total: 4 })}</div>
             <h2>{t('urgentSos.locationTitle')}</h2>
             <p>{t('urgentSos.locationText')}</p>
+
             <div className="urgent-sos-wilaya-field">
-              <label htmlFor="urgent-sos-wilaya-search">{t('urgentSos.wilayaOptional')}</label>
+              <label htmlFor="urgent-sos-wilaya">{t('urgentSos.wilayaOptional')}</label>
               <input
-                id="urgent-sos-wilaya-search"
+                id="urgent-sos-wilaya"
                 type="search"
+                list="urgent-sos-wilaya-options"
                 value={wilayaSearch}
-                onChange={(e) => setWilayaSearch(e.target.value)}
+                onChange={(e) => {
+                  const value = e.target.value
+                  setWilayaSearch(value)
+                  const selected = activeCampaignWilayas.find(
+                    (w) => String(w.name || '').trim().toLocaleLowerCase() === value.trim().toLocaleLowerCase(),
+                  )
+                  setWilayaId(selected?.id || null)
+                }}
                 placeholder={t('urgentSos.wilayaSearchPlaceholder')}
                 autoComplete="off"
                 aria-label={t('urgentSos.wilayaSearchPlaceholder')}
               />
-              <select
-                id="urgent-sos-wilaya"
-                value={wilayaId || ''}
-                onChange={(e) => {
-                  setWilayaId(e.target.value || null)
-                  const selected = activeCampaignWilayas.find((w) => String(w.id) === String(e.target.value))
-                  if (selected) setWilayaSearch(selected.name)
-                }}
-                size={wilayaSearch ? Math.min(Math.max(filteredWilayas.length, 1), 4) : 1}
-                aria-label={t('urgentSos.wilayaPlaceholder')}
-              >
-                <option value="">{t('urgentSos.wilayaPlaceholder')}</option>
-                {filteredWilayas.map((wilaya) => (
-                  <option key={wilaya.id} value={wilaya.id}>{wilaya.name}</option>
+              <datalist id="urgent-sos-wilaya-options">
+                {activeCampaignWilayas.map((wilaya) => (
+                  <option key={wilaya.id} value={wilaya.name} />
                 ))}
-              </select>
+              </datalist>
               <small>{t('urgentSos.wilayaHelp')}</small>
             </div>
-            <AudioGuide lang={lang} step={2} />
+
+            <AudioGuide lang={lang} step={3} audioPaused={audioPaused} onAudioPauseChange={setAudioPaused} />
+
             {locationStatus === 'success' && gps && (
               <div className="urgent-sos-location-status success" role="status">
                 ✓ {t('urgentSos.locationDetected')}
@@ -553,9 +655,16 @@ export default function UrgentSOS() {
                 <span>{t('urgentSos.locationSelectWilaya')}</span>
               </div>
             )}
-            <div className="urgent-sos-actions">
+
+            <div className="urgent-sos-actions urgent-sos-location-actions">
               <button type="button" className="urgent-sos-secondary" onClick={goToPreviousStep} disabled={locating || busy}>{t('urgentSos.previous')}</button>
-              <button type="button" className="urgent-sos-secondary" onClick={() => { setError(''); setLocationStatus('skipped'); setGps(null); setStep(STEP.ANALYZE); analyzeVoice() }} disabled={locating || busy}>
+              <button type="button" className="urgent-sos-secondary" onClick={() => {
+                setError('')
+                setLocationStatus('skipped')
+                setGps(null)
+                setStep(STEP.REVIEW)
+                void analyzeVoice()
+              }} disabled={locating || busy}>
                 {t('urgentSos.noLocation')}
               </button>
               <button type="button" className="urgent-sos-primary" onClick={chooseLocation} disabled={locating || busy}>
@@ -565,83 +674,102 @@ export default function UrgentSOS() {
           </div>
         )}
 
-        {step === STEP.ANALYZE && (
-          <div className="urgent-sos-card urgent-sos-center">
-            <div className="urgent-sos-loader" aria-hidden="true" />
-            <h2>{t('urgentSos.analyzingTitle')}</h2>
-            <p>{t('urgentSos.analyzingText')}</p>
-          </div>
-        )}
-
         {step === STEP.REVIEW && (
           <div className="urgent-sos-card urgent-sos-review-card">
             <div className="urgent-sos-step-label">{t('urgentSos.step', { current: 4, total: 4 })}</div>
-            <h2>{t('urgentSos.reviewTitle')}</h2>
-            <p>{t('urgentSos.reviewText')}</p>
-            <AudioGuide lang={lang} step={7} />
-            {transcript && (
-              <details className="urgent-sos-transcript">
-                <summary>{t('urgentSos.showTranscript')}</summary>
-                <p>{transcript}</p>
-              </details>
-            )}
-            <div className="urgent-sos-fields">
-              <label>{t('urgentSos.name')}<input value={extracted.contact_name || ''} onChange={(e) => updateField('contact_name', e.target.value)} /></label>
-              <label>{t('urgentSos.phone')}<input inputMode="tel" value={extracted.contact_phone || ''} onChange={(e) => updateField('contact_phone', e.target.value)} /></label>
-              <label>{t('urgentSos.need')}<input value={extracted.title || ''} onChange={(e) => updateField('title', e.target.value)} /></label>
-              <label>{t('urgentSos.location')}<input value={extracted.location_description || ''} onChange={(e) => updateField('location_description', e.target.value)} /></label>
-              <label>{t('urgentSos.description')}<textarea rows="4" value={extracted.description || ''} onChange={(e) => updateField('description', e.target.value)} /></label>
-            </div>
-            {error && <p className="urgent-sos-error" role="alert">{error}</p>}
-            <div className="urgent-sos-actions">
-              <button type="button" className="urgent-sos-secondary" onClick={goToPreviousStep} disabled={busy}>{t('urgentSos.previous')}</button>
-              <button type="button" className="urgent-sos-secondary" onClick={restartRecording} disabled={busy}>{t('urgentSos.restart')}</button>
-              <button type="button" className="urgent-sos-primary urgent-sos-confirm" onClick={submit} disabled={busy}>
-                🚨 {busy ? t('urgentSos.sending') : t('urgentSos.confirm')}
-              </button>
-            </div>
-          </div>
-        )}
 
-        {step === STEP.DONE && (
-          <div className="urgent-sos-card urgent-sos-center urgent-sos-done-card">
-            <IconCheckCircle width={52} height={52} />
-            <div className="urgent-sos-final-badge">✓ {t('urgentSos.doneTitle')}</div>
-            <h2>{t('urgentSos.doneTitle')}</h2>
-            <p>{t('urgentSos.doneText')}</p>
-            <div className="urgent-sos-final-warning" role="alert">
-              🔐 <strong>{t('urgentSos.finalPasswordWarning')}</strong>
-            </div>
-            <AudioGuide lang={lang} step={8} />
-            {tokenSaved && <p className="urgent-sos-token-saved" role="status">✓ {t('urgentSos.tokenSaved')}</p>}
-            {recoveryCode && (
-              <div className="urgent-sos-token-box" role="status">
-                <div className="urgent-sos-token-title">{t('urgentSos.tokenTitle')}</div>
-                <p className="urgent-sos-token-warning">{t('urgentSos.tokenWarning')}</p>
-                <div className="urgent-sos-token-row">
-                  <strong className="urgent-sos-token">{recoveryCode}</strong>
-                  <button type="button" className="urgent-sos-copy-token" onClick={copyAccessToken} aria-label={t('urgentSos.copyToken')}>
-                    📋 {tokenCopied ? t('urgentSos.tokenCopied') : t('urgentSos.copyToken')}
+            {!submitted ? (
+              <>
+                <h2>{t('urgentSos.reviewTitle')}</h2>
+                <p>{t('urgentSos.reviewText')}</p>
+                <AudioGuide lang={lang} step={5} audioPaused={audioPaused} onAudioPauseChange={setAudioPaused} />
+
+                {transcript && (
+                  <details className="urgent-sos-transcript">
+                    <summary>{t('urgentSos.showTranscript')}</summary>
+                    <p>{transcript}</p>
+                  </details>
+                )}
+
+                <div className="urgent-sos-fields">
+                  <label>{t('urgentSos.name')}<input value={extracted.contact_name || ''} onChange={(e) => updateField('contact_name', e.target.value)} /></label>
+                  <label>{t('urgentSos.phone')}<input inputMode="tel" value={extracted.contact_phone || ''} onChange={(e) => updateField('contact_phone', e.target.value)} /></label>
+                  <label>{t('urgentSos.need')}<input value={extracted.title || ''} onChange={(e) => updateField('title', e.target.value)} /></label>
+                  <label>{t('urgentSos.location')}<input value={extracted.location_description || ''} onChange={(e) => updateField('location_description', e.target.value)} /></label>
+                  <label>{t('urgentSos.description')}<textarea rows="4" value={extracted.description || ''} onChange={(e) => updateField('description', e.target.value)} /></label>
+                </div>
+
+                {error && <p className="urgent-sos-error" role="alert">{error}</p>}
+
+                <div className="urgent-sos-actions">
+                  <button type="button" className="urgent-sos-secondary" onClick={goToPreviousStep} disabled={busy}>{t('urgentSos.previous')}</button>
+                  <button type="button" className="urgent-sos-secondary" onClick={restartRecording} disabled={busy}>{t('urgentSos.restart')}</button>
+                  <button type="button" className="urgent-sos-primary urgent-sos-confirm" onClick={submit} disabled={busy}>
+                    🚨 {busy ? t('urgentSos.sending') : t('urgentSos.confirm')}
                   </button>
                 </div>
-              </div>
-            )}
-            {accessToken && (
-              <div className="urgent-sos-token-box urgent-sos-access-token-box" role="status">
-                <div className="urgent-sos-token-title">{t('urgentSos.accessTokenTitle')}</div>
-                <p className="urgent-sos-token-warning">{t('urgentSos.accessTokenWarning')}</p>
-                <div className="urgent-sos-token-row">
-                  <strong className="urgent-sos-token">{accessToken}</strong>
-                  <button type="button" className="urgent-sos-copy-token" onClick={copyStoredAccessToken} aria-label={t('urgentSos.copyAccessToken')}>
-                    📋 {accessTokenCopied ? t('urgentSos.accessTokenCopied') : t('urgentSos.copyAccessToken')}
-                  </button>
+              </>
+            ) : (
+              <>
+                <div className="urgent-sos-final-badge">✓ {t('urgentSos.doneTitle')}</div>
+                <h2>{t('urgentSos.doneTitle')}</h2>
+                <p>{t('urgentSos.doneText')}</p>
+                <div className="urgent-sos-final-warning" role="alert">
+                  🔐 <strong>{t('urgentSos.finalPasswordWarning')}</strong>
                 </div>
-              </div>
+
+                {finalAudioStep === 7 && (
+                  <AudioGuide
+                    lang={lang}
+                    step={7}
+                    audioPaused={audioPaused}
+                    onAudioPauseChange={setAudioPaused}
+                    onEnded={() => setFinalAudioStep(8)}
+                  />
+                )}
+                {finalAudioStep === 8 && (
+                  <AudioGuide
+                    lang={lang}
+                    step={8}
+                    audioPaused={audioPaused}
+                    onAudioPauseChange={setAudioPaused}
+                  />
+                )}
+
+                {error && <p className="urgent-sos-error" role="alert">{error}</p>}
+
+                {accessToken && (
+                  <div className="urgent-sos-token-box urgent-sos-access-token-box" role="status">
+                    <div className="urgent-sos-token-title">{t('urgentSos.accessTokenTitle')}</div>
+                    <p className="urgent-sos-token-warning">{t('urgentSos.accessTokenWarning')}</p>
+                    <div className="urgent-sos-token-row">
+                      <strong className="urgent-sos-token">{accessToken}</strong>
+                      <button type="button" className="urgent-sos-copy-token" onClick={copyStoredAccessToken} aria-label={t('urgentSos.copyAccessToken')}>
+                        📋 {accessTokenCopied ? t('urgentSos.accessTokenCopied') : t('urgentSos.copyAccessToken')}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {!accessToken && recoveryCode && (
+                  <div className="urgent-sos-token-box" role="status">
+                    <div className="urgent-sos-token-title">{t('urgentSos.tokenTitle')}</div>
+                    <p className="urgent-sos-token-warning">{t('urgentSos.tokenWarning')}</p>
+                    <div className="urgent-sos-token-row">
+                      <strong className="urgent-sos-token">{recoveryCode}</strong>
+                      <button type="button" className="urgent-sos-copy-token" onClick={copyAccessToken} aria-label={t('urgentSos.copyToken')}>
+                        📋 {tokenCopied ? t('urgentSos.tokenCopied') : t('urgentSos.copyToken')}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                <div className="urgent-sos-actions">
+                  {createdNeedId && <button type="button" className="urgent-sos-primary" onClick={() => navigate(`/needs/${createdNeedId}`)}>{t('urgentSos.viewNeed')}</button>}
+                  <Link to="/" className="urgent-sos-secondary">{t('urgentSos.backHome')}</Link>
+                </div>
+              </>
             )}
-            <div className="urgent-sos-actions">
-              {createdNeedId && <button type="button" className="urgent-sos-primary" onClick={() => navigate(`/needs/${createdNeedId}`)}>{t('urgentSos.viewNeed')}</button>}
-              <Link to="/" className="urgent-sos-secondary">{t('urgentSos.backHome')}</Link>
-            </div>
           </div>
         )}
 

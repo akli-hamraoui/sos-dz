@@ -3900,3 +3900,94 @@ body { overflow-x: hidden; }
     max-height:88px;
   }
 }
+
+/* --- SOS vocal flow: single searchable wilaya + compact mobile actions --- */
+.urgent-sos-wilaya-field input[type="search"]{
+  width:100%;
+  min-height:48px;
+  box-sizing:border-box;
+  border:1px solid var(--border);
+  border-radius:12px;
+  background:#fff;
+  color:var(--text);
+  padding:0 13px;
+  font:inherit;
+}
+.urgent-sos-wilaya-field input[type="search"]:focus{
+  outline:none;
+  border-color:var(--brand-green);
+  box-shadow:0 0 0 3px rgba(44,143,103,.1);
+}
+
+@media(max-width:699px){
+  .urgent-sos-preview-actions,
+  .urgent-sos-location-actions{
+    display:grid;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:8px;
+    flex-wrap:nowrap;
+  }
+
+  .urgent-sos-preview-actions > button,
+  .urgent-sos-location-actions > button{
+    width:100%;
+    min-width:0;
+    min-height:58px;
+    flex:none;
+    padding:8px 6px;
+    font-size:13px;
+    line-height:1.15;
+    white-space:normal;
+    overflow-wrap:anywhere;
+  }
+
+  .urgent-sos-preview-actions .urgent-sos-previous,
+  .urgent-sos-location-actions .urgent-sos-previous{
+    padding-inline:5px;
+  }
+
+  .urgent-sos-wilaya-field input[type="search"]{
+    min-height:44px;
+    font-size:13px;
+  }
+
+  .urgent-sos-review-card .urgent-sos-audio{
+    margin:7px 0 9px;
+  }
+
+  .urgent-sos-token-box{
+    margin-top:8px;
+  }
+}
+
+
+/* Four-step SOS vocal wizard (the intro is not counted as a form step). */
+.urgent-sos-stepper{
+  grid-template-columns:repeat(4,minmax(0,1fr));
+}
+.urgent-sos-progress{
+  grid-template-columns:repeat(4,minmax(0,1fr));
+}
+
+@media(max-width:699px){
+  .urgent-sos-preview-actions > button{
+    font-size:14px;
+    padding-inline:4px;
+  }
+}
+
+/* SOS vocal page: recording countdown only */
+.urgent-sos-countdown {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: .35rem;
+  min-height: 110px;
+  text-align: center;
+}
+.urgent-sos-countdown-number {
+  font-size: clamp(3rem, 12vw, 5rem);
+  line-height: 1;
+  font-weight: 800;
+}
