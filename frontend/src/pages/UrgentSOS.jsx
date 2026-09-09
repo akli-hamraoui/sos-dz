@@ -82,6 +82,7 @@ export default function UrgentSOS() {
   const [previewUrl, setPreviewUrl] = useState('')
   const [gps, setGps] = useState(null)
   const [wilayaId, setWilayaId] = useState(null)
+  const [wilayaSearch, setWilayaSearch] = useState('')
   const [locating, setLocating] = useState(false)
   const [locationStatus, setLocationStatus] = useState('idle')
   const [locationAccuracy, setLocationAccuracy] = useState(null)
@@ -270,6 +271,14 @@ export default function UrgentSOS() {
       setLocating(false)
     }
   }
+
+  const filteredWilayas = useMemo(() => {
+    const query = wilayaSearch.trim().toLocaleLowerCase()
+    if (!query) return wilayas
+    return wilayas.filter((wilaya) =>
+      String(wilaya.name || '').toLocaleLowerCase().includes(query)
+    )
+  }, [wilayas, wilayaSearch])
 
   const goToPreviousStep = () => {
     setError('')
@@ -494,14 +503,29 @@ export default function UrgentSOS() {
             <h2>{t('urgentSos.locationTitle')}</h2>
             <p>{t('urgentSos.locationText')}</p>
             <div className="urgent-sos-wilaya-field">
-              <label htmlFor="urgent-sos-wilaya">{t('urgentSos.wilayaOptional')}</label>
+              <label htmlFor="urgent-sos-wilaya-search">{t('urgentSos.wilayaOptional')}</label>
+              <input
+                id="urgent-sos-wilaya-search"
+                type="search"
+                value={wilayaSearch}
+                onChange={(e) => setWilayaSearch(e.target.value)}
+                placeholder={t('urgentSos.wilayaSearchPlaceholder')}
+                autoComplete="off"
+                aria-label={t('urgentSos.wilayaSearchPlaceholder')}
+              />
               <select
                 id="urgent-sos-wilaya"
                 value={wilayaId || ''}
-                onChange={(e) => setWilayaId(e.target.value || null)}
+                onChange={(e) => {
+                  setWilayaId(e.target.value || null)
+                  const selected = wilayas.find((w) => String(w.id) === String(e.target.value))
+                  if (selected) setWilayaSearch(selected.name)
+                }}
+                size={wilayaSearch ? Math.min(Math.max(filteredWilayas.length, 1), 4) : 1}
+                aria-label={t('urgentSos.wilayaPlaceholder')}
               >
                 <option value="">{t('urgentSos.wilayaPlaceholder')}</option>
-                {activeCampaignWilayas.map((wilaya) => (
+                {filteredWilayas.map((wilaya) => (
                   <option key={wilaya.id} value={wilaya.id}>{wilaya.name}</option>
                 ))}
               </select>
