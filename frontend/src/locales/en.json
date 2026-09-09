@@ -227,6 +227,7 @@
     "editedOn": "edited on {{date}}",
     "manageMyNeed": "Manage my need",
     "cancelThisNeed": "Cancel this need",
+    "cancelNeedConfirm": "Are you sure you want to cancel this need? This action is permanent.",
     "addUpdateGps": "Add/update precise GPS",
     "shareLiveTracking": "Share live tracking",
     "shareLink": "Share link",
