@@ -3838,3 +3838,37 @@ body { overflow-x: hidden; }
     margin-bottom:8px;
   }
 }
+
+/* SOS voice location fallback: compact and page-scoped. */
+.urgent-sos-location-help{
+  display:grid;
+  gap:2px;
+  line-height:1.2;
+  padding:7px 9px;
+  margin:6px 0;
+  font-size:11px;
+}
+.urgent-sos-location-help strong{
+  font-size:12px;
+}
+.urgent-sos-location-help span{
+  display:block;
+}
+@media(max-width:699px){
+  .urgent-sos-location-help{
+    padding:6px 8px;
+    margin:5px 0;
+    font-size:10px;
+  }
+  .urgent-sos-location-help strong{
+    font-size:11px;
+  }
+  .urgent-sos-card .urgent-sos-actions{
+    flex-wrap:nowrap;
+  }
+  .urgent-sos-card .urgent-sos-actions > button{
+    min-width:0;
+    flex:1 1 0;
+    padding-inline:8px;
+  }
+}
