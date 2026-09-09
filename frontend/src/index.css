@@ -3872,3 +3872,31 @@ body { overflow-x: hidden; }
     padding-inline:8px;
   }
 }
+
+/* Searchable wilaya picker: SOS voice page only. */
+.urgent-sos-wilaya-field input[type="search"]{
+  width:100%;
+  min-height:40px;
+  box-sizing:border-box;
+  border:1px solid var(--border);
+  border-radius:10px;
+  background:#fff;
+  color:var(--text);
+  padding:7px 10px;
+  font:inherit;
+}
+.urgent-sos-wilaya-field select[size]{
+  min-height:72px;
+  max-height:112px;
+  overflow-y:auto;
+}
+@media(max-width:699px){
+  .urgent-sos-wilaya-field input[type="search"]{
+    min-height:36px;
+    font-size:12px;
+  }
+  .urgent-sos-wilaya-field select[size]{
+    min-height:64px;
+    max-height:88px;
+  }
+}
