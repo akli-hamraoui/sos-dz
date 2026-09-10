@@ -204,10 +204,23 @@ export default function NeedDetail() {
   }
 
   const cancelNeed = async () => {
-    const reason = await showPrompt(t('needDetail.cancelThisNeed') + '?', '')
-    if (reason === null) return
-    editNeed({ is_cancelled: true, cancellation_reason: reason })
-    refreshConfig()
+    // Cancellation does not require a reason or a token entry here: the
+    // access token is already held by the app and sent with the PATCH.
+    // Ask for an explicit Yes/No confirmation so the user cannot mistake
+    // the dialog for a field where a token or reason must be entered.
+    const confirmed = await showConfirm(t('needDetail.cancelNeedConfirm'))
+    if (!confirmed) return
+    try {
+      // Wait for the server-side cancellation before refreshing/navigating.
+      // The list endpoint excludes cancelled needs, so returning only after
+      // this PATCH succeeds prevents the cancelled card from remaining in a
+      // stale list while the map has already removed its pin.
+      await editNeed({ is_cancelled: true, cancellation_reason: '' })
+      refreshConfig()
+      navigate('/needs', { replace: true, state: { needsChanged: true } })
+    } catch (e) {
+      showAlert(translateApiError(e, t))
+    }
   }
 
   const promptUpdateGPS = () => {

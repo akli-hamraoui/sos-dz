@@ -213,3 +213,76 @@ def extract_need_data(transcript):
     result = {key: str(data.get(key) or "").strip() for key in EXTRACTION_SCHEMA["properties"]}
     logger.info("Voice extraction succeeded: provider=ollama model=%s transcript_chars=%s extraction=%s", model, len(transcript), result)
     return result
+
+
+def process_voice_need(need_id):
+    """Run Whisper + local LLM for an already-created guided voice Need.
+
+    The Need/token are created before this function runs. A worker calls this
+    function outside the HTTP request so slow local inference never blocks the
+    reporter's token screen.
+    """
+    from core.models import Need
+
+    need = Need.objects.get(pk=need_id)
+    if need.voice_processing_status != Need.VOICE_PROCESSING_PENDING:
+        return need
+
+    try:
+        if not need.voice_file:
+            raise VoiceAIError("Voice recording is missing.")
+
+        transcript = transcribe_audio(need.voice_file)
+        # Keep the full transcription in logs for post-incident diagnosis.
+        # WARNING: this may contain personal information; protect/rotate logs
+        # according to the production retention policy.
+        logger.info(
+            "VOICE_SOS_TRANSCRIPTION need_id=%s language=%s chars=%s transcript=%r",
+            need.pk,
+            getattr(need, "language", None),
+            len(transcript or ""),
+            transcript,
+        )
+        if not transcript or not transcript.strip():
+            raise VoiceAIError("Whisper returned an empty transcription.")
+
+        extraction = extract_need_data(transcript)
+
+        # The transcript is the source-of-truth description. LLM fields only
+        # structure facts explicitly found in that transcript.
+        for field in (
+            "title",
+            "contact_name",
+            "contact_phone",
+            "estimated_quantity",
+            "commune",
+            "location_description",
+            "organization_or_person_name",
+        ):
+            value = (extraction.get(field) or "").strip()
+            if value:
+                setattr(need, field, value)
+
+        need.description = transcript
+        need.voice_processing_status = Need.VOICE_PROCESSING_READY
+        need.voice_processing_error = ""
+        need.record_edit()
+        need.save()
+        need.recompute_status()
+        logger.info(
+            "Guided voice SOS processed: need_id=%s transcript_chars=%s",
+            need.pk, len(transcript),
+        )
+        return need
+    except VoiceAIError as exc:
+        need.voice_processing_status = Need.VOICE_PROCESSING_FAILED
+        need.voice_processing_error = str(exc)[:500]
+        need.save(update_fields=["voice_processing_status", "voice_processing_error", "last_modified_at"])
+        logger.exception("Guided voice SOS processing failed: need_id=%s", need_id)
+        return need
+    except Exception as exc:
+        need.voice_processing_status = Need.VOICE_PROCESSING_FAILED
+        need.voice_processing_error = "Unexpected voice processing error."
+        need.save(update_fields=["voice_processing_status", "voice_processing_error", "last_modified_at"])
+        logger.exception("Unexpected guided voice SOS processing failure: need_id=%s error=%s", need_id, exc)
+        return need

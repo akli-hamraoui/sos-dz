@@ -3992,290 +3992,240 @@ body { overflow-x: hidden; }
   font-weight: 800;
 }
 
-/* --- Footer active item: uniform mobile selection tile ----------------- */
-
-/* All selected footer items use the exact same tile dimensions. This keeps
-   short labels (Accueil/SOS) and two-line labels (Collecte Algérie/
-   Collecte Internationale) visually homogeneous. The width stays inside
-   each 5-column cell on very narrow phones, while 74px is the desktop/mobile
-   upper bound so the international label gets the extra room it needs. */
-.bottom-nav a.active {
-  width: min(74px, calc(100% - 8px)) !important;
-  height: 72px !important;
-  min-height: 72px !important;
-  margin-inline: auto !important;
-  padding: 7px 4px !important;
-  box-sizing: border-box !important;
-  border-radius: 16px !important;
-  justify-content: center !important;
-  gap: 2px !important;
-  overflow: visible !important;
+/* --- SOS vocal: searchable wilaya combobox + viewport-safe controls --- */
+.urgent-sos-wilaya-combobox{
+  position:relative;
+  display:flex;
+  align-items:center;
+}
+.urgent-sos-wilaya-combobox input{
+  width:100%;
+  min-height:48px;
+  box-sizing:border-box;
+  padding:0 92px 0 13px;
+  border:1px solid var(--border);
+  border-radius:13px;
+  background:#fff;
+  color:var(--text);
+  font:inherit;
+}
+.urgent-sos-wilaya-combobox input:focus{
+  outline:none;
+  border-color:var(--brand-green);
+  box-shadow:0 0 0 3px rgba(44,143,103,.1);
+}
+.urgent-sos-wilaya-chevron{
+  position:absolute;
+  right:52px;
+  top:50%;
+  transform:translateY(-50%);
+  pointer-events:none;
+  color:#64716c;
+  font-size:22px;
+  line-height:1;
+}
+.urgent-sos-wilaya-reset{
+  position:absolute;
+  right:7px;
+  top:50%;
+  transform:translateY(-50%);
+  width:40px;
+  height:40px;
+  border:1px solid #cfd9d4;
+  border-radius:10px;
+  background:#f7f9f8;
+  color:#4f5c57;
+  font-size:28px;
+  line-height:1;
+  font-weight:700;
+  cursor:pointer;
+  display:grid;
+  place-items:center;
+  z-index:3;
+}
+.urgent-sos-wilaya-reset:hover{
+  background:#eef3f0;
+  border-color:#aebbb5;
+}
+.urgent-sos-wilaya-options{
+  position:absolute;
+  z-index:20;
+  left:0;
+  right:0;
+  top:calc(100% + 5px);
+  max-height:180px;
+  overflow-y:auto;
+  padding:5px;
+  border:1px solid var(--border);
+  border-radius:13px;
+  background:#fff;
+  box-shadow:0 12px 28px rgba(31,54,45,.16);
+}
+.urgent-sos-wilaya-option{
+  display:block;
+  width:100%;
+  min-height:42px;
+  padding:8px 11px;
+  border:0;
+  border-radius:9px;
+  background:#fff;
+  color:var(--text);
+  text-align:left;
+  font:inherit;
+  cursor:pointer;
+}
+.urgent-sos-wilaya-option:hover,
+.urgent-sos-wilaya-option:focus{
+  background:var(--brand-green-soft);
+  color:var(--brand-green);
+  outline:none;
+}
+@media(max-width:699px){
+  .urgent-sos-page{
+    min-height:calc(100dvh - 180px);
+  }
+  .urgent-sos-shell{
+    max-height:calc(100dvh - 190px);
+  }
+  .urgent-sos-wilaya-combobox input{
+    min-height:46px;
+    padding-right:96px;
+  }
+  .urgent-sos-wilaya-reset{
+    width:42px;
+    height:42px;
+    font-size:29px;
+  }
+  .urgent-sos-wilaya-options{
+    max-height:150px;
+  }
+  .urgent-sos-countdown{
+    min-height:82px;
+    margin:8px 0;
+  }
 }
 
-.bottom-nav a.active .icon {
-  width: 26px;
-  height: 26px;
-  flex: 0 0 26px;
-  margin-inline: auto;
+/* Final SOS confirmation: keep the password/token screen visible on one mobile viewport. */
+@media (max-width:699px){
+  .urgent-sos-done-card{
+    padding:10px 12px;
+  }
+  .urgent-sos-done-card .urgent-sos-final-badge{
+    margin-bottom:4px;
+    padding:6px 9px;
+  }
+  .urgent-sos-done-card h2{
+    margin-bottom:3px;
+    font-size:19px;
+  }
+  .urgent-sos-done-card > p{
+    margin-bottom:6px;
+    line-height:1.2;
+    font-size:12px;
+  }
+  .urgent-sos-done-card .urgent-sos-final-warning{
+    margin:5px 0;
+    padding:7px 9px;
+    font-size:12px;
+    line-height:1.2;
+  }
+  .urgent-sos-done-card .urgent-sos-audio{
+    margin:5px 0;
+  }
+  .urgent-sos-done-card .urgent-sos-audio-btn{
+    min-height:38px;
+    font-size:12px;
+  }
+  .urgent-sos-done-card .urgent-sos-token-box{
+    margin:5px 0 4px;
+    padding:9px;
+  }
+  .urgent-sos-done-card .urgent-sos-token-title{
+    font-size:13px;
+  }
+  .urgent-sos-done-card .urgent-sos-token-warning{
+    margin:3px 0 6px !important;
+    font-size:11px;
+    line-height:1.2;
+  }
+  .urgent-sos-done-card .urgent-sos-token-row{
+    flex-direction:row;
+    align-items:center;
+    gap:6px;
+  }
+  .urgent-sos-done-card .urgent-sos-token{
+    padding:8px;
+    font-size:13px;
+  }
+  .urgent-sos-done-card .urgent-sos-copy-token{
+    min-height:38px;
+    padding:0 9px;
+    font-size:12px;
+  }
+  .urgent-sos-done-card .urgent-sos-actions{
+    margin-top:5px;
+  }
+  .urgent-sos-done-card .urgent-sos-actions .urgent-sos-secondary{
+    min-height:38px;
+  }
 }
 
-.bottom-nav a.active .nav-label-2line {
-  max-width: 100%;
-  white-space: normal;
-  text-align: center;
-  line-height: 1.12;
-}
 
-
-/* --- Home tablet / Carlinkit viewport fit --------------------------------
-   On tablet/Carlinkit widths the desktop home cards were kept at their
-   larger desktop heights. Combined with the topbar and fixed bottom nav,
-   this pushed the collection/create/about actions below the initial
-   viewport, making the homepage look like it only contained the large SOS
-   card. Keep the same two-column/card hierarchy, but use a compact tablet
-   density so the complete action stack is visible without changing phone
-   styling or desktop presentation.
-*/
-@media (min-width: 700px) and (max-width: 1300px) and (max-height: 900px) {
-  .home {
-    width: min(100%, 760px);
-    padding: 12px 20px 16px;
+/* SOS vocal: keep the final token state fully visible on phone screens. */
+@media (max-width: 699px) {
+  .urgent-sos-done-card {
+    min-height: 0;
+    box-sizing: border-box;
+    padding: 9px 10px;
   }
-
-  .home-tagline {
-    margin-bottom: 9px;
-    font-size: clamp(17px, 2.2vw, 20px);
-    line-height: 1.18;
+  .urgent-sos-done-card .urgent-sos-final-badge {
+    margin-bottom: 0;
+    padding: 4px 8px;
+    font-size: 10px;
   }
-
-  .home-sos-card {
-    min-height: 96px;
-    margin-bottom: 9px;
-    padding: 11px 14px;
-    gap: 10px;
-    border-radius: 14px;
-    grid-template-columns: 56px minmax(0, 1fr) auto;
-  }
-
-  .home-sos-icon {
-    width: 52px;
-    height: 52px;
-    -webkit-mask-size: 32px;
-    mask-size: 32px;
-  }
-
-  .home-sos-copy {
-    gap: 1px;
-  }
-
-  .home-sos-copy strong {
-    font-size: clamp(19px, 2.5vw, 23px);
-  }
-
-  .home-sos-copy span {
-    font-size: 14px;
-  }
-
-  .home-sos-copy small {
-    font-size: 13px;
-  }
-
-  .home-card-arrow {
-    font-size: 36px;
-  }
-
-  .home-collection-grid {
-    gap: 9px;
-    margin-bottom: 9px;
-  }
-
-  .home-collection-card {
-    min-height: 142px;
-    padding: 12px 13px;
-    border-radius: 14px;
-  }
-
-  .home-card-icon {
-    width: 46px;
-    height: 46px;
-    margin-bottom: 7px;
-  }
-
-  .home-collection-card strong,
-  .home-create-copy strong,
-  .home-about-copy strong {
-    font-size: clamp(15px, 2vw, 18px);
-    line-height: 1.12;
-  }
-
-  .home-collection-card > span:not(.home-card-icon),
-  .home-create-copy > span,
-  .home-about-copy > span {
-    margin-top: 4px;
-    font-size: 12px;
-    line-height: 1.25;
-  }
-
-  .home-collection-card em,
-  .home-create-copy em,
-  .home-about-copy em {
-    padding-top: 5px;
-    font-size: 12px;
-  }
-
-  .home-collection-card em b,
-  .home-create-copy em b,
-  .home-about-copy em b {
-    margin-inline-start: 5px;
+  .urgent-sos-done-card h2 {
+    margin: 2px 0 3px;
     font-size: 18px;
   }
-
-  .home-create-card {
-    margin-bottom: 9px;
+  .urgent-sos-done-card > p {
+    margin-bottom: 4px;
+    font-size: 11px;
+    line-height: 1.2;
   }
-
-  .home-create-trigger,
-  .home-about-card {
-    grid-template-columns: 52px minmax(0, 1fr);
-    gap: 10px;
-    min-height: 82px;
-    padding: 12px 14px;
-    border-radius: 14px;
+  .urgent-sos-done-card .urgent-sos-audio {
+    margin: 4px 0;
   }
-
-  .home-create-trigger .home-card-icon,
-  .home-about-card .home-card-icon {
-    width: 48px;
-    height: 48px;
+  .urgent-sos-done-card .urgent-sos-audio-btn {
+    min-height: 36px;
+    padding-inline: 10px;
+    font-size: 11px;
   }
-
-  .home-create-copy em,
-  .home-about-copy em {
+  .urgent-sos-done-card .urgent-sos-token-box {
+    margin: 3px 0;
+    padding: 8px;
+  }
+  .urgent-sos-done-card .urgent-sos-token-warning {
+    margin: 3px 0 5px !important;
+    font-size: 11px;
+    line-height: 1.2;
+  }
+  .urgent-sos-done-card .urgent-sos-token {
+    padding: 7px 8px;
+    font-size: 14px;
+  }
+  .urgent-sos-done-card .urgent-sos-copy-token {
+    min-height: 38px;
+    font-size: 12px;
+  }
+  .urgent-sos-done-card .urgent-sos-actions {
     margin-top: 4px;
   }
-}
-
-/* Carlinkit / short landscape displays: prioritize the complete homepage
-   action menu over desktop card density. The bottom navigation remains
-   fixed; the homepage content must fit above it instead of showing only
-   the SOS CTA. This is intentionally limited to landscape-like short
-   viewports and does not alter normal phones. */
-@media (min-width: 700px) and (max-width: 1300px) and (max-height: 700px) {
-  .home {
-    max-width: 760px;
-    padding: 6px 18px 8px;
+  .urgent-sos-validation-panel {
+    margin-top: 5px;
   }
-
-  .home-tagline {
-    max-width: 620px;
-    margin-bottom: 6px;
-    font-size: 17px;
-    line-height: 1.12;
-  }
-
-  .home-sos-card {
-    min-height: 74px;
-    margin-bottom: 6px;
-    padding: 8px 12px;
-    gap: 8px;
-    border-radius: 12px;
-    grid-template-columns: 46px minmax(0, 1fr) auto;
-  }
-
-  .home-sos-icon {
-    width: 44px;
-    height: 44px;
-    -webkit-mask-size: 29px;
-    mask-size: 29px;
-  }
-
-  .home-sos-copy {
-    gap: 0;
-  }
-
-  .home-sos-copy strong {
-    font-size: 20px;
-    line-height: 1.05;
-  }
-
-  .home-sos-copy span,
-  .home-sos-copy small {
+  .urgent-sos-validation-panel > p {
+    margin: 3px 0;
     font-size: 12px;
-    line-height: 1.1;
-  }
-
-  .home-card-arrow {
-    font-size: 32px;
-  }
-
-  .home-collection-grid {
-    gap: 7px;
-    margin-bottom: 6px;
-  }
-
-  .home-collection-card {
-    min-height: 105px;
-    padding: 8px 11px;
-    border-radius: 12px;
-  }
-
-  .home-card-icon {
-    width: 36px;
-    height: 36px;
-    margin-bottom: 4px;
-  }
-
-  .home-collection-card strong,
-  .home-create-copy strong,
-  .home-about-copy strong {
-    font-size: 15px;
-    line-height: 1.05;
-  }
-
-  .home-collection-card > span:not(.home-card-icon),
-  .home-create-copy > span,
-  .home-about-copy > span {
-    margin-top: 2px;
-    font-size: 11px;
-    line-height: 1.12;
-  }
-
-  .home-collection-card em,
-  .home-create-copy em,
-  .home-about-copy em {
-    padding-top: 3px;
-    font-size: 11px;
-    line-height: 1;
-  }
-
-  .home-collection-card em b,
-  .home-create-copy em b,
-  .home-about-copy em b {
-    margin-inline-start: 4px;
-    font-size: 16px;
-  }
-
-  .home-create-card {
-    margin-bottom: 6px;
-  }
-
-  .home-create-trigger,
-  .home-about-card {
-    grid-template-columns: 42px minmax(0, 1fr);
-    gap: 8px;
-    min-height: 58px;
-    padding: 8px 11px;
-    border-radius: 12px;
-  }
-
-  .home-create-trigger .home-card-icon,
-  .home-about-card .home-card-icon {
-    width: 38px;
-    height: 38px;
-  }
-
-  .home-create-copy em,
-  .home-about-copy em {
-    margin-top: 2px;
+    line-height: 1.2;
   }
 }

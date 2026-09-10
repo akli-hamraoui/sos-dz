@@ -51,6 +51,15 @@ python manage.py createsuperuser
 python manage.py runserver
 ```
 
+For the guided voice SOS flow, Whisper + the local LLM are processed outside the HTTP request by a Django management-command worker. In local development, run a second terminal:
+
+```bash
+cd backend
+python manage.py process_voice_sos
+```
+
+The worker polls pending voice SOS records, writes the complete Whisper transcript into `Need.description`, then stores the LLM-extracted fields. Pending/failed voice SOS records are excluded from public lists and map pins until processing succeeds.
+
 Open http://localhost:8000/ for the app, and http://localhost:8000/admin/ for the Django Admin dashboard (disaster types, campaigns, moderation, config toggles). A logged-in admin can switch the admin site's own interface language (French/English/Arabic, top-right dropdown) independently of the public app's language.
 
 **Always use the same hostname (`localhost`, not `127.0.0.1`) for both Django Admin and the frontend below.** Django's session cookie is host-only -- `localhost` and `127.0.0.1` never share it, even on the same machine -- so logging into `/admin/` on one and browsing the frontend on the other silently drops the admin bypass (e.g. the GeoIP write restriction below applies again as if you were logged out, or Django Admin's "View site" link opens a host the admin session doesn't reach).
@@ -176,6 +185,11 @@ cd ../frontend
 npm install
 npm run build
 cd ..
+# Guided voice SOS worker (one-time installation on the VPS)
+sudo cp deploy/sos-dz-voice-worker.service /etc/systemd/system/sos-dz-voice-worker.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now sos-dz-voice-worker
+
 sudo systemctl restart sos-dz-gunicorn
 ```
 

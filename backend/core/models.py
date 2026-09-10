@@ -271,6 +271,9 @@ class Need(IdentityListingMixin, AuditMixin, models.Model):
     # least one of description/voice/video" instead, since any one of the
     # three can carry the actual content of the request.
     location_description = models.TextField(blank=True)
+    # Full original voice transcription. The LLM may extract structured fields,
+    # but it must never replace or summarize this source text.
+    description = models.TextField(blank=True)
     latitude = models.FloatField(null=True, blank=True)
     longitude = models.FloatField(null=True, blank=True)
     position_accuracy = models.CharField(max_length=20, choices=POSITION_CHOICES, default=POSITION_APPROXIMATE)
@@ -345,6 +348,25 @@ class Need(IdentityListingMixin, AuditMixin, models.Model):
     # quantity descriptions at creation time).
     covered_quantity = models.PositiveIntegerField(default=0, help_text="Count of active (en_route/delivered) pickups. Internal counter for overall_status only -- not a ratio against estimated_quantity.")
     overall_status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_OPEN)
+
+    VOICE_PROCESSING_PENDING = "pending"
+    VOICE_PROCESSING_READY = "ready"
+    VOICE_PROCESSING_FAILED = "failed"
+    VOICE_PROCESSING_CHOICES = [
+        (VOICE_PROCESSING_PENDING, "Pending"),
+        (VOICE_PROCESSING_READY, "Ready"),
+        (VOICE_PROCESSING_FAILED, "Failed"),
+    ]
+    # Guided voice SOS records are created immediately so the reporter gets
+    # an access token without waiting for Whisper/Ollama. Pending/failed voice
+    # records are intentionally excluded from public lists and map pins until
+    # the worker has produced a complete transcription + LLM extraction.
+    voice_processing_status = models.CharField(
+        max_length=10,
+        choices=VOICE_PROCESSING_CHOICES,
+        default=VOICE_PROCESSING_READY,
+    )
+    voice_processing_error = models.CharField(max_length=500, blank=True)
 
     location_viewer_share_token = models.CharField(max_length=32, unique=True, default=generate_token, editable=False)
 

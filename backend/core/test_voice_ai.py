@@ -1,10 +1,12 @@
 from unittest.mock import Mock, patch
+import unittest
 import os
 import tempfile
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 
+from core.models import Need
 from core.voice_ai import VoiceAIError, _configure_whisper_cache, extract_need_data, transcribe_audio
 
 
@@ -32,7 +34,6 @@ class VoiceAIRequestTests(TestCase):
         self.assertEqual(kwargs["beam_size"], 5)
         self.assertTrue(kwargs["vad_filter"])
         self.assertTrue(kwargs["condition_on_previous_text"])
-
 
     def test_whisper_cache_uses_writable_application_directory(self):
         with tempfile.TemporaryDirectory() as root:
@@ -100,3 +101,85 @@ class VoiceAIRequestTests(TestCase):
 
         self.assertEqual(result["location_description"], "الجزائر")
         self.assertIn(transcript, post.call_args.kwargs["json"]["messages"][0]["content"])
+
+
+class VoiceNeedProcessingTests(TestCase):
+    def _create_need(self, recovery_code):
+        from core.models import Campaign, DisasterType, Wilaya
+
+        disaster = DisasterType.objects.create(name=f"Disaster {recovery_code}", icon="fire")
+        campaign = Campaign.objects.create(
+            campaign_name=f"Voice processing {recovery_code}",
+            disaster_type=disaster,
+            status=Campaign.STATUS_ACTIVE,
+        )
+        wilaya = Wilaya.objects.first()
+        campaign.authorized_wilayas.add(wilaya)
+        return Need.objects.create(
+            campaign=campaign,
+            title="SOS urgent",
+            urgency=Need.URGENCY_CRITICAL,
+            wilaya=wilaya,
+            contact_name="Anonyme",
+            recovery_code=recovery_code,
+            voice_processing_status=Need.VOICE_PROCESSING_PENDING,
+            voice_file=SimpleUploadedFile("urgent-sos.webm", b"fake-audio", content_type="audio/webm"),
+        )
+
+    def test_process_voice_need_saves_full_transcript_and_structured_fields(self):
+        need = self._create_need("voice-test-1")
+        transcript = "Je m'appelle Nadia, je suis à Béjaïa et nous avons besoin d'eau pour vingt familles."
+        extraction = {
+            "title": "Besoin d'eau",
+            "contact_name": "Nadia",
+            "contact_phone": "0555000000",
+            "estimated_quantity": "vingt familles",
+            "commune": "Béjaïa",
+            "location_description": "Béjaïa",
+            "organization_or_person_name": "",
+            "description": "Résumé LLM qui ne doit pas remplacer la transcription.",
+        }
+
+        with patch("core.voice_ai.transcribe_audio", return_value=transcript), patch(
+            "core.voice_ai.extract_need_data", return_value=extraction
+        ):
+            from core.voice_ai import process_voice_need
+            process_voice_need(need.pk)
+
+        need.refresh_from_db()
+        self.assertEqual(need.description, transcript)
+        self.assertEqual(need.contact_name, "Nadia")
+        self.assertEqual(need.contact_phone, "0555000000")
+        self.assertEqual(need.estimated_quantity, "vingt familles")
+        self.assertEqual(need.location_description, "Béjaïa")
+        self.assertEqual(need.voice_processing_status, Need.VOICE_PROCESSING_READY)
+        self.assertEqual(need.voice_processing_error, "")
+
+    def test_process_voice_need_marks_failed_when_transcription_fails(self):
+        need = self._create_need("voice-test-2")
+
+        with patch("core.voice_ai.transcribe_audio", side_effect=VoiceAIError("No speech was detected.")):
+            from core.voice_ai import process_voice_need
+            process_voice_need(need.pk)
+
+        need.refresh_from_db()
+        self.assertEqual(need.voice_processing_status, Need.VOICE_PROCESSING_FAILED)
+        self.assertIn("No speech", need.voice_processing_error)
+
+
+class RealWhisperSmokeTest(TestCase):
+    @unittest.skipUnless(
+        os.getenv("VOICE_SMOKE_AUDIO"),
+        "Set VOICE_SMOKE_AUDIO to a real browser-recorded audio file to run the local Whisper smoke test.",
+    )
+    def test_real_browser_audio_produces_transcription(self):
+        path = os.environ["VOICE_SMOKE_AUDIO"]
+        with open(path, "rb") as handle:
+            upload = SimpleUploadedFile(
+                os.path.basename(path),
+                handle.read(),
+                content_type="audio/webm",
+            )
+            transcript = transcribe_audio(upload)
+
+        self.assertTrue(transcript.strip())
