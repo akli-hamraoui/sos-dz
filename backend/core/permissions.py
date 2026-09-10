@@ -6,6 +6,7 @@ every creation/edit attempt.
 
 from core.geoip import is_algeria_ip
 from core.models import AppConfiguration
+from core.validators import is_within_algeria_bounds
 
 
 def is_request_admin(request):
@@ -25,15 +26,34 @@ def read_only_block(request):
 
 def geo_restriction_block(request):
     """Returns an error message if the Algeria IP write restriction blocks
-    this request, else None. Admins always bypass this check, from anywhere."""
+    this request, else None. Admins always bypass this check, from anywhere.
+
+    The guided voice SOS is a special case: a browser may legitimately reach
+    Django through a proxy whose public IP cannot be resolved because the
+    GeoLite2 database is unavailable. When the SOS payload contains GPS
+    coordinates, those coordinates are independently checked against the
+    Algeria bounding box and can safely serve as the write-location proof.
+    All other write endpoints keep the existing IP-only restriction.
+    """
     if is_request_admin(request):
         return None
     config = AppConfiguration.get_solo()
     if not config.geo_restrict_writes_to_algeria:
         return None
+
     allowed = is_algeria_ip(getattr(request, "client_ip", None))
     if allowed is True:
         return None
+
+    if request.path.rstrip("/").endswith("/needs/voice-guide"):
+        try:
+            latitude = float(request.data.get("latitude"))
+            longitude = float(request.data.get("longitude"))
+        except (TypeError, ValueError):
+            latitude = longitude = None
+        if is_within_algeria_bounds(latitude, longitude):
+            return None
+
     return (
         "Only visible from within Algeria can create or edit listings — "
         "you can still browse everything."
