@@ -36,7 +36,8 @@
   .urgent-sos-audio-btn{min-height:40px;padding:0 12px;border-radius:11px;font-size:13px;}
   .urgent-sos-language{margin:5px 0 8px;}
   .urgent-sos-actions{margin-top:7px;gap:6px;}
-  .urgent-sos-countdown{margin:4px 0 0;padding:4px 0 0;gap:4px;}
+  /* During the 2→1 countdown, lift the countdown block so Annuler stays above the mobile bottom navigation. */
+  .urgent-sos-countdown{position:relative;z-index:2;margin:-28px 0 0;padding:4px 0 0;gap:4px;}
   .urgent-sos-countdown-number{font-size:clamp(3rem,18vw,4.2rem);}
   .urgent-sos-countdown-cancel{min-height:42px!important;padding-inline:18px!important;}
   .urgent-sos-wilaya-options{max-height:150px;}
