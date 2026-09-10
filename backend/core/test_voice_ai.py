@@ -6,6 +6,7 @@ import tempfile
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 
+from core.models import Need
 from core.voice_ai import VoiceAIError, _configure_whisper_cache, extract_need_data, transcribe_audio
 
 
@@ -104,7 +105,7 @@ class VoiceAIRequestTests(TestCase):
 
 class VoiceNeedProcessingTests(TestCase):
     def _create_need(self, recovery_code):
-        from core.models import Campaign, DisasterType, Need, Wilaya
+        from core.models import Campaign, DisasterType, Wilaya
 
         disaster = DisasterType.objects.create(name=f"Disaster {recovery_code}", icon="fire")
         campaign = Campaign.objects.create(
@@ -179,6 +180,6 @@ class RealWhisperSmokeTest(TestCase):
                 handle.read(),
                 content_type="audio/webm",
             )
+            transcript = transcribe_audio(upload)
 
-        result = transcribe_audio(upload)
-        self.assertTrue(result.strip())
+        self.assertTrue(transcript.strip())
