@@ -4,7 +4,6 @@ import { BrowserRouter } from 'react-router-dom'
 import { HelmetProvider } from 'react-helmet-async'
 import './index.css'
 import './footer-sos-fixes.css'
-import './urgent-sos-audio-icons.js'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 // leaflet-gesture-handling is an old-style Leaflet plugin: it patches the
@@ -23,43 +22,13 @@ window.L = L
 // visible viewport entirely -- confirmed live: reported as an unreadable,
 // cut-off popup. A smaller maxWidth keeps every popup narrow enough to
 // fit regardless of where its marker sits.
-//
-// autoPan only keeps the popup within the *map's own* pixel bounds -- it
-// has no idea our zoom control (top-left) and "recenter on me" button
-// (top-right, see .locate-btn in index.css) are fixed overlays sitting on
-// top of the map, so a marker near the top of the visible area could
-// still open its popup fully "in bounds" but visually underneath/behind
-// those controls (confirmed live). A tall top-left margin -- roughly the
-// stacked zoom buttons' own height plus their inset -- keeps the popup
-// clear of them; asymmetric padding (rather than a single autoPanPadding)
-// is what lets the top get more room than the other three sides.
-//
-// Leaflet only runs that auto-pan check once, right when a popup opens --
-// it does NOT re-run it if the map view changes afterwards for any other
-// reason. CollectionPoints.jsx/InternationalCollectionPoints.jsx's own
-// drawRouteToPoint does exactly that on the very same click: right after
-// the popup opens (correctly panned into view), it calls its own
-// map.fitBounds() to frame the visitor-to-point route, which re-centers
-// the map without Leaflet ever re-checking the now-relocated popup --
-// so a popup that was fine at open time could still end up cut off after
-// that second, unrelated view change (confirmed live). keepInView makes
-// Leaflet re-run the same auto-pan check on every subsequent map move,
-// not just on open, so it also self-corrects after fitBounds.
 L.Popup.mergeOptions({
   maxWidth: 280,
   maxHeight: null,
   className: 'sosdz-map-popup',
-  // Popup positioning is handled centrally by attachMapPopupBehavior() so
-  // every map page uses the same centered behavior.
   autoPan: false,
   keepInView: false,
 })
-// Registers the `gestureHandling` map option used on every Leaflet map in
-// this app (see NeedsList/CollectionPoints/NeedDetail): a single finger on
-// a mobile touchscreen pans the *page*, not the map -- panning the map
-// itself needs two fingers (or ctrl+scroll on desktop), with a brief
-// on-screen hint the first time someone touches it. Fixes the map
-// swallowing a page-scroll gesture on mobile.
 import 'leaflet-gesture-handling'
 import 'leaflet-gesture-handling/dist/leaflet-gesture-handling.css'
 import './i18n'
