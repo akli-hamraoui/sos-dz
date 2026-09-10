@@ -46,9 +46,10 @@
   /* The start action is represented by the existing responsive line-mic icon only. */
   .urgent-sos-card:has(.urgent-sos-step-label) .urgent-sos-actions .urgent-sos-primary{width:54px;min-width:54px;min-height:54px;padding:0!important;display:grid;place-items:center;border-radius:16px;font-size:0;}
   .urgent-sos-card:has(.urgent-sos-step-label) .urgent-sos-actions .urgent-sos-primary svg{width:28px;height:28px;margin:0;}
-  /* Modern speaker control: the existing toggle still starts/pauses the instruction audio. */
+  /* Instruction audio: icon only. JS mirrors React's play/pause state to data-playing. */
   .urgent-sos-audio-btn{font-size:0;min-width:44px;width:44px;padding:0!important;display:grid;place-items:center;}
-  .urgent-sos-audio-btn::before{content:'🔊';font-size:20px;line-height:1;}
+  .urgent-sos-audio-btn::before{content:'🔇';font-size:20px;line-height:1;}
+  .urgent-sos-audio-btn[data-playing="true"]::before{content:'🔊';}
   .urgent-sos-wilaya-options{max-height:150px;}
   .urgent-sos-wilaya-option{min-height:38px;padding:7px 9px;}
   .urgent-sos-location-actions{flex-wrap:nowrap!important;}
@@ -62,9 +63,10 @@
   .urgent-sos-token-box{padding:9px!important;max-width:100%;box-sizing:border-box;}
   .urgent-sos-token-title{font-size:13px!important;}
   .urgent-sos-token-warning{font-size:10px!important;margin:4px 0!important;}
-  .urgent-sos-token-row{gap:6px!important;min-width:0;}
-  .urgent-sos-token{font-size:15px!important;padding:9px!important;min-width:0;}
-  .urgent-sos-copy-token{min-height:42px!important;padding-inline:9px!important;font-size:11px;}
+  /* Never let the copy button cover or sit beside the token on mobile. */
+  .urgent-sos-token-row{flex-direction:column;align-items:stretch;gap:7px!important;min-width:0;}
+  .urgent-sos-token{width:100%;max-width:100%;font-size:15px!important;padding:9px!important;min-width:0;}
+  .urgent-sos-copy-token{width:100%;min-height:42px!important;padding-inline:9px!important;font-size:11px;}
   .urgent-sos-final-warning{font-size:10px;padding:7px 9px;margin:5px 0;}
   .urgent-sos-done-card .urgent-sos-audio{margin:4px 0;}
   .urgent-sos-done-card .urgent-sos-audio-btn{min-height:36px;font-size:0;}
@@ -73,9 +75,6 @@
 @media(max-width:379px){
   .urgent-sos-stepper small{font-size:10px;}
   .urgent-sos-location-actions button{font-size:11px;padding-inline:5px!important;}
-  .urgent-sos-token-row{flex-direction:column;align-items:stretch;}
-  .urgent-sos-token{width:100%;max-width:100%;}
-  .urgent-sos-copy-token{width:100%;}
   .urgent-sos-countdown{margin:-50px 0 0;}
   .urgent-sos-card:has(.urgent-sos-step-label) .urgent-sos-actions .urgent-sos-primary{width:50px;min-width:50px;min-height:50px;border-radius:14px;}
 }
