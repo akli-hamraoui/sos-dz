@@ -98,7 +98,20 @@ async function uploadWithRetry(url, formData, method = 'POST', onStatus = () => 
 }
 
 export async function apiUpload(path, formData, method = 'POST', onStatus = () => {}) {
-  return uploadWithRetry(API + path, formData, method, onStatus)
+  try {
+    return await uploadWithRetry(API + path, formData, method, onStatus)
+  } catch (error) {
+    if (path === '/needs/voice-guide/') {
+      console.error('[SOS] Échec de l’enregistrement du SOS vocal côté serveur.', {
+        path,
+        status: error?.status,
+        message: error?.message,
+        data: error?.data,
+        error,
+      })
+    }
+    throw error
+  }
 }
 
 // Wave 5: offline-aware creation for Need/Pickup/ProgressUpdate. If the
