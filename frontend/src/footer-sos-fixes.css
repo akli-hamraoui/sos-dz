@@ -1,0 +1,55 @@
+/* Regression fix kept separate from index.css so future CSS work cannot
+   accidentally remove the footer sizing block again. */
+.bottom-nav a.active {
+  width: min(74px, calc(100% - 8px)) !important;
+  height: 72px !important;
+  min-height: 72px !important;
+  margin-inline: auto !important;
+  padding: 7px 4px !important;
+  border-radius: 16px !important;
+  justify-content: center !important;
+  gap: 2px !important;
+}
+
+.bottom-nav a.active .icon {
+  width: 26px !important;
+  height: 26px !important;
+}
+
+/* Critical/urgent SOS markers: a very discreet heartbeat rather than a
+   distracting blink. urgencyColor() uses #d92626 for critical needs. */
+@keyframes sos-urgent-heartbeat {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(217, 38, 38, 0);
+  }
+  12% {
+    transform: scale(1.035);
+    box-shadow: 0 0 0 2px rgba(217, 38, 38, 0.12);
+  }
+  24% {
+    transform: scale(1.008);
+    box-shadow: 0 0 0 1px rgba(217, 38, 38, 0.06);
+  }
+  36% {
+    transform: scale(1.025);
+    box-shadow: 0 0 0 2px rgba(217, 38, 38, 0.08);
+  }
+  52% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(217, 38, 38, 0);
+  }
+}
+
+.need-marker-pin[style*="#d92626"] {
+  animation: sos-urgent-heartbeat 2.4s ease-in-out infinite;
+  transform-origin: center;
+  will-change: transform, box-shadow;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .need-marker-pin[style*="#d92626"] {
+    animation: none;
+  }
+}
