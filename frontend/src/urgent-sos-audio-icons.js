@@ -10,13 +10,19 @@ const scan = (root = document) => {
   root.querySelectorAll?.('.urgent-sos-audio-btn').forEach(sync)
 }
 
-scan()
-new MutationObserver((mutations) => {
-  for (const mutation of mutations) {
-    if (mutation.type === 'characterData' || mutation.type === 'childList') {
-      const button = mutation.target.closest?.('.urgent-sos-audio-btn') || mutation.target.querySelector?.('.urgent-sos-audio-btn')
-      if (button) sync(button)
-      scan(mutation.target)
+const boot = () => {
+  scan()
+  const observer = new MutationObserver((mutations) => {
+    for (const mutation of mutations) {
+      if (mutation.type === 'characterData' || mutation.type === 'childList') {
+        const button = mutation.target.closest?.('.urgent-sos-audio-btn') || mutation.target.querySelector?.('.urgent-sos-audio-btn')
+        if (button) sync(button)
+        scan(mutation.target)
+      }
     }
-  }
-}).observe(document.body, { subtree: true, childList: true, characterData: true })
+  })
+  observer.observe(document.body, { subtree: true, childList: true, characterData: true })
+}
+
+if (document.body) boot()
+else window.addEventListener('DOMContentLoaded', boot, { once: true })
