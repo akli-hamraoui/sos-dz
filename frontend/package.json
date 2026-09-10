@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "vite build && node scripts/generate-static-seo.mjs",
     "lint": "oxlint",
+    "test": "node scripts/test-urgent-sos.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
