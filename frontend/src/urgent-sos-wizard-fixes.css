@@ -13,10 +13,17 @@
 .urgent-sos-recorded-duration{margin-top:7px;font-size:13px;font-weight:800;color:var(--text-muted);text-align:center;}
 .urgent-sos-validation-panel{background:rgba(255,255,255,.97);border:1px solid var(--border);border-radius:18px;padding:16px;box-shadow:0 8px 26px rgba(31,54,45,.07);}
 .urgent-sos-validation-panel>.urgent-sos-audio{margin-top:0;}
+/* This wizard does not expose editable extracted fields. Do not show a correction prompt. */
+.urgent-sos-validation-panel>p:not(.urgent-sos-error){display:none;}
+/* The stepper is the single source of truth for progress; hide the obsolete "1 sur 3" helper. */
+.urgent-sos-step-label{display:none;}
 .urgent-sos-location-summary{margin-top:8px;padding:9px 11px;border:1px solid #bfe1cf;border-radius:11px;background:var(--sos-green-soft);color:var(--brand-green);font-size:12px;font-weight:800;}
 .urgent-sos-final-warning{margin:8px 0;padding:9px 11px;border:1px solid #e0b43c;border-radius:11px;background:#fff8e9;color:#6e5200;font-size:12px;font-weight:800;}
 .urgent-sos-done-card .urgent-sos-token-box{margin:10px 0;}
 .urgent-sos-done-card .urgent-sos-audio{margin:7px 0;}
+.urgent-sos-token-row{display:flex;align-items:center;width:100%;min-width:0;gap:8px;}
+.urgent-sos-token{display:block;flex:1 1 auto;width:100%;min-width:0;max-width:none;box-sizing:border-box;white-space:nowrap;overflow-x:auto;overflow-y:hidden;overflow-wrap:normal;word-break:normal;writing-mode:horizontal-tb;line-height:1.3;text-align:start;}
+.urgent-sos-copy-token{flex:0 0 auto;}
 .urgent-sos-turnstile{margin:12px auto;max-width:100%;overflow:hidden;}
 @media(max-width:699px){
   .urgent-sos-page{padding-top:0;overflow-x:hidden;}
@@ -29,9 +36,19 @@
   .urgent-sos-audio-btn{min-height:40px;padding:0 12px;border-radius:11px;font-size:13px;}
   .urgent-sos-language{margin:5px 0 8px;}
   .urgent-sos-actions{margin-top:7px;gap:6px;}
-  .urgent-sos-countdown{margin:4px 0 0;padding:4px 0 0;gap:4px;}
+  /* Keep the countdown and Annuler clearly above the mobile bottom navigation. */
+  .urgent-sos-countdown{position:relative;z-index:2;margin:-42px 0 0;padding:2px 0 0;gap:3px;}
   .urgent-sos-countdown-number{font-size:clamp(3rem,18vw,4.2rem);}
   .urgent-sos-countdown-cancel{min-height:42px!important;padding-inline:18px!important;}
+  /* Compact mobile heading: one SOS label with a small red alert icon. */
+  .urgent-sos-hero{display:none;}
+  .urgent-sos-kicker{display:flex;align-items:center;gap:5px;margin:4px 0 7px;font-size:13px;font-weight:800;color:#c92b3b;line-height:1.2;}
+  /* The start action is represented by the existing responsive line-mic icon only. */
+  .urgent-sos-card:has(.urgent-sos-step-label) .urgent-sos-actions .urgent-sos-primary{width:54px;min-width:54px;min-height:54px;padding:0!important;display:grid;place-items:center;border-radius:16px;font-size:0;}
+  .urgent-sos-card:has(.urgent-sos-step-label) .urgent-sos-actions .urgent-sos-primary svg{width:28px;height:28px;margin:0;}
+  /* Modern speaker control: the existing toggle still starts/pauses the instruction audio. */
+  .urgent-sos-audio-btn{font-size:0;min-width:44px;width:44px;padding:0!important;display:grid;place-items:center;}
+  .urgent-sos-audio-btn::before{content:'🔊';font-size:20px;line-height:1;}
   .urgent-sos-wilaya-options{max-height:150px;}
   .urgent-sos-wilaya-option{min-height:38px;padding:7px 9px;}
   .urgent-sos-location-actions{flex-wrap:nowrap!important;}
@@ -46,17 +63,19 @@
   .urgent-sos-token-title{font-size:13px!important;}
   .urgent-sos-token-warning{font-size:10px!important;margin:4px 0!important;}
   .urgent-sos-token-row{gap:6px!important;min-width:0;}
-  .urgent-sos-token{font-size:15px!important;padding:9px!important;min-width:0;overflow-wrap:anywhere;}
-  .urgent-sos-copy-token{min-height:42px!important;padding-inline:9px!important;font-size:11px;flex:0 0 auto;}
+  .urgent-sos-token{font-size:15px!important;padding:9px!important;min-width:0;}
+  .urgent-sos-copy-token{min-height:42px!important;padding-inline:9px!important;font-size:11px;}
   .urgent-sos-final-warning{font-size:10px;padding:7px 9px;margin:5px 0;}
   .urgent-sos-done-card .urgent-sos-audio{margin:4px 0;}
-  .urgent-sos-done-card .urgent-sos-audio-btn{min-height:36px;font-size:11px;}
-  .urgent-sos-done-card .urgent-sos-actions{margin-top:5px;}
+  .urgent-sos-done-card .urgent-sos-audio-btn{min-height:36px;font-size:0;}
   .urgent-sos-turnstile{transform-origin:top center;}
 }
 @media(max-width:379px){
   .urgent-sos-stepper small{font-size:10px;}
   .urgent-sos-location-actions button{font-size:11px;padding-inline:5px!important;}
   .urgent-sos-token-row{flex-direction:column;align-items:stretch;}
+  .urgent-sos-token{width:100%;max-width:100%;}
   .urgent-sos-copy-token{width:100%;}
+  .urgent-sos-countdown{margin:-50px 0 0;}
+  .urgent-sos-card:has(.urgent-sos-step-label) .urgent-sos-actions .urgent-sos-primary{width:50px;min-width:50px;min-height:50px;border-radius:14px;}
 }
