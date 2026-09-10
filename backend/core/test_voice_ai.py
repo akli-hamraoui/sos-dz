@@ -34,7 +34,6 @@ class VoiceAIRequestTests(TestCase):
         self.assertTrue(kwargs["vad_filter"])
         self.assertTrue(kwargs["condition_on_previous_text"])
 
-
     def test_whisper_cache_uses_writable_application_directory(self):
         with tempfile.TemporaryDirectory() as root:
             with override_settings(REPO_ROOT=root):
@@ -104,28 +103,30 @@ class VoiceAIRequestTests(TestCase):
 
 
 class VoiceNeedProcessingTests(TestCase):
-    def test_process_voice_need_saves_full_transcript_and_structured_fields(self):
+    def _create_need(self, recovery_code):
         from core.models import Campaign, DisasterType, Need, Wilaya
 
-        disaster = DisasterType.objects.create(name="Wildfire", icon="fire")
+        disaster = DisasterType.objects.create(name=f"Disaster {recovery_code}", icon="fire")
         campaign = Campaign.objects.create(
-            campaign_name="Voice processing test",
+            campaign_name=f"Voice processing {recovery_code}",
             disaster_type=disaster,
             status=Campaign.STATUS_ACTIVE,
         )
         wilaya = Wilaya.objects.first()
         campaign.authorized_wilayas.add(wilaya)
-        need = Need.objects.create(
+        return Need.objects.create(
             campaign=campaign,
             title="SOS urgent",
             urgency=Need.URGENCY_CRITICAL,
             wilaya=wilaya,
             contact_name="Anonyme",
-            recovery_code="voice-test-1",
+            recovery_code=recovery_code,
             voice_processing_status=Need.VOICE_PROCESSING_PENDING,
             voice_file=SimpleUploadedFile("urgent-sos.webm", b"fake-audio", content_type="audio/webm"),
         )
 
+    def test_process_voice_need_saves_full_transcript_and_structured_fields(self):
+        need = self._create_need("voice-test-1")
         transcript = "Je m'appelle Nadia, je suis à Béjaïa et nous avons besoin d'eau pour vingt familles."
         extraction = {
             "title": "Besoin d'eau",
@@ -138,7 +139,6 @@ class VoiceNeedProcessingTests(TestCase):
             "description": "Résumé LLM qui ne doit pas remplacer la transcription.",
         }
 
-        from unittest.mock import patch
         with patch("core.voice_ai.transcribe_audio", return_value=transcript), patch(
             "core.voice_ai.extract_need_data", return_value=extraction
         ):
@@ -155,27 +155,8 @@ class VoiceNeedProcessingTests(TestCase):
         self.assertEqual(need.voice_processing_error, "")
 
     def test_process_voice_need_marks_failed_when_transcription_fails(self):
-        from core.models import Campaign, DisasterType, Need, Wilaya
+        need = self._create_need("voice-test-2")
 
-        disaster = DisasterType.objects.create(name="Flood", icon="flood")
-        campaign = Campaign.objects.create(
-            campaign_name="Voice failure test",
-            disaster_type=disaster,
-            status=Campaign.STATUS_ACTIVE,
-        )
-        wilaya = Wilaya.objects.first()
-        campaign.authorized_wilayas.add(wilaya)
-        need = Need.objects.create(
-            campaign=campaign,
-            title="SOS urgent",
-            urgency=Need.URGENCY_CRITICAL,
-            wilaya=wilaya,
-            contact_name="Anonyme",
-            recovery_code="voice-test-2",
-            voice_processing_status=Need.VOICE_PROCESSING_PENDING,
-        )
-
-        from unittest.mock import patch
         with patch("core.voice_ai.transcribe_audio", side_effect=VoiceAIError("No speech was detected.")):
             from core.voice_ai import process_voice_need
             process_voice_need(need.pk)
