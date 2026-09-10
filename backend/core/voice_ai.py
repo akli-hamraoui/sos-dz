@@ -30,8 +30,10 @@ EXTRACTION_SCHEMA = {
     "additionalProperties": False,
 }
 
+
 class VoiceAIError(Exception):
     pass
+
 
 def _configure_whisper_cache():
     candidates = [
@@ -54,6 +56,7 @@ def _configure_whisper_cache():
             logger.warning("Whisper cache unavailable: path=%s error=%s", cache_dir, exc)
     raise VoiceAIError("Voice transcription cache is not writable.")
 
+
 @lru_cache(maxsize=1)
 def _whisper_model():
     try:
@@ -71,6 +74,7 @@ def _whisper_model():
     except Exception as exc:
         logger.exception("Could not load local Whisper model: model=%s", model_name)
         raise VoiceAIError("Voice transcription service is temporarily unavailable.") from exc
+
 
 def transcribe_audio(upload, language=None):
     try:
@@ -109,18 +113,15 @@ def transcribe_audio(upload, language=None):
     logger.info("Voice transcription succeeded: provider=local-whisper model=%s detected_language=%s chars=%s transcript=%r", getattr(settings, "VOICE_WHISPER_MODEL", "small"), detected_language, len(text), text[:5000])
     return text
 
+
 def _correction_prompt():
     path = Path(__file__).resolve().parent / "prompts" / "voice_transcription_correction.md"
     try:
         return path.read_text(encoding="utf-8")
     except OSError:
         logger.exception("SOS transcription correction prompt could not be loaded: path=%s", path)
-        return """
-Correct only obvious speech-to-text errors. Never invent information. GPS may only
-resolve an already spoken phonetic place/name; it must never create a location
-that was not spoken. If uncertain, preserve the original wording. Return only
-the corrected transcription.
-""".strip()
+        return "Correct only obvious speech-to-text errors. Never invent information. GPS may only resolve an already spoken phonetic place/name; it must never create a location that was not spoken. If uncertain, preserve the original wording. Return only the corrected transcription."
+
 
 def correct_transcription(transcript, latitude=None, longitude=None):
     """Make one conservative correction pass before structured extraction."""
@@ -132,13 +133,8 @@ def correct_transcription(transcript, latitude=None, longitude=None):
     gps_context = "GPS unavailable."
     if latitude is not None and longitude is not None:
         gps_context = f"GPS coordinates: latitude={latitude}, longitude={longitude}."
-    prompt = (
-        system_prompt
-        + "\n\nCONTEXT:\n"
-        + gps_context
-        + "\n\nORIGINAL WHISPER TRANSCRIPTION:\n"
-        + transcript
-    )
+    prompt = system_prompt + "\n\nCONTEXT:\n" + gps_context + "\n\nORIGINAL WHISPER TRANSCRIPTION:\n" + transcript
+    logger.info("SOS_VOICE_AI_TRACE INPUT transcript=%r gps=%s", transcript, gps_context)
     payload = {
         "model": model,
         "messages": [{"role": "user", "content": prompt}],
@@ -149,9 +145,11 @@ def correct_transcription(transcript, latitude=None, longitude=None):
         response = requests.post(ollama_url, json=payload, timeout=90)
     except requests.RequestException as exc:
         logger.warning("SOS transcription correction unavailable; keeping Whisper text: %s", exc)
+        logger.info("SOS_VOICE_AI_TRACE CORRECTED transcript=%r fallback=true", transcript)
         return transcript
     if not response.ok:
         logger.warning("SOS transcription correction rejected: status=%s model=%s; keeping Whisper text", response.status_code, model)
+        logger.info("SOS_VOICE_AI_TRACE CORRECTED transcript=%r fallback=true", transcript)
         return transcript
     try:
         corrected = str(response.json().get("message", {}).get("content", "")).strip()
@@ -159,9 +157,11 @@ def correct_transcription(transcript, latitude=None, longitude=None):
         corrected = ""
     if not corrected or len(corrected) > max(len(transcript) * 3, 1000):
         logger.warning("SOS transcription correction produced unusable output; keeping Whisper text")
+        logger.info("SOS_VOICE_AI_TRACE CORRECTED transcript=%r fallback=true", transcript)
         return transcript
-    logger.info("SOS transcription correction completed: original_chars=%s corrected_chars=%s original=%r corrected=%r", len(transcript), len(corrected), transcript[:5000], corrected[:5000])
+    logger.info("SOS_VOICE_AI_TRACE CORRECTED transcript=%r fallback=false", corrected)
     return corrected
+
 
 def extract_need_data(transcript):
     """Extract only facts explicitly present in the corrected transcript with local Qwen/Ollama."""
@@ -192,8 +192,10 @@ def extract_need_data(transcript):
         logger.exception("Local LLM returned invalid JSON: model=%s error=%s body=%s", model, exc, response.text[:2000])
         raise VoiceAIError("Voice information extraction returned invalid data.") from exc
     result = {key: str(data.get(key) or "").strip() for key in EXTRACTION_SCHEMA["properties"]}
+    logger.info("SOS_VOICE_AI_TRACE JSON extraction=%s", json.dumps(result, ensure_ascii=False, sort_keys=True))
     logger.info("Voice extraction succeeded: provider=ollama model=%s transcript_chars=%s extraction=%s", model, len(transcript), result)
     return result
+
 
 def process_voice_need(need_id):
     """Run Whisper + conservative correction + local LLM for an already-created guided voice Need."""
@@ -220,6 +222,7 @@ def process_voice_need(need_id):
         need.record_edit()
         need.save()
         need.recompute_status()
+        logger.info("SOS_VOICE_AI_TRACE NEED_READY need_id=%s json=%s", need.pk, json.dumps(extraction, ensure_ascii=False, sort_keys=True))
         logger.info("Guided voice SOS processed: need_id=%s transcript_chars=%s", need.pk, len(corrected_transcript))
         return need
     except VoiceAIError as exc:
