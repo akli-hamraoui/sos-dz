@@ -13,8 +13,10 @@
 .urgent-sos-recorded-duration{margin-top:7px;font-size:13px;font-weight:800;color:var(--text-muted);text-align:center;}
 .urgent-sos-validation-panel{background:rgba(255,255,255,.97);border:1px solid var(--border);border-radius:18px;padding:16px;box-shadow:0 8px 26px rgba(31,54,45,.07);}
 .urgent-sos-validation-panel>.urgent-sos-audio{margin-top:0;}
-/* The voice wizard no longer performs field extraction/correction here. Keep the review screen focused on confirmation. */
+/* This wizard does not expose editable extracted fields. Do not show a correction prompt. */
 .urgent-sos-validation-panel>p:not(.urgent-sos-error){display:none;}
+/* The stepper is the single source of truth for progress; hide the obsolete "1 sur 3" helper. */
+.urgent-sos-step-label{display:none;}
 .urgent-sos-location-summary{margin-top:8px;padding:9px 11px;border:1px solid #bfe1cf;border-radius:11px;background:var(--sos-green-soft);color:var(--brand-green);font-size:12px;font-weight:800;}
 .urgent-sos-final-warning{margin:8px 0;padding:9px 11px;border:1px solid #e0b43c;border-radius:11px;background:#fff8e9;color:#6e5200;font-size:12px;font-weight:800;}
 .urgent-sos-done-card .urgent-sos-token-box{margin:10px 0;}
