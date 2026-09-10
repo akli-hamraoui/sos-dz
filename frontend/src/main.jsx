@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom'
 import { HelmetProvider } from 'react-helmet-async'
 import './index.css'
 import './footer-sos-fixes.css'
+import './urgent-sos-audio-icons.js'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 // leaflet-gesture-handling is an old-style Leaflet plugin: it patches the
