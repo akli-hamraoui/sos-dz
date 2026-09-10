@@ -16,9 +16,7 @@ const base = {
   strokeLinejoin: 'round',
 }
 
-export function IconHome(props) {
-  return (<svg {...base} {...props}><path d="M4 11.5 12 4l8 7.5" /><path d="M6 10v9h5v-5.5h2V19h5v-9" /></svg>)
-}
+export function IconHome(props) { return (<svg {...base} {...props}><path d="M4 11.5 12 4l8 7.5" /><path d="M6 10v9h5v-5.5h2V19h5v-9" /></svg>) }
 export function IconNeeds(props) { return (<svg {...base} {...props}><path d="M12 20.5s-7-4.35-9.3-8.9C1.2 8.2 3 5 6.3 5c1.8 0 3.2 1 3.7 2.4C10.5 6 11.9 5 13.7 5 17 5 18.8 8.2 17.3 11.6 15 16.15 12 20.5 12 20.5Z" /></svg>) }
 export function IconBox(props) { return (<svg {...base} {...props}><path d="M3.5 7.5 12 3l8.5 4.5v9L12 21l-8.5-4.5v-9Z" /><path d="M3.5 7.5 12 12l8.5-4.5" /><path d="M12 12v9" /></svg>) }
 export function IconHelp(props) { return (<svg {...base} {...props}><circle cx="12" cy="12" r="9" /><path d="M9.3 9.6a2.7 2.7 0 1 1 3.8 2.5c-.8.4-1.1.9-1.1 1.7" /><circle cx="12" cy="17" r="0.15" fill="currentColor" stroke="none" /></svg>) }
@@ -30,9 +28,10 @@ export function IconMapPin(props) { return (<svg {...base} {...props}><path d="M
 export function IconLocate(props) { return (<svg {...base} {...props}><circle cx="12" cy="12" r="2.6" fill="currentColor" stroke="none" /><circle cx="12" cy="12" r="7" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3" /></svg>) }
 export function IconExpand(props) { return (<svg {...base} {...props}><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5" /></svg>) }
 export function IconMic(props) { return (<svg {...base} {...props}><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5v3M9 20.5h6" /></svg>) }
-export function IconVolumeOff(props) { return (<svg {...base} {...props}><path d="M11 5 6.5 9H3v6h3.5L11 19V5Z" /><path d="m16 9-5 6M11 9l5 6" /></svg>) }
-export function IconVolume(props) { return (<svg {...base} {...props}><path d="M11 5 6.5 9H3v6h3.5L11 19V5Z" /><path d="M15 8.5a5 5 0 0 1 0 7M17.8 5.8a9 9 0 0 1 0 12.4" /></svg>) }
+export function IconVolumeOff(props) { return (<svg {...base} {...props}><path d="M10.5 6 6.5 9H3v6h3.5l4 3V6Z" /><path d="m15.5 9-5 6M10.5 9l5 6" /></svg>) }
+export function IconVolume(props) { return (<svg {...base} {...props}><path d="M10.5 6 6.5 9H3v6h3.5l4 3V6Z" /><path d="M14.5 8.5a5 5 0 0 1 0 7M17.3 5.8a9 9 0 0 1 0 12.4" /></svg>) }
 export function IconCopy(props) { return (<svg {...base} {...props}><rect x="8" y="8" width="11" height="12" rx="2" /><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h2" /></svg>) }
+export function IconReplay(props) { return (<svg {...base} {...props}><path d="M20 11a8 8 0 1 0 1 4" /><path d="M20 5v6h-6" /></svg>) }
 export function IconVideoCam(props) { return (<svg {...base} {...props}><rect x="3" y="6.5" width="12" height="11" rx="2.5" /><path d="M15 10.2 21 7v10l-6-3.2Z" /></svg>) }
 export function IconCamera(props) { return (<svg {...base} {...props}><path d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2l1-2h7l1 2h2a1.5 1.5 0 0 1 1.5 1.5v9A1.5 1.5 0 0 1 18.5 19h-13A1.5 1.5 0 0 1 4 17.5Z" /><circle cx="12" cy="13" r="3.3" /></svg>) }
 export function IconPlay(props) { return (<svg {...base} {...props} fill="currentColor" stroke="none"><path d="M7 4.5v15l13-7.5Z" /></svg>) }
