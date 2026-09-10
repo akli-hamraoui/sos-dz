@@ -36,10 +36,19 @@
   .urgent-sos-audio-btn{min-height:40px;padding:0 12px;border-radius:11px;font-size:13px;}
   .urgent-sos-language{margin:5px 0 8px;}
   .urgent-sos-actions{margin-top:7px;gap:6px;}
-  /* During the 2→1 countdown, lift the countdown block so Annuler stays above the mobile bottom navigation. */
-  .urgent-sos-countdown{position:relative;z-index:2;margin:-28px 0 0;padding:4px 0 0;gap:4px;}
+  /* Keep the countdown and Annuler clearly above the mobile bottom navigation. */
+  .urgent-sos-countdown{position:relative;z-index:2;margin:-42px 0 0;padding:2px 0 0;gap:3px;}
   .urgent-sos-countdown-number{font-size:clamp(3rem,18vw,4.2rem);}
   .urgent-sos-countdown-cancel{min-height:42px!important;padding-inline:18px!important;}
+  /* Compact mobile heading: one SOS label with a small red alert icon. */
+  .urgent-sos-hero{display:none;}
+  .urgent-sos-kicker{display:flex;align-items:center;gap:5px;margin:4px 0 7px;font-size:13px;font-weight:800;color:#c92b3b;line-height:1.2;}
+  /* The start action is represented by the existing responsive line-mic icon only. */
+  .urgent-sos-card:has(.urgent-sos-step-label) .urgent-sos-actions .urgent-sos-primary{width:54px;min-width:54px;min-height:54px;padding:0!important;display:grid;place-items:center;border-radius:16px;font-size:0;}
+  .urgent-sos-card:has(.urgent-sos-step-label) .urgent-sos-actions .urgent-sos-primary svg{width:28px;height:28px;margin:0;}
+  /* Modern speaker control: the existing toggle still starts/pauses the instruction audio. */
+  .urgent-sos-audio-btn{font-size:0;min-width:44px;width:44px;padding:0!important;display:grid;place-items:center;}
+  .urgent-sos-audio-btn::before{content:'🔊';font-size:20px;line-height:1;}
   .urgent-sos-wilaya-options{max-height:150px;}
   .urgent-sos-wilaya-option{min-height:38px;padding:7px 9px;}
   .urgent-sos-location-actions{flex-wrap:nowrap!important;}
@@ -58,8 +67,7 @@
   .urgent-sos-copy-token{min-height:42px!important;padding-inline:9px!important;font-size:11px;}
   .urgent-sos-final-warning{font-size:10px;padding:7px 9px;margin:5px 0;}
   .urgent-sos-done-card .urgent-sos-audio{margin:4px 0;}
-  .urgent-sos-done-card .urgent-sos-audio-btn{min-height:36px;font-size:11px;}
-  .urgent-sos-done-card .urgent-sos-actions{margin-top:5px;}
+  .urgent-sos-done-card .urgent-sos-audio-btn{min-height:36px;font-size:0;}
   .urgent-sos-turnstile{transform-origin:top center;}
 }
 @media(max-width:379px){
@@ -68,4 +76,6 @@
   .urgent-sos-token-row{flex-direction:column;align-items:stretch;}
   .urgent-sos-token{width:100%;max-width:100%;}
   .urgent-sos-copy-token{width:100%;}
+  .urgent-sos-countdown{margin:-50px 0 0;}
+  .urgent-sos-card:has(.urgent-sos-step-label) .urgent-sos-actions .urgent-sos-primary{width:50px;min-width:50px;min-height:50px;border-radius:14px;}
 }
