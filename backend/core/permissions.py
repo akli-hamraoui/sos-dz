@@ -6,10 +6,13 @@ uses the request IP as the authoritative fallback; the browser-side
 BigDataCloud result is never trusted for authorization.
 """
 
+import logging
+
 from core.geoip import is_algeria_ip
 from core.models import AppConfiguration
 from core.validators import is_within_algeria_bounds
 
+logger = logging.getLogger(__name__)
 
 VOICE_SOS_GEO_MESSAGE = "Cette fonctionnalité est uniquement disponible en Algérie."
 
@@ -34,11 +37,6 @@ def _voice_sos_location_allowed(request):
     server-side IP geolocation as the authoritative fallback. We deliberately
     do not trust the client-supplied BigDataCloud country code because it can
     be modified by a caller.
-
-    The IP function is resolved from ``core.views`` for this endpoint so the
-    view and write guard use the exact same server-side decision. This also
-    keeps the endpoint's existing test seam intact when ``core.views`` is
-    patched in backend tests.
     """
     try:
         latitude = float(request.data.get("latitude"))
@@ -47,16 +45,20 @@ def _voice_sos_location_allowed(request):
         latitude = longitude = None
 
     if is_within_algeria_bounds(latitude, longitude):
+        logger.info("[SOS] GPS reçu : latitude=%s longitude=%s", latitude, longitude)
+        logger.info("[SOS] Résultat géographique : GPS confirmé en Algérie")
         return True
 
+    logger.info("[SOS] GPS absent/invalide ; vérification géographique par IP")
     try:
         # Local import avoids the module-level circular import: views imports
-        # write_guard from this module.
+        # write_guard from this module. It also preserves the existing test seam.
         from core.views import is_algeria_ip as view_is_algeria_ip
 
         allowed = view_is_algeria_ip(getattr(request, "client_ip", None))
     except (ImportError, AttributeError):
         allowed = is_algeria_ip(getattr(request, "client_ip", None))
+    logger.info("[SOS] Résultat géographique : IP=%s autorisée=%s", getattr(request, "client_ip", None), allowed)
     return allowed is True
 
 
@@ -67,14 +69,15 @@ def geo_restriction_block(request):
     Algeria-only for non-admin users, independently of the site-wide toggle.
     """
     if is_request_admin(request):
+        logger.info("[SOS] Vérification géographique : administrateur autorisé") if request.path.rstrip("/").endswith("/needs/voice-guide") else None
         return None
 
-    # The voice SOS has a dedicated location policy. GPS inside Algeria is
-    # sufficient; otherwise the server checks the caller's IP. The frontend's
-    # BigDataCloud lookup is only a UX guard and is not an authorization input.
     if request.path.rstrip("/").endswith("/needs/voice-guide"):
+        logger.info("[SOS] Début création SOS vocal - vérification géographique")
         if _voice_sos_location_allowed(request):
+            logger.info("[SOS] Vérification géographique validée")
             return None
+        logger.warning("[SOS] Création refusée - motif : localisation non autorisée")
         return VOICE_SOS_GEO_MESSAGE
 
     config = AppConfiguration.get_solo()
