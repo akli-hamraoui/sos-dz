@@ -7,6 +7,7 @@ import './footer-sos-fixes.css'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import './sos-map-marker.css'
+import './sos-map-marker-fix.css'
 // leaflet-gesture-handling is an old-style Leaflet plugin: it patches the
 // global `L.Map` (via L.Map.addInitHook) and expects a global `window.L`
 // to already exist, rather than importing leaflet itself -- since this
@@ -47,8 +48,15 @@ function installUnlocatedSosToolbar() {
     const viewToggle = toolbar?.querySelector('.view-toggle')
     const source = document.querySelector('.need-marker-pin-unlocated')
     const existing = toolbar?.querySelector('.unlocated-sos-toolbar')
+    const listFallbackCount = toolbar?.closest('.needs-page')?.querySelectorAll('.need-card .hint').length || 0
 
-    if (!toolbar || !viewToggle || !source) {
+    if (!toolbar || !viewToggle) {
+      existing?.remove()
+      return
+    }
+
+    const count = source?.querySelector('.need-marker-count-badge')?.textContent?.trim() || (listFallbackCount ? String(listFallbackCount) : '')
+    if (!count) {
       existing?.remove()
       return
     }
@@ -62,11 +70,16 @@ function installUnlocatedSosToolbar() {
       control.innerHTML = '<img src="/icons/need-marker-sos.png" alt="" aria-hidden="true"><span class="unlocated-sos-toolbar-count"></span>'
       control.addEventListener('click', () => {
         document.querySelector('.need-marker-pin-unlocated')?.closest('.leaflet-marker-icon')?.click()
+        const filterButton = document.querySelector('.needs-page .filters-toggle')
+        if (!document.querySelector('.need-marker-pin-unlocated') && filterButton) {
+          document.querySelectorAll('.needs-page .view-toggle button').forEach((button) => {
+            if (button.textContent?.trim().toLowerCase() === 'liste') button.click()
+          })
+        }
       })
       toolbar.insertBefore(control, viewToggle)
     }
 
-    const count = source.querySelector('.need-marker-count-badge')?.textContent?.trim() || ''
     const countEl = control.querySelector('.unlocated-sos-toolbar-count')
     if (countEl) countEl.textContent = count
   }
