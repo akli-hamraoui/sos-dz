@@ -226,6 +226,26 @@ class NeedFallbackWilayaTests(BaseAPITestCase):
         self.assertEqual(need.wilaya, wilaya)
         self.assertFalse(need.has_no_location)
 
+    def test_no_location_filter_returns_every_unlocated_need_regardless_of_wilaya(self):
+        """The map's "sans localisation" bubble (NeedsList.jsx) must show
+        every has_no_location need together, even though each one may have
+        fallen back to a different wilaya -- filtering by one wilaya alone
+        cannot express that (see NeedViewSet.get_queryset's no_location
+        param)."""
+        alger = Wilaya.objects.get(name="Alger")
+        adrar = Wilaya.objects.get(name="Adrar")
+        self.campaign = make_campaign(wilayas=[alger, adrar])
+        no_loc_1 = self.client.post("/api/needs/", self._payload(recovery_code="rc-nl-1"), format="json")
+        self.assertEqual(no_loc_1.status_code, 201, no_loc_1.content)
+        located = self.client.post("/api/needs/", self._payload(wilaya=alger.pk, recovery_code="rc-loc-1"), format="json")
+        self.assertEqual(located.status_code, 201, located.content)
+
+        resp = self.client.get("/api/needs/?no_location=1")
+        self.assertEqual(resp.status_code, 200)
+        ids = {row["id"] for row in resp.data["results"]}
+        self.assertIn(no_loc_1.data["id"], ids)
+        self.assertNotIn(located.data["id"], ids)
+
 
 class VoiceGuideEndpointTests(BaseAPITestCase):
     """CreateNeedVoiceGuide.jsx submits to /api/needs/voice-guide/, not the

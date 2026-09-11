@@ -265,10 +265,17 @@ class NeedViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retriev
         wilaya = self.request.query_params.get("wilaya")
         campaign = self.request.query_params.get("campaign")
         search = self.request.query_params.get("search")
+        no_location = self.request.query_params.get("no_location")
         if wilaya:
             qs = qs.filter(wilaya_id=wilaya)
         if campaign:
             qs = qs.filter(campaign_id=campaign)
+        if no_location:
+            # The map's "no location" bubble (NeedsList.jsx) groups every
+            # such need behind one count regardless of its fallback
+            # wilaya -- filtering by that wilaya would miss the ones that
+            # fell back to a different one, so this is its own param.
+            qs = qs.filter(has_no_location=True)
         if search:
             # As broad as the model reasonably allows -- a visitor searching
             # "Ahmed" or "0555..." should find a need by its contact just as
