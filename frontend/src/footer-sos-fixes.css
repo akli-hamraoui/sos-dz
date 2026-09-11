@@ -16,46 +16,10 @@
   height: 26px !important;
 }
 
-/* Critical SOS marker: the blink is rendered by the SVG asset itself,
-   not by a CSS keyframe on the Leaflet marker. This keeps the animation
-   independent from CSS animation settings on mobile/tablet/desktop. */
-.need-marker-pin[style*="d92626"] {
-  background: transparent !important;
-  animation: none !important;
-  -webkit-animation: none !important;
-  position: relative;
-  width: 30px;
-  height: 30px;
-  display: inline-block;
-}
-
-.need-marker-pin[style*="d92626"] > img {
-  display: none !important;
-}
-
-.need-marker-pin[style*="d92626"]::after {
-  content: "";
-  position: absolute;
-  inset: -7px;
-  width: calc(100% + 14px);
-  height: calc(100% + 14px);
-  background: url('/icons/need-marker-sos-animated-v2.svg') center / contain no-repeat;
-  pointer-events: none;
-}
-
-/* Responsive breathing room around the animated icon. */
-@media (max-width: 480px) {
-  .need-marker-pin[style*="d92626"]::after {
-    inset: -6px;
-    width: calc(100% + 12px);
-    height: calc(100% + 12px);
-  }
-}
-
-@media (min-width: 768px) {
-  .need-marker-pin[style*="d92626"]::after {
-    inset: -8px;
-    width: calc(100% + 16px);
-    height: calc(100% + 16px);
-  }
-}
+/* The critical-SOS marker's own styling lives entirely in
+   sos-map-marker.css now -- a duplicate, contradictory rule set used to
+   live here too (background:transparent + an external animated-SVG
+   asset, vs. sos-map-marker.css's red background + CSS-keyframe pulse),
+   and whichever file's CSS ended up last in the bundle silently decided
+   which one actually rendered. Removed rather than reconciled, so there
+   is exactly one implementation left to maintain. */

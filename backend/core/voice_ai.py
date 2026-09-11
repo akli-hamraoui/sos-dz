@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import tempfile
+import unicodedata
 from functools import lru_cache
 from pathlib import Path
 
@@ -9,6 +10,29 @@ import requests
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
+
+
+def _normalize_place_name(value):
+    """Lowercase and strip accents so 'Tizi Ouzou' / 'tizi-ouzou' / a
+    Whisper mis-accented variant all compare equal."""
+    decomposed = unicodedata.normalize("NFKD", value or "")
+    return "".join(c for c in decomposed if not unicodedata.combining(c)).strip().lower()
+
+
+def _match_wilaya_from_commune(commune_guess, campaign):
+    """Best-effort: does the LLM-extracted 'commune' name a wilaya
+    authorized for this campaign? Used only to correct an administrative
+    wilaya that was never a real signal in the first place (see
+    process_voice_need) -- never touches a Need that already has an exact
+    GPS fix."""
+    guess = _normalize_place_name(commune_guess)
+    if not guess:
+        return None
+    for wilaya in campaign.authorized_wilayas.all():
+        name = _normalize_place_name(wilaya.name)
+        if name and (name in guess or guess in name):
+            return wilaya
+    return None
 
 EXTRACTION_SCHEMA = {
     "type": "object",
@@ -222,6 +246,17 @@ def process_voice_need(need_id):
             value = (extraction.get(field) or "").strip()
             if value:
                 setattr(need, field, value)
+        # The wilaya set at creation time is only ever a real signal when
+        # the reporter had an exact GPS fix (nearest-wilaya lookup) --
+        # otherwise it's an arbitrary fallback (see
+        # NeedCreateSerializer.validate) that has nothing to do with what
+        # was actually said. Once the transcript names a real place,
+        # prefer that over the fallback guess.
+        if need.position_accuracy != Need.POSITION_EXACT:
+            commune_guess = (extraction.get("commune") or "").strip()
+            matched_wilaya = _match_wilaya_from_commune(commune_guess, need.campaign) if commune_guess else None
+            if matched_wilaya and matched_wilaya.pk != need.wilaya_id:
+                need.wilaya = matched_wilaya
         need.description = corrected_transcript
         need.voice_processing_status = Need.VOICE_PROCESSING_READY
         need.voice_processing_error = ""

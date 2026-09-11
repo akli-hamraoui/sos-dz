@@ -173,6 +173,66 @@ class VoiceNeedProcessingTests(TestCase):
         self.assertTrue(need.voice_file)
         self.assertIn("audio", need.description.lower())
 
+    def test_reconciles_fallback_wilaya_with_spoken_commune(self):
+        """The wilaya set at creation was only ever an arbitrary fallback
+        (no exact GPS) -- once the transcript names a real place, that
+        should replace the guess rather than leaving a mismatched wilaya
+        next to a correct location_description."""
+        from core.models import Wilaya
+
+        need = self._create_need("voice-test-4")
+        fallback_wilaya = need.wilaya
+        real_wilaya = Wilaya.objects.exclude(pk=fallback_wilaya.pk).get(name="Tizi Ouzou")
+        need.campaign.authorized_wilayas.add(real_wilaya)
+        transcript = "Je suis à Tizi Ouzou, j'ai besoin d'aide."
+        extraction = {
+            "title": "",
+            "contact_name": "",
+            "contact_phone": "",
+            "estimated_quantity": "",
+            "commune": "Tizi Ouzou",
+            "location_description": "Tizi Ouzou, Algérie",
+            "organization_or_person_name": "",
+            "description": transcript,
+        }
+
+        with patch("core.voice_ai.transcribe_audio", return_value=transcript), patch(
+            "core.voice_ai.extract_need_data", return_value=extraction
+        ):
+            from core.voice_ai import process_voice_need
+            process_voice_need(need.pk)
+
+        need.refresh_from_db()
+        self.assertEqual(need.wilaya, real_wilaya)
+        self.assertNotEqual(need.wilaya, fallback_wilaya)
+
+    def test_does_not_override_wilaya_when_position_is_exact(self):
+        """A real GPS fix (nearest-wilaya lookup) is a genuine signal --
+        must never be second-guessed by a short/noisy transcript."""
+        from core.models import Wilaya
+
+        need = self._create_need("voice-test-5")
+        need.position_accuracy = Need.POSITION_EXACT
+        need.save(update_fields=["position_accuracy"])
+        gps_wilaya = need.wilaya
+        real_wilaya = Wilaya.objects.exclude(pk=gps_wilaya.pk).get(name="Tizi Ouzou")
+        need.campaign.authorized_wilayas.add(real_wilaya)
+        transcript = "Je suis à Tizi Ouzou, j'ai besoin d'aide."
+        extraction = {
+            "title": "", "contact_name": "", "contact_phone": "", "estimated_quantity": "",
+            "commune": "Tizi Ouzou", "location_description": "Tizi Ouzou, Algérie",
+            "organization_or_person_name": "", "description": transcript,
+        }
+
+        with patch("core.voice_ai.transcribe_audio", return_value=transcript), patch(
+            "core.voice_ai.extract_need_data", return_value=extraction
+        ):
+            from core.voice_ai import process_voice_need
+            process_voice_need(need.pk)
+
+        need.refresh_from_db()
+        self.assertEqual(need.wilaya, gps_wilaya)
+
     def test_failed_voice_need_still_appears_in_public_listing(self):
         need = self._create_need("voice-test-3")
 

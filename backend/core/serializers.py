@@ -531,6 +531,18 @@ class NeedCreateSerializer(serializers.ModelSerializer):
             )
             if not admin_voice_sos:
                 validate_algeria_bounds(lat, lon)
+            elif not is_within_algeria_bounds(lat, lon):
+                # An admin testing the guided voice SOS from outside
+                # Algeria (their own device's real GPS) must not publish a
+                # listing pinned in their own country -- this is an
+                # Algeria-only disaster relief map. Drop the coordinates
+                # instead of keeping them; NeedPublicSerializer/
+                # NeedMapSerializer's display_latitude/longitude already
+                # fall back to the wilaya's own centroid whenever
+                # latitude/longitude are None, so the pin still lands in
+                # the right wilaya (e.g. Tizi Ouzou) rather than nowhere.
+                attrs["latitude"] = None
+                attrs["longitude"] = None
         description = (attrs.get("description") or "").strip()
         location_description = (attrs.get("location_description") or "").strip()
         voice_file = attrs.get("voice_file")
