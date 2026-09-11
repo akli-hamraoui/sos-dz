@@ -3,10 +3,10 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { HelmetProvider } from 'react-helmet-async'
 import './index.css'
-import './sos-map-marker.css'
 import './footer-sos-fixes.css'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import './sos-map-marker.css'
 // leaflet-gesture-handling is an old-style Leaflet plugin: it patches the
 // global `L.Map` (via L.Map.addInitHook) and expects a global `window.L`
 // to already exist, rather than importing leaflet itself -- since this
