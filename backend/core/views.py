@@ -1364,16 +1364,29 @@ class FlyerSubmissionViewSet(viewsets.GenericViewSet, mixins.RetrieveModelMixin)
         # Auto-publish as soon as extraction succeeds -- no admin review
         # queue in practice, so holding a valid point back until someone
         # looks at it would mean it never goes live at all. The one thing
-        # still held back is a point that matched an existing, already-
+        # still held back is a point that matches an existing, already-
         # published one closely enough to be flagged as a likely duplicate
         # (find_similar_collection_points): publishing that one too would
         # just put two near-identical pins on the map, so it's left
         # unpublished (still visible on this response, with a link to the
         # match) for an admin to promote later via publish_extracted_points
         # if the match turns out to be wrong.
+        #
+        # The check runs here, one point at a time in a stable order,
+        # rather than at extraction time -- a flyer can list many points,
+        # and find_similar_collection_points only ever looks at the live
+        # CollectionPoint table. Running it here means each point's check
+        # sees any earlier sibling from the *same* flyer that was just
+        # published a moment ago in this same loop, so two points that
+        # turn out to be the same place (e.g. repeated by mistake on the
+        # flyer) don't both get published.
         published_any = False
-        for child in submission.extracted_points.all():
-            if child.duplicate_of_id:
+        for child in submission.extracted_points.order_by("id"):
+            city_or_wilaya = child.city or (child.wilaya.name if child.wilaya else "")
+            duplicate = find_similar_collection_points(child.organization, city_or_wilaya, child.contact_phone)
+            if duplicate:
+                child.duplicate_of = duplicate
+                child.save(update_fields=["duplicate_of"])
                 continue
             publish_extracted_point(child)
             published_any = True
@@ -1401,7 +1414,6 @@ class FlyerSubmissionViewSet(viewsets.GenericViewSet, mixins.RetrieveModelMixin)
             extra_phones = f"{extra_phones}\n{other_phones_field}".strip("\n") if extra_phones else other_phones_field
 
         city_or_wilaya = location["city"] or (location["wilaya"].name if location["wilaya"] else "")
-        duplicate = find_similar_collection_points(organization, city_or_wilaya, contact_phone)
 
         ExtractedCollectionPoint.objects.create(
             submission=submission,
@@ -1423,7 +1435,6 @@ class FlyerSubmissionViewSet(viewsets.GenericViewSet, mixins.RetrieveModelMixin)
             facebook_url=_safe_url(point_data.get("facebook_url")),
             tiktok_url=_safe_url(point_data.get("tiktok_url")),
             instagram_url=_safe_url(point_data.get("instagram_url")),
-            duplicate_of=duplicate,
         )
 
 

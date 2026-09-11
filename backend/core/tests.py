@@ -3999,3 +3999,90 @@ class UrgentSOSVoiceAnalysisTests(BaseAPITestCase):
         self.assertEqual(float(need.latitude), 36.75)
         self.assertEqual(float(need.longitude), 3.06)
         self.assertEqual(need.position_accuracy, Need.POSITION_EXACT)
+
+
+class FlyerSubmissionAutoPublishTests(BaseAPITestCase):
+    """core.views.FlyerSubmissionViewSet.create: extracted points are
+    auto-published unless they match an existing CollectionPoint closely
+    enough (core.duplicates.find_similar_collection_points)."""
+
+    def _submit(self, points, organization_common="Croissant Rouge"):
+        from unittest.mock import patch
+
+        fake_data = {
+            "raw_text": "",
+            "organization_common": organization_common,
+            "country_found": True,
+            "has_money_collection": False,
+            "points": points,
+        }
+        with patch("core.views.extract_flyer_data", return_value=(fake_data, "raw")), \
+                patch("core.views.moderate_image_field", return_value="approved"), \
+                patch("core.views.NominatimClient.search", lambda self, query, country_code=None: None):
+            return self.client.post(
+                "/api/flyer-submissions/",
+                {"flyer_image": make_test_image()},
+                format="multipart",
+            )
+
+    def test_two_identical_points_on_same_flyer_only_publish_once(self):
+        """A flyer listing the same place twice (e.g. a data-entry mistake)
+        must not create two CollectionPoint rows for it -- the second
+        point's dedup check has to see the first one, which this same
+        request just published moments earlier."""
+        points = [
+            {
+                "point_name": "Point A", "organization": "Croissant Rouge",
+                "country_code": "DZ", "country_name": "Algerie", "city": "Alger",
+                "address": "", "contact_phone": "0555111111",
+            },
+            {
+                "point_name": "Point A bis", "organization": "Croissant Rouge",
+                "country_code": "DZ", "country_name": "Algerie", "city": "Alger",
+                "address": "", "contact_phone": "0555111111",
+            },
+        ]
+        resp = self._submit(points)
+        self.assertEqual(resp.status_code, 201, resp.content)
+        self.assertEqual(resp.data["status"], "published")
+        extracted = resp.data["extracted_points"]
+        self.assertEqual(len(extracted), 2)
+        self.assertEqual(sum(1 for p in extracted if p["is_published"]), 1)
+        self.assertEqual(sum(1 for p in extracted if p["duplicate_of"]), 1)
+        self.assertEqual(CollectionPoint.objects.filter(organization="Croissant Rouge").count(), 1)
+
+    def test_distinct_points_on_same_flyer_all_publish(self):
+        points = [
+            {
+                "point_name": "Point A", "organization": "Croissant Rouge",
+                "country_code": "DZ", "country_name": "Algerie", "city": "Alger",
+                "address": "", "contact_phone": "0555111111",
+            },
+            {
+                "point_name": "Point B", "organization": "Croissant Rouge",
+                "country_code": "DZ", "country_name": "Algerie", "city": "Oran",
+                "address": "", "contact_phone": "0555222222",
+            },
+        ]
+        resp = self._submit(points)
+        self.assertEqual(resp.status_code, 201, resp.content)
+        self.assertEqual(resp.data["status"], "published")
+        extracted = resp.data["extracted_points"]
+        self.assertEqual(sum(1 for p in extracted if p["is_published"]), 2)
+        self.assertEqual(CollectionPoint.objects.filter(organization="Croissant Rouge").count(), 2)
+
+    def test_resubmitting_same_flyer_flags_all_as_duplicate(self):
+        points = [
+            {
+                "point_name": "Point A", "organization": "Croissant Rouge",
+                "country_code": "DZ", "country_name": "Algerie", "city": "Alger",
+                "address": "", "contact_phone": "0555111111",
+            },
+        ]
+        first = self._submit(points)
+        self.assertEqual(first.data["status"], "published")
+        second = self._submit(points)
+        self.assertEqual(second.status_code, 201, second.content)
+        self.assertEqual(second.data["status"], "rejected")
+        self.assertEqual(second.data["rejection_reason"], "duplicate")
+        self.assertEqual(CollectionPoint.objects.filter(organization="Croissant Rouge").count(), 1)

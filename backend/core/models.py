@@ -901,10 +901,11 @@ class FlyerSubmission(AuditMixin, models.Model):
     point from a flyer' pipeline (core.gemini_extraction) rather than a
     manual form. A flyer can describe several collection points at once
     (e.g. a table of cities) -- those are held as ExtractedCollectionPoint
-    children below, never published automatically. Manual review is
-    mandatory before anything from this pipeline becomes a real, publicly
-    visible CollectionPoint, same as flyer_image moderation is for the
-    manual forms."""
+    children below. Each child is auto-published as a real, publicly
+    visible CollectionPoint as soon as extraction succeeds, unless it
+    matches an existing (or an earlier sibling's just-published)
+    CollectionPoint closely enough to be a likely duplicate -- see
+    core.views.FlyerSubmissionViewSet.create and core.flyer_publish."""
 
     STATUS_PROCESSING = "processing"
     STATUS_NEEDS_REVIEW = "needs_review"
