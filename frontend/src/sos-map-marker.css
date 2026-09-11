@@ -1,7 +1,7 @@
 /* SOS map marker: urgency color is supplied inline by needIcon().
-   Only critical SOS markers animate. The animation is driven by an explicit
-   class, not by an inline-style attribute selector, so it is reliable across
-   browsers and minifiers. */
+   Only critical SOS markers animate. The explicit class is used where
+   needIcon() builds the marker; the inline-color fallback also covers the
+   direct marker builder in NeedsList.jsx. */
 
 .need-marker-icon {
   width: 30px !important;
@@ -42,13 +42,16 @@
   z-index: 2 !important;
 }
 
-/* Explicit state class added by needIcon(). */
-.need-marker-pin.need-marker-critical {
+/* Critical SOS: explicit class or the inline critical-red value used by
+   NeedsList.jsx's direct marker builder. */
+.need-marker-pin.need-marker-critical,
+.need-marker-pin[style*="#d92626"] {
   animation: sosdz-marker-breathe 900ms ease-in-out infinite !important;
   will-change: transform, box-shadow;
 }
 
-.need-marker-pin.need-marker-critical::after {
+.need-marker-pin.need-marker-critical::after,
+.need-marker-pin[style*="#d92626"]::after {
   content: '' !important;
   position: absolute !important;
   inset: -8px !important;
@@ -116,14 +119,17 @@
     height: 28px !important;
   }
 
-  .need-marker-pin.need-marker-critical::after {
+  .need-marker-pin.need-marker-critical::after,
+  .need-marker-pin[style*="#d92626"]::after {
     inset: -7px !important;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .need-marker-pin.need-marker-critical,
-  .need-marker-pin.need-marker-critical::after {
+  .need-marker-pin[style*="#d92626"],
+  .need-marker-pin.need-marker-critical::after,
+  .need-marker-pin[style*="#d92626"]::after {
     animation: none !important;
   }
 }
