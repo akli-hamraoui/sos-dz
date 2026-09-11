@@ -1,7 +1,5 @@
-/* Definitive SOS map marker.
-   Loaded after Leaflet's stylesheet so Leaflet cannot override the marker's
-   visual box. The legacy PNG remains in the DOM for compatibility, but is
-   completely hidden and replaced by a crisp CSS/SVG badge. */
+/* SOS map marker: preserve the urgency color supplied by the marker and
+   animate only critical/red SOS markers. */
 
 .need-marker-icon {
   width: 30px !important;
@@ -22,23 +20,18 @@
   overflow: visible !important;
   border: 3px solid #fff !important;
   border-radius: 50% !important;
-  background: var(--sos-red) !important;
+  /* Do not set background here: the marker HTML supplies the urgency
+     color inline (critical red / medium+low orange). */
   color: #fff !important;
-  box-shadow:
-    0 3px 10px rgba(21, 33, 58, .28),
-    0 0 0 2px rgba(217, 31, 49, .16) !important;
-  transform: translateZ(0) !important;
-  animation: sosdz-marker-breathe 1.5s ease-in-out infinite !important;
+  box-shadow: 0 3px 10px rgba(21, 33, 58, .28) !important;
+  transform: translateZ(0);
   will-change: transform, box-shadow;
 }
 
-/* Never display the old static PNG. */
 .need-marker-pin > img {
   display: none !important;
 }
 
-/* Modern speech-bubble SOS glyph. SVG is self-contained so there is no
-   dependency on another asset path or image cache. */
 .need-marker-pin::before {
   content: '' !important;
   display: block !important;
@@ -50,21 +43,41 @@
   z-index: 2 !important;
 }
 
-/* Pulsing red halo. It deliberately sits behind the marker and never changes
-   the clickable area of the Leaflet marker. */
-.need-marker-pin::after {
+/* Critical SOS only. The exact color comes from urgencyColor(): #d92626. */
+.need-marker-pin[style*="#d92626"] {
+  animation: sosdz-marker-breathe 1.15s ease-in-out infinite !important;
+}
+
+.need-marker-pin[style*="#d92626"]::after {
   content: '' !important;
   position: absolute !important;
   inset: -7px !important;
   display: block !important;
-  border: 2px solid rgba(217, 31, 49, .55) !important;
+  border: 2px solid rgba(217, 31, 49, .65) !important;
   border-radius: 50% !important;
   background: transparent !important;
   opacity: 0 !important;
   pointer-events: none !important;
-  z-index: -1 !important;
-  animation: sosdz-marker-pulse 1.5s ease-out infinite !important;
+  z-index: 0 !important;
+  animation: sosdz-marker-pulse 1.15s ease-out infinite !important;
   will-change: transform, opacity;
+}
+
+/* Medium/low SOS stays orange and static. */
+.need-marker-pin[style*="#e08a1e"] {
+  animation: none !important;
+  box-shadow: 0 3px 10px rgba(21, 33, 58, .28) !important;
+}
+
+.need-marker-pin[style*="#e08a1e"]::after {
+  content: none !important;
+  animation: none !important;
+}
+
+/* Grouped/unlocated fallback remains red; its count is independent of
+   urgency and must never force located orange markers to become red. */
+.need-marker-pin-unlocated {
+  background: #d92626 !important;
 }
 
 @keyframes sosdz-marker-breathe {
@@ -72,26 +85,26 @@
     transform: translateZ(0) scale(1);
     box-shadow:
       0 3px 10px rgba(21, 33, 58, .28),
-      0 0 0 2px rgba(217, 31, 49, .16) !important;
+      0 0 0 2px rgba(217, 31, 49, .16);
   }
   50% {
-    transform: translateZ(0) scale(1.045);
+    transform: translateZ(0) scale(1.06);
     box-shadow:
-      0 4px 14px rgba(217, 31, 49, .38),
-      0 0 0 4px rgba(217, 31, 49, .18) !important;
+      0 4px 16px rgba(217, 31, 49, .46),
+      0 0 0 5px rgba(217, 31, 49, .22);
   }
 }
 
 @keyframes sosdz-marker-pulse {
   0% {
     transform: scale(.72);
-    opacity: .72;
+    opacity: .78;
   }
   70% {
-    opacity: .18;
+    opacity: .2;
   }
   100% {
-    transform: scale(1.65);
+    transform: scale(1.75);
     opacity: 0;
   }
 }
@@ -108,14 +121,14 @@
     height: 28px !important;
   }
 
-  .need-marker-pin::after {
+  .need-marker-pin[style*="#d92626"]::after {
     inset: -6px !important;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .need-marker-pin,
-  .need-marker-pin::after {
+  .need-marker-pin[style*="#d92626"],
+  .need-marker-pin[style*="#d92626"]::after {
     animation: none !important;
   }
 }
