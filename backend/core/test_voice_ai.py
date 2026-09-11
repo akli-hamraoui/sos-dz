@@ -125,6 +125,10 @@ class VoiceNeedProcessingTests(TestCase):
             recovery_code=recovery_code,
             voice_processing_status=Need.VOICE_PROCESSING_PENDING,
             voice_file=SimpleUploadedFile("urgent-sos.webm", b"fake-audio", content_type="audio/webm"),
+            # Matches the real guided voice flow: no wilaya picked, no GPS
+            # at submission -- see NeedCreateSerializer.validate's own
+            # has_no_location=True in that exact case.
+            has_no_location=True,
         )
 
     def test_process_voice_need_saves_full_transcript_and_structured_fields(self):
@@ -205,6 +209,10 @@ class VoiceNeedProcessingTests(TestCase):
         need.refresh_from_db()
         self.assertEqual(need.wilaya, real_wilaya)
         self.assertNotEqual(need.wilaya, fallback_wilaya)
+        # A resolved real wilaya must render as its own pin on the map,
+        # not stay lumped into the static "sans localisation" bubble
+        # (NeedsList.jsx groups every has_no_location need together).
+        self.assertFalse(need.has_no_location)
 
     def test_reconciles_fallback_wilaya_from_location_description_when_commune_empty(self):
         """Confirmed live: for a very short recording the LLM sometimes
@@ -239,6 +247,10 @@ class VoiceNeedProcessingTests(TestCase):
         need.refresh_from_db()
         self.assertEqual(need.wilaya, real_wilaya)
         self.assertNotEqual(need.wilaya, fallback_wilaya)
+        # A resolved real wilaya must render as its own pin on the map,
+        # not stay lumped into the static "sans localisation" bubble
+        # (NeedsList.jsx groups every has_no_location need together).
+        self.assertFalse(need.has_no_location)
 
     def test_does_not_override_wilaya_when_position_is_exact(self):
         """A real GPS fix (nearest-wilaya lookup) is a genuine signal --

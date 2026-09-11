@@ -259,6 +259,13 @@ def process_voice_need(need_id):
                     break
             if matched_wilaya and matched_wilaya.pk != need.wilaya_id:
                 need.wilaya = matched_wilaya
+                # has_no_location (set at creation when the reporter had
+                # neither GPS nor a picked wilaya) means the map groups
+                # this Need into the static "sans localisation" bubble
+                # instead of its own animated pin (see NeedsList.jsx) --
+                # correct once a real spoken place resolved a real wilaya,
+                # since "no location" is no longer true.
+                need.has_no_location = False
         need.description = corrected_transcript
         need.voice_processing_status = Need.VOICE_PROCESSING_READY
         need.voice_processing_error = ""
