@@ -1,5 +1,7 @@
-/* SOS map marker: preserve the urgency color supplied by the marker and
-   animate only critical/red SOS markers. */
+/* SOS map marker: urgency color is supplied inline by needIcon().
+   Only critical SOS markers animate. The animation is driven by an explicit
+   class, not by an inline-style attribute selector, so it is reliable across
+   browsers and minifiers. */
 
 .need-marker-icon {
   width: 30px !important;
@@ -20,12 +22,9 @@
   overflow: visible !important;
   border: 3px solid #fff !important;
   border-radius: 50% !important;
-  /* Do not set background here: the marker HTML supplies the urgency
-     color inline (critical red / medium+low orange). */
   color: #fff !important;
-  box-shadow: 0 3px 10px rgba(21, 33, 58, .28) !important;
   transform: translateZ(0);
-  will-change: transform, box-shadow;
+  box-shadow: 0 3px 10px rgba(21, 33, 58, .28) !important;
 }
 
 .need-marker-pin > img {
@@ -43,41 +42,37 @@
   z-index: 2 !important;
 }
 
-/* Critical SOS only. The exact color comes from urgencyColor(): #d92626. */
-.need-marker-pin[style*="#d92626"] {
-  animation: sosdz-marker-breathe 1.15s ease-in-out infinite !important;
+/* Explicit state class added by needIcon(). */
+.need-marker-pin.need-marker-critical {
+  animation: sosdz-marker-breathe 900ms ease-in-out infinite !important;
+  will-change: transform, box-shadow;
 }
 
-.need-marker-pin[style*="#d92626"]::after {
+.need-marker-pin.need-marker-critical::after {
   content: '' !important;
   position: absolute !important;
-  inset: -7px !important;
+  inset: -8px !important;
   display: block !important;
-  border: 2px solid rgba(217, 31, 49, .65) !important;
+  box-sizing: border-box !important;
+  border: 3px solid rgba(217, 38, 38, .78) !important;
   border-radius: 50% !important;
-  background: transparent !important;
+  background: rgba(217, 38, 38, .08) !important;
   opacity: 0 !important;
   pointer-events: none !important;
-  z-index: 0 !important;
-  animation: sosdz-marker-pulse 1.15s ease-out infinite !important;
+  z-index: 1 !important;
+  animation: sosdz-marker-pulse 900ms ease-out infinite !important;
   will-change: transform, opacity;
 }
 
-/* Medium/low SOS stays orange and static. */
-.need-marker-pin[style*="#e08a1e"] {
+/* Non-critical SOS: orange and deliberately static. */
+.need-marker-pin.need-marker-noncritical {
   animation: none !important;
   box-shadow: 0 3px 10px rgba(21, 33, 58, .28) !important;
 }
 
-.need-marker-pin[style*="#e08a1e"]::after {
+.need-marker-pin.need-marker-noncritical::after {
   content: none !important;
   animation: none !important;
-}
-
-/* Grouped/unlocated fallback remains red; its count is independent of
-   urgency and must never force located orange markers to become red. */
-.need-marker-pin-unlocated {
-  background: #d92626 !important;
 }
 
 @keyframes sosdz-marker-breathe {
@@ -85,26 +80,26 @@
     transform: translateZ(0) scale(1);
     box-shadow:
       0 3px 10px rgba(21, 33, 58, .28),
-      0 0 0 2px rgba(217, 31, 49, .16);
+      0 0 0 2px rgba(217, 38, 38, .18);
   }
   50% {
-    transform: translateZ(0) scale(1.06);
+    transform: translateZ(0) scale(1.10);
     box-shadow:
-      0 4px 16px rgba(217, 31, 49, .46),
-      0 0 0 5px rgba(217, 31, 49, .22);
+      0 4px 18px rgba(217, 38, 38, .55),
+      0 0 0 7px rgba(217, 38, 38, .28);
   }
 }
 
 @keyframes sosdz-marker-pulse {
   0% {
-    transform: scale(.72);
-    opacity: .78;
+    transform: scale(.65);
+    opacity: .90;
   }
-  70% {
-    opacity: .2;
+  65% {
+    opacity: .35;
   }
   100% {
-    transform: scale(1.75);
+    transform: scale(1.90);
     opacity: 0;
   }
 }
@@ -121,14 +116,14 @@
     height: 28px !important;
   }
 
-  .need-marker-pin[style*="#d92626"]::after {
-    inset: -6px !important;
+  .need-marker-pin.need-marker-critical::after {
+    inset: -7px !important;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .need-marker-pin[style*="#d92626"],
-  .need-marker-pin[style*="#d92626"]::after {
+  .need-marker-pin.need-marker-critical,
+  .need-marker-pin.need-marker-critical::after {
     animation: none !important;
   }
 }
