@@ -1,0 +1,106 @@
+/* Modern animated SOS marker for Leaflet maps.
+   The old marker used a static PNG inside .need-marker-pin. Keep that DOM
+   for compatibility, but visually replace it with a compact SOS badge and
+   a soft pulse ring. The animation is deliberately subtle enough for a map
+   while still making an urgent report immediately noticeable. */
+.need-marker-icon {
+  overflow: visible !important;
+}
+
+.need-marker-pin {
+  position: relative;
+  overflow: visible;
+  isolation: isolate;
+  border: 2px solid rgba(255, 255, 255, .96) !important;
+  box-shadow: 0 3px 9px rgba(21, 33, 58, .28) !important;
+  transform: translateZ(0);
+  animation: sosdz-marker-blink 1.35s ease-in-out infinite;
+}
+
+/* Remove the legacy PNG visually. Keeping it in the DOM means no JSX/data
+   contract changes are needed and avoids another round of marker regressions. */
+.need-marker-pin > img {
+  display: none !important;
+}
+
+/* Clean SOS monogram: more legible at map zoom levels than the old tiny PNG. */
+.need-marker-pin::before {
+  content: 'SOS';
+  position: relative;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 27px;
+  height: 27px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .98);
+  color: var(--sos-red);
+  font-size: 8px;
+  font-weight: 950;
+  letter-spacing: .04em;
+  line-height: 1;
+  box-shadow: 0 1px 4px rgba(21, 33, 58, .18);
+}
+
+/* Expanding halo: this is the visual "urgent / attention" signal. */
+.need-marker-pin::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: -5px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  opacity: .55;
+  animation: sosdz-marker-pulse 1.35s ease-out infinite;
+}
+
+@keyframes sosdz-marker-pulse {
+  0% {
+    transform: scale(.72);
+    opacity: .65;
+  }
+  70%,
+  100% {
+    transform: scale(1.42);
+    opacity: 0;
+  }
+}
+
+@keyframes sosdz-marker-blink {
+  0%,
+  100% {
+    filter: saturate(1);
+    box-shadow: 0 3px 9px rgba(21, 33, 58, .28) !important;
+  }
+  50% {
+    filter: saturate(1.18) brightness(1.08);
+    box-shadow: 0 3px 14px rgba(217, 31, 49, .42) !important;
+  }
+}
+
+/* Keep the marker crisp and less distracting on smaller screens. */
+@media (max-width: 699px) {
+  .need-marker-pin {
+    width: 34px;
+    height: 34px;
+  }
+
+  .need-marker-pin::before {
+    width: 25px;
+    height: 25px;
+    font-size: 7.5px;
+  }
+
+  .need-marker-pin::after {
+    inset: -4px;
+  }
+}
+
+/* Respect the user's reduced-motion preference without removing the SOS
+   visual identity. The marker stays visible and the halo becomes static. */
+@media (prefers-reduced-motion: reduce) {
+  .need-marker-pin,
+  .need-marker-pin::after {
+    animation: none !important;
+  }
+}
