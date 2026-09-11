@@ -1,7 +1,7 @@
 /* SOS map marker: urgency color is supplied inline by needIcon().
-   Only critical SOS markers animate. The explicit class is used where
-   needIcon() builds the marker; the inline-color fallback also covers the
-   direct marker builder in NeedsList.jsx. */
+   Only critical SOS markers animate. The critical animation uses the
+   self-animated SVG already used successfully by the map marker; the
+   orange/non-critical markers stay completely static. */
 
 .need-marker-icon {
   width: 30px !important;
@@ -42,12 +42,20 @@
   z-index: 2 !important;
 }
 
-/* Critical SOS: explicit class or the inline critical-red value used by
-   NeedsList.jsx's direct marker builder. */
+/* Critical SOS only: use the self-animated SVG so the visible pulse is
+   red and does not depend on Leaflet/CSS transform animation. */
 .need-marker-pin.need-marker-critical,
 .need-marker-pin[style*="#d92626"] {
-  animation: sosdz-marker-breathe 900ms ease-in-out infinite !important;
-  will-change: transform, box-shadow;
+  animation: none !important;
+  -webkit-animation: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  will-change: auto;
+}
+
+.need-marker-pin.need-marker-critical::before,
+.need-marker-pin[style*="#d92626"]::before {
+  display: none !important;
 }
 
 .need-marker-pin.need-marker-critical::after,
@@ -55,16 +63,17 @@
   content: '' !important;
   position: absolute !important;
   inset: -8px !important;
+  width: auto !important;
+  height: auto !important;
   display: block !important;
-  box-sizing: border-box !important;
-  border: 3px solid rgba(217, 38, 38, .78) !important;
-  border-radius: 50% !important;
-  background: rgba(217, 38, 38, .08) !important;
-  opacity: 0 !important;
+  background: center / contain no-repeat url('/icons/need-marker-sos-animated-v2.svg') !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  opacity: 1 !important;
   pointer-events: none !important;
-  z-index: 1 !important;
-  animation: sosdz-marker-pulse 900ms ease-out infinite !important;
-  will-change: transform, opacity;
+  z-index: 3 !important;
+  animation: none !important;
+  -webkit-animation: none !important;
 }
 
 /* Non-critical SOS: orange and deliberately static. */
@@ -76,35 +85,6 @@
 .need-marker-pin.need-marker-noncritical::after {
   content: none !important;
   animation: none !important;
-}
-
-@keyframes sosdz-marker-breathe {
-  0%, 100% {
-    transform: translateZ(0) scale(1);
-    box-shadow:
-      0 3px 10px rgba(21, 33, 58, .28),
-      0 0 0 2px rgba(217, 38, 38, .18);
-  }
-  50% {
-    transform: translateZ(0) scale(1.10);
-    box-shadow:
-      0 4px 18px rgba(217, 38, 38, .55),
-      0 0 0 7px rgba(217, 38, 38, .28);
-  }
-}
-
-@keyframes sosdz-marker-pulse {
-  0% {
-    transform: scale(.65);
-    opacity: .90;
-  }
-  65% {
-    opacity: .35;
-  }
-  100% {
-    transform: scale(1.90);
-    opacity: 0;
-  }
 }
 
 @media (max-width: 699px) {
@@ -126,10 +106,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .need-marker-pin.need-marker-critical,
-  .need-marker-pin[style*="#d92626"],
   .need-marker-pin.need-marker-critical::after,
   .need-marker-pin[style*="#d92626"]::after {
-    animation: none !important;
+    background-image: none !important;
   }
 }
