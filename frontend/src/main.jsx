@@ -37,6 +37,45 @@ import App from './App.jsx'
 import { AppProvider } from './context/AppContext.jsx'
 import { DialogProvider } from './context/DialogContext.jsx'
 
+// The "sans localisation" SOS indicator belongs in the Needs toolbar, not
+// on the map. The map already creates the real grouped marker with the
+// authoritative count; mirror that control into the toolbar so the count
+// stays in sync without duplicating API/state logic in another component.
+function installUnlocatedSosToolbar() {
+  const sync = () => {
+    const toolbar = document.querySelector('.needs-page .toolbar-compact')
+    const viewToggle = toolbar?.querySelector('.view-toggle')
+    const source = document.querySelector('.need-marker-pin-unlocated')
+    const existing = toolbar?.querySelector('.unlocated-sos-toolbar')
+
+    if (!toolbar || !viewToggle || !source) {
+      existing?.remove()
+      return
+    }
+
+    let control = existing
+    if (!control) {
+      control = document.createElement('button')
+      control.type = 'button'
+      control.className = 'unlocated-sos-toolbar'
+      control.setAttribute('aria-label', 'Besoins sans position')
+      control.innerHTML = '<img src="/icons/need-marker-sos.png" alt="" aria-hidden="true"><span class="unlocated-sos-toolbar-count"></span>'
+      control.addEventListener('click', () => {
+        document.querySelector('.need-marker-pin-unlocated')?.closest('.leaflet-marker-icon')?.click()
+      })
+      toolbar.insertBefore(control, viewToggle)
+    }
+
+    const count = source.querySelector('.need-marker-count-badge')?.textContent?.trim() || ''
+    const countEl = control.querySelector('.unlocated-sos-toolbar-count')
+    if (countEl) countEl.textContent = count
+  }
+
+  const observer = new MutationObserver(sync)
+  observer.observe(document.body, { childList: true, subtree: true })
+  sync()
+}
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <HelmetProvider>
@@ -50,3 +89,5 @@ createRoot(document.getElementById('root')).render(
     </HelmetProvider>
   </StrictMode>
 )
+
+installUnlocatedSosToolbar()
