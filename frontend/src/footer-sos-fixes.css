@@ -16,40 +16,46 @@
   height: 26px !important;
 }
 
-/* ONLY the red/critical SOS marker directly on the map. */
-@keyframes sos-urgent-blink {
-  0%,
-  100% {
-    opacity: 1;
-    transform: scale(1);
-    filter: drop-shadow(0 0 0 rgba(217, 38, 38, 0));
-  }
-  15% {
-    opacity: 0.22;
-    transform: scale(1.18);
-    filter: drop-shadow(0 0 9px rgba(217, 38, 38, 0.95));
-  }
-  30% {
-    opacity: 1;
-    transform: scale(1);
-    filter: drop-shadow(0 0 2px rgba(217, 38, 38, 0.65));
-  }
-  45% {
-    opacity: 0.30;
-    transform: scale(1.14);
-    filter: drop-shadow(0 0 8px rgba(217, 38, 38, 0.95));
-  }
-  60%,
-  100% {
-    opacity: 1;
-    transform: scale(1);
-    filter: drop-shadow(0 0 0 rgba(217, 38, 38, 0));
+/* Critical SOS marker: the blink is rendered by the SVG asset itself,
+   not by a CSS keyframe on the Leaflet marker. This keeps the animation
+   independent from CSS animation settings on mobile/tablet/desktop. */
+.need-marker-pin[style*="d92626"] {
+  background: transparent !important;
+  animation: none !important;
+  -webkit-animation: none !important;
+  position: relative;
+  width: 30px;
+  height: 30px;
+  display: inline-block;
+}
+
+.need-marker-pin[style*="d92626"] > img {
+  display: none !important;
+}
+
+.need-marker-pin[style*="d92626"]::after {
+  content: "";
+  position: absolute;
+  inset: -7px;
+  width: calc(100% + 14px);
+  height: calc(100% + 14px);
+  background: url('/icons/need-marker-sos-animated-v2.svg') center / contain no-repeat;
+  pointer-events: none;
+}
+
+/* Responsive breathing room around the animated icon. */
+@media (max-width: 480px) {
+  .need-marker-pin[style*="d92626"]::after {
+    inset: -6px;
+    width: calc(100% + 12px);
+    height: calc(100% + 12px);
   }
 }
 
-.need-marker-pin[style*="d92626"] {
-  animation: sos-urgent-blink 0.9s linear infinite !important;
-  -webkit-animation: sos-urgent-blink 0.9s linear infinite !important;
-  transform-origin: center;
-  will-change: opacity, transform, filter;
+@media (min-width: 768px) {
+  .need-marker-pin[style*="d92626"]::after {
+    inset: -8px;
+    width: calc(100% + 16px);
+    height: calc(100% + 16px);
+  }
 }
