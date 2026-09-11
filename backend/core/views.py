@@ -251,11 +251,17 @@ class NeedViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retriev
 
     def get_queryset(self):
         qs = super().get_queryset()
-        # Pending/failed guided voice SOS records have a valid token but are
-        # not ready for public discovery. Detail/recovery access remains
-        # available; only collection endpoints are filtered.
+        # A guided voice SOS still being transcribed has a valid token but
+        # isn't ready for public discovery yet. One whose automatic
+        # transcription failed (e.g. no speech detected, Whisper/Ollama
+        # unavailable) stays published -- the reporter's audio and the
+        # anonymous placeholders from creation are still there, so
+        # responders can listen to it directly (see
+        # core.voice_ai._mark_voice_need_failed) -- only PENDING is
+        # filtered. Detail/recovery access remains available regardless;
+        # only collection endpoints are filtered.
         if self.action in ("list", "locations"):
-            qs = qs.exclude(voice_processing_status__in=[Need.VOICE_PROCESSING_PENDING, Need.VOICE_PROCESSING_FAILED])
+            qs = qs.exclude(voice_processing_status=Need.VOICE_PROCESSING_PENDING)
         wilaya = self.request.query_params.get("wilaya")
         campaign = self.request.query_params.get("campaign")
         search = self.request.query_params.get("search")

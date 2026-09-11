@@ -197,6 +197,12 @@ def extract_need_data(transcript):
     return result
 
 
+VOICE_TRANSCRIPTION_UNAVAILABLE_DESCRIPTION = (
+    "Message vocal reçu mais non transcrit automatiquement. Écoutez "
+    "l'enregistrement audio ci-dessous pour connaître la demande."
+)
+
+
 def process_voice_need(need_id):
     """Run Whisper + conservative correction + local LLM for an already-created guided voice Need."""
     from core.models import Need
@@ -226,14 +232,30 @@ def process_voice_need(need_id):
         logger.info("Guided voice SOS processed: need_id=%s transcript_chars=%s", need.pk, len(corrected_transcript))
         return need
     except VoiceAIError as exc:
-        need.voice_processing_status = Need.VOICE_PROCESSING_FAILED
-        need.voice_processing_error = str(exc)[:500]
-        need.save(update_fields=["voice_processing_status", "voice_processing_error", "last_modified_at"])
+        _mark_voice_need_failed(need, str(exc)[:500])
         logger.exception("Guided voice SOS processing failed: need_id=%s", need_id)
         return need
     except Exception as exc:
-        need.voice_processing_status = Need.VOICE_PROCESSING_FAILED
-        need.voice_processing_error = "Unexpected voice processing error."
-        need.save(update_fields=["voice_processing_status", "voice_processing_error", "last_modified_at"])
+        _mark_voice_need_failed(need, "Unexpected voice processing error.")
         logger.exception("Unexpected guided voice SOS processing failure: need_id=%s error=%s", need_id, exc)
         return need
+
+
+def _mark_voice_need_failed(need, error_message):
+    """Automatic transcription/extraction failed (e.g. no speech detected,
+    Whisper/Ollama unavailable). The reporter's audio and the anonymous
+    contact placeholders set at creation time are still there -- a
+    responder can listen to the recording directly, so this SOS must stay
+    published rather than being silently dropped. Only the error itself is
+    recorded (voice_processing_error, for admins) and a fallback
+    description added when none exists yet; NeedViewSet.get_queryset only
+    hides VOICE_PROCESSING_PENDING, not this status, so it's visible."""
+    from core.models import Need
+
+    need.voice_processing_status = Need.VOICE_PROCESSING_FAILED
+    need.voice_processing_error = error_message
+    if not need.description.strip():
+        need.description = VOICE_TRANSCRIPTION_UNAVAILABLE_DESCRIPTION
+    need.record_edit()
+    need.save()
+    need.recompute_status()

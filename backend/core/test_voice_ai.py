@@ -5,6 +5,7 @@ import tempfile
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
+from rest_framework.test import APIClient
 
 from core.models import Need
 from core.voice_ai import VoiceAIError, _configure_whisper_cache, extract_need_data, transcribe_audio
@@ -165,6 +166,23 @@ class VoiceNeedProcessingTests(TestCase):
         need.refresh_from_db()
         self.assertEqual(need.voice_processing_status, Need.VOICE_PROCESSING_FAILED)
         self.assertIn("No speech", need.voice_processing_error)
+        # A failed transcription must never drop the SOS: the audio and the
+        # anonymous contact placeholders set at creation stay, and a
+        # fallback description is added so it isn't blank.
+        self.assertEqual(need.contact_name, "Anonyme")
+        self.assertTrue(need.voice_file)
+        self.assertIn("audio", need.description.lower())
+
+    def test_failed_voice_need_still_appears_in_public_listing(self):
+        need = self._create_need("voice-test-3")
+
+        with patch("core.voice_ai.transcribe_audio", side_effect=VoiceAIError("No speech was detected.")):
+            from core.voice_ai import process_voice_need
+            process_voice_need(need.pk)
+
+        response = APIClient().get("/api/needs/")
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(any(row["id"] == need.pk for row in response.data["results"]))
 
 
 class RealWhisperSmokeTest(TestCase):
