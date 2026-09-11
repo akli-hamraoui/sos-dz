@@ -16,9 +16,9 @@
   height: 26px !important;
 }
 
-/* Critical SOS marker: the animation lives inside the SVG asset itself.
-   This avoids relying on CSS animation of the Leaflet marker element and
-   keeps the blink visible on mobile, tablet and desktop browsers. */
+/* Critical SOS marker: the blink is rendered by the SVG asset itself,
+   not by a CSS keyframe on the Leaflet marker. This keeps the animation
+   independent from CSS animation settings on mobile/tablet/desktop. */
 .need-marker-pin[style*="d92626"] {
   background: transparent !important;
   animation: none !important;
@@ -39,12 +39,11 @@
   inset: -7px;
   width: calc(100% + 14px);
   height: calc(100% + 14px);
-  background: url('/icons/need-marker-sos-animated.svg') center / contain no-repeat;
+  background: url('/icons/need-marker-sos-animated-v2.svg') center / contain no-repeat;
   pointer-events: none;
 }
 
-/* The SVG scales with the Leaflet marker, so the icon stays proportional
-   on small phones, tablets and desktop screens. */
+/* Responsive breathing room around the animated icon. */
 @media (max-width: 480px) {
   .need-marker-pin[style*="d92626"]::after {
     inset: -6px;
