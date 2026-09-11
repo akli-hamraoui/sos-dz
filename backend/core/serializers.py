@@ -20,7 +20,13 @@ from core.models import (
 )
 from core.media_validation import validate_video_duration, validate_video_size
 from core.permissions import is_request_admin
-from core.validators import check_recovery_code_available, is_within_algeria_bounds, validate_algeria_bounds, validate_social_url
+from core.validators import (
+    check_recovery_code_available,
+    is_within_algeria_bounds,
+    normalize_place_name,
+    validate_algeria_bounds,
+    validate_social_url,
+)
 
 
 class ModeratedPhotoMixin:
@@ -508,7 +514,15 @@ class NeedCreateSerializer(serializers.ModelSerializer):
             # it's authorized for this campaign, otherwise the first
             # authorized wilaya alphabetically, so submission never dead-
             # ends just because nothing more specific was available.
-            wilaya = campaign.authorized_wilayas.filter(name="Alger").first() or campaign.authorized_wilayas.order_by("name").first()
+            # Picked in Python via normalize_place_name, not
+            # .order_by("name") -- the database's raw string ordering
+            # sorts an accented name like "Aïn Defla" *after* plain-ASCII
+            # ones (confirmed: it lost to "Annaba" this way on the real
+            # "Feux en Algérie" campaign, which has no Alger to fall back
+            # to first), which has nothing to do with the actual alphabet.
+            wilaya = campaign.authorized_wilayas.filter(name="Alger").first() or min(
+                campaign.authorized_wilayas.all(), key=lambda w: normalize_place_name(w.name), default=None
+            )
             if wilaya is None:
                 raise serializers.ValidationError({"wilaya": "This field is required."})
             attrs["wilaya"] = wilaya

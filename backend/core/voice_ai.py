@@ -2,21 +2,15 @@ import json
 import logging
 import os
 import tempfile
-import unicodedata
 from functools import lru_cache
 from pathlib import Path
 
 import requests
 from django.conf import settings
 
+from core.validators import normalize_place_name
+
 logger = logging.getLogger(__name__)
-
-
-def _normalize_place_name(value):
-    """Lowercase and strip accents so 'Tizi Ouzou' / 'tizi-ouzou' / a
-    Whisper mis-accented variant all compare equal."""
-    decomposed = unicodedata.normalize("NFKD", value or "")
-    return "".join(c for c in decomposed if not unicodedata.combining(c)).strip().lower()
 
 
 def _match_wilaya_from_commune(commune_guess, campaign):
@@ -25,11 +19,11 @@ def _match_wilaya_from_commune(commune_guess, campaign):
     wilaya that was never a real signal in the first place (see
     process_voice_need) -- never touches a Need that already has an exact
     GPS fix."""
-    guess = _normalize_place_name(commune_guess)
+    guess = normalize_place_name(commune_guess)
     if not guess:
         return None
     for wilaya in campaign.authorized_wilayas.all():
-        name = _normalize_place_name(wilaya.name)
+        name = normalize_place_name(wilaya.name)
         if name and (name in guess or guess in name):
             return wilaya
     return None

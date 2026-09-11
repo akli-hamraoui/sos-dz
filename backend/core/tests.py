@@ -217,6 +217,20 @@ class NeedFallbackWilayaTests(BaseAPITestCase):
         self.assertEqual(need.wilaya.name, "Adrar")  # alphabetically first of the 3
         self.assertTrue(need.has_no_location)
 
+    def test_alphabetical_fallback_is_accent_insensitive(self):
+        """Reproduces the real 'Feux en Algérie' campaign (migration
+        0007_wildfire_campaign): Alger isn't authorized, and a naive
+        database ORDER BY sorts the accented 'Aïn Defla' after plain-ASCII
+        'Annaba' -- confirmed live, this picked 'Annaba' as the fallback
+        even though it's alphabetically later once accents are ignored."""
+        annaba = Wilaya.objects.get(name="Annaba")
+        ain_defla = Wilaya.objects.get(name="Aïn Defla")
+        self.campaign = make_campaign(wilayas=[annaba, ain_defla])
+        resp = self.client.post("/api/needs/", self._payload(), format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+        need = Need.objects.get(pk=resp.data["id"])
+        self.assertEqual(need.wilaya, ain_defla)
+
     def test_explicit_wilaya_still_works_and_is_not_flagged(self):
         self.campaign = make_campaign()
         wilaya = self.campaign.authorized_wilayas.first()
