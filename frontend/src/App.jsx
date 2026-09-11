@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Routes, Route, Link, useLocation } from 'react-router-dom'
+import { createPortal } from 'react-dom'
+import { Navigate, Routes, Route, Link, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useApp } from './context/AppContext'
 import { setLanguage, getStoredLanguage } from './i18n'
@@ -8,6 +9,7 @@ import { formatBadgeCount } from './utils'
 import Home from './pages/Home'
 import Help from './pages/Help'
 import CreateNeed from './pages/CreateNeed'
+import UrgentSOS from './pages/UrgentSOS'
 import NeedsList from './pages/NeedsList'
 import NeedDetail from './pages/NeedDetail'
 import TakeCharge from './pages/TakeCharge'
@@ -21,9 +23,26 @@ import CollectionPoints from './pages/CollectionPoints'
 import CreateCollectionPoint from './pages/CreateCollectionPoint'
 import SubmitFlyer from './pages/SubmitFlyer'
 import CollectionPointDetail from './pages/CollectionPointDetail'
+import InternationalCollectionPoints from './pages/InternationalCollectionPoints'
+import CreateInternationalCollectionPoint from './pages/CreateInternationalCollectionPoint'
 import Deliveries from './pages/Deliveries'
 import BackButton from './components/BackButton'
-import { IconHome, IconBox, IconTruck, IconWarning, IconWifiOff, IconCheckCircle, IconMenu, IconClose } from './icons'
+import Seo from './components/Seo'
+import {
+  IconHome,
+  IconBox,
+  IconGlobe,
+  IconTruck,
+  IconWarning,
+  IconWifiOff,
+  IconCheckCircle,
+  IconMenu,
+  IconClose,
+  IconAlgeriaFlag,
+  IconGlobeColor,
+  IconPlus,
+  IconCamera,
+} from './icons'
 
 // Small "this opens a map" cue on a bottom-nav icon -- Besoins/Points de
 // collecte/Livraisons all default to their map view (see each page's own
@@ -71,9 +90,12 @@ const PAGE_TITLE_KEYS = {
   '/needs': 'nav.needs',
   '/help': 'home.iWantToHelp',
   '/create': 'nav.iNeedHelp',
+  '/urgent-sos': 'urgentSos.title',
   '/collection-points': 'nav.collectionPoints',
   '/collection-points/create': 'collectionPoints.createTitle',
   '/collection-points/submit-flyer': 'submitFlyer.title',
+  '/international-collection-points': 'internationalCollectionPoints.navButton',
+  '/international-collection-points/create': 'internationalCollectionPoints.createTitle',
   '/deliveries': 'nav.deliveries',
   '/support': 'support.title',
   '/report-bug': 'reportBug.title',
@@ -106,6 +128,27 @@ function TopNavLinks({ isActive, isAdmin }) {
       <Link to="/collection-points" className={isActive('/collection-points') ? 'active' : ''}>
         {t('nav.collectionPoints')}
       </Link>
+      {/* Same two destinations as the header QuickActions pills, also
+          reachable from the main menu itself (desktop inline nav, or the
+          mobile hamburger list) for anyone browsing/tapping through it
+          directly rather than using the always-visible pills. Short labels
+          (same text as the pills), not the full "+ Ajouter..." sentence --
+          that pushed the desktop nav's total width past 1280px and off the
+          edge of the screen with nothing to wrap onto. */}
+      <Link
+        to="/collection-points/create"
+        className={isActive('/collection-points/create') ? 'active' : ''}
+        title={t('collectionPoints.addButton')}
+      >
+        {t('quickActions.national')}
+      </Link>
+      <Link
+        to="/international-collection-points/create"
+        className={isActive('/international-collection-points/create') ? 'active' : ''}
+        title={t('internationalCollectionPoints.addButton')}
+      >
+        {t('quickActions.international')}
+      </Link>
       <Link to="/deliveries" className={isActive('/deliveries') ? 'active' : ''}>
         {t('nav.deliveries')}
       </Link>
@@ -134,6 +177,98 @@ function TopNavLinks({ isActive, isAdmin }) {
       )}
       <LanguageSwitcher />
     </>
+  )
+}
+
+// Always-visible header shortcuts to the app's own creation flows --
+// previously each map page (CollectionPoints.jsx, InternationalCollection
+// Points.jsx) carried its own "+ Ajouter..." button inside a filters row
+// that could scroll out of view or end up collapsed behind a "Filtres"
+// toggle; these live in the topbar itself instead, next to the language
+// switcher/hamburger, reachable from anywhere in the app regardless of
+// which page's own filters are open or closed.
+function QuickActions() {
+  const { t } = useTranslation()
+  const [createMenuOpen, setCreateMenuOpen] = useState(false)
+  const [deliverMenuOpen, setDeliverMenuOpen] = useState(false)
+
+  // Closes the Algérie/international choice menu on an outside click --
+  // same pattern as Home's own equivalent menu (Home.jsx).
+  useEffect(() => {
+    if (!createMenuOpen) return
+    const onDocClick = (e) => {
+      if (!e.target.closest('.quick-actions-create')) setCreateMenuOpen(false)
+    }
+    document.addEventListener('click', onDocClick)
+    return () => document.removeEventListener('click', onDocClick)
+  }, [createMenuOpen])
+
+  // Closes the delivery-destination menu on an outside click -- it isn't
+  // a native <select>/<details>, so nothing does this for free.
+  useEffect(() => {
+    if (!deliverMenuOpen) return
+    const onDocClick = (e) => {
+      if (!e.target.closest('.quick-actions-deliver')) setDeliverMenuOpen(false)
+    }
+    document.addEventListener('click', onDocClick)
+    return () => document.removeEventListener('click', onDocClick)
+  }, [deliverMenuOpen])
+
+  return (
+    <div className="quick-actions">
+      {/* One "+ Collecte" pill instead of two separate Algérie/international
+          ones -- on a narrow phone screen the two used to wrap onto a
+          second row, pushing this whole bar (and everything below it) down.
+          Same choice-menu pattern as the deliver pill below and Home's own
+          "create a collection point" button. */}
+      <div className="quick-actions-create">
+        <button
+          type="button"
+          className="quick-actions-btn"
+          title={t('collectionPoints.addButton') + ' / ' + t('internationalCollectionPoints.addButton')}
+          aria-expanded={createMenuOpen}
+          onClick={() => setCreateMenuOpen((v) => !v)}
+        >
+          <IconPlus width={16} height={16} strokeWidth={2} />
+          <span>{t('quickActions.create')}</span>
+        </button>
+        {createMenuOpen && (
+          <div className="quick-actions-menu">
+            <Link to="/collection-points/create" onClick={() => setCreateMenuOpen(false)}>
+              <IconAlgeriaFlag width={16} height={16} /> {t('home.createCollectionPointAlgeria')}
+            </Link>
+            <Link to="/international-collection-points/create" onClick={() => setCreateMenuOpen(false)}>
+              <IconGlobeColor width={16} height={16} /> {t('home.createCollectionPointInternational')}
+            </Link>
+            <Link to="/collection-points/submit-flyer" onClick={() => setCreateMenuOpen(false)}>
+              <IconCamera width={16} height={16} /> {t('submitFlyer.navButton')}
+            </Link>
+          </div>
+        )}
+      </div>
+      <div className="quick-actions-deliver">
+        <button
+          type="button"
+          className="quick-actions-btn"
+          title={t('deliveries.deliverToNeed') + ' / ' + t('deliveries.deliverToCollectionPoint')}
+          aria-expanded={deliverMenuOpen}
+          onClick={() => setDeliverMenuOpen((v) => !v)}
+        >
+          <IconTruck width={16} height={16} strokeWidth={1.9} />
+          <span>{t('quickActions.deliver')}</span>
+        </button>
+        {deliverMenuOpen && (
+          <div className="quick-actions-menu">
+            <Link to="/needs" onClick={() => setDeliverMenuOpen(false)}>
+              {t('deliveries.deliverToNeed')}
+            </Link>
+            <Link to="/collection-points" onClick={() => setDeliverMenuOpen(false)}>
+              {t('deliveries.deliverToCollectionPoint')}
+            </Link>
+          </div>
+        )}
+      </div>
+    </div>
   )
 }
 
@@ -170,7 +305,30 @@ function BottomNav() {
             <span className="nav-badge">{formatBadgeCount(config.collection_points_active_count)}</span>
           )}
         </span>
-        <span className="nav-label-offset">{t('nav.collectionPointsShort')}</span>
+        {/* Two explicit lines (not organic wrapping, which the rest of
+            this bar deliberately avoids -- see the historical note on
+            .bottom-nav a's own white-space: nowrap) so this tab and its
+            international sibling below read as a clearly labeled pair
+            rather than the cryptic single-word "Collectes" this used to
+            say before that sibling existed. */}
+        <span className="nav-label-offset nav-label-2line">
+          {t('nav.collectionPointsLine1')}
+          <br />
+          {t('nav.collectionPointsLine2')}
+        </span>
+      </Link>
+      <Link to="/international-collection-points" className={isActive('/international-collection-points') ? 'active' : ''}>
+        <span className="icon">
+          <IconGlobe />
+          {!!config.international_collection_points_active_count && (
+            <span className="nav-badge">{formatBadgeCount(config.international_collection_points_active_count)}</span>
+          )}
+        </span>
+        <span className="nav-label-offset nav-label-2line">
+          {t('nav.internationalCollectionPointsLine1')}
+          <br />
+          {t('nav.internationalCollectionPointsLine2')}
+        </span>
       </Link>
       <Link to="/deliveries" className={isActive('/deliveries') ? 'active' : ''}>
         <span className="icon">
@@ -193,7 +351,19 @@ export default function App() {
 
   useEffect(() => {
     setNavOpen(false) // close the mobile menu on every navigation
+    // Land on every new page at its own top -- react-router's client-side
+    // navigation doesn't reset scroll like a real page load does, so
+    // without this a page opened while scrolled down on the previous one
+    // would render already scrolled to that same offset.
+    window.scrollTo(0, 0)
   }, [location.pathname])
+
+  // Stops the browser's own back/forward scroll-restoration from fighting
+  // the reset above -- without this, navigating back could still jump to
+  // whatever offset the browser remembered instead of staying at the top.
+  useEffect(() => {
+    if ('scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'
+  }, [])
 
   return (
     <>
@@ -235,6 +405,16 @@ export default function App() {
         <nav className="topbar-nav-desktop">
           <TopNavLinks isActive={isActive} isAdmin={config.is_admin} />
         </nav>
+        {/* Quick access on mobile, next to the hamburger button, so
+            switching language doesn't require opening the full menu and
+            scrolling to the bottom of it -- the desktop nav already shows
+            LanguageSwitcher inline (via TopNavLinks) so this is hidden
+            there to avoid a duplicate (see index.css .topbar-lang-quick).
+            The dropdown also stays inside the mobile menu list itself
+            (TopNavLinks, unchanged) for anyone who opens it that way. */}
+        <span className="topbar-lang-quick">
+          <LanguageSwitcher />
+        </span>
         <button
           type="button"
           className="nav-toggle"
@@ -245,6 +425,15 @@ export default function App() {
           {navOpen ? <IconClose /> : <IconMenu />}
         </button>
       </header>
+      {/* A dedicated row below the main header, not squeezed inline into it --
+          the topbar's own content (nav links, or brand+lang+hamburger on
+          mobile) already fills its width, leaving no reliable room for 3 more
+          icon+text pills at any breakpoint. */}
+      {location.pathname !== '/' && (
+        <div className="quick-actions-bar">
+          <QuickActions />
+        </div>
+      )}
       {navOpen && (
         <nav className="topbar-nav-mobile">
           <TopNavLinks isActive={isActive} isAdmin={config.is_admin} />
@@ -252,11 +441,14 @@ export default function App() {
       )}
 
       <main>
+        <Seo />
         {location.pathname !== '/' && <BackButton />}
         <PageTitle />
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/create" element={<CreateNeed />} />
+          <Route path="/urgent-sos" element={<UrgentSOS />} />
+          <Route path="/create-voice" element={<Navigate to="/urgent-sos" replace />} />
           <Route path="/needs" element={<NeedsList />} />
           <Route path="/help" element={<Help />} />
           <Route path="/needs/:id" element={<NeedDetail />} />
@@ -272,11 +464,14 @@ export default function App() {
           <Route path="/collection-points/submit-flyer" element={<SubmitFlyer />} />
           <Route path="/collection-points/:id" element={<CollectionPointDetail />} />
           <Route path="/collection-points/:id/take-charge" element={<TakeCharge source="collection_point" />} />
+          <Route path="/international-collection-points" element={<InternationalCollectionPoints />} />
+          <Route path="/international-collection-points/create" element={<CreateInternationalCollectionPoint />} />
           <Route path="/deliveries" element={<Deliveries />} />
         </Routes>
       </main>
 
       <footer>
+        <p className="footer-disclaimer">{t('common.nonOfficialFooterNote')}</p>
         {(config.contact_phones.length > 0 || config.admin_contact_email) && (
           <p>
             {t('common.adminContact')}:{' '}
@@ -310,7 +505,7 @@ export default function App() {
         </p>
       </footer>
 
-      <BottomNav />
+      {createPortal(<BottomNav />, document.body)}
     </>
   )
 }

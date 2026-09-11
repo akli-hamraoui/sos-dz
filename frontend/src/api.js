@@ -1,4 +1,5 @@
 import { enqueue } from './offlineQueue'
+import { playVoiceGeoRestrictedAudio } from './voiceGuide'
 
 const API = '/api'
 
@@ -54,14 +55,64 @@ export async function api(path, options = {}) {
 }
 
 const RETRY_DELAYS_MS = [1000, 3000, 6000]
+const BIGDATACLOUD_RETRY_DELAY_MS = 2000
+const BIGDATACLOUD_MAX_RETRIES = 3
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+// Free client-side reverse geocoding is used ONLY when the browser could not
+// provide GPS coordinates. BigDataCloud supports calling the client endpoint
+// without latitude/longitude and then performs a best-effort IP geolocation.
+// This request stays in the browser and requires no API key.
+// If GPS coordinates are available, we do not call BigDataCloud at all: the
+// backend validates those coordinates directly against Algeria's bounds.
+async function verifyUrgentSOSLocation(formData) {
+  if (!formData || typeof formData.get !== 'function') return
+  const latitude = Number(formData.get('latitude'))
+  const longitude = Number(formData.get('longitude'))
+
+  // GPS is available: deliberately skip BigDataCloud.
+  if (Number.isFinite(latitude) && Number.isFinite(longitude)) return
+
+  const endpoint = 'https://api.bigdatacloud.net/data/reverse-geocode-client?localityLanguage=fr'
+  let lastError = null
+
+  for (let attempt = 0; attempt <= BIGDATACLOUD_MAX_RETRIES; attempt += 1) {
+    if (attempt > 0) await sleep(BIGDATACLOUD_RETRY_DELAY_MS)
+    try {
+      const response = await fetch(endpoint, { method: 'GET', cache: 'no-store' })
+      if (!response.ok) throw new Error(`BigDataCloud HTTP ${response.status}`)
+      const data = await response.json()
+      const countryCode = String(data?.countryCode || '').toUpperCase()
+      if (!countryCode) throw new Error('BigDataCloud returned no countryCode')
+      if (countryCode !== 'DZ') {
+        const error = new Error('Cette fonctionnalité est uniquement disponible en Algérie.')
+        error.status = 403
+        error.data = { detail: error.message, countryCode }
+        throw error
+      }
+      // Keep the result in the multipart payload for diagnostics only. The
+      // server must never trust this client-supplied country as authorization.
+      formData.set('location_country_code', 'DZ')
+      console.info('[SOS] BigDataCloud a estimé la connexion en Algérie (GPS non disponible).')
+      return
+    } catch (error) {
+      lastError = error
+      if (error?.status === 403) throw error
+      console.warn(`[SOS] Échec BigDataCloud IP (tentative ${attempt + 1}/${BIGDATACLOUD_MAX_RETRIES + 1}).`, error)
+    }
+  }
+
+  const error = new Error('Impossible de vérifier votre localisation. Cette fonctionnalité est uniquement disponible en Algérie.')
+  error.status = 403
+  error.data = { detail: error.message, cause: lastError?.message || null }
+  throw error
+}
 
 // Upload retry (Wave 2): 3 attempts with increasing delay on network
-// failure or 5xx, never on a 4xx validation error. `url` is an absolute
-// path (e.g. "/api/needs/") -- callers decide the prefix, this never adds
-// one, so it's usable both from apiUpload() (relative app paths) and from
-// createOrQueue()/offlineQueue.js (which already store full "/api/..."
-// endpoints, since the offline queue's own sync has no access to the API
-// prefix constant without a circular import).
+// failure or 5xx, never on a 4xx validation error.
 async function uploadWithRetry(url, formData, method = 'POST', onStatus = () => {}) {
   let lastError = null
   for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
@@ -98,13 +149,36 @@ async function uploadWithRetry(url, formData, method = 'POST', onStatus = () => 
 }
 
 export async function apiUpload(path, formData, method = 'POST', onStatus = () => {}) {
-  return uploadWithRetry(API + path, formData, method, onStatus)
+  try {
+    if (path === '/needs/voice-guide/' && method.toUpperCase() === 'POST') {
+      await verifyUrgentSOSLocation(formData)
+    }
+    return await uploadWithRetry(API + path, formData, method, onStatus)
+  } catch (error) {
+    if (path === '/needs/voice-guide/') {
+      // Play the dedicated step-9 restriction message for either GPS-outside
+      // Algeria or BigDataCloud-detected non-DZ. This is intentionally tied to
+      // the final geo rejection, not to transient BigDataCloud retry failures.
+      if (error?.status === 403 && /uniquement disponible en Algérie/i.test(error?.message || error?.data?.detail || '')) {
+        try {
+          playVoiceGeoRestrictedAudio(document?.documentElement?.lang === 'ar' ? 'ar' : 'fr')
+        } catch {
+          /* audio must never mask the original SOS error */
+        }
+      }
+      console.error('[SOS] Échec de l’enregistrement du SOS vocal côté serveur.', {
+        path,
+        status: error?.status,
+        message: error?.message,
+        data: error?.data,
+        error,
+      })
+    }
+    throw error
+  }
 }
 
-// Wave 5: offline-aware creation for Need/Pickup/ProgressUpdate. If the
-// device is offline (or the request fails with a network error), the
-// creation is queued in IndexedDB instead of failing, and synced
-// automatically once connectivity returns (see offlineQueue.js).
+// Wave 5: offline-aware creation for Need/Pickup/ProgressUpdate.
 export async function createOrQueue({ type, endpoint, fields, files = {}, dependsOnField = null, dependsOnLocalId = null, onStatus = () => {} }) {
   if (navigator.onLine) {
     try {
@@ -118,8 +192,7 @@ export async function createOrQueue({ type, endpoint, fields, files = {}, depend
       const data = await uploadWithRetry(endpoint, formData, 'POST', onStatus)
       return { queued: false, data }
     } catch (e) {
-      if (e.status) throw e // real validation error -- don't silently queue a request the server will just reject again
-      // network error despite navigator.onLine -- fall through to queueing
+      if (e.status) throw e
     }
   }
   const record = await enqueue({ type, endpoint, fields, files, dependsOnField, dependsOnLocalId })

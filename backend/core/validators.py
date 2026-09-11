@@ -5,10 +5,34 @@ which validates WHO is allowed to write based on where the request comes
 from. Both apply independently.
 """
 
+import unicodedata
+
 from django.conf import settings
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.validators import URLValidator
 from rest_framework import serializers
+
+
+def normalize_place_name(value):
+    """Lowercase and strip accents so 'Aïn Defla' / 'Ain Defla' / a Whisper
+    mis-accented variant all compare equal. Also used to pick a fallback
+    wilaya alphabetically (NeedCreateSerializer.validate): SQLite's default
+    string ordering is a raw byte comparison, where an accented character
+    like 'ï' sorts *after* plain ASCII letters -- 'Annaba' would otherwise
+    beat 'Aïn Defla' to the "alphabetically first" fallback for reasons
+    that have nothing to do with the actual alphabet."""
+    decomposed = unicodedata.normalize("NFKD", value or "")
+    return "".join(c for c in decomposed if not unicodedata.combining(c)).strip().lower()
+
+
+def is_within_algeria_bounds(latitude, longitude):
+    """Plain boolean check, no exception -- shared by validate_algeria_bounds
+    below (national listings must be inside) and CollectionPointCreateSerializer
+    (an international point must be outside, see that file)."""
+    if latitude is None or longitude is None:
+        return False
+    box = settings.ALGERIA_BOUNDING_BOX
+    return box["lat_min"] <= latitude <= box["lat_max"] and box["lon_min"] <= longitude <= box["lon_max"]
 
 
 def validate_algeria_bounds(latitude, longitude):
@@ -17,10 +41,7 @@ def validate_algeria_bounds(latitude, longitude):
     (wilaya + text description) rather than hard-failing the whole form."""
     if latitude is None or longitude is None:
         return
-    box = settings.ALGERIA_BOUNDING_BOX
-    if not (box["lat_min"] <= latitude <= box["lat_max"]) or not (
-        box["lon_min"] <= longitude <= box["lon_max"]
-    ):
+    if not is_within_algeria_bounds(latitude, longitude):
         raise serializers.ValidationError(
             "These coordinates fall outside Algeria and were rejected. "
             "Please use the wilaya + description fields instead."

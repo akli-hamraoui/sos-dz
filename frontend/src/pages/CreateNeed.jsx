@@ -6,7 +6,7 @@ import { useDialog } from '../context/DialogContext'
 import { api, createOrQueue } from '../api'
 import { compressPhoto, isInAlgeria, reverseGeocodePlace, validityMessageProps } from '../utils'
 import { translateApiError } from '../apiErrors'
-import { IconMapPin, IconMic, IconVideoCam, IconCamera, IconTrash, IconSwitchCamera } from '../icons'
+import { IconMapPin, IconMic, IconVideoCam, IconCamera, IconTrash, IconSwitchCamera, IconPlay } from '../icons'
 import PlaceAutocomplete from '../components/PlaceAutocomplete'
 
 const DEFAULT_FORM = {
@@ -53,6 +53,19 @@ export default function CreateNeed() {
   const [videoFacingMode, setVideoFacingMode] = useState('environment')
   const [voiceModalOpen, setVoiceModalOpen] = useState(false)
   const [videoModalOpen, setVideoModalOpen] = useState(false)
+  // Playing back an already-recorded take, distinct from voiceModalOpen/
+  // videoModalOpen above (which are for recording a *new* one). Native
+  // <audio>/<video controls> squeezed into the ~110px-wide media-capture
+  // card (a 3-column grid) render almost none of their own controls on a
+  // phone -- just a bare play glyph plus a "..." overflow menu, forcing a
+  // scroll to reach anything useful. Full-size playback in the same
+  // dialog-sheet modal already used for recording gives the native
+  // controls the width (up to 420px) they need to render properly.
+  const [voicePlaybackOpen, setVoicePlaybackOpen] = useState(false)
+  const [videoPlaybackOpen, setVideoPlaybackOpen] = useState(false)
+  // { src } for a full-size preview of a damage photo thumbnail -- same
+  // lightbox pattern as NeedDetail.jsx's own damage-photo gallery.
+  const [lightbox, setLightbox] = useState(null)
   // The live camera stream shown in the video modal *before* recording
   // starts, so the reporter can see what's actually framed (and switch
   // front/back) before committing -- same stream object gets reused as the
@@ -268,7 +281,11 @@ export default function CreateNeed() {
     setVideoModalOpen(false)
   }
 
-  const discardRecording = (kind) => {
+  // Same confirm-before-delete convention as CommentThread.jsx's own
+  // deleteComment -- a recording took real effort (speaking/filming) to
+  // produce, so a stray tap here shouldn't lose it silently.
+  const discardRecording = async (kind) => {
+    if (!(await showConfirm(t('common.delete') + '?'))) return
     if (kind === 'video') {
       if (videoBlobUrl) URL.revokeObjectURL(videoBlobUrl)
       setVideoBlob(null)
@@ -286,6 +303,15 @@ export default function CreateNeed() {
     if (!file || damagePhotos.length >= 3) return
     const compressed = await compressPhoto(file)
     setDamagePhotos((prev) => [...prev, { file: compressed, previewUrl: URL.createObjectURL(compressed) }])
+  }
+
+  // Same confirm-before-delete convention as discardRecording above.
+  const removeDamagePhoto = async (idx) => {
+    if (!(await showConfirm(t('common.delete') + '?'))) return
+    setDamagePhotos((prev) => {
+      URL.revokeObjectURL(prev[idx].previewUrl)
+      return prev.filter((_, i) => i !== idx)
+    })
   }
 
   const submit = async (e, skipDuplicateCheck) => {
@@ -423,8 +449,10 @@ export default function CreateNeed() {
               )}
               {voiceBlobUrl && recordingKind !== 'voice' && (
                 <>
-                  <audio src={voiceBlobUrl} controls />
-                  <button type="button" className="btn btn-icon" onClick={() => discardRecording('voice')}>
+                  <button type="button" className="btn btn-icon record-btn" onClick={() => setVoicePlaybackOpen(true)}>
+                    <IconPlay width={14} height={14} /> {t('createNeed.listenRecording')}
+                  </button>
+                  <button type="button" className="btn btn-icon record-btn" onClick={() => discardRecording('voice')}>
                     <IconTrash width={16} height={16} strokeWidth={2} /> {t('createNeed.discardRerecord')}
                   </button>
                 </>
@@ -443,8 +471,10 @@ export default function CreateNeed() {
               )}
               {videoBlobUrl && recordingKind !== 'video' && (
                 <>
-                  <video className="media-player" src={videoBlobUrl} controls playsInline preload="auto" />
-                  <button type="button" className="btn btn-icon" onClick={() => discardRecording('video')}>
+                  <button type="button" className="btn btn-icon record-btn" onClick={() => setVideoPlaybackOpen(true)}>
+                    <IconPlay width={14} height={14} /> {t('createNeed.watchRecording')}
+                  </button>
+                  <button type="button" className="btn btn-icon record-btn" onClick={() => discardRecording('video')}>
                     <IconTrash width={16} height={16} strokeWidth={2} /> {t('createNeed.discardRerecord')}
                   </button>
                 </>
@@ -463,10 +493,13 @@ export default function CreateNeed() {
                 <div className="photo-thumbs">
                   {damagePhotos.map((p, idx) => (
                     <div className="photo-thumb" key={idx}>
-                      <img src={p.previewUrl} alt="" />
-                      <button type="button" className="link" onClick={() => setDamagePhotos((prev) => prev.filter((_, i) => i !== idx))}>
-                        <IconTrash width={14} height={14} strokeWidth={2} />
+                      <button type="button" className="gallery-thumb-btn" onClick={() => setLightbox({ src: p.previewUrl })}>
+                        <img className="gallery-thumb" src={p.previewUrl} alt={t('common.photoAlt')} />
                       </button>
+                      <button type="button" className="photo-remove-btn" onClick={() => removeDamagePhoto(idx)} aria-label={t('common.delete')}>
+                         <IconTrash width={14} height={14} strokeWidth={2} />
+                         <span>{t('common.delete')}</span>
+                       </button>
                     </div>
                   ))}
                 </div>
@@ -584,6 +617,41 @@ export default function CreateNeed() {
               )}
             </div>
           </div>
+        </div>
+      )}
+
+      {voicePlaybackOpen && (
+        <div className="dialog-backdrop" onClick={() => setVoicePlaybackOpen(false)}>
+          <div className="dialog-sheet" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+            <audio className="media-player-audio" src={voiceBlobUrl} controls autoPlay />
+            <div className="dialog-actions">
+              <button type="button" className="btn btn-primary" onClick={() => setVoicePlaybackOpen(false)}>
+                {t('common.close')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {videoPlaybackOpen && (
+        <div className="dialog-backdrop" onClick={() => setVideoPlaybackOpen(false)}>
+          <div className="dialog-sheet" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+            <video className="media-player" src={videoBlobUrl} controls autoPlay playsInline />
+            <div className="dialog-actions">
+              <button type="button" className="btn btn-primary" onClick={() => setVideoPlaybackOpen(false)}>
+                {t('common.close')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {lightbox && (
+        <div className="lightbox-overlay" onClick={() => setLightbox(null)}>
+          <button type="button" className="lightbox-close" onClick={() => setLightbox(null)} aria-label={t('needDetail.closeLightbox')}>
+            ×
+          </button>
+          <img src={lightbox.src} alt={t('common.photoAlt')} onClick={(e) => e.stopPropagation()} />
         </div>
       )}
     </section>

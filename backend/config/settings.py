@@ -71,6 +71,15 @@ CSRF_TRUSTED_ORIGINS = [o.strip() for o in _csrf_trusted_origins.split(",") if o
 # under templates/index.html purely for history/reference.
 FRONTEND_URL = env("FRONTEND_URL", default="http://localhost:5173")
 
+# Local AI configuration for the discreet urgent voice SOS flow.
+# No paid/cloud API key is required. Whisper runs in-process through
+# faster-whisper and Qwen runs through a local Ollama HTTP endpoint.
+VOICE_WHISPER_MODEL = env("VOICE_WHISPER_MODEL", default="small")
+VOICE_WHISPER_DEVICE = env("VOICE_WHISPER_DEVICE", default="cpu")
+VOICE_WHISPER_COMPUTE_TYPE = env("VOICE_WHISPER_COMPUTE_TYPE", default="int8")
+VOICE_LLM_URL = env("VOICE_LLM_URL", default="http://127.0.0.1:11434/api/chat")
+VOICE_LLM_MODEL = env("VOICE_LLM_MODEL", default="qwen2.5:3b")
+
 # --- Applications ---------------------------------------------------------
 
 INSTALLED_APPS = [

@@ -6,6 +6,7 @@ from django.db import models
 from django.utils import timezone
 
 from core.anonymization import mask_identity_name, mask_identity_phone
+from core.audit import AuditMixin
 
 
 def generate_token():
@@ -18,7 +19,7 @@ def generate_token():
 # Reference data
 # ---------------------------------------------------------------------------
 
-class Wilaya(models.Model):
+class Wilaya(AuditMixin, models.Model):
     """Fixed reference table: the 58 wilayas of Algeria. Closed list, no
     free text allowed elsewhere in the app."""
 
@@ -34,7 +35,7 @@ class Wilaya(models.Model):
         return self.name
 
 
-class DisasterType(models.Model):
+class DisasterType(AuditMixin, models.Model):
     """Admin-only creation."""
 
     name = models.CharField(max_length=100)
@@ -44,7 +45,7 @@ class DisasterType(models.Model):
         return self.name
 
 
-class Campaign(models.Model):
+class Campaign(AuditMixin, models.Model):
     STATUS_ACTIVE = "active"
     STATUS_PAUSED = "paused"
     STATUS_STOPPED = "stopped"
@@ -72,7 +73,7 @@ class Campaign(models.Model):
         super().save(*args, **kwargs)
 
 
-class AppConfiguration(models.Model):
+class AppConfiguration(AuditMixin, models.Model):
     """Singleton model: use AppConfiguration.get_solo()."""
 
     MODE_NORMAL = "normal"
@@ -122,7 +123,7 @@ class AppConfiguration(models.Model):
             "propose one or more collection points for human review. If GEMINI_API_KEY "
             "isn't configured, the feature is unavailable regardless of this flag. Turn "
             "this off to disable flyer submissions entirely (e.g. API quota exhausted) "
-            "without touching the manual creation form, which is unaffected."
+            "without touching the manual creation forms, which are unaffected."
         ),
     )
     # Phone numbers are a related model (AdminContactPhone, up to 5 --
@@ -154,7 +155,7 @@ class AppConfiguration(models.Model):
         return "App configuration"
 
 
-class AdminContactPhone(models.Model):
+class AdminContactPhone(AuditMixin, models.Model):
     """Up to 5 per AppConfiguration (enforced in Django Admin, see
     AdminContactPhoneInline) -- each shown as its own link in the site
     footer."""
@@ -238,7 +239,7 @@ class IdentityListingMixin(models.Model):
 # Need
 # ---------------------------------------------------------------------------
 
-class Need(IdentityListingMixin, models.Model):
+class Need(IdentityListingMixin, AuditMixin, models.Model):
     URGENCY_LOW = "low"
     URGENCY_MEDIUM = "medium"
     URGENCY_CRITICAL = "critical"
@@ -281,9 +282,22 @@ class Need(IdentityListingMixin, models.Model):
     # least one of description/voice/video" instead, since any one of the
     # three can carry the actual content of the request.
     location_description = models.TextField(blank=True)
+    # Full original voice transcription. The LLM may extract structured fields,
+    # but it must never replace or summarize this source text.
+    description = models.TextField(blank=True)
     latitude = models.FloatField(null=True, blank=True)
     longitude = models.FloatField(null=True, blank=True)
     position_accuracy = models.CharField(max_length=20, choices=POSITION_CHOICES, default=POSITION_APPROXIMATE)
+    # True only when the reporter had no location fix at all -- no GPS and
+    # no wilaya of their own choosing (e.g. declined geolocation in the
+    # guided voice flow) -- so NeedCreateSerializer.validate() had to assign
+    # a fallback wilaya on their behalf. Distinct from position_accuracy
+    # above: an ordinary report with a deliberately-picked wilaya but no
+    # exact GPS is still "approximate", not this. Lets the map (NeedsList)
+    # group these into one clearly-labeled "sans localisation" bubble
+    # instead of scattering them under a real wilaya's own pins as if the
+    # reporter had actually confirmed being there.
+    has_no_location = models.BooleanField(default=False)
 
     # Both optional (NeedCreateSerializer.validate enforces that at least
     # one of these two OR a recovery_code is present -- an access_token is
@@ -346,6 +360,25 @@ class Need(IdentityListingMixin, models.Model):
     covered_quantity = models.PositiveIntegerField(default=0, help_text="Count of active (en_route/delivered) pickups. Internal counter for overall_status only -- not a ratio against estimated_quantity.")
     overall_status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_OPEN)
 
+    VOICE_PROCESSING_PENDING = "pending"
+    VOICE_PROCESSING_READY = "ready"
+    VOICE_PROCESSING_FAILED = "failed"
+    VOICE_PROCESSING_CHOICES = [
+        (VOICE_PROCESSING_PENDING, "Pending"),
+        (VOICE_PROCESSING_READY, "Ready"),
+        (VOICE_PROCESSING_FAILED, "Failed"),
+    ]
+    # Guided voice SOS records are created immediately so the reporter gets
+    # an access token without waiting for Whisper/Ollama. Pending/failed voice
+    # records are intentionally excluded from public lists and map pins until
+    # the worker has produced a complete transcription + LLM extraction.
+    voice_processing_status = models.CharField(
+        max_length=10,
+        choices=VOICE_PROCESSING_CHOICES,
+        default=VOICE_PROCESSING_READY,
+    )
+    voice_processing_error = models.CharField(max_length=500, blank=True)
+
     location_viewer_share_token = models.CharField(max_length=32, unique=True, default=generate_token, editable=False)
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -397,7 +430,7 @@ class Need(IdentityListingMixin, models.Model):
             self.save(update_fields=["overall_status", "covered_quantity"])
 
 
-class DamagePhoto(models.Model):
+class DamagePhoto(AuditMixin, models.Model):
     """Up to 3 live-captured photos per Need (Wave 2). Each photo is
     moderated independently (Wave 3) -- one photo being flagged must not
     hide the other two."""
@@ -413,7 +446,7 @@ class DamagePhoto(models.Model):
 # Pickup
 # ---------------------------------------------------------------------------
 
-class Pickup(IdentityListingMixin, models.Model):
+class Pickup(IdentityListingMixin, AuditMixin, models.Model):
     RESPONDER_INDIVIDUAL = "individual_volunteer"
     RESPONDER_ORGANIZATION = "organization"
     RESPONDER_TRUCK = "collective_truck"
@@ -542,7 +575,7 @@ class Pickup(IdentityListingMixin, models.Model):
         super().save(*args, **kwargs)
 
 
-class DeliveryPhoto(models.Model):
+class DeliveryPhoto(AuditMixin, models.Model):
     """Up to 3 live-captured proof-of-delivery photos per Pickup (Wave 2)."""
 
     pickup = models.ForeignKey(Pickup, on_delete=models.CASCADE, related_name="delivery_photos")
@@ -552,7 +585,7 @@ class DeliveryPhoto(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
 
-class ProgressUpdate(models.Model):
+class ProgressUpdate(AuditMixin, models.Model):
     """Public free-text timeline entry. Never restricted -- see spec MAP VIEW."""
 
     pickup = models.ForeignKey(Pickup, on_delete=models.CASCADE, related_name="progress_updates")
@@ -565,7 +598,7 @@ class ProgressUpdate(models.Model):
         ordering = ["timestamp"]
 
 
-class LocationPing(models.Model):
+class LocationPing(AuditMixin, models.Model):
     """Live position trail for a Pickup. The full per-need trail (this
     model's own history) stays access-restricted to that Need's creator, a
     valid share-link holder, or admin (NeedViewSet.pickup_locations) -- but
@@ -587,7 +620,7 @@ class LocationPing(models.Model):
 # Duplicate / content reporting (Wave 3)
 # ---------------------------------------------------------------------------
 
-class DuplicateReport(models.Model):
+class DuplicateReport(AuditMixin, models.Model):
     STATUS_PENDING, STATUS_PROCESSED = "pending", "processed"
     STATUS_CHOICES = [(STATUS_PENDING, "Pending"), (STATUS_PROCESSED, "Processed")]
 
@@ -599,7 +632,7 @@ class DuplicateReport(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
 
 
-class ContentReport(models.Model):
+class ContentReport(AuditMixin, models.Model):
     MEDIA_NEED_FILE = "need_media_file"
     MEDIA_DAMAGE_PHOTO = "damage_photo"
     MEDIA_DELIVERY_PHOTO = "delivery_photo"
@@ -635,7 +668,7 @@ class ContentReport(models.Model):
 # Support / audit
 # ---------------------------------------------------------------------------
 
-class SupportRequest(models.Model):
+class SupportRequest(AuditMixin, models.Model):
     STATUS_PENDING, STATUS_PROCESSED = "pending", "processed"
     STATUS_CHOICES = [(STATUS_PENDING, "Pending"), (STATUS_PROCESSED, "Processed")]
 
@@ -681,42 +714,50 @@ class RecoveryRequestProxy(SupportRequest):
 # Community: collection points and comments (Wave 4)
 # ---------------------------------------------------------------------------
 
-class CollectionPoint(models.Model):
+class CollectionPoint(AuditMixin, models.Model):
     STATUS_ACTIVE, STATUS_CLOSED = "active", "closed"
     STATUS_CHOICES = [(STATUS_ACTIVE, "Active"), (STATUS_CLOSED, "Closed")]
 
-    # Precision of the location actually known for this point -- drives how
-    # it's shown on the map (core.serializers.CollectionPointMapPinSerializer,
-    # frontend CollectionPoints.jsx): EXACT gets a normal pin with a GPS
-    # link, CITY gets a pin jittered around the city/wilaya centroid (see
-    # core.geo.jitter_point) with NO GPS link since the coordinates aren't
-    # real, and COUNTRY gets no individual pin at all -- it's folded into a
-    # per-country count bubble instead (CollectionPointViewSet.country_groups),
-    # clicking which lists points rather than opening a single popup.
+    # Null only for an international point (see country_code below) -- a
+    # national one always has a wilaya, same as before.
+    wilaya = models.ForeignKey(Wilaya, on_delete=models.PROTECT, related_name="collection_points", null=True, blank=True)
+    # Blank means "national" (Algeria, uses wilaya above) -- the original
+    # and still by far the common case. A non-blank ISO 3166-1 alpha-2 code
+    # (never "DZ", enforced in CollectionPointCreateSerializer.validate)
+    # marks an international collection point instead: no wilaya, an exact
+    # latitude/longitude is mandatory (there's no wilaya centroid to fall
+    # back on), and it's created/browsed from a separate page
+    # (InternationalCollectionPoints.jsx) that never shows or is shown to
+    # couriers -- see Pickup.collection_point's own validation, which
+    # refuses to ever attach a delivery to one of these.
+    country_code = models.CharField(max_length=2, blank=True)
+    # Display snapshot captured at creation time (e.g. "France") rather
+    # than re-deriving a name from country_code on every read -- simpler
+    # than adding a Country lookup table for what's otherwise just a label.
+    country_name = models.CharField(max_length=100, blank=True)
+    # Free-text city -- optional extra precision alongside wilaya (national)
+    # or country_code/country_name (international). Purely informational
+    # until the flyer-extraction pipeline below: that's the first thing to
+    # actually populate it for points that have no exact address at all.
+    city = models.CharField(max_length=150, blank=True)
+    # PRECISION_EXACT covers every point created through the manual forms
+    # today (a national one either has real GPS or falls back to its
+    # wilaya's centroid -- both already treated as "the best we've got";
+    # an international one always has real GPS, mandatory at creation).
+    # PRECISION_CITY/COUNTRY only exist for points published from the
+    # flyer-extraction pipeline (ExtractedCollectionPoint below), where a
+    # photo sometimes gives no better anchor than a city or a bare country
+    # name -- see CollectionPointMapPinSerializer for how each is displayed
+    # (a city-level pin still gets real, if approximate, coordinates and
+    # relies on the frontend's own overlapping-marker spread; a
+    # country-level point gets no coordinates of its own at all and is
+    # positioned at the country's centroid only for map display).
     PRECISION_EXACT, PRECISION_CITY, PRECISION_COUNTRY = "exact", "city", "country"
     PRECISION_CHOICES = [
         (PRECISION_EXACT, "Exact address"),
         (PRECISION_CITY, "City only"),
         (PRECISION_COUNTRY, "Country only"),
     ]
-
-    # Nullable so international points (flyer-extraction pipeline, see
-    # FlyerSubmission below) can leave it unset -- wilaya is Algeria's own
-    # closed 58-entry list and has no equivalent for other countries. The
-    # manual creation form (CollectionPointCreateSerializer) still requires
-    # it at the serializer level, so that existing Algeria-only flow is
-    # unaffected by this relaxation.
-    wilaya = models.ForeignKey(Wilaya, on_delete=models.PROTECT, related_name="collection_points", null=True, blank=True)
-    # Defaults to Algeria so every pre-existing row (and every point created
-    # via the manual, wilaya-driven form) needs no explicit value. Free text
-    # rather than a closed list: unlike wilaya there is no fixed reference
-    # table of countries in this app, and validating against one adds
-    # complexity a handful of diaspora countries doesn't justify.
-    country = models.CharField(max_length=100, blank=True, default="Algérie")
-    # Free-text city -- set for international PRECISION_CITY/EXACT points
-    # (wilaya has no sub-division here) and optionally alongside wilaya for
-    # an Algerian point extracted from a flyer, purely for display.
-    city = models.CharField(max_length=150, blank=True)
     precision_level = models.CharField(max_length=10, choices=PRECISION_CHOICES, default=PRECISION_EXACT)
     point_name = models.CharField(max_length=200)
     # Issued at creation, same shape as Need/Pickup's own access_token
@@ -751,6 +792,11 @@ class CollectionPoint(models.Model):
     latitude = models.FloatField(null=True, blank=True)
     longitude = models.FloatField(null=True, blank=True)
     hours = models.CharField(max_length=200, blank=True)
+    # Free-form, optional -- unlike location_description (where/how to find
+    # the point), this is for anything else worth telling a donor about it
+    # (what it's for, who runs it...), shown right before accepted_donations
+    # on both the form and the detail page.
+    description = models.TextField(blank=True)
     accepted_donations = models.TextField(blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_ACTIVE)
     # All three optional -- http(s)-only enforcement lives in
@@ -783,6 +829,10 @@ class CollectionPoint(models.Model):
         # False since there is no anonymization concept for CollectionPoint.
         return False
 
+    @property
+    def is_international(self):
+        return bool(self.country_code)
+
     def regenerate_token(self):
         self.access_token = generate_token()
         self.save(update_fields=["access_token"])
@@ -811,28 +861,28 @@ class CollectionPoint(models.Model):
 
 class CountryCentroidCache(models.Model):
     """Lazily-populated cache of country-level centroids used to position a
-    PRECISION_COUNTRY bubble on the map (core.geo.get_country_centroid).
+    PRECISION_COUNTRY point on the map (core.geo.get_country_centroid).
     Common countries resolve from a hardcoded dict with no DB hit at all;
     this table only exists for the long tail, so a country seen once never
     needs a fresh Nominatim geocode again."""
 
-    name = models.CharField(max_length=100, unique=True)
+    country_code = models.CharField(max_length=2, unique=True)
     latitude = models.FloatField()
     longitude = models.FloatField()
 
     def __str__(self):
-        return self.name
+        return self.country_code
 
 
-class FlyerSubmission(models.Model):
+class FlyerSubmission(AuditMixin, models.Model):
     """One uploaded flyer photo, submitted through the 'add a collection
-    point from a flyer' pipeline (core.gemini_extraction) rather than the
+    point from a flyer' pipeline (core.gemini_extraction) rather than a
     manual form. A flyer can describe several collection points at once
     (e.g. a table of cities) -- those are held as ExtractedCollectionPoint
-    children below, never published automatically. See spec: manual review
-    is mandatory before anything from this pipeline becomes a real,
-    publicly visible CollectionPoint, same as flyer_image moderation is for
-    the manual form."""
+    children below, never published automatically. Manual review is
+    mandatory before anything from this pipeline becomes a real, publicly
+    visible CollectionPoint, same as flyer_image moderation is for the
+    manual forms."""
 
     STATUS_PROCESSING = "processing"
     STATUS_NEEDS_REVIEW = "needs_review"
@@ -860,9 +910,9 @@ class FlyerSubmission(models.Model):
 
     access_token = models.CharField(max_length=32, unique=True, default=generate_token, editable=False)
     # Optional -- only used so the submitter can check back on this
-    # specific submission's status later (see status/ action); the
-    # per-point contact_name/contact_phone actually shown publicly come
-    # from what the LLM read off the flyer itself, not from these.
+    # specific submission's status later; the per-point contact_name/
+    # contact_phone actually shown publicly come from what the LLM read
+    # off the flyer itself, not from these.
     submitter_name = models.CharField(max_length=200, blank=True)
     submitter_phone = models.CharField(max_length=30, blank=True)
     flyer_image = models.ImageField(upload_to="flyer_submissions/")
@@ -893,7 +943,9 @@ class ExtractedCollectionPoint(models.Model):
     for a single FlyerSubmission. Deliberately its own row (not a JSON blob
     on FlyerSubmission) so a human reviewer can edit, drop, or approve each
     one individually in Django Admin (see ExtractedCollectionPointInline)
-    before anything is published as a real CollectionPoint."""
+    before anything is published as a real CollectionPoint. Fields mirror
+    CollectionPoint's own (country_code/country_name, not a free-text
+    country) so publishing is a straight field-for-field copy."""
 
     submission = models.ForeignKey(FlyerSubmission, on_delete=models.CASCADE, related_name="extracted_points")
     # Unchecked by a reviewer to drop a candidate (duplicate, junk, the
@@ -902,14 +954,16 @@ class ExtractedCollectionPoint(models.Model):
     include_in_publish = models.BooleanField(default=True)
     point_name = models.CharField(max_length=200, blank=True)
     organization = models.CharField(max_length=200, blank=True)
-    country = models.CharField(max_length=100)
-    city = models.CharField(max_length=150, blank=True)
     wilaya = models.ForeignKey(Wilaya, on_delete=models.SET_NULL, null=True, blank=True)
+    country_code = models.CharField(max_length=2, blank=True)
+    country_name = models.CharField(max_length=100, blank=True)
+    city = models.CharField(max_length=150, blank=True)
     location_description = models.TextField(blank=True)
     precision_level = models.CharField(max_length=10, choices=CollectionPoint.PRECISION_CHOICES, default=CollectionPoint.PRECISION_COUNTRY)
     latitude = models.FloatField(null=True, blank=True)
     longitude = models.FloatField(null=True, blank=True)
     hours = models.CharField(max_length=200, blank=True)
+    description = models.TextField(blank=True)
     accepted_donations = models.TextField(blank=True)
     contact_name = models.CharField(max_length=200, blank=True)
     contact_phone = models.CharField(max_length=30, blank=True)
@@ -934,10 +988,10 @@ class ExtractedCollectionPoint(models.Model):
         return self.point_name or f"Extracted point #{self.pk}"
 
 
-class Comment(models.Model):
-    """Usable on either a Need or a CollectionPoint (exactly one of the two
-    FKs is set). One level of replies only -- parent_comment_id must itself
-    have no parent."""
+class Comment(AuditMixin, models.Model):
+    """Usable on a Need, a CollectionPoint, or a Pickup (exactly one of the
+    three FKs is set). One level of replies only -- parent_comment_id must
+    itself have no parent."""
 
     CATEGORY_FIELD_INFO = "field_info"
     CATEGORY_CONTACT_INFO = "contact_info"
@@ -950,6 +1004,7 @@ class Comment(models.Model):
 
     need = models.ForeignKey(Need, null=True, blank=True, on_delete=models.CASCADE, related_name="comments")
     collection_point = models.ForeignKey(CollectionPoint, null=True, blank=True, on_delete=models.CASCADE, related_name="comments")
+    pickup = models.ForeignKey(Pickup, null=True, blank=True, on_delete=models.CASCADE, related_name="comments")
     parent_comment = models.ForeignKey("self", null=True, blank=True, on_delete=models.CASCADE, related_name="replies")
 
     author_name = models.CharField(max_length=200)
@@ -975,7 +1030,7 @@ class Comment(models.Model):
         return bool(token) and self.owner_token == token
 
 
-class AuditLog(models.Model):
+class AuditLog(AuditMixin, models.Model):
     """Every admin moderation/override action, and anonymization events."""
 
     admin_user = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
@@ -992,7 +1047,7 @@ class AuditLog(models.Model):
         return f"{self.created_at:%Y-%m-%d %H:%M} - {who} - {self.action}"
 
 
-class TranslationOverride(models.Model):
+class TranslationOverride(AuditMixin, models.Model):
     """Lets an admin correct/adjust a piece of UI text from Django Admin
     without a code deploy. `key` is a dotted i18next key exactly as used in
     the frontend's t() calls (e.g. "home.tagline", "createNeed.name") --

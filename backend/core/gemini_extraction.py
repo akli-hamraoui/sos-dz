@@ -1,16 +1,17 @@
 """Flyer photo -> structured collection-point data, via Gemini's free-tier
 vision API (settings.GEMINI_API_KEY, see .env.example). This automates what
 the project's maintainer used to do by hand: paste a flyer photo into a
-chat LLM and get back a CSV row per collection point. The prompt below is
-adapted from that original manual prompt, targeting Gemini's structured
-JSON output (response_schema) instead of "please reply with JSON" in
-prose, since the latter is far more prone to truncation/formatting errors
-that would otherwise need fragile manual repair downstream.
+chat LLM and get back a CSV row per collection point (see
+management/commands/import_collection_points.py for the offline,
+CSV-batch counterpart to this same idea). Structured JSON output
+(Gemini's response_schema) is used instead of asking the model to "return
+JSON" in prose, since the latter is far more prone to truncation/formatting
+errors that would otherwise need fragile manual repair downstream.
 
 Nothing here decides what gets published -- see core.views.FlyerSubmissionViewSet
 and models.FlyerSubmission/ExtractedCollectionPoint: every result lands in
 a human review queue (Django Admin) first, same as flyer_image moderation
-does for the manual creation form.
+does for the manual creation forms.
 """
 
 import json
@@ -32,26 +33,6 @@ class ExtractionUnavailable(ExtractionError):
     message ("this feature isn't set up" vs. "please try again later")."""
 
 
-# Money-collection safety net, checked independently of whatever the LLM
-# itself reports in has_money_collection -- this is a compliance-sensitive
-# hard rule (spec point 11: CCP/cagnotte/Cotizup/IBAN/PayPal anywhere on
-# the flyer means the whole submission is rejected, no exceptions), so it
-# should not depend solely on the model noticing it. Deliberately broad
-# and case-insensitive; a false positive here just means a legitimate
-# submission needs a plain resubmission without the offending line, which
-# is a far cheaper mistake than publishing one that solicits money
-# transfers.
-MONEY_COLLECTION_KEYWORDS = [
-    "ccp", "rip", "cagnotte", "cotizup", "iban", "paypal", "cheque", "chèque",
-    "virement bancaire", "compte bancaire", "compte postal", "cci ",
-]
-
-
-def contains_money_collection_mention(*texts):
-    combined = " ".join(t or "" for t in texts).lower()
-    return any(keyword in combined for keyword in MONEY_COLLECTION_KEYWORDS)
-
-
 _RESPONSE_SCHEMA = {
     "type": "object",
     "properties": {
@@ -69,7 +50,11 @@ _RESPONSE_SCHEMA = {
                 "properties": {
                     "point_name": {"type": "string"},
                     "organization": {"type": "string"},
-                    "country": {"type": "string"},
+                    "country_code": {
+                        "type": "string",
+                        "description": "ISO 3166-1 alpha-2 code, e.g. 'DZ' for Algeria, 'FR' for France. Empty if the country can't be identified.",
+                    },
+                    "country_name": {"type": "string"},
                     "city": {"type": "string"},
                     "address": {"type": "string"},
                     "hours": {"type": "string"},
@@ -81,7 +66,7 @@ _RESPONSE_SCHEMA = {
                     "tiktok_url": {"type": "string"},
                     "instagram_url": {"type": "string"},
                 },
-                "required": ["country"],
+                "required": ["country_code"],
             },
         },
     },
@@ -99,7 +84,7 @@ Règles impératives :
 
 2. N'invente JAMAIS une valeur. Si une information n'est pas clairement visible ou lisible sur l'image, laisse le champ correspondant vide (chaîne vide). Ne complète jamais un champ manquant par une supposition.
 
-3. "country" (pays) est le champ le plus important : renseigne-le pour chaque point si tu peux l'identifier, même quand aucune autre information de localisation n'est disponible. "country_found" doit être false UNIQUEMENT si tu ne peux identifier le pays d'AUCUN point sur tout le flyer.
+3. "country_code" (code pays ISO 3166-1 alpha-2, ex: "DZ" pour l'Algérie, "FR" pour la France) est le champ le plus important : renseigne-le pour chaque point si tu peux identifier le pays, même quand aucune autre information de localisation n'est disponible. Renseigne aussi "country_name" (nom du pays en français). "country_found" doit être false UNIQUEMENT si tu ne peux identifier le pays d'AUCUN point sur tout le flyer.
 
 4. "address" : si tu identifies une adresse, complète-la pour qu'elle soit géolocalisable sur une carte (inclus la ville et le pays si le flyer ne donne qu'une adresse partielle, ex: nom d'un centre commercial ou d'un quartier). N'invente JAMAIS un numéro de rue précis qui n'apparaît pas sur le flyer — dans ce cas contente-toi de "nom du lieu, ville, pays".
 

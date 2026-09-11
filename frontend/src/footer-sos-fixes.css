@@ -1,0 +1,25 @@
+/* Regression fix kept separate from index.css so future CSS work cannot
+   accidentally remove the footer sizing block again. */
+.bottom-nav a.active {
+  width: min(74px, calc(100% - 8px)) !important;
+  height: 72px !important;
+  min-height: 72px !important;
+  margin-inline: auto !important;
+  padding: 7px 4px !important;
+  border-radius: 16px !important;
+  justify-content: center !important;
+  gap: 2px !important;
+}
+
+.bottom-nav a.active .icon {
+  width: 26px !important;
+  height: 26px !important;
+}
+
+/* The critical-SOS marker's own styling lives entirely in
+   sos-map-marker.css now -- a duplicate, contradictory rule set used to
+   live here too (background:transparent + an external animated-SVG
+   asset, vs. sos-map-marker.css's red background + CSS-keyframe pulse),
+   and whichever file's CSS ended up last in the bundle silently decided
+   which one actually rendered. Removed rather than reconciled, so there
+   is exactly one implementation left to maintain. */

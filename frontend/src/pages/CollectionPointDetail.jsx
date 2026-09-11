@@ -1,10 +1,10 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useDialog } from '../context/DialogContext'
 import { useApp } from '../context/AppContext'
 import { api } from '../api'
-import { maskPhone, googleMapsUrl } from '../utils'
+import { maskPhone, googleMapsDirectionsUrl, getCurrentPosition } from '../utils'
 import { translateApiError } from '../apiErrors'
 import CommentThread from '../components/CommentThread'
 import ModerationBadge from '../components/ModerationBadge'
@@ -34,6 +34,20 @@ export default function CollectionPointDetail() {
   const [lightbox, setLightbox] = useState(null) // { src } for a full-size flyer preview
 
   const isOwner = !!cpTokens[id]
+  // Fetched eagerly in the background on mount, not awaited at click time
+  // (see the Maps button below) -- a browser's "this navigation was
+  // directly triggered by the user" activation window is short-lived
+  // (a few seconds) and does not survive an async gap of unpredictable
+  // length (a fresh GPS fix can take several seconds, denial can take
+  // even longer to time out). A navigation issued after that window has
+  // expired is no longer treated as user-initiated, which is exactly the
+  // kind of thing that makes Android's Maps-app handoff intermittently
+  // fail into a blank tab -- fast fix, works; slow fix, blank. Prefetching
+  // means the click handler itself is purely synchronous, so by the time
+  // anyone actually taps the button (they've had the page open at least a
+  // few seconds already, reading the details), the position is very
+  // likely already sitting here, ready or not.
+  const originRef = useRef(null)
 
   const load = useCallback(async () => {
     setCp(await api(`/collection-points/${id}/`))
@@ -42,6 +56,12 @@ export default function CollectionPointDetail() {
   useEffect(() => {
     load().catch(() => {}) // offline/network failure -- offline banner already informs the user
   }, [load])
+
+  useEffect(() => {
+    getCurrentPosition().then((origin) => {
+      originRef.current = origin
+    })
+  }, [])
 
   const reportFlyer = async () => {
     const reason = await showPrompt(t('needDetail.reportContent') + '?')
@@ -91,26 +111,52 @@ export default function CollectionPointDetail() {
     <section className="detail-page">
       <div className="detail-title-row">
         <h2>{cp.point_name}</h2>
-        {cp.status === 'active' && (
+        {/* Never offered for an international point -- couriers/drivers
+            only ever operate in Algeria, and Pickup creation rejects one
+            targeting this kind of point server-side regardless. */}
+        {cp.status === 'active' && !cp.is_international && (
           <button className="btn btn-success" onClick={() => navigate(`/collection-points/${id}/take-charge`)}>
             {t('collectionPoints.takeChargeDelivery')}
           </button>
         )}
       </div>
       <span className="status">{t(`status.${cp.status}`)}</span>
-      <p>{cp.wilaya_name}</p>
+      <p>{cp.is_international ? cp.country_name : cp.wilaya_name}</p>
       <p>{cp.location_description}</p>
       {cp.latitude != null && cp.longitude != null ? (
         <p>
-          <a className="link field-label-icon" href={googleMapsUrl(cp.latitude, cp.longitude)} target="_blank" rel="noopener noreferrer">
+          {/* Uses the visitor's own position (prefetched in the background,
+              see originRef above) as the directions' origin when it's
+              already available, so Google Maps opens straight into
+              turn-by-turn directions with both ends already known, instead
+              of a bare destination pin that leaves Maps to resolve "your
+              location" itself -- falls back to a destination-only link
+              when it isn't (denied/timed out/not resolved yet), in which
+              case Maps just asks for the origin the way it always did.
+              Navigates the CURRENT tab (no window.open/target=_blank): a
+              new tab opened for this consistently ended up stuck on
+              "about:blank" on Android Chrome (confirmed live) instead of
+              ever reaching Maps. The trade-off is this leaves the SOS DZ
+              page (the phone's back button returns to it, same as any
+              outbound link). Deliberately synchronous -- no await/.then()
+              in the click handler itself, see originRef's own comment
+              for why. */}
+          <button
+            type="button"
+            className="link field-label-icon"
+            onClick={() => {
+              window.location.href = googleMapsDirectionsUrl(cp.latitude, cp.longitude, originRef.current)
+            }}
+          >
             <IconMapPin width={16} height={16} strokeWidth={2} /> {t('common.openInMaps')}
-          </a>
+          </button>
         </p>
       ) : (
         <p className="hint">{t('common.noExactGpsPosition')}</p>
       )}
       {cp.organization && <p>{cp.organization}</p>}
       {cp.hours && <p>{t('collectionPoints.hours')}: {cp.hours}</p>}
+      {cp.description && <p className="multiline-text">{cp.description}</p>}
       {cp.accepted_donations && (
         <p className="multiline-text">
           {t('collectionPoints.acceptedDonationsLabel')}: {cp.accepted_donations}
@@ -134,7 +180,7 @@ export default function CollectionPointDetail() {
                   meant for video/audio -- a poster image doesn't need to
                   take up to 70vh of the page by default. */}
               <button type="button" className="flyer-thumb-btn" onClick={() => setLightbox({ src: cp.flyer_image })}>
-                <img className="flyer-thumb" src={cp.flyer_image} alt="" />
+                <img className="flyer-thumb" src={cp.flyer_image} alt={t('common.flyerAlt')} />
               </button>
               <br />
               <button className="link" onClick={reportFlyer}>
@@ -178,10 +224,17 @@ export default function CollectionPointDetail() {
           </div>
         ))}
 
-      {cp.status === 'active' && <h3>{t('needDetail.pickupsTitle', { count: cp.pickups.length })}</h3>}
-      {cp.pickups.map((p) => (
-        <PickupManager key={p.id} pickup={p} pickupToken={pickupTokens[p.id]} onChange={load} />
-      ))}
+      {/* Always empty for an international point -- no take-charge ever
+          possible, so this whole section (and its "(0)" count) is just
+          noise there and is skipped entirely. */}
+      {!cp.is_international && (
+        <>
+          {cp.status === 'active' && <h3>{t('needDetail.pickupsTitle', { count: cp.pickups.length })}</h3>}
+          {cp.pickups.map((p) => (
+            <PickupManager key={p.id} pickup={p} pickupToken={pickupTokens[p.id]} onChange={load} />
+          ))}
+        </>
+      )}
 
       {SOCIAL_NETWORKS.some(({ field }) => isSafeHttpUrl(cp[field])) && (
         <div className="social-links-section">
@@ -211,7 +264,7 @@ export default function CollectionPointDetail() {
           <button type="button" className="lightbox-close" onClick={() => setLightbox(null)} aria-label={t('needDetail.closeLightbox')}>
             ×
           </button>
-          <img src={lightbox.src} alt="" onClick={(e) => e.stopPropagation()} />
+          <img src={lightbox.src} alt={t('common.flyerAlt')} onClick={(e) => e.stopPropagation()} />
         </div>
       )}
     </section>

@@ -20,9 +20,15 @@ from core.models import (
     SupportRequest,
     Wilaya,
 )
-from core.geo import jitter_point
 from core.media_validation import validate_video_duration, validate_video_size
-from core.validators import check_recovery_code_available, validate_algeria_bounds, validate_social_url
+from core.permissions import is_request_admin
+from core.validators import (
+    check_recovery_code_available,
+    is_within_algeria_bounds,
+    normalize_place_name,
+    validate_algeria_bounds,
+    validate_social_url,
+)
 
 
 class ModeratedPhotoMixin:
@@ -179,9 +185,18 @@ class PickupPublicSerializer(PickupParentInfoMixin, serializers.ModelSerializer)
     # (PickupViewSet.live_locations) -- exposed here too so this pickup's
     # own detail page (PickupDetail.jsx) can show it without a separate call.
     current_position = serializers.SerializerMethodField()
+    # Same "commentable" pattern as Need/CollectionPoint (see
+    # CollectionPointSerializer.get_comments) -- lets someone leave a
+    # comment on this transporter (e.g. to confirm contact was made),
+    # shown on this pickup's own detail page (PickupDetail.jsx).
+    comments = serializers.SerializerMethodField()
 
     def get_current_position(self, obj):
         return obj.latest_known_position()
+
+    def get_comments(self, obj):
+        roots = obj.comments.filter(parent_comment__isnull=True)
+        return CommentSerializer(roots, many=True, context=self.context).data
 
     class Meta:
         model = Pickup
@@ -213,16 +228,21 @@ class PickupPublicSerializer(PickupParentInfoMixin, serializers.ModelSerializer)
             "needs_verification",
             "is_anonymized",
             "current_position",
+            "comments",
         ]
 
 
 class PickupListSerializer(PickupParentInfoMixin, serializers.ModelSerializer):
     """Lighter than PickupPublicSerializer for the global "deliveries in
-    progress" list (no nested progress_updates/delivery_photos -- not
-    needed for an overview row, and keeps the payload small for weak
-    connectivity)."""
+    progress" list (no nested progress_updates/full delivery_photos list --
+    not needed for an overview row, and keeps the payload small for weak
+    connectivity). `photo` is the one exception: a single approved delivery
+    photo URL (not the full array+moderation metadata), letting the list
+    row show a thumbnail without pulling in everything
+    PickupPublicSerializer's own delivery_photos carries."""
 
     is_anonymized = serializers.BooleanField(read_only=True)
+    photo = serializers.SerializerMethodField()
 
     class Meta:
         model = Pickup
@@ -243,7 +263,16 @@ class PickupListSerializer(PickupParentInfoMixin, serializers.ModelSerializer):
             "pickup_date",
             "actual_delivery_date",
             "is_anonymized",
+            "photo",
         ]
+
+    def get_photo(self, obj):
+        approved = next((p for p in obj.delivery_photos.all() if p.moderation_status == Need.MODERATION_APPROVED), None)
+        if not approved:
+            return None
+        request = self.context.get("request")
+        url = approved.image.url
+        return request.build_absolute_uri(url) if request else url
 
 
 class PickupCreateSerializer(serializers.ModelSerializer):
@@ -277,6 +306,8 @@ class PickupCreateSerializer(serializers.ModelSerializer):
     def validate_collection_point(self, collection_point):
         if collection_point.status != CollectionPoint.STATUS_ACTIVE:
             raise serializers.ValidationError("This collection point is closed.")
+        if collection_point.is_international:
+            raise serializers.ValidationError("International collection points don't accept deliveries or couriers.")
         return collection_point
 
     def validate_recovery_code(self, value):
@@ -338,9 +369,11 @@ class NeedPublicSerializer(serializers.ModelSerializer):
             "wilaya_name",
             "commune",
             "location_description",
+            "description",
             "latitude",
             "longitude",
             "position_accuracy",
+            "has_no_location",
             "contact_name",
             "contact_phone",
             "other_phones",
@@ -352,6 +385,7 @@ class NeedPublicSerializer(serializers.ModelSerializer):
             "video_moderated_by",
             "damage_photos",
             "overall_status",
+            "voice_processing_status",
             "covered_quantity",
             "is_cancelled",
             "cancellation_reason",
@@ -372,6 +406,15 @@ class NeedMapPinSerializer(serializers.ModelSerializer):
     display_latitude = serializers.SerializerMethodField()
     display_longitude = serializers.SerializerMethodField()
     has_exact_position = serializers.SerializerMethodField()
+    # First approved damage photo, if any -- lets the map popup offer a
+    # "view photo" shortcut without a second request, same moderation gate
+    # as NeedPublicSerializer's own damage_photos.
+    photo = serializers.SerializerMethodField()
+    # Already public on the need's own detail endpoint (NeedPublicSerializer)
+    # -- exposed here too so the map's "sans localisation" bubble popup (see
+    # NeedsList.jsx) can offer a "listen" button per SOS without a second
+    # request per item.
+    voice_file = serializers.SerializerMethodField()
 
     class Meta:
         model = Need
@@ -379,12 +422,16 @@ class NeedMapPinSerializer(serializers.ModelSerializer):
             "id",
             "title",
             "urgency",
+            "wilaya",
             "wilaya_name",
             "overall_status",
             "location_description",
             "display_latitude",
             "display_longitude",
             "has_exact_position",
+            "has_no_location",
+            "photo",
+            "voice_file",
         ]
 
     def get_has_exact_position(self, obj):
@@ -400,11 +447,33 @@ class NeedMapPinSerializer(serializers.ModelSerializer):
             return obj.longitude
         return obj.wilaya.centroid_longitude
 
+    def get_photo(self, obj):
+        approved = next((p for p in obj.damage_photos.all() if p.moderation_status == Need.MODERATION_APPROVED), None)
+        if not approved:
+            return None
+        request = self.context.get("request")
+        url = approved.image.url
+        return request.build_absolute_uri(url) if request else url
+
+    def get_voice_file(self, obj):
+        if not obj.voice_file:
+            return None
+        request = self.context.get("request")
+        url = obj.voice_file.url
+        return request.build_absolute_uri(url) if request else url
+
 
 class NeedCreateSerializer(serializers.ModelSerializer):
     location_description = serializers.CharField(required=False, allow_blank=True)
     voice_file = serializers.FileField(required=False, allow_null=True)
     video_file = serializers.FileField(required=False, allow_null=True)
+    # Optional here (unlike the model field, which has no default) -- the
+    # guided voice flow has no wilaya picker of its own and lets the
+    # reporter decline geolocation entirely, so it never sends this field.
+    # validate() below assigns a fallback wilaya and flags has_no_location
+    # in that case; every other caller (CreateNeed.jsx, always sends one)
+    # is unaffected.
+    wilaya = serializers.PrimaryKeyRelatedField(queryset=Wilaya.objects.all(), required=False)
 
     class Meta:
         model = Need
@@ -417,6 +486,7 @@ class NeedCreateSerializer(serializers.ModelSerializer):
             "wilaya",
             "commune",
             "location_description",
+            "description",
             "latitude",
             "longitude",
             "contact_name",
@@ -434,22 +504,66 @@ class NeedCreateSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         campaign = attrs["campaign"]
-        wilaya = attrs["wilaya"]
         if campaign.status != Campaign.STATUS_ACTIVE:
             raise serializers.ValidationError(
                 "This campaign is not accepting new needs right now (paused or stopped)."
             )
-        if not campaign.authorized_wilayas.filter(pk=wilaya.pk).exists():
+        wilaya = attrs.get("wilaya")
+        if wilaya is None:
+            # No location fix at all (guided voice flow, geolocation
+            # declined/failed) -- fall back to Alger (the capital, the
+            # single most-likely-relevant wilaya when none is known) if
+            # it's authorized for this campaign, otherwise the first
+            # authorized wilaya alphabetically, so submission never dead-
+            # ends just because nothing more specific was available.
+            # Picked in Python via normalize_place_name, not
+            # .order_by("name") -- the database's raw string ordering
+            # sorts an accented name like "Aïn Defla" *after* plain-ASCII
+            # ones (confirmed: it lost to "Annaba" this way on the real
+            # "Feux en Algérie" campaign, which has no Alger to fall back
+            # to first), which has nothing to do with the actual alphabet.
+            wilaya = campaign.authorized_wilayas.filter(name="Alger").first() or min(
+                campaign.authorized_wilayas.all(), key=lambda w: normalize_place_name(w.name), default=None
+            )
+            if wilaya is None:
+                raise serializers.ValidationError({"wilaya": "This field is required."})
+            attrs["wilaya"] = wilaya
+            # A fallback wilaya is only administrative metadata. If precise
+            # GPS was supplied (admin SOS voice abroad), keep the listing as
+            # precisely located instead of marking it as "no location".
+            if attrs.get("latitude") is None or attrs.get("longitude") is None:
+                attrs["has_no_location"] = True
+        elif not campaign.authorized_wilayas.filter(pk=wilaya.pk).exists():
             raise serializers.ValidationError(
                 "This wilaya is not authorized for the selected campaign."
             )
         lat, lon = attrs.get("latitude"), attrs.get("longitude")
         if lat is not None or lon is not None:
-            validate_algeria_bounds(lat, lon)
-        description = (attrs.get("location_description") or "").strip()
+            request = self.context.get("request")
+            view = self.context.get("view")
+            admin_voice_sos = (
+                getattr(view, "action", None) == "create_via_voice_guide"
+                and is_request_admin(request)
+            )
+            if not admin_voice_sos:
+                validate_algeria_bounds(lat, lon)
+            elif not is_within_algeria_bounds(lat, lon):
+                # An admin testing the guided voice SOS from outside
+                # Algeria (their own device's real GPS) must not publish a
+                # listing pinned in their own country -- this is an
+                # Algeria-only disaster relief map. Drop the coordinates
+                # instead of keeping them; NeedPublicSerializer/
+                # NeedMapSerializer's display_latitude/longitude already
+                # fall back to the wilaya's own centroid whenever
+                # latitude/longitude are None, so the pin still lands in
+                # the right wilaya (e.g. Tizi Ouzou) rather than nowhere.
+                attrs["latitude"] = None
+                attrs["longitude"] = None
+        description = (attrs.get("description") or "").strip()
+        location_description = (attrs.get("location_description") or "").strip()
         voice_file = attrs.get("voice_file")
         video_file = attrs.get("video_file")
-        if not description and not voice_file and not video_file:
+        if not description and not location_description and not voice_file and not video_file:
             raise serializers.ValidationError(
                 "Please provide at least one of: a text description, a voice message, or a video."
             )
@@ -547,7 +661,7 @@ class CommentSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Comment
-        fields = ["id", "need", "collection_point", "parent_comment", "author_name", "text", "category", "confirmation_count", "created_at", "replies"]
+        fields = ["id", "need", "collection_point", "pickup", "parent_comment", "author_name", "text", "category", "confirmation_count", "created_at", "replies"]
 
     def get_replies(self, obj):
         # Only ever one level deep -- replies never nest replies.
@@ -559,12 +673,12 @@ class CommentSerializer(serializers.ModelSerializer):
 class CommentCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Comment
-        fields = ["need", "collection_point", "parent_comment", "author_name", "text", "category"]
+        fields = ["need", "collection_point", "pickup", "parent_comment", "author_name", "text", "category"]
 
     def validate(self, attrs):
-        need, collection_point = attrs.get("need"), attrs.get("collection_point")
-        if bool(need) == bool(collection_point):
-            raise serializers.ValidationError("Exactly one of 'need' or 'collection_point' must be set.")
+        targets = [attrs.get("need"), attrs.get("collection_point"), attrs.get("pickup")]
+        if sum(1 for t in targets if t) != 1:
+            raise serializers.ValidationError("Exactly one of 'need', 'collection_point', or 'pickup' must be set.")
         parent = attrs.get("parent_comment")
         if parent is not None:
             if parent.parent_comment_id is not None:
@@ -574,24 +688,33 @@ class CommentCreateSerializer(serializers.ModelSerializer):
 
 
 class CollectionPointSerializer(serializers.ModelSerializer):
-    wilaya_name = serializers.CharField(source="wilaya.name", read_only=True)
+    # SerializerMethodField, not CharField(source="wilaya.name") -- an
+    # international point has no wilaya at all (see is_international below).
+    wilaya_name = serializers.SerializerMethodField()
     comments = serializers.SerializerMethodField()
     flyer_image = serializers.SerializerMethodField()
+    is_international = serializers.BooleanField(read_only=True)
     # Same "a listing carries its own pickups" convention as
     # NeedPublicSerializer -- lets a courier's take-charge/delivery from
     # this collection point (and its live tracking state) show up on the
-    # point's own detail page, same UI/logic as a Need's pickups.
+    # point's own detail page, same UI/logic as a Need's pickups. Always
+    # empty for an international point -- Pickup.collection_point rejects
+    # ever attaching a delivery to one (see PickupCreateSerializer).
     pickups = PickupPublicSerializer(many=True, read_only=True)
 
     class Meta:
         model = CollectionPoint
         fields = [
-            "id", "wilaya", "wilaya_name", "country", "city", "precision_level", "point_name",
-            "contact_name", "contact_phone", "other_phones", "organization", "location_description",
-            "latitude", "longitude", "hours", "accepted_donations", "status", "created_at",
-            "comments", "pickups", "facebook_url", "tiktok_url", "instagram_url",
+            "id", "wilaya", "wilaya_name", "country_code", "country_name", "is_international",
+            "city", "precision_level", "point_name", "contact_name", "contact_phone",
+            "other_phones", "organization", "location_description", "latitude", "longitude", "hours",
+            "description", "accepted_donations", "status", "created_at", "comments", "pickups",
+            "facebook_url", "tiktok_url", "instagram_url",
             "flyer_image", "flyer_moderation_status", "flyer_moderated_by",
         ]
+
+    def get_wilaya_name(self, obj):
+        return obj.wilaya.name if obj.wilaya_id else None
 
     def get_comments(self, obj):
         roots = obj.comments.filter(parent_comment__isnull=True)
@@ -611,24 +734,16 @@ class CollectionPointSerializer(serializers.ModelSerializer):
 
 
 class CollectionPointCreateSerializer(serializers.ModelSerializer):
-    """The manual, Algeria-only creation form (CreateCollectionPoint.jsx).
-    wilaya is required here even though the model field itself is now
-    nullable (to also support the flyer-extraction pipeline's international
-    points, published directly via CollectionPoint.objects.create rather
-    than through this serializer) -- this form's own behavior is otherwise
-    unchanged. country/city/precision_level are deliberately not exposed
-    here: they stay at their model defaults (Algeria, blank, exact), same
-    as before this feature existed."""
+    wilaya = serializers.PrimaryKeyRelatedField(queryset=Wilaya.objects.all(), required=False, allow_null=True)
 
     class Meta:
         model = CollectionPoint
         fields = [
-            "wilaya", "point_name", "contact_name", "contact_phone", "other_phones",
+            "wilaya", "country_code", "country_name", "point_name", "contact_name", "contact_phone", "other_phones",
             "organization", "location_description", "latitude", "longitude", "hours",
-            "accepted_donations", "facebook_url", "tiktok_url", "instagram_url", "flyer_image",
+            "description", "accepted_donations", "facebook_url", "tiktok_url", "instagram_url", "flyer_image",
             "recovery_code",
         ]
-        extra_kwargs = {"wilaya": {"required": True}}
 
     def validate_facebook_url(self, value):
         return validate_social_url(value)
@@ -644,8 +759,33 @@ class CollectionPointCreateSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         lat, lon = attrs.get("latitude"), attrs.get("longitude")
-        if lat is not None or lon is not None:
+        country_code = (attrs.get("country_code") or "").strip().upper()
+        if country_code:
+            # International (see CollectionPoint.country_code) -- created
+            # from a separate page (InternationalCollectionPoints.jsx) that
+            # never offers Algeria as a country choice in the first place;
+            # this is the server-side backstop against a direct API call.
+            if country_code == "DZ":
+                raise serializers.ValidationError("Algeria is not a valid country for an international collection point.")
+            if attrs.get("wilaya") is not None:
+                raise serializers.ValidationError("An international collection point cannot have a wilaya.")
+            if lat is None or lon is None:
+                raise serializers.ValidationError("An exact position (map pin) is required for an international collection point.")
+            if is_within_algeria_bounds(lat, lon):
+                # Distinct, matchable message (see apiErrors.js/the
+                # international create page) -- rendered with an actual
+                # link to the national create page, not just plain text.
+                raise serializers.ValidationError(
+                    {"latitude": ["This position is in Algeria. Please use the national collection points page instead."]}
+                )
+            attrs["country_code"] = country_code
+            attrs["country_name"] = (attrs.get("country_name") or "").strip() or country_code
+        else:
+            if attrs.get("wilaya") is None:
+                raise serializers.ValidationError("Wilaya is required for a national collection point.")
             validate_algeria_bounds(lat, lon)
+            attrs["country_code"] = ""
+            attrs["country_name"] = ""
         # contact_name/contact_phone are both optional, but a point with
         # neither and no recovery_code either would have absolutely no way
         # for its creator to prove ownership later (see matches_creator's
@@ -660,73 +800,68 @@ class CollectionPointCreateSerializer(serializers.ModelSerializer):
 
 
 class CollectionPointMapPinSerializer(serializers.ModelSerializer):
-    """Feeds the public map (CollectionPoints.jsx). PRECISION_COUNTRY points
-    are excluded upstream (CollectionPointViewSet.locations) -- they have
-    no individual pin at all, see country_groups/by_country instead.
-    PRECISION_CITY points are jittered (core.geo.jitter_point) around
-    their base coordinates -- deterministically, seeded by the point's own
-    id, so the same point always renders at the same spot rather than
-    hopping around on every reload -- and never carry has_exact_position,
-    so the frontend knows not to offer a GPS/"get directions" link for
-    coordinates that aren't real."""
-
-    wilaya_name = serializers.CharField(source="wilaya.name", read_only=True)
+    wilaya_name = serializers.SerializerMethodField()
     display_latitude = serializers.SerializerMethodField()
     display_longitude = serializers.SerializerMethodField()
     has_exact_position = serializers.SerializerMethodField()
+    is_international = serializers.BooleanField(read_only=True)
+    # Same "hidden until approved" gate as CollectionPointSerializer's own
+    # flyer_image -- lets the map popup offer a "view flyer" shortcut
+    # without a second request for the point's full detail.
+    flyer_image = serializers.SerializerMethodField()
 
     class Meta:
         model = CollectionPoint
         fields = [
             "id", "point_name", "contact_name", "contact_phone", "organization", "hours",
-            "status", "wilaya_name", "country", "city", "precision_level",
-            "display_latitude", "display_longitude", "has_exact_position",
+            "status", "wilaya", "wilaya_name", "country_code", "country_name", "is_international",
+            "city", "precision_level", "display_latitude", "display_longitude", "has_exact_position", "flyer_image",
         ]
+
+    def get_wilaya_name(self, obj):
+        return obj.wilaya.name if obj.wilaya_id else None
 
     def get_has_exact_position(self, obj):
         return obj.precision_level == CollectionPoint.PRECISION_EXACT
 
-    def _base_coords(self, obj):
-        if obj.precision_level == CollectionPoint.PRECISION_COUNTRY:
-            return None, None
-        if obj.latitude is not None and obj.longitude is not None:
-            return obj.latitude, obj.longitude
-        if obj.wilaya and obj.wilaya.centroid_latitude is not None:
-            return obj.wilaya.centroid_latitude, obj.wilaya.centroid_longitude
-        return None, None
+    def get_flyer_image(self, obj):
+        if not obj.flyer_image or obj.flyer_moderation_status != Need.MODERATION_APPROVED:
+            return None
+        request = self.context.get("request")
+        url = obj.flyer_image.url
+        return request.build_absolute_uri(url) if request else url
 
-    def _display_coords(self, obj):
-        lat, lon = self._base_coords(obj)
-        if lat is None or lon is None:
-            return None, None
-        if obj.precision_level == CollectionPoint.PRECISION_CITY:
-            return jitter_point(lat, lon, obj.pk)
-        return lat, lon
+    def _country_centroid(self, obj):
+        from core.geo import get_country_centroid
+
+        return get_country_centroid(obj.country_code, obj.country_name)
 
     def get_display_latitude(self, obj):
-        return self._display_coords(obj)[0]
+        if obj.latitude is not None:
+            return obj.latitude
+        if obj.wilaya_id is not None:
+            return obj.wilaya.centroid_latitude
+        if obj.country_code:
+            # PRECISION_COUNTRY (flyer-extraction pipeline only -- the
+            # manual international form always requires real GPS) has no
+            # coordinates of its own at all; fall back to the country's own
+            # centroid purely so it's visible on the map somewhere. Several
+            # points in the same country land on this exact same position
+            # and cluster into one bubble (InternationalCollectionPoints.jsx),
+            # same as the existing city-level clustering.
+            centroid = self._country_centroid(obj)
+            return centroid[0] if centroid else None
+        return None
 
     def get_display_longitude(self, obj):
-        return self._display_coords(obj)[1]
-
-
-class CountryGroupSerializer(serializers.Serializer):
-    """One aggregated bubble per country for PRECISION_COUNTRY points --
-    see CollectionPointViewSet.country_groups. Clicking a bubble lists
-    points (CollectionPointCountryListSerializer via by_country) instead
-    of opening a single-point popup, since there's no one location to
-    center a popup on."""
-
-    country = serializers.CharField()
-    count = serializers.IntegerField()
-    latitude = serializers.FloatField(allow_null=True)
-    longitude = serializers.FloatField(allow_null=True)
-
-
-class CollectionPointCountryListSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = CollectionPoint
-        fields = ["id", "point_name", "organization", "city", "contact_name", "contact_phone", "hours", "status"]
+        if obj.longitude is not None:
+            return obj.longitude
+        if obj.wilaya_id is not None:
+            return obj.wilaya.centroid_longitude
+        if obj.country_code:
+            centroid = self._country_centroid(obj)
+            return centroid[1] if centroid else None
+        return None
 
 
 class CollectionPointCloseSerializer(serializers.Serializer):
@@ -743,7 +878,7 @@ class CollectionPointCloseSerializer(serializers.Serializer):
 
 
 # ---------------------------------------------------------------------------
-# Flyer extraction pipeline (Wave 5): create a CollectionPoint from a photo
+# Flyer extraction pipeline: create one or more CollectionPoints from a photo
 # ---------------------------------------------------------------------------
 
 class FlyerSubmissionCreateSerializer(serializers.ModelSerializer):
@@ -759,15 +894,15 @@ class ExtractedCollectionPointSerializer(serializers.ModelSerializer):
     class Meta:
         model = ExtractedCollectionPoint
         fields = [
-            "id", "point_name", "organization", "country", "city", "wilaya", "wilaya_name",
-            "location_description", "precision_level", "hours", "accepted_donations",
+            "id", "point_name", "organization", "wilaya", "wilaya_name", "country_code", "country_name",
+            "city", "location_description", "precision_level", "hours", "description", "accepted_donations",
             "contact_name", "contact_phone", "other_phones", "duplicate_of", "duplicate_of_name",
         ]
 
 
 class FlyerSubmissionStatusSerializer(serializers.ModelSerializer):
     """Returned right after upload (the extraction call runs synchronously
-    within that same request) and from the status/ lookup-by-token action.
+    within that same request) and from a status lookup by access_token.
     Never exposes llm_raw_response (internal debugging only)."""
 
     extracted_points = ExtractedCollectionPointSerializer(many=True, read_only=True)

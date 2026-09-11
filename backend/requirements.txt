@@ -9,3 +9,5 @@ requests>=2.31,<3.0
 Pillow>=12.3,<13.0
 gunicorn>=22.0,<23.0
 google-genai>=1.0,<2.0
+
+faster-whisper>=1.2,<2.0

@@ -3,17 +3,21 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import L from 'leaflet'
 import { useApp } from '../context/AppContext'
+import { useDialog } from '../context/DialogContext'
 import { api } from '../api'
-import { maskPhone, formatDate } from '../utils'
-import { fetchDrivingRoute } from '../routing'
-import { IconTruck } from '../icons'
+import { maskPhone, formatDate, getCurrentPosition, RECENTER_BOX_METERS } from '../utils'
+import { fetchDrivingRoute, ROUTE_COLOR } from '../routing'
+import { flyerPopupButtonHtml, attachMapPopupBehavior, attachMapTapToActivate } from '../mapMarkers'
+import PhotoThumb from '../components/PhotoThumb'
+import PhotoLightbox from '../components/PhotoLightbox'
+import { IconTruck, IconLocate, IconExpand, IconClose } from '../icons'
 
 // Same green already used elsewhere for this app's own accent (the
 // Collecte FAB, "Prendre en charge" button, Home's privacy notice --
 // see index.css --collection-accent) -- reused here instead of the
 // previous grey/black truck so a courier marker reads as "SOS DZ's own"
 // rather than a generic dark pin.
-const TRUCK_GREEN = '#2f6b52'
+const TRUCK_GREEN = '#2c8f67'
 
 // Maps Pickup.responder_type values to the same labels already used at
 // take-charge time (TakeCharge.jsx) -- reused here as the closest existing
@@ -34,6 +38,7 @@ const LIVE_REFRESH_INTERVAL_MS = 20000
 export default function Deliveries() {
   const { t, i18n } = useTranslation()
   const { activeCampaignWilayas, pickupTokens } = useApp()
+  const { showAlert } = useDialog()
   const [filterWilaya, setFilterWilaya] = useState('')
   // '' (both, default) | 'with' | 'without' -- whether this transporter
   // currently has a known position (live ping or declared departure
@@ -47,11 +52,19 @@ export default function Deliveries() {
   // default than a text list, same reasoning as NeedsList's own map-first
   // default.
   const [viewMode, setViewMode] = useState('map')
+  // Filters (search, wilaya, position) tucked behind this toggle instead
+  // of always expanded -- see CollectionPoints.jsx's own filtersOpen for
+  // the rationale (same pattern, reused across every map+filters page).
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  // See CollectionPoints.jsx's own lightboxPhoto for the full rationale.
+  const [lightboxPhoto, setLightboxPhoto] = useState(null)
   // pickup_ids currently shown on the map (live ping or declared departure
   // position) -- used to flag, in the list, which en_route deliveries have
   // neither and so are never on the map at all (never "position
   // unavailable" purely by omission -- see the .noPosition list below).
   const [locatedPickupIds, setLocatedPickupIds] = useState(() => new Set())
+  const [mapPointsLoading, setMapPointsLoading] = useState(false)
+  const mapPointsLoadedRef = useRef(false)
   // The position filter applied on top of the server-side-filtered
   // `pickups` -- client-side, since locatedPickupIds is itself only known
   // client-side (derived from the separate live-locations fetch below).
@@ -67,6 +80,21 @@ export default function Deliveries() {
   // from the map with no indication they exist at all. Naturally 0 (bubble
   // hidden) once filterPosition === 'with' excludes every unlocated one.
   const unknownPositionCount = filteredPickups.filter((p) => p.status === 'en_route' && !locatedPickupIds.has(p.id)).length
+  // Tap-to-activate map -- see CollectionPoints.jsx's own mapActive for
+  // the full rationale (replaces the old two-finger-to-pan gesture
+  // handling, reported awkward on mobile). Starts "asleep" so a single
+  // finger scrolls the page; the first tap wakes it. The periodic
+  // renderLiveLocations refresh only ever replaces markers on an
+  // *existing* map instance (never recreates it -- see its own
+  // `if (!mapRef.current)` guard), so this never gets silently reset by
+  // a background tick.
+  const [mapActive, setMapActive] = useState(false)
+  // Fullscreen expand -- see CollectionPoints.jsx's own fullscreen.
+  const [fullscreen, setFullscreen] = useState(false)
+  // Map fills the remaining viewport height -- see CollectionPoints.jsx's
+  // own mapFillHeight for the full rationale.
+  const [mapFillHeight, setMapFillHeight] = useState(500)
+  const mapFrameRef = useRef(null)
   const mapRef = useRef(null)
   const mapElRef = useRef(null)
   const markersRef = useRef([])
@@ -106,11 +134,53 @@ export default function Deliveries() {
   // without moving the map the viewer is currently looking at.
   const renderLiveLocations = useCallback(
     async (fitView) => {
+      if (!mapRef.current) {
+        mapRef.current = L.map(mapElRef.current, {
+          attributionControl: false,
+          center: [28.0, 2.6],
+          zoom: 5,
+          fadeAnimation: false,
+          zoomAnimation: false,
+          markerZoomAnimation: false,
+          // Starts fully "asleep" -- see mapActive above -- so a single
+          // finger over the map scrolls the page like anything else on
+          // it. activateMap enables all of these once explicitly tapped.
+          dragging: false,
+          touchZoom: false,
+          scrollWheelZoom: false,
+          doubleClickZoom: false,
+          boxZoom: false,
+        })
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '&copy; OpenStreetMap contributors',
+          maxZoom: 19,
+          updateWhenZooming: false,
+          keepBuffer: 1,
+        }).addTo(mapRef.current)
+        L.control.attribution({ prefix: false }).addTo(mapRef.current)
+        // See CollectionPoints.jsx's own equivalent registration -- wires
+        // up any popup's "view photo" link to the shared PhotoLightbox
+        // without closing the popup underneath it.
+        attachMapPopupBehavior(mapRef.current, (photoUrl) => setLightboxPhoto(photoUrl), activateMap)
+        // Also wired from the overlay's own ref callback (for when it
+        // remounts later, e.g. deactivate/reactivate) -- done here too
+        // since on first mount that ref callback can fire before this
+        // effect has actually created the map yet (mapRef.current still
+        // null at that point), which would otherwise silently skip wiring
+        // it the very first time the page loads.
+        attachMapTapToActivate(mapRef.current, activateMap)
+      }
+      
       let locations
+      const showInitialLoader = !mapPointsLoadedRef.current
+      if (showInitialLoader) setMapPointsLoading(true)
       try {
         locations = await api('/pickups/live-locations/')
       } catch {
         return // offline/network failure -- silently skip this refresh, the next tick retries
+      } finally {
+        mapPointsLoadedRef.current = true
+        if (showInitialLoader) setMapPointsLoading(false)
       }
       // Updated regardless of viewMode -- the list view's "no position"
       // flagging (below) needs this even when the map itself isn't mounted.
@@ -125,20 +195,6 @@ export default function Deliveries() {
       // pins for (no coordinates to place them at), so it shows none here
       // and lets the unknown-position bubble below carry that count instead.
       const locationsToRender = filterPosition === 'without' ? [] : locations
-      if (!mapRef.current) {
-        mapRef.current = L.map(mapElRef.current, {
-          attributionControl: false,
-          gestureHandling: true,
-          gestureHandlingOptions: {
-            text: { touch: t('map.gestureTouch'), scroll: t('map.gestureScroll'), scrollMac: t('map.gestureScrollMac') },
-          },
-        })
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          attribution: '&copy; OpenStreetMap contributors',
-          maxZoom: 19,
-        }).addTo(mapRef.current)
-        L.control.attribution({ prefix: false }).addTo(mapRef.current)
-      }
       const map = mapRef.current
       markersRef.current.forEach((m) => map.removeLayer(m))
       // A marker click draws a fresh trajectory -- clear any leftover one
@@ -180,10 +236,13 @@ export default function Deliveries() {
         const statusLine = loc.is_live
           ? t('deliveries.liveMarkerLabel')
           : t('deliveries.departureMarkerLabel') + (loc.departure_description ? ` (${loc.departure_description})` : '')
+        const photoBtn = flyerPopupButtonHtml(t, loc.photo)
         marker.bindPopup(
-          `<strong>${loc.responder_name}</strong><br>${t('deliveries.bringing')}: ${loc.content_brought || '—'}<br>` +
+          `<div class="deliveries-map-popup"><strong>${loc.responder_name}</strong><br>${t('deliveries.bringing')}: ${loc.content_brought || '—'}<br>` +
             `<em>${statusLine}</em><br><a href="/pickups/${loc.pickup_id}">${t('deliveries.viewTransporterDetail')}</a>` +
-            `<br><a href="${destHref}">${destLabel}</a>`
+            `<br><a href="${destHref}">${destLabel}</a>` +
+            (photoBtn ? `<br>${photoBtn}` : '') +
+            `</div>`
         )
         // Trajectory to the destination on click -- silently skipped (no
         // line, no error, the rest of the marker/popup still works) when
@@ -200,13 +259,26 @@ export default function Deliveries() {
           // Basic straight line first (always available, no network
           // dependency), replaced by the real road-following route (same
           // OSRM helper as NeedDetail's own live map) once/if it resolves.
-          const straight = L.polyline([from, dest], { color: TRUCK_GREEN, weight: 3, dashArray: '4,8' }).addTo(map)
+          const straight = L.polyline([from, dest], { color: ROUTE_COLOR, weight: 3, dashArray: '4,8' }).addTo(map)
           routeLineRef.current = straight
+          // The map's zoom up to this point only ever framed the courier
+          // markers themselves (see fitView below), which can leave the
+          // destination well outside the visible area once a trajectory is
+          // drawn -- zoom out just enough to fit both ends of the line.
+          map.fitBounds(L.latLngBounds([from, dest]).pad(0.3), { maxZoom: 13, animate: false })
+          requestAnimationFrame(() => map._sosdzCenterOpenPopup?.())
           fetchDrivingRoute(from, dest)
             .then((route) => {
               if (routeLineRef.current !== straight) return // superseded by another click/re-render meanwhile
               map.removeLayer(straight)
-              routeLineRef.current = L.polyline(route.coordinates, { color: TRUCK_GREEN, weight: 4, dashArray: '1,10', lineCap: 'round' }).addTo(map)
+              routeLineRef.current = L.polyline(route.coordinates, { color: ROUTE_COLOR, weight: 4, dashArray: '1,10', lineCap: 'round' }).addTo(map)
+              // The straight-line fit above already frames both endpoints. Once the
+
+              // road route arrives, replace only the line geometry: fitting the map a
+
+              // second time here makes the open popup jump/flicker when the routing
+
+              // request completes a moment after the user's tap.
             })
             .catch(() => {
               /* routing service unreachable -- the basic straight line drawn above stays as-is */
@@ -216,7 +288,7 @@ export default function Deliveries() {
       })
       if (fitView) {
         if (locationsToRender.length > 1) {
-          map.fitBounds(L.latLngBounds(locationsToRender.map((l) => [l.latitude, l.longitude])).pad(0.3), { maxZoom: 13 })
+          map.fitBounds(L.latLngBounds(locationsToRender.map((l) => [l.latitude, l.longitude])).pad(0.3), { maxZoom: 13, animate: false })
         } else if (locationsToRender.length === 1) {
           map.setView([locationsToRender[0].latitude, locationsToRender[0].longitude], 13)
         } else {
@@ -238,6 +310,23 @@ export default function Deliveries() {
     return () => clearInterval(interval)
   }, [viewMode, renderLiveLocations])
 
+  const recenterOnMe = async () => {
+    const map = mapRef.current
+    if (!map) return
+    const pos = await getCurrentPosition({
+      maximumAge: 30000,
+      timeout: 3000,
+      enableHighAccuracy: false,
+    })
+    // See CollectionPoints.jsx's own recenterOnMe -- an explicit tap
+    // deserves feedback on failure.
+    if (!pos) {
+      showAlert(t('map.locationUnavailable'))
+      return
+    }
+    map.fitBounds(L.latLng(pos[0], pos[1]).toBounds(RECENTER_BOX_METERS))
+  }
+
   // Switching to "Liste" unmounts the map div -- tear down the Leaflet
   // instance so switching back to "Carte" builds a fresh one instead of
   // pointing at a stale, now-detached DOM node (see NeedsList.jsx for the
@@ -248,48 +337,123 @@ export default function Deliveries() {
     mapRef.current = null
     markersRef.current = []
     routeLineRef.current = null
+    setMapActive(false)
+    setFullscreen(false)
   }, [viewMode])
 
+  // See CollectionPoints.jsx's own activateMap/deactivateMap/
+  // enterFullscreen/exitFullscreen for the full rationale.
+  const activateMap = () => {
+    const map = mapRef.current
+    if (!map) return
+    map.dragging.enable()
+    map.touchZoom.enable()
+    map.scrollWheelZoom.enable()
+    map.doubleClickZoom.enable()
+    map.boxZoom.enable()
+    setMapActive(true)
+  }
+
+  const deactivateMap = () => {
+    const map = mapRef.current
+    if (!map) return
+    map.dragging.disable()
+    map.touchZoom.disable()
+    map.scrollWheelZoom.disable()
+    map.doubleClickZoom.disable()
+    map.boxZoom.disable()
+    setMapActive(false)
+  }
+
+  const enterFullscreen = () => {
+    activateMap()
+    setFullscreen(true)
+
+    // Use the native Fullscreen API when the browser supports it. The CSS
+    // fullscreen class remains the fallback for browsers that reject or do
+    // not expose requestFullscreen (notably some iOS contexts).
+    const frame = mapFrameRef.current
+    if (frame?.requestFullscreen) {
+      frame.requestFullscreen({ navigationUI: 'hide' }).catch(() => {
+        // CSS fallback is already active through setFullscreen(true).
+      })
+    }
+  }
+  const exitFullscreen = () => {
+    const frame = mapFrameRef.current
+    if (document.fullscreenElement === frame) {
+      const exitPromise = document.exitFullscreen?.()
+      exitPromise?.catch(() => {})
+    }
+    setFullscreen(false)
+    deactivateMap()
+  }
+
+  // Keep React state synchronized with browser fullscreen (including the
+  // Android back/escape gesture) and refresh Leaflet after the frame changes
+  // size. Leaflet documents invalidateSize() as the required call after a
+  // map container is resized dynamically.
+  useEffect(() => {
+    const onFullscreenChange = () => {
+      const nativeFullscreen = document.fullscreenElement === mapFrameRef.current
+      setFullscreen(nativeFullscreen)
+      if (!nativeFullscreen) deactivateMap()
+
+      requestAnimationFrame(() => {
+        mapRef.current?.invalidateSize({ pan: false, animate: false })
+        requestAnimationFrame(() => mapRef.current?.invalidateSize({ pan: false, animate: false }))
+      })
+    }
+
+    document.addEventListener('fullscreenchange', onFullscreenChange)
+    return () => document.removeEventListener('fullscreenchange', onFullscreenChange)
+  }, [])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+    const rafId = requestAnimationFrame(() => map.invalidateSize())
+    return () => cancelAnimationFrame(rafId)
+  }, [fullscreen, mapFillHeight])
+
+  // Airbnb-style "map fills the screen" -- see CollectionPoints.jsx's own
+  // equivalent effect for the full rationale.
+  useEffect(() => {
+    if (viewMode !== 'map' || fullscreen) return
+    const el = mapFrameRef.current
+    if (!el) return
+    const BOTTOM_NAV_CLEARANCE = 90
+    const MIN_HEIGHT = 160
+    const recompute = () => {
+      const top = el.getBoundingClientRect().top
+      setMapFillHeight(Math.max(MIN_HEIGHT, Math.round(window.innerHeight - top - BOTTOM_NAV_CLEARANCE)))
+    }
+    recompute()
+    window.addEventListener('resize', recompute)
+    return () => window.removeEventListener('resize', recompute)
+  }, [viewMode, fullscreen, filtersOpen])
+
+  useEffect(() => {
+    if (!fullscreen) return
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = previousOverflow
+    }
+  }, [fullscreen])
+
   return (
-    <section className="needs-page">
-      <div className="toolbar">
-        {/* Transporter info -- name/first name/full name/phone/email all
-            searched together server-side (PickupViewSet.get_queryset). */}
-        <input
-          type="search"
-          className="search-input"
-          value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
-          placeholder={t('deliveries.searchPlaceholder')}
-        />
-        {/* Destination info -- wilaya here is the destination's wilaya
-            (need/collection point), not the courier's current position,
-            same as the search box above already matching destination
-            name/phone too (see PickupViewSet.get_queryset). */}
-        <label>
-          {t('needsList.filterByWilaya')}
-          <select value={filterWilaya} onChange={(e) => setFilterWilaya(e.target.value)}>
-            <option value="">{t('needsList.all')}</option>
-            {activeCampaignWilayas.map((w) => (
-              <option key={w.id} value={w.id}>
-                {w.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          {t('deliveries.filterByPosition')}
-          <select value={filterPosition} onChange={(e) => setFilterPosition(e.target.value)}>
-            <option value="">{t('needsList.all')}</option>
-            <option value="with">{t('deliveries.positionWith')}</option>
-            <option value="without">{t('deliveries.positionWithout')}</option>
-          </select>
-        </label>
-        {hasActiveFilters && (
-          <button type="button" className="btn" onClick={resetFilters}>
-            {t('deliveries.resetFilters')}
-          </button>
-        )}
+    <section className="needs-page deliveries-page needs-page-map-fill">
+      {/* Starting a delivery (previously two buttons in a second toolbar
+          right here) is now reachable from the header's own truck
+          QuickActions menu (App.jsx) -- same two destinations
+          (/needs, /collection-points), so this page doesn't need to
+          duplicate them in its own toolbar too. */}
+      <div className="toolbar toolbar-compact">
+        <button type="button" className="filters-toggle" aria-expanded={filtersOpen} onClick={() => setFiltersOpen((v) => !v)}>
+          ☰ {t('common.filters')}
+          {hasActiveFilters && <span className="filters-badge" aria-hidden="true" />}
+        </button>
         <div className="view-toggle">
           <button className={viewMode === 'list' ? 'active' : ''} onClick={() => setViewMode('list')}>
             {t('needsList.list')}
@@ -299,20 +463,45 @@ export default function Deliveries() {
           </button>
         </div>
       </div>
-
-      {/* Starting a delivery always begins on the need/collection point's
-          own page ("Prendre en charge"/"Prendre en charge une livraison")
-          -- these two just get a courier to the right browse screen (map
-          or list, same pages as the Besoins/Collecte tabs) to pick which
-          one, instead of duplicating that browsing UI here. */}
-      <div className="toolbar">
-        <Link className="btn btn-primary" to="/needs">
-          {t('deliveries.deliverToNeed')}
-        </Link>
-        <Link className="btn btn-primary" to="/collection-points">
-          {t('deliveries.deliverToCollectionPoint')}
-        </Link>
-      </div>
+      {filtersOpen && (
+        <div className="filters-panel">
+          {/* Transporter info -- name/first name/full name/phone/email all
+              searched together server-side (PickupViewSet.get_queryset). */}
+          <input
+            type="search"
+            className="search-input"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder={t('deliveries.searchPlaceholder')}
+          />
+          {/* Destination info -- wilaya here is the destination's wilaya
+              (need/collection point), not the courier's current position,
+              same as the search box above already matching destination
+              name/phone too (see PickupViewSet.get_queryset). */}
+          <label>
+            {t('needsList.filterByWilaya')}
+            <select value={filterWilaya} onChange={(e) => setFilterWilaya(e.target.value)}>
+              <option value="">{t('needsList.all')}</option>
+              {activeCampaignWilayas.map((w) => (
+                <option key={w.id} value={w.id}>
+                  {w.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            {t('deliveries.filterByPosition')}
+            <select value={filterPosition} onChange={(e) => setFilterPosition(e.target.value)}>
+              <option value="">{t('needsList.all')}</option>
+              <option value="with">{t('deliveries.positionWith')}</option>
+              <option value="without">{t('deliveries.positionWithout')}</option>
+            </select>
+          </label>
+          <button type="button" className="btn" onClick={resetFilters}>
+            {t('deliveries.resetFilters')}
+          </button>
+        </div>
+      )}
 
       {viewMode === 'list' && (
         <>
@@ -333,6 +522,7 @@ export default function Deliveries() {
                 // PickupDetail itself still offers a "view destination"
                 // link for whoever wants to go there instead.
                 <Link className="need-card" to={`/pickups/${p.id}`} key={p.id}>
+                  <PhotoThumb src={p.photo} alt={p.organization_or_person_name || p.responder_name} onOpen={setLightboxPhoto} />
                   <span className={`badge badge-status-${p.status}`}>{t(`status.${p.status}`)}</span>
                   {/* pickupTokens only ever holds pickups created in this exact
                       browser (see AppContext) -- lets someone who just took
@@ -390,8 +580,49 @@ export default function Deliveries() {
               en_route is represented by the single unknown-position-chip
               bubble below, never a separate "nothing to show" message
               standing in for the map. */}
-          <div className="map-frame">
-            <div id="deliveries-map" ref={mapElRef} style={{ height: 600 }} />
+          <div
+            className={`map-frame${fullscreen ? ' map-frame-fullscreen' : ''}`}
+            ref={mapFrameRef}
+          >
+            <div id="deliveries-map" ref={mapElRef} style={{ height: '100%' }} />
+            {mapPointsLoading && (
+              <div className="map-points-loader" aria-live="polite" aria-label="Chargement des points">
+                <span className="map-points-loader-spinner" aria-hidden="true" />
+                <span>Chargement des points…</span>
+              </div>
+            )}
+            {!mapActive && !fullscreen && (
+              <div
+                className="map-activate-overlay map-activate-hint-only"
+              >
+                <span className="map-activate-hint">{t('map.tapToInteract')}</span>
+              </div>
+            )}
+            {mapActive && !fullscreen && (
+              <button type="button" className="map-deactivate-btn" onClick={deactivateMap}>
+                {t('map.exitMapInteraction')}
+              </button>
+            )}
+            
+            {!fullscreen && (
+              <button
+                type="button"
+                className="expand-btn"
+                onClick={enterFullscreen}
+                aria-label={t('map.viewFullscreen')}
+                title={t('map.viewFullscreen')}
+              >
+                <IconExpand width={18} height={18} />
+              </button>
+            )}
+            {fullscreen && (
+              <button type="button" className="exit-fullscreen-btn" onClick={exitFullscreen} aria-label={t('map.exitFullscreen')} title={t('map.exitFullscreen')}>
+                <IconClose width={20} height={20} />
+              </button>
+            )}
+            <button type="button" className="locate-btn" onClick={recenterOnMe} aria-label={t('map.recenterOnMe')} title={t('map.recenterOnMe')}>
+              <IconLocate width={18} height={18} />
+            </button>
             {unknownPositionCount > 0 && (
               <div className="unknown-position-chip">
                 <span className="unknown-position-pin">
@@ -405,6 +636,7 @@ export default function Deliveries() {
           <p className="legend-note">{t('deliveries.liveMapNote')}</p>
         </div>
       )}
+      <PhotoLightbox src={lightboxPhoto} onClose={() => setLightboxPhoto(null)} />
     </section>
   )
 }

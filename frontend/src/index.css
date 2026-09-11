@@ -1,22 +1,50 @@
 :root {
-  --accent: #111;
+  --accent: #d91f31;
+  --accent-hover: #b91c2c;
+  --sos-red: #d91f31;
+  --sos-red-soft: #fbe4e4;
+  --sos-green: #2f6b52;
+  --sos-green-bright: #137d50;
+  --sos-green-soft: #edf9f4;
+  --sos-blue: #2563eb;
+  --sos-blue-soft: #eaf4ff;
+  --sos-orange: #df9100;
+  --sos-orange-soft: #fff8e9;
+  --focus-ring: rgba(37, 99, 235, 0.22);
   /* Only other color the bottom-nav FABs use, so the "add a need" vs. "add
      a collection point" action reads apart from across the room, not just
      on close reading of the label underneath. */
   --collection-accent: #2f6b52;
-  --bg: #fafafa;
+  --bg: #f7faf8;
   --card: #fff;
-  --border: #e4e4e4;
+  --border: #dfe7e2;
   --danger: #c0392b;
   --critical: #d92626;
   --medium: #e08a1e;
   --low: #cbb400;
-  --text: #111;
-  --text-muted: #6b6b6b;
+  --text: #15213a;
+  --text-muted: #5c6878;
 }
 
 * {
   box-sizing: border-box;
+}
+
+/* Visually hidden but still readable by screen readers/search engines --
+   for headings/labels that need real text content for accessibility and
+   SEO (e.g. a page's <h1>) without duplicating what a logo/icon already
+   shows sighted visitors. Standard clip-based pattern, not `display:none`
+   (which screen readers and crawlers alike would just skip). */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 body {
@@ -82,8 +110,8 @@ a {
 }
 
 .readonly-banner {
-  background: #fff3cd;
-  color: #664d03;
+  background: #fff8e9;
+  color: #7a5200;
 }
 
 .readonly-banner svg {
@@ -91,8 +119,8 @@ a {
 }
 
 .offline-banner {
-  background: #e7f1ff;
-  color: #084298;
+  background: #eaf4ff;
+  color: #1d4f91;
 }
 
 .offline-banner svg {
@@ -116,8 +144,8 @@ a {
   font-weight: 600;
   letter-spacing: 0.03em;
   text-transform: uppercase;
-  color: #0f7a4a;
-  background: #e3f1e7;
+  color: var(--sos-green-bright);
+  background: var(--sos-green-soft);
   border: 1px solid #bfe0cb;
   border-radius: 999px;
   padding: 3px 10px;
@@ -141,12 +169,25 @@ a {
      which this isn't. Kept as quiet as a section eyebrow: no background,
      muted color, small caps-style type. */
   display: block;
-  color: #6b6b6b;
+  color: var(--text-muted);
   font-size: clamp(11px, 3vw, 13px);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   margin-block: 0 10px;
+}
+.page-intro {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.5;
+  max-width: 640px;
+  margin-block: 0 16px;
+}
+.page-intro svg {
+  flex-shrink: 0;
 }
 .back-btn {
   display: inline-flex;
@@ -156,7 +197,7 @@ a {
   background: none;
   padding: 4px 0;
   margin-block: 0 6px;
-  color: #6b6b6b;
+  color: var(--text-muted);
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
@@ -185,6 +226,14 @@ a {
   display: flex;
   align-items: center;
   gap: 4px;
+}
+/* Wraps onto a second line rather than overflowing invisibly past the
+   right edge of the screen -- with 9 links + the language switcher, the
+   full row no longer reliably fits above the 960px breakpoint, especially
+   at common laptop widths (1280px and below). */
+.topbar-nav-desktop {
+  flex-wrap: wrap;
+  row-gap: 6px;
 }
 .topbar-nav-desktop a,
 .topbar-nav-desktop button,
@@ -244,6 +293,94 @@ a {
   padding-block-start: 12px;
 }
 
+/* Hidden by default (desktop already shows the language dropdown inline
+   via TopNavLinks) -- only switched on below the 960px nav breakpoint
+   below, right next to the hamburger button. Declared before that media
+   query so its `display: inline-flex` there actually wins the cascade. */
+.topbar-lang-quick {
+  display: none;
+  flex-shrink: 0;
+}
+
+/* Header shortcuts to the app's own creation/delivery flows -- a dedicated
+   row below the main topbar (rather than squeezed inline into it, which
+   left no reliable room for 3 icon+text pills at any breakpoint), so they
+   read the same on every page. See QuickActions, App.jsx. */
+.quick-actions-bar {
+  display: flex;
+  justify-content: center;
+  padding: 8px 16px;
+  background: var(--card);
+  border-block-end: 1px solid var(--border);
+}
+.quick-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-width: 100%;
+}
+.quick-actions-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: #fff;
+  color: #333;
+  cursor: pointer;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-decoration: none;
+}
+.quick-actions-btn svg {
+  flex-shrink: 0;
+}
+.quick-actions-btn:hover {
+  background: #f2f2f2;
+}
+.quick-actions-create,
+.quick-actions-deliver {
+  position: relative;
+}
+.quick-actions-menu {
+  position: absolute;
+  /* Centered under the button itself rather than right-aligned to it --
+     right-aligning a menu that's wider (min-width 200px) than the pill
+     that opens it (~110-150px) made it look shifted off to the side
+     instead of anchored to the button, reported live. */
+  inset-inline-start: 50%;
+  transform: translateX(-50%);
+  top: calc(100% + 6px);
+  z-index: 1400;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 200px;
+}
+.quick-actions-menu a {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  text-decoration: none;
+  color: #111;
+  font-size: 14px;
+  white-space: nowrap;
+}
+.quick-actions-menu a:hover {
+  background: #f2f2f2;
+}
+
 /* Below this width the inline nav (brand + 5 links + language switcher,
    ~900px at natural size) no longer has room -- collapse it into a
    toggleable menu instead of letting it overflow or wrap mid-word. */
@@ -253,6 +390,9 @@ a {
   }
   .nav-toggle {
     display: flex;
+  }
+  .topbar-lang-quick {
+    display: inline-flex;
   }
 }
 @media (min-width: 961px) {
@@ -286,176 +426,312 @@ main {
 /* --- Home --- */
 
 .home {
-  /* Extra top space scales with viewport height so the logo+buttons sit
-     nearer the vertical middle of the screen instead of right under the
-     header, on both short and tall phones -- a fixed px value would be
-     too little on a tall screen and too much on a short one. Capped so
-     it doesn't push content off-screen on very tall/desktop viewports. */
-  /* Shrinks with viewport height (both the top padding here and the two
-     margins below) so a short phone screen never pushes "Je veux aider"/
-     "Qui sommes-nous" down into the fixed bottom nav's own screen area --
-     a fixed 60px bottom padding on .home only clears the nav for content
-     *after* it (once scrolled that far), not for buttons/links sitting
-     earlier on a page short enough that no scroll happens at all. */
-  padding: clamp(8px, 5svh, 140px) 20px clamp(16px, 6svh, 60px);
-  position: relative;
-  /* z-index (any value, not just position) is what's needed for an element
-     to actually establish a new stacking context -- without this, the
-     ::before below's z-index:-1 escapes past .home entirely and paints
-     behind body's own background instead of just behind .home's content,
-     making it invisible no matter the opacity. */
-  z-index: 0;
-  overflow: hidden;
-  text-align: center;
-}
-.home::before {
-  /* A barely-there map hint in the clear space above the logo -- a real
-     crop of the app's own collection-points map (not a live-rendered one,
-     just a static image), so it reads as "this app has a map" without the
-     weight of an actual Leaflet instance sitting unused on the homepage.
-     Deliberately anchored high and away from the hand/flag photo further
-     down (see body's own background-image) -- overlapping the two only
-     turned both into an illegible grey smear, neither reading as anything.
-     Masked with a radial fade so it dissolves into the page instead of
-     reading as a photo with a visible rectangular edge. */
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  background-image: url('/backgrounds/home-map-hint.jpg');
-  background-repeat: no-repeat;
-  background-position: center 20%;
-  background-size: cover;
-  /* A tighter ellipse (was 95%/34%, edge-to-edge enough to read as a
-     rectangle) with more room given to the fade-out band, so all four
-     sides visibly round off and dissolve rather than getting cropped by
-     .home's own bounding box. Center pushed down from 12% to 25% (was
-     still ~28% opaque right at the box's own top edge at 12%, reading as
-     a visible straight-edged rectangle top rather than a soft round
-     fade -- confirmed on a real short-viewport screenshot) so the fade
-     is most of the way to transparent well before it ever reaches the
-     top edge. */
-  mask-image: radial-gradient(ellipse 62% 35% at center 25%, #000 15%, transparent 90%);
-  -webkit-mask-image: radial-gradient(ellipse 62% 35% at center 25%, #000 15%, transparent 90%);
-  opacity: 0.34;
-  pointer-events: none;
-}
-@media (min-width: 900px) {
-  /* The 900px-wide source is soft/blurry once background-size:cover has
-     to stretch it across a full desktop-width .home -- same fix as
-     body's own responsive watermark below: swap in a higher-resolution
-     source past this breakpoint instead of upscaling the mobile one. */
-  .home::before {
-    background-image: url('/backgrounds/home-map-hint-lg.jpg');
-  }
-}
-.home-logo {
-  display: block;
-  width: clamp(260px, 45vw, 480px);
-  max-width: 100%;
-  height: auto;
-  margin-inline: auto;
-}
-/* Transparency notice: what's publicly visible on a listing, and why
-   (so bénévoles can reach the reporter) -- the app's own green accent
-   (same as the Collecte FAB/"Prendre en charge" button), not the
-   red/danger styling used for actual form errors. */
-.home-privacy-notice {
-  margin-block: 16px 0;
-  color: var(--collection-accent);
-  font-size: 11px;
-  font-weight: 400;
-  line-height: 1.5;
-  max-width: 420px;
-  margin-inline: auto;
-  /* The translation string carries its own \n line breaks (intro
-     sentence, then "* ..." bullet lines) -- render them as real breaks
-     instead of collapsing to one run-on line. */
-  white-space: pre-line;
+  max-width: 620px;
+  margin: 0 auto;
+  padding: 28px 12px 32px;
+  color: #15213a;
 }
 .home-tagline {
-  /* Sits over the background photo, same contrast need as
-     .home-about-link below. */
-  margin-block: 10px 0;
-  color: var(--text);
-  font-size: 15px;
-  font-weight: 500;
   max-width: 420px;
-  margin-inline: auto;
+  margin: 0 0 26px;
+  color: #546173;
+  font-size: clamp(18px, 5vw, 23px);
+  font-weight: 500;
+  line-height: 1.28;
+  text-align: start;
 }
-.home-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: stretch;
-  justify-content: center;
-  gap: 16px;
-  /* Slightly lower than before (was 32px) so the two buttons sit better
-     centered in the action area below the logo on a tall screen --
-     shrinks back down on a short one so they don't end up under the
-     fixed bottom nav (see .home's own padding comment above). */
-  margin-block-start: clamp(16px, 5svh, 40px);
-  max-width: 620px;
-  margin-inline: auto;
+.home-sos-card,
+.home-collection-card,
+.home-create-trigger,
+.home-about-card {
+  text-decoration: none;
+  transition: transform .16s ease, box-shadow .16s ease;
 }
-.home-actions .btn {
-  box-sizing: border-box;
-  text-align: center;
-  justify-content: center;
-  flex: 1 1 220px;
+.home-sos-card:focus-visible,
+.home-collection-card:focus-visible,
+.home-create-trigger:focus-visible,
+.home-about-card:focus-visible {
+  outline: 3px solid #1c7ed6;
+  outline-offset: 3px;
 }
-@media (max-width: 480px) {
-  .home-actions .btn {
-    flex-basis: 100%;
-  }
+.home-sos-card:hover,
+.home-collection-card:hover,
+.home-create-trigger:hover,
+.home-about-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(28, 48, 72, .12);
 }
-.btn.home-btn-primary {
-  background: var(--accent);
+.home-sos-card {
+  display: grid;
+  grid-template-columns: 74px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 15px;
+  min-height: 144px;
+  margin-bottom: 20px;
+  padding: 18px 20px;
+  border-radius: 15px;
+  background: linear-gradient(135deg, #f9434c, #d91f31);
   color: #fff;
-  border: 1px solid var(--accent);
-  border-radius: 999px;
+  box-shadow: 0 5px 14px rgba(217, 31, 49, .25);
 }
-.btn.home-btn-outline {
-  background: #fff;
-  color: var(--accent);
-  border: 1.5px solid var(--accent);
-  border-radius: 999px;
+.home-sos-icon {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background-color: #fff;
+  -webkit-mask-image: url('/icons/need-marker-sos.png');
+  mask-image: url('/icons/need-marker-sos.png');
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: 43px;
+  mask-size: 43px;
+  -webkit-mask-position: center;
+  mask-position: center;
 }
-.home-about-link {
-  /* Sits over the background photo, so it needs real contrast -- the
-     footer's own muted #777 all but disappears there. */
-  display: inline-block;
-  margin-block-start: clamp(6px, 2.5svh, 24px);
-  color: var(--text);
-  font-weight: 600;
+.home-sos-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+.home-sos-copy strong {
+  font-size: clamp(21px, 5vw, 28px);
+  line-height: 1.08;
+}
+.home-sos-copy span {
+  font-size: 16px;
+}
+.home-sos-copy small {
+  font-size: 15px;
+}
+.home-card-arrow {
+  font-size: 52px;
+  font-weight: 300;
+  line-height: 1;
+}
+.home-collection-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.home-collection-card {
+  display: flex;
+  min-height: 238px;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 20px 16px;
+  border-radius: 15px;
+  color: #15213a;
+}
+.home-collection-card-algeria {
+  background: #edf9f4;
+}
+.home-collection-card-international {
+  background: #eaf4ff;
+}
+.home-card-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 58px;
+  height: 58px;
+  margin-bottom: 15px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .58);
+  color: #137d50;
+}
+.home-collection-card-international .home-card-icon {
+  color: #1976d2;
+}
+.home-collection-card strong,
+.home-create-copy strong,
+.home-about-copy strong {
+  font-size: 18px;
+  line-height: 1.16;
+}
+.home-collection-card > span:not(.home-card-icon),
+.home-create-copy > span,
+.home-about-copy > span {
+  margin-top: 8px;
+  color: #5c6878;
   font-size: 14px;
-  text-decoration: underline;
+  line-height: 1.38;
 }
-/* A short phone viewport (confirmed down to 320x568, the smallest still
-   in real use) needs more compacting than the clamp()s above alone can
-   give without also shrinking the still-plenty-tall ones -- otherwise
-   "Je veux aider"/"Qui sommes-nous" end up under the fixed bottom nav
-   (see the padding comment on .home above for why padding-bottom alone
-   can't fix this). Verified this combination clears the bottom nav at
-   320x568 through 1280x800. */
-@media (max-height: 620px) {
+.home-collection-card em,
+.home-create-copy em,
+.home-about-copy em {
+  margin-top: auto;
+  padding-top: 14px;
+  color: #147b4b;
+  font-size: 14px;
+  font-style: normal;
+  font-weight: 800;
+}
+.home-collection-card-international em {
+  color: #1976d2;
+}
+.home-collection-card em b,
+.home-create-copy em b,
+.home-about-copy em b {
+  margin-inline-start: 8px;
+  font-size: 21px;
+  line-height: 0;
+}
+.home-create-card {
+  position: relative;
+  margin-bottom: 18px;
+}
+.home-create-trigger {
+  display: grid;
+  width: 100%;
+  grid-template-columns: 82px minmax(0, 1fr);
+  gap: 14px;
+  padding: 20px;
+  border: 0;
+  border-radius: 15px;
+  background: #fff8e9;
+  color: #15213a;
+  cursor: pointer;
+  font: inherit;
+  text-align: start;
+}
+.home-create-trigger .home-card-icon {
+  width: 66px;
+  height: 66px;
+  margin: 0;
+  background: #fff0c9;
+  color: #df9100;
+}
+.home-create-copy,
+.home-about-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.home-create-copy em {
+  margin-top: 9px;
+  padding-top: 0;
+  color: #d88500;
+}
+.home-btn-create-menu {
+  position: absolute;
+  inset-inline: 0;
+  top: calc(100% + 8px);
+  z-index: 50;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 15px;
+  background: rgba(255, 255, 255, .98);
+  box-shadow: 0 12px 30px rgba(21, 33, 58, .16);
+}
+.home-btn-create-menu a {
+  display: flex;
+  min-width: 0;
+  min-height: 54px;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 9px;
+  padding: 11px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--text);
+  background: var(--card);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.25;
+  transition: background .16s ease, border-color .16s ease, transform .16s ease;
+}
+.home-btn-create-menu a:first-child {
+  border-color: #b9dfcb;
+  background: var(--sos-green-soft);
+  color: #20583f;
+}
+.home-btn-create-menu a:last-child {
+  border-color: #c8dcfb;
+  background: var(--sos-blue-soft);
+  color: #1f55a4;
+}
+.home-btn-create-menu a:hover {
+  transform: translateY(-1px);
+}
+.home-btn-create-menu a:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+.home-btn-create-menu svg {
+  flex: 0 0 auto;
+}
+.home-btn-create-menu a:first-child svg {
+  color: var(--sos-green);
+}
+.home-btn-create-menu a:last-child svg {
+  color: var(--sos-blue);
+}
+.home-about-card {
+  display: grid;
+  grid-template-columns: 82px minmax(0, 1fr);
+  gap: 14px;
+  min-height: 152px;
+  padding: 20px;
+  border-radius: 15px;
+  background: #eef9f4;
+  color: #15213a;
+}
+.home-about-card .home-card-icon {
+  width: 66px;
+  height: 66px;
+  margin: 0;
+  background: #dcf3e7;
+  color: #198754;
+}
+.home-about-copy em {
+  margin-top: 10px;
+  padding-top: 0;
+}
+@media (max-width: 390px) {
+  .home-sos-card {
+    grid-template-columns: 58px minmax(0, 1fr) auto;
+    gap: 11px;
+    padding: 16px;
+  }
+  .home-sos-icon {
+    width: 57px;
+    height: 57px;
+    -webkit-mask-size: 35px;
+    mask-size: 35px;
+  }
+  .home-sos-copy strong {
+    font-size: 20px;
+  }
+  .home-sos-copy span,
+  .home-sos-copy small {
+    font-size: 13px;
+  }
+  .home-card-arrow {
+    font-size: 40px;
+  }
+  .home-collection-card {
+    min-height: 250px;
+    padding: 16px 13px;
+  }
+  .home-collection-card strong,
+  .home-create-copy strong,
+  .home-about-copy strong {
+    font-size: 16px;
+  }
+}
+@media (min-width: 700px) {
   .home {
-    padding-top: 4px;
+    padding-inline: 28px;
   }
-  .home-logo {
-    width: 190px;
-  }
-  .home-privacy-notice {
-    margin-block-start: 4px;
-    font-size: 10px;
-  }
-  .home-tagline {
-    margin-block-start: 4px;
-  }
-  .home-actions {
-    margin-block-start: 4px;
-  }
-  .home-about-link {
-    margin-block-start: 2px;
+  .home-collection-grid {
+    gap: 18px;
   }
 }
 
@@ -466,20 +742,29 @@ main {
   padding: 10px 18px;
   border-radius: 14px;
   border: 1px solid var(--border);
-  background: #fff;
+  background: var(--card);
   cursor: pointer;
   font-size: 15px;
   text-decoration: none;
-  color: #111;
+  color: var(--text);
+  transition: background .18s ease, border-color .18s ease, transform .18s ease, box-shadow .18s ease;
+}
+.btn:hover {
+  border-color: #c8d6ce;
+  box-shadow: 0 4px 12px rgba(21, 33, 58, .07);
 }
 .btn-primary {
   background: var(--accent);
   color: #fff;
   border-color: var(--accent);
 }
+.btn-primary:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
 .btn-danger {
-  color: var(--danger);
-  border-color: var(--danger);
+  color: var(--sos-red);
+  border-color: var(--sos-red);
 }
 /* The main "start a delivery from here" call to action (NeedDetail/
    CollectionPointDetail) -- same green as the bottom-nav's own Collecte
@@ -522,7 +807,7 @@ main {
 .link {
   background: none;
   border: none;
-  color: #555;
+  color: var(--sos-blue);
   text-decoration: underline;
   cursor: pointer;
   padding: 0;
@@ -600,13 +885,14 @@ label {
   height: 44px;
   border: 1px solid var(--border);
   border-radius: 50%;
-  color: #111;
-  background: #fff;
+  color: var(--sos-green);
+  background: var(--card);
   text-decoration: none;
   flex-shrink: 0;
 }
 .social-link:hover {
-  background: var(--bg);
+  background: var(--sos-green-soft);
+  border-color: #bfe0cb;
 }
 .checkbox-label {
   flex-direction: row;
@@ -638,6 +924,20 @@ textarea {
 /* --- Place autocomplete (Nominatim/OpenStreetMap suggestions) --- */
 .place-autocomplete {
   position: relative;
+}
+/* Sizing for the toolbar's row-flex context only -- specifically the
+   "go to a place" field that sits directly in .toolbar (e.g.
+   InternationalCollectionPoints.jsx), alongside .search-input. A
+   <label> is itself flex-column (see `label` above), so applying this
+   on any .place-autocomplete nested inside one -- including
+   CountrySelect's own reuse of this class, wrapped in a <label> inside
+   the very same .toolbar -- made 220px its *height* basis instead of
+   its width, opening the exact same dead-gap bug this rule was added
+   to fix in the first place (see git history). The direct-child
+   combinator keeps this to the one field it's actually meant for. */
+.toolbar > .place-autocomplete {
+  flex: 1 1 220px;
+  min-width: 160px;
 }
 .place-autocomplete input,
 .place-autocomplete textarea {
@@ -696,6 +996,15 @@ fieldset {
 .media-capture-card span {
   font-size: 12px;
   font-weight: 600;
+  /* Reserves room for 2 lines regardless of whether this card's own label
+     ("Message vocal", "Vidéo (20s max)", "Photo") actually wraps that far
+     -- without it, "Photo" (always 1 line) left its own Démarrer/Prendre
+     une photo button sitting higher than the other two cards' buttons,
+     whichever of those wrapped to 2 lines at the current viewport width. */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.4em;
 }
 .media-capture-card .btn {
   font-size: 12px;
@@ -714,21 +1023,54 @@ fieldset {
   text-align: center;
 }
 .media-capture-card .photo-thumbs {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
   justify-content: center;
+  gap: 8px;
+}
+.media-capture-card .photo-thumb {
+  min-width: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
 }
 .media-capture-card .photo-thumb img {
-  width: 48px;
-  height: 48px;
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 9px;
+  flex: 0 0 auto;
 }
-.media-capture-card .photo-thumb .link {
-  position: absolute;
-  top: -6px;
-  inset-inline-end: -6px;
-  background: #fff;
-  border: 1px solid var(--border);
-  border-radius: 50%;
-  padding: 2px;
-  line-height: 0;
+.photo-remove-btn {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+  min-height: 32px;
+  box-sizing: border-box;
+  margin-top: 1px;
+  padding: 6px 5px;
+  border: 1px solid #e6b8b4;
+  border-radius: 9px;
+  background: #fff7f6;
+  color: var(--danger);
+  font: inherit;
+  font-size: 10px;
+  font-weight: 650;
+  line-height: 1.15;
+  cursor: pointer;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.photo-remove-btn:active {
+  background: var(--sos-red-soft);
+}
+.photo-remove-btn svg {
+  flex: 0 0 auto;
 }
 .record-btn {
   /* Not a full pill (999px): on a narrow 3-column mobile layout, the
@@ -740,6 +1082,13 @@ fieldset {
   line-height: 1.3;
   white-space: normal;
   overflow-wrap: break-word;
+}
+.record-btn.btn-icon {
+  justify-content: center;
+  text-align: start;
+}
+.record-btn.btn-icon svg {
+  flex-shrink: 0;
 }
 
 /* --- Lists / toolbar --- */
@@ -756,6 +1105,13 @@ fieldset {
   margin-block-end: 16px;
   flex-wrap: wrap;
   gap: 10px;
+}
+/* The compact filters-toggle + view-toggle row has no stacked <label> to
+   align against (that's now inside .filters-panel instead, shown/hidden
+   separately) -- plain center alignment instead of .toolbar's own
+   flex-end special-case above. */
+.toolbar-compact {
+  align-items: center;
 }
 .search-input {
   flex: 1 1 220px;
@@ -777,7 +1133,8 @@ fieldset {
   cursor: pointer;
 }
 .view-toggle button.active {
-  background: var(--accent);
+  background: var(--sos-green);
+  border-color: var(--sos-green);
   color: #fff;
 }
 .view-toggle button:first-child {
@@ -797,7 +1154,11 @@ fieldset {
   padding: 14px;
   margin-block-end: 12px;
   text-decoration: none;
-  color: #111;
+  color: var(--text);
+}
+.need-card:hover {
+  border-color: #bfe0cb;
+  box-shadow: 0 6px 18px rgba(21, 33, 58, .07);
 }
 .need-card-description {
   font-size: 13px;
@@ -807,6 +1168,62 @@ fieldset {
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
+}
+/* Floated (not flexed) so it drops into .need-card's existing block flow
+   (a plain stack of <h3>/<p>) without restructuring every list row's JSX
+   into a flex layout just for the rows that happen to have a photo. */
+.photo-thumb {
+  float: inline-start;
+  display: block;
+  width: 56px;
+  height: 56px;
+  margin-inline-end: 10px;
+  margin-block-end: 4px;
+  border-radius: 10px;
+  overflow: hidden;
+  cursor: pointer;
+  border: 1px solid var(--border);
+}
+.photo-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.photo-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  cursor: zoom-out;
+}
+.photo-lightbox img {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 8px;
+  cursor: default;
+}
+.photo-lightbox-close {
+  position: absolute;
+  top: 16px;
+  inset-inline-end: 16px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  border: none;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.photo-lightbox-close:hover {
+  background: rgba(255, 255, 255, 0.25);
 }
 .badge {
   display: inline-block;
@@ -853,11 +1270,11 @@ fieldset {
 
 .status {
   font-size: 13px;
-  color: #555;
+  color: var(--text-muted);
 }
 .hint {
   font-size: 13px;
-  color: #777;
+  color: var(--text-muted);
   font-style: italic;
 }
 .error {
@@ -1062,52 +1479,71 @@ fieldset {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
-  background: #fff;
-  border: 2px solid #111;
+  background: var(--card);
+  border: 2px solid var(--sos-green);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
 }
-
-/* One bubble per country for collection points whose location is only
-   known at country level (no GPS at all) -- see
-   CollectionPointViewSet.country_groups. Bigger and filled solid (unlike
-   the plain white pin above) so it visually reads as "a count of things
-   here", not a single located point -- clicking it lists points instead
-   of opening a popup (CollectionPoints.jsx). */
-.cp-country-bubble {
+/* One bubble per city/wilaya-centroid fallback position shared by several
+   points with no precise address (see CollectionPoints.jsx/
+   InternationalCollectionPoints.jsx), instead of stacking N identical pins
+   exactly on top of each other -- same "one badge, not N invented
+   positions" idea as .unknown-position-chip above, but plotted on the map
+   itself since there IS a real (if approximate) position here. */
+.cp-bubble {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 100%;
-  height: 100%;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
-  background: #111;
-  color: #fff;
-  font-weight: 600;
-  border: 2px solid #fff;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  background: #f3ce97;
+  border: 2px solid var(--sos-orange);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  font-weight: 700;
+  font-size: 14px;
+  color: #111;
   cursor: pointer;
 }
-
-/* The list shown after clicking a country bubble (CollectionPoints.jsx) --
-   plain in-flow block below the map rather than an absolute overlay, so it
-   never depends on .map-wrap having a positioning context and reflows
-   naturally at narrow widths. */
-.country-points-panel {
-  margin-top: 12px;
-  padding: 12px;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  background: #fafafa;
+/* Same "one bubble, not N stacked pins" idea as .cp-bubble above, for SOS
+   reports with no location fix at all (has_no_location, backend) -- bigger
+   and always the urgent red (these are, by definition, reports a responder
+   can't place on the map on their own) with a small count badge, so it
+   reads as visually distinct from an ordinary single-need pin rather than
+   just a slightly bigger one. See NeedsList.jsx for the popup this opens. */
+.need-marker-pin-unlocated {
+  width: 44px;
+  height: 44px;
+  background: var(--danger);
+  border-color: #fff;
+  position: relative;
+  cursor: pointer;
 }
-/* Declared departure position, not an actual live GPS ping -- dashed and
-   muted so it reads as "roughly here, as of take-charge time" rather than
-   "currently tracked", never mistaken for a live courier. */
+.need-marker-count-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 18px;
+  height: 18px;
+  padding-inline: 3px;
+  border-radius: 9px;
+  background: var(--card);
+  border: 2px solid var(--sos-green);
+  color: #111;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 14px;
+  text-align: center;
+}
+/* Declared departure position, not an actual live GPS ping -- dashed
+   (instead of the live marker's solid border) so it still reads as
+   "roughly here, as of take-charge time" rather than "currently tracked,"
+   without fading the icon itself: the truck needs to stay just as visible
+   (green glyph, black border) as a live courier's, not greyed out. */
 .pickup-marker-pin-departure {
-  border: 2px dashed #888;
-  opacity: 0.85;
+  border: 2px dashed #111;
 }
 /* Overlay chip on the deliveries map (see .map-wrap below) for couriers
    with neither a live ping nor a declared departure position -- one
@@ -1115,7 +1551,10 @@ fieldset {
    invented markers (never plot a position we don't actually have). */
 .unknown-position-chip {
   position: absolute;
-  top: 12px;
+  /* Shifted down from the corner itself (was top: 12px) -- .locate-btn
+     now sits at top-right too (see below), so this drops just below it
+     instead of overlapping. */
+  top: 54px;
   inset-inline-end: 12px;
   /* Top-right, not bottom-left: clear of Leaflet's own zoom control
      (top-left) and attribution (bottom-right), and out of the way of
@@ -1197,11 +1636,443 @@ fieldset {
    on its own: a single finger scrolls the page even directly over the
    map, and panning the map itself needs two fingers. Full width. */
 /* Tight wrapper around just the map div (not the surrounding hint/legend
-   text also inside .map-wrap) -- position: relative anchors
-   .unknown-position-chip to the map's own bottom-left corner instead of
-   the bottom of the whole section. */
+   text also inside .map-wrap) -- position: relative anchors .locate-btn/
+   .unknown-position-chip to the map's own corner instead of the bottom
+   of the whole section. */
 .map-frame {
   position: relative;
+}
+
+/* Airbnb-style compact toolbar (CollectionPoints.jsx, NeedsList.jsx,
+   Deliveries.jsx): filters tucked behind a toggle instead of always
+   expanded, and the map fills the remaining viewport height below the
+   toolbar instead of a fixed 600px block appended after all that chrome
+   -- confirmed live via a mockup shown to the user before this was
+   written for real. The actual fill height is computed in JS (each
+   page's own mapFillHeight state, set from the frame's measured top
+   offset) rather than a flex chain -- #root only sets min-height (not a
+   hard height), so a flex-grow map-frame just grows #root to fit content
+   instead of being capped at the viewport, tried and confirmed live. This
+   class only adds the min-height floor that JS-computed height also
+   enforces, as a no-JS/pre-layout fallback. */
+.needs-page-map-fill .map-frame {
+  min-height: 160px;
+}
+.filters-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border);
+  background: #fff;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 500;
+  color: #111;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.filters-toggle:hover {
+  background: #f7f7f7;
+}
+/* Small dot, not a number -- just a "something is filtered" signal, same
+   spirit as a notification dot elsewhere, since exactly which filter(s)
+   are active is already visible the moment the panel is opened. */
+.filters-badge {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--danger);
+  flex-shrink: 0;
+}
+.filters-panel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+  margin-block-end: 16px;
+  padding: 14px;
+  background: #fafafa;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+/* Standalone active-filter indicator for a filter set from outside the
+   filters panel itself (e.g. NeedsList.jsx's map "sans localisation"
+   bubble) -- names what's filtered and offers a one-tap way to clear just
+   that, since the panel's own select wouldn't show it as selected. Sits
+   as a flex sibling in .toolbar-compact (between the filters button and
+   the Liste/Carte toggle), not stacked above page content, so no block
+   margin of its own. */
+.filters-badge-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.filters-badge-chip button {
+  background: none;
+  border: 0;
+  color: inherit;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+
+/* Marker popup content (mapMarkers.js and each map page's own bindPopup
+   calls) is a plain HTML string with <br> between fields -- break-word so
+   a long point/need name can't force the popup past its own maxWidth (see
+   main.jsx's L.Popup.mergeOptions), and give the <br>-separated lines
+   enough line-height to read as a clear stacked list on a small screen
+   instead of a cramped block. */
+/* Shared SOSDZ map popup theme for collection points, needs, deliveries
+   and detail maps. */
+.sosdz-map-popup .leaflet-popup-content-wrapper {
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid #cfe4d9;
+  border-radius: 18px;
+  box-shadow: 0 12px 32px rgba(21, 33, 58, 0.18);
+}
+.sosdz-map-popup .leaflet-popup-tip {
+  background: #fff;
+  border-inline-end: 1px solid #cfe4d9;
+  border-bottom: 1px solid #cfe4d9;
+}
+.sosdz-map-popup .leaflet-popup-content {
+  margin: 6px 8px;
+  padding-block-start: 2px;
+  padding-inline-end: 4px;
+  min-width: 0;
+  width: min(260px, calc(100vw - 44px));
+  max-width: min(260px, calc(100vw - 44px));
+  max-height: none;
+  overflow: visible;
+  color: var(--text);
+  overflow-wrap: anywhere;
+  line-height: 1.3;
+  font-size: 13px;
+}
+.sosdz-map-popup .leaflet-popup-content strong:first-child {
+  display: block;
+  margin-block-end: 2px;
+  padding-inline-end: 0;
+  max-width: calc(100% - 34px);
+  color: var(--sos-green);
+  font-size: 14px;
+  line-height: 1.25;
+}
+.sosdz-map-popup .leaflet-popup-close-button {
+  top: 7px !important;
+  inset-inline-end: 7px !important;
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: 50%;
+  color: var(--text-muted) !important;
+  background: var(--bg);
+  font-size: 20px !important;
+  line-height: 27px !important;
+  text-align: center !important;
+}
+.sosdz-map-popup .leaflet-popup-close-button:hover {
+  color: var(--sos-green) !important;
+  background: var(--sos-green-soft);
+}
+.sosdz-map-popup .popup-actions {
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-block-start: 10px;
+  padding-block-start: 9px;
+  border-block-start: 1px solid var(--border);
+}
+.sosdz-map-popup .popup-actions a,
+.sosdz-map-popup .popup-actions .popup-photo-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  margin: 0;
+  padding: 6px 10px;
+  border: 1px solid #cfe4d9;
+  border-radius: 10px;
+  background: var(--sos-green-soft);
+  color: var(--sos-green);
+  font-size: 12px;
+  font-weight: 650;
+  text-decoration: none;
+  line-height: 1.2;
+}
+.sosdz-map-popup .popup-actions a:hover,
+.sosdz-map-popup .popup-actions .popup-photo-btn:hover {
+  background: #e1f3ea;
+}
+.sosdz-map-popup .popup-photo-btn {
+  cursor: pointer;
+}
+.leaflet-popup-content {
+  overflow-wrap: break-word;
+  line-height: 1.5;
+}
+.leaflet-popup-content a {
+  display: inline-block;
+  margin-block-start: 4px;
+}
+/* "View flyer" shortcut inside a marker's own popup (flyer/damage/delivery
+   photo, when the pin has one) -- opens the shared PhotoLightbox (see each
+   map page's own popupopen handler) without closing this popup, so the
+   point's own info stays visible once the photo is dismissed. Styled as a
+   plain link, not a boxed button, to sit naturally among the popup's other
+   <br>-separated lines/links. */
+.popup-photo-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-block-start: 4px;
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+/* Row pairing the "view flyer" button with the popup's own "Ouvrir" link
+   (CollectionPoints/InternationalCollectionPoints/NeedsList) -- pushed to
+   opposite ends instead of stacked directly on top of each other, which
+   read as one cramped, easy-to-mis-tap block. */
+.leaflet-popup-content .popup-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-block-start: 4px;
+}
+.leaflet-popup-content .popup-actions a,
+.leaflet-popup-content .popup-actions .popup-photo-btn {
+  margin-block-start: 0;
+}
+/* Listen button on a voice-reported SOS's own card in the "Liste" view
+   (NeedsList.jsx) -- e.g. every need a "sans localisation" bubble tap
+   lands on. Boxed/bordered (unlike the plain-link popup buttons above)
+   since it sits among this card's other plain text, not other links. */
+.need-card-audio-btn {
+  margin-block-start: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: 999px;
+  background: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.need-card-audio-btn:active {
+  background: #f2f2f2;
+}
+
+/* "Recenter on my location" button, on every browsable map (see
+   utils.js's getCurrentPosition + each page's recenterOnMe). Top-right:
+   clear of Leaflet's own zoom control (top-left) and its attribution
+   (bottom-right). Deliveries.jsx's .unknown-position-chip shares this
+   corner (it drops below this button instead, see its own top offset). */
+.locate-btn {
+  position: absolute;
+  top: 12px;
+  inset-inline-end: 12px;
+  z-index: 1200; /* above Leaflet's own zoom/attribution controls (1000) */
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  color: #333;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+.locate-btn:hover {
+  background: #f2f2f2;
+}
+
+/* Tap-to-activate map (CollectionPoints.jsx, NeedsList.jsx, Deliveries.jsx),
+   replacing the old two-finger-to-pan gesture handling. While asleep, this
+   transparent overlay covers the whole map so a single finger scrolls the
+   *page* like plain content -- it only ever handles the tap that wakes the
+   map (see each page's own activateMap); the overlay itself carries no
+   visible content any more (that's .map-activate-hint below). z-index sits
+   between Leaflet's own controls (1000) and .locate-btn (1200) -- so
+   .locate-btn stays reachable (an explicit single tap, not a drag, so it
+   never conflicts with page scroll) while the zoom control and map body
+   stay blocked until activated. */
+/* Keep the visual hint itself transparent to pointer events. The overlay
+   must not consume the first tap on a marker, popup, or map control. */
+.map-activate-hint-only {
+  pointer-events: none;
+}
+
+.map-activate-overlay {
+  position: absolute;
+  inset: 0;
+  /* Keep Leaflet's native controls and the SOSDZ locate/fullscreen controls
+     clickable while the map body is asleep. The overlay only blocks the map
+     surface/markers until the user activates map interaction. */
+  z-index: 900;
+  cursor: pointer;
+}
+/* .map-activate-hint and .map-deactivate-btn are fixed to the *viewport*,
+   not the map -- confirmed live: anchoring them inside the map's own box
+   (a tall 600px container, or fullscreen) could leave them scrolled out of
+   view, or drifting as if they were part of the map itself. Pinned just
+   above .bottom-nav instead (same fixed bottom-of-screen spot regardless
+   of where the map's own box currently sits, and never moves as the map
+   pans/zooms underneath), sized to clear .bottom-nav's own height
+   (roughly icon + label + its own top/bottom padding) plus the safe-area
+   inset .bottom-nav itself pads for. Still a child of .map-activate-overlay
+   in the DOM (position:fixed only escapes layout, not event bubbling), so
+   tapping the hint pill still reaches the overlay's own onClick. */
+.map-activate-hint,
+.map-deactivate-btn {
+  position: absolute;
+  top: 12px;
+  bottom: auto;
+  left: 90px;
+  right: auto;
+  transform: none;
+  z-index: 1300;
+  width: min(330px, calc(100% - 180px));
+  box-sizing: border-box;
+  background: var(--brand-green-soft);
+  color: var(--brand-green);
+  border: 1px solid var(--brand-green-border);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 7px 12px;
+  border-radius: 999px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.map-deactivate-btn {
+  border: none;
+  cursor: pointer;
+}
+
+/* Collection-point pages only ever show Algeria (national) -- when the
+   visitor's own position resolves to somewhere else, this links out to
+   the dedicated worldwide page instead of the map silently finding
+   nothing nearby (see showInternationalLink, CollectionPoints.jsx).
+   Centered top: the zoom control (top-left) and locate/expand buttons
+   (top-right) leave that spot clear. */
+.map-international-link {
+  position: absolute;
+  top: 56px;
+  left: 12px;
+  right: auto;
+  max-width: calc(100% - 24px);
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #fff;
+  border: 1px solid var(--border);
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #111;
+  text-decoration: none;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  justify-content: center;
+}
+
+/* Prototype, solution 2: expand the map into a full-viewport overlay --
+   sits just left of .locate-btn (top-right corner), same treatment as
+   .locate-btn itself so the two read as a matched pair of map controls. */
+.expand-btn {
+  position: absolute;
+  top: 12px;
+  inset-inline-end: 54px; /* .locate-btn's own 34px width + 12px gap + 8px */
+  z-index: 1200;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  color: #333;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+.expand-btn:hover {
+  background: #f2f2f2;
+}
+
+/* .map-frame's own position:relative + height come from the inline 600px
+   #cp-map div in normal mode -- fullscreen overrides both to cover the
+   whole viewport instead, regardless of scroll position. #cp-map's own
+   height switches to 100% inline (see CollectionPoints.jsx) since an
+   inline style can't be beaten by a class alone. */
+.map-frame-fullscreen {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 3000;
+  width: 100vw;
+  height: 100dvh !important;
+  max-height: 100dvh;
+  overflow: hidden;
+  overscroll-behavior: contain;
+  background: var(--brand-green-soft);
+  min-height: 100dvh !important;
+  border-radius: 0;
+}
+.map-frame-fullscreen:fullscreen {
+  width: 100vw;
+  height: 100dvh;
+  max-height: 100dvh;
+  border-radius: 0;
+}
+
+.exit-fullscreen-btn {
+  position: absolute;
+  top: 12px;
+  /* .locate-btn keeps its usual 12px spot in fullscreen too (recentering
+     is just as useful full-screen) -- sit just to its left instead of on
+     top of it, same offset .expand-btn itself uses when not fullscreen. */
+  inset-inline-end: 54px;
+  z-index: 1200;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  color: #333;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+.exit-fullscreen-btn:hover {
+  background: #f2f2f2;
 }
 
 /* Section headers on the combined "Je veux aider" list (Help.jsx) --
@@ -1251,7 +2122,7 @@ fieldset {
      space-around distributes free space per item's own width instead,
      which visibly uneven-spaces items with different label lengths. */
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   align-items: center;
   padding: 8px 0 max(8px, env(safe-area-inset-bottom));
   /* Leaflet's own zoom/attribution controls default to z-index: 1000 in
@@ -1301,15 +2172,29 @@ fieldset {
 .nav-label-offset {
   margin-block-start: 3px;
 }
+/* Deliberately breaks onto 2 lines (an explicit <br>, not organic wrap --
+   see .bottom-nav a's own nowrap comment above) for the Collecte
+   Algérie/Internationale pair specifically -- a touch smaller and
+   tighter-leaded than the other single-line labels so two lines still
+   fit this column's width/height without crowding its neighbors. */
+.nav-label-2line {
+  font-size: 9px;
+  line-height: 1.15;
+}
 .bottom-nav .icon {
   display: flex;
+  align-items: center;
+  justify-content: center;
   color: #555;
   position: relative; /* anchors .nav-badge */
+  width: 24px;
+  height: 24px;
+  margin-inline: auto;
 }
 .nav-badge {
   position: absolute;
-  top: -6px;
-  inset-inline-end: -10px;
+  top: -5px;
+  inset-inline-end: -7px;
   background: var(--danger);
   color: #fff;
   font-size: 9px;
@@ -1345,7 +2230,7 @@ fieldset {
    nav icons -- at the default offset the badge sat partly over the icon
    itself instead of clear of it, so these two get pushed further out. */
 .map-indicator-shift {
-  inset-inline-end: -9px;
+  inset-inline-end: -7px;
 }
 .bottom-nav a.active {
   /* Same solid pill treatment as the Liste/Carte toggle's .active state
@@ -1400,6 +2285,10 @@ footer {
   white-space: pre-wrap;
 }
 .dialog-sheet .media-player {
+  margin-block-end: 12px;
+}
+.dialog-sheet .media-player-audio {
+  width: 100%;
   margin-block-end: 12px;
 }
 .dialog-sheet .switch-camera-btn {
@@ -1462,8 +2351,1910 @@ footer {
   }
 }
 
+/* --- Guided voice SOS (CreateNeedVoiceGuide.jsx, pending approval) --- */
+
+.voice-guide-page {
+  max-width: 480px;
+  margin-inline: auto;
+  text-align: center;
+}
+.voice-guide-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  margin-block-start: 32px;
+}
+.voice-guide-caption {
+  font-size: 17px;
+  line-height: 1.5;
+  color: var(--text);
+}
+.voice-guide-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+}
+
 /* --- RTL: Arabic --- */
 :root[dir='rtl'] .badge,
 :root[dir='rtl'] .status {
   direction: rtl;
+}
+
+/* --- SOSDZ global visual identity ---------------------------------------
+   Shared surface language for every page. This is intentionally cosmetic:
+   no layout, routing, content, translations or functionality are changed. */
+:where(button, input, select, textarea, a):focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.page,
+.detail-page,
+.form-page,
+.list-page,
+.help-page,
+.about-page,
+.legal-page,
+.support-page,
+.report-page {
+  color: var(--text);
+}
+
+.page h1,
+.page h2,
+.page h3,
+.detail-page h1,
+.detail-page h2,
+.detail-page h3,
+.form-page h1,
+.form-page h2,
+.form-page h3,
+.list-page h1,
+.list-page h2,
+.list-page h3 {
+  color: var(--text);
+}
+
+input:not([type='checkbox']):not([type='radio']),
+select,
+textarea {
+  background: var(--card);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+input:not([type='checkbox']):not([type='radio']):focus,
+select:focus,
+textarea:focus {
+  border-color: var(--sos-blue);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+  outline: none;
+}
+
+/* Reusable panels/cards across pages. Existing component-specific styles
+   remain authoritative where a semantic status color is required. */
+.collection-point-card,
+.international-collection-point-card,
+.delivery-card,
+.pickup-card,
+.detail-card,
+.info-card,
+.support-card,
+.help-card,
+.legal-card,
+.about-card {
+  border-color: var(--border);
+  background: var(--card);
+}
+
+.collection-point-card:hover,
+.international-collection-point-card:hover,
+.delivery-card:hover,
+.pickup-card:hover,
+.detail-card:hover,
+.info-card:hover,
+.support-card:hover,
+.help-card:hover,
+.about-card:hover {
+  border-color: #bfe0cb;
+}
+
+/* Semantic action helpers already used by the application. */
+.action-primary,
+.create-action,
+.add-action {
+  background: var(--sos-green);
+  border-color: var(--sos-green);
+  color: #fff;
+}
+
+.action-primary:hover,
+.create-action:hover,
+.add-action:hover {
+  background: #245640;
+  border-color: #245640;
+}
+
+.action-international,
+.international-action {
+  background: var(--sos-blue);
+  border-color: var(--sos-blue);
+  color: #fff;
+}
+
+.action-danger,
+.emergency-action {
+  background: var(--sos-red);
+  border-color: var(--sos-red);
+  color: #fff;
+}
+
+/* Existing map controls inherit the same surface language. */
+.map-control,
+.map-controls button,
+.map-legend,
+.legend,
+.filters-panel {
+  border-color: var(--border);
+  background: rgba(255, 255, 255, .96);
+  color: var(--text);
+}
+
+
+
+/* --- SOSDZ home sizing / responsive card system ----------------------- */
+.home-sos-card,
+.home-collection-card,
+.home-create-trigger,
+.home-about-card {
+  min-width: 0;
+}
+.home-collection-card > span:not(.home-card-icon),
+.home-create-copy > span,
+.home-about-copy > span,
+.home-collection-card strong,
+.home-create-copy strong,
+.home-about-copy strong {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 699px) {
+  .map-activate-hint,
+  .map-deactivate-btn {
+    top: 12px;
+    bottom: auto;
+    font-size: 12px;
+    padding: 7px 12px;
+  }
+
+  .home {
+    width: min(100%, 620px);
+    padding: 18px 12px 28px;
+  }
+  .home-tagline {
+    margin-bottom: 16px;
+    font-size: clamp(16px, 4.5vw, 20px);
+  }
+  .home-sos-card {
+    min-height: 112px;
+    margin-bottom: 12px;
+    padding: 14px;
+    border-radius: 14px;
+    grid-template-columns: 58px minmax(0, 1fr) auto;
+    gap: 10px;
+  }
+  .home-sos-icon {
+    width: 56px;
+    height: 56px;
+  }
+  .home-sos-copy strong {
+    font-size: clamp(18px, 5.2vw, 23px);
+  }
+  .home-sos-copy span,
+  .home-sos-copy small {
+    font-size: clamp(12px, 3.5vw, 14px);
+  }
+  .home-card-arrow {
+    font-size: 38px;
+  }
+  .home-collection-grid {
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .home-collection-card {
+    min-height: 170px;
+    padding: 14px 12px;
+    border-radius: 14px;
+  }
+  .home-card-icon {
+    width: 48px;
+    height: 48px;
+    margin-bottom: 10px;
+  }
+  .home-collection-card strong,
+  .home-create-copy strong,
+  .home-about-copy strong {
+    font-size: clamp(15px, 4.1vw, 18px);
+  }
+  .home-collection-card > span:not(.home-card-icon),
+  .home-create-copy > span,
+  .home-about-copy > span {
+    margin-top: 6px;
+    font-size: 13px;
+  }
+  .home-collection-card em,
+  .home-create-copy em,
+  .home-about-copy em {
+    padding-top: 8px;
+    font-size: 13px;
+  }
+  .home-create-card {
+    margin-bottom: 12px;
+  }
+  .home-create-trigger,
+  .home-about-card {
+    grid-template-columns: 58px minmax(0, 1fr);
+    gap: 10px;
+    min-height: 118px;
+    padding: 14px;
+    border-radius: 14px;
+  }
+  .home-create-trigger .home-card-icon,
+  .home-about-card .home-card-icon {
+    width: 52px;
+    height: 52px;
+  }
+  .home-btn-create-menu {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 8px;
+  }
+}
+@media (min-width: 700px) {
+  .home {
+    width: min(100%, 760px);
+  }
+  .home-sos-card {
+    min-height: 124px;
+  }
+  .home-collection-card {
+    min-height: 190px;
+  }
+}
+@media (min-width: 1100px) {
+  .home {
+    width: min(100%, 820px);
+  }
+  .home-collection-grid {
+    gap: 16px;
+  }
+  .home-collection-card {
+    min-height: 200px;
+  }
+}
+
+
+/* --- SOSDZ UI charter correction v2 ----------------------------------- */
+/*
+ * Mobile screenshots reviewed: the previous pass introduced a dark
+ * collection green that visually competed with the SOS red and the softer
+ * brand surfaces. This pass keeps red for emergency/selection and uses a
+ * lighter collection green for positive/collection actions.
+ */
+:root {
+  --brand-green: #2c8f67;
+  --brand-green-hover: #237452;
+  --brand-green-soft: #eef8f3;
+  --brand-green-border: #b9decd;
+  --brand-blue: #397fc1;
+  --brand-blue-soft: #eef6ff;
+}
+
+/* A single quiet surface treatment across home, forms, lists and detail
+   pages. The existing helping-hands watermark remains part of the identity,
+   but the wash is lighter so it reads consistently instead of looking like
+   a different background from page to page. */
+body {
+  background-color: #f6faf8;
+  background-image: linear-gradient(rgba(248, 251, 249, .78), rgba(248, 251, 249, .78)), url('/backgrounds/bg-mobile-tall.jpg');
+}
+@media (min-width: 480px) {
+  body {
+    background-image: linear-gradient(rgba(248, 251, 249, .78), rgba(248, 251, 249, .78)), url('/backgrounds/bg-mobile.jpg');
+  }
+}
+@media (min-width: 900px) {
+  body {
+    background-image: linear-gradient(rgba(248, 251, 249, .78), rgba(248, 251, 249, .78)), url('/backgrounds/bg-tablet.jpg');
+  }
+}
+@media (min-width: 1280px) {
+  body {
+    background-image: linear-gradient(rgba(248, 251, 249, .78), rgba(248, 251, 249, .78)), url('/backgrounds/bg-desktop.jpg');
+  }
+}
+
+/* Keep the shell white/translucent so the same brand surface is visible
+   without introducing a second page background. */
+.topbar,
+.topbar-nav-mobile,
+.quick-actions-bar,
+.bottom-nav {
+  background: rgba(255, 255, 255, .96);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* The quick-action controls are intentionally outlined/soft-filled: the
+   red primary accent remains reserved for SOS and active navigation. */
+.quick-actions-create .quick-actions-btn {
+  color: var(--brand-green);
+  border-color: var(--brand-green-border);
+  background: #fff;
+}
+.quick-actions-create .quick-actions-btn:hover {
+  background: var(--brand-green-soft);
+}
+.quick-actions-deliver .quick-actions-btn {
+  color: var(--brand-blue);
+  border-color: #c7dcf2;
+  background: #fff;
+}
+.quick-actions-deliver .quick-actions-btn:hover {
+  background: var(--brand-blue-soft);
+}
+
+/* Open the quick-action menu upward. This is important on mobile because
+   the toolbar sits immediately above the page content; opening downward
+   covers the first controls/cards and makes the menu feel detached. */
+.quick-actions-menu {
+  top: auto;
+  bottom: calc(100% + 8px);
+  z-index: 1500;
+}
+.quick-actions-menu a:hover {
+  background: var(--brand-green-soft);
+}
+
+/* A selected view is navigation state, not a collection-status state: use
+   the same SOS red already used by the active bottom-nav/home SOS action.
+   This removes the dark-green Carte/Liste mismatch visible in the screenshots. */
+.view-toggle button.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+/* Positive/collection actions use the brighter brand green consistently. */
+.btn-success,
+.action-primary,
+.create-action,
+.add-action {
+  background: var(--brand-green);
+  border-color: var(--brand-green);
+  color: #fff;
+}
+.btn-success:hover,
+.action-primary:hover,
+.create-action:hover,
+.add-action:hover {
+  background: var(--brand-green-hover);
+  border-color: var(--brand-green-hover);
+}
+.badge-accent {
+  background: var(--brand-green);
+}
+.cp-marker-pin {
+  border-color: var(--brand-green);
+}
+
+/* --- Home: fit the complete action stack above the fixed bottom nav --- */
+@media (max-width: 699px) {
+  .home {
+    padding: 10px 12px 18px;
+  }
+  .home-tagline {
+    margin-bottom: 10px;
+    font-size: clamp(16px, 4.4vw, 19px);
+    line-height: 1.22;
+  }
+  .home-sos-card {
+    min-height: 104px;
+    margin-bottom: 10px;
+    padding: 12px;
+    gap: 9px;
+  }
+  .home-sos-icon {
+    width: 52px;
+    height: 52px;
+    -webkit-mask-size: 33px;
+    mask-size: 33px;
+  }
+  .home-sos-copy strong {
+    font-size: clamp(18px, 5vw, 22px);
+  }
+  .home-sos-copy span,
+  .home-sos-copy small {
+    font-size: clamp(12px, 3.35vw, 13.5px);
+  }
+  .home-card-arrow {
+    font-size: 34px;
+  }
+  .home-collection-grid {
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .home-collection-card {
+    min-height: 150px;
+    padding: 12px 11px;
+    border-radius: 13px;
+  }
+  .home-card-icon {
+    width: 44px;
+    height: 44px;
+    margin-bottom: 8px;
+  }
+  .home-collection-card strong,
+  .home-create-copy strong,
+  .home-about-copy strong {
+    font-size: clamp(15px, 4vw, 17px);
+    line-height: 1.12;
+  }
+  .home-collection-card > span:not(.home-card-icon),
+  .home-create-copy > span,
+  .home-about-copy > span {
+    margin-top: 4px;
+    font-size: 12px;
+    line-height: 1.3;
+  }
+  .home-collection-card em,
+  .home-create-copy em,
+  .home-about-copy em {
+    padding-top: 5px;
+    font-size: 12px;
+  }
+  .home-create-card {
+    margin-bottom: 10px;
+  }
+  .home-create-trigger,
+  .home-about-card {
+    grid-template-columns: 50px minmax(0, 1fr);
+    gap: 9px;
+    min-height: 88px;
+    padding: 12px;
+    border-radius: 13px;
+  }
+  .home-create-trigger .home-card-icon,
+  .home-about-card .home-card-icon {
+    width: 46px;
+    height: 46px;
+  }
+  .home-create-copy em,
+  .home-about-copy em {
+    margin-top: 5px;
+  }
+  .home-btn-create-menu {
+    top: auto;
+    bottom: calc(100% + 8px);
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 700px) {
+  .home-collection-card {
+    min-height: 180px;
+  }
+  .home-create-trigger,
+  .home-about-card {
+    min-height: 104px;
+  }
+}
+
+
+/* --- Transporteurs / Livraisons : alignement charte SOSDZ v5 ----------------
+   Même langage visuel que les pages Collecte : vert de marque lumineux,
+   surfaces douces, rouge uniquement pour l'état actif/urgence.
+   Scope limité à .deliveries-page pour ne pas modifier les autres listes. */
+
+.deliveries-page {
+  color: var(--text);
+}
+
+.deliveries-page .toolbar {
+  margin-block-end: 12px;
+}
+
+.deliveries-page .filters-toggle {
+  color: var(--text);
+  border-color: var(--border);
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .04);
+}
+
+.deliveries-page .filters-toggle:hover {
+  background: var(--brand-green-soft);
+  border-color: var(--brand-green-border);
+}
+
+.deliveries-page .view-toggle {
+  border-color: var(--border);
+  background: rgba(255, 255, 255, .96);
+}
+
+.deliveries-page .view-toggle button {
+  color: var(--text);
+  background: transparent;
+}
+
+.deliveries-page .view-toggle button.active {
+  background: var(--sos-red);
+  border-color: var(--sos-red);
+  color: #fff;
+}
+
+/* Liste transporteurs : carte blanche, légère et cohérente avec les
+   cartes de collecte. Le vert de marque sert aux éléments positifs,
+   jamais un vert très sombre comme couleur dominante. */
+.deliveries-page .need-card {
+  position: relative;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, .96);
+  border-radius: 16px;
+  box-shadow: 0 2px 10px rgba(31, 54, 45, .05);
+  color: var(--text);
+}
+
+.deliveries-page .need-card:hover {
+  border-color: var(--brand-green-border);
+  box-shadow: 0 4px 16px rgba(44, 143, 103, .10);
+}
+
+.deliveries-page .need-card h3 {
+  color: var(--text);
+}
+
+.deliveries-page .need-card .truck-icon {
+  color: var(--brand-green);
+}
+
+.deliveries-page .need-card .badge-accent {
+  background: var(--brand-green);
+  border-color: var(--brand-green);
+}
+
+.deliveries-page .need-card .badge-muted {
+  background: #f1f3f2;
+  color: #66716c;
+  border-color: #dce3df;
+}
+
+/* Carte transporteurs : le cadre et les contrôles reprennent exactement
+   les surfaces claires de la charte. */
+.deliveries-page .map-frame {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--brand-green-soft);
+  box-shadow: 0 2px 12px rgba(31, 54, 45, .07);
+}
+
+.deliveries-page .locate-btn,
+.deliveries-page .expand-btn {
+  border-color: var(--brand-green-border);
+  color: var(--brand-green);
+  background: rgba(255, 255, 255, .97);
+}
+
+.deliveries-page .locate-btn:hover,
+.deliveries-page .expand-btn:hover {
+  background: var(--brand-green-soft);
+}
+
+.deliveries-page .map-activate-hint,
+.deliveries-page .map-deactivate-btn {
+  background: var(--brand-green-soft);
+  color: var(--brand-green);
+  border: 1px solid var(--brand-green-border);
+}
+
+.deliveries-page .unknown-position-chip {
+  background: rgba(255, 255, 255, .96);
+  border: 1px solid var(--border);
+  color: var(--text);
+  box-shadow: 0 2px 10px rgba(31, 54, 45, .08);
+}
+
+.deliveries-page .unknown-position-pin {
+  color: var(--brand-green);
+}
+
+.deliveries-page .unknown-position-count {
+  background: var(--brand-green);
+  color: #fff;
+}
+
+/* Les marqueurs camion utilisent maintenant le vert de marque SOSDZ
+   (#2c8f67) défini dans Deliveries.jsx, avec la même logique de
+   distinction visuelle pour un départ déclaré. */
+.deliveries-page .pickup-marker-pin {
+  border-color: var(--brand-green);
+  background: rgba(255, 255, 255, .96);
+}
+
+.deliveries-page .pickup-marker-pin-departure {
+  border-color: var(--brand-green-border);
+  background: rgba(248, 251, 249, .96);
+}
+
+.deliveries-page .legend-note {
+  color: #68756f;
+  background: var(--brand-green-soft);
+  border-inline-start: 3px solid var(--brand-green);
+  padding: 8px 10px;
+  border-radius: 8px;
+}
+
+/* Popup d'un transporteur : même hiérarchie visuelle que les cartes. */
+.deliveries-map-popup {
+  color: var(--text);
+}
+
+.deliveries-map-popup strong {
+  color: var(--text);
+  font-size: 15px;
+}
+
+.deliveries-map-popup a {
+  color: var(--brand-green);
+  font-weight: 600;
+}
+
+@media (max-width: 699px) {
+  .deliveries-page .toolbar {
+    gap: 8px;
+  }
+
+  .deliveries-page .view-toggle {
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .deliveries-page .need-card {
+    border-radius: 14px;
+    box-shadow: 0 1px 8px rgba(31, 54, 45, .05);
+  }
+
+  .deliveries-page .map-frame {
+    border-radius: 14px;
+  }
+}
+
+/* --- Fixed bottom navigation ------------------------------------------- */
+html, body {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: clip !important;
+}
+body { overflow-x: hidden; }
+#root {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+.bottom-nav {
+  position: fixed !important;
+  inset-inline-start: 0 !important;
+  inset-inline-end: 0 !important;
+  bottom: 0 !important;
+  width: auto !important;
+  max-width: 100vw !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  transform: none !important;
+  z-index: 1100 !important;
+  overflow: visible !important;
+}
+.bottom-nav > a {
+  min-width: 0 !important;
+  max-width: none !important;
+  box-sizing: border-box !important;
+  overflow: visible !important;
+}
+@media (max-width: 699px) {
+  .bottom-nav {
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+  .bottom-nav > a {
+    width: auto !important;
+    padding-left: 2px !important;
+    padding-right: 2px !important;
+  }
+}
+/* --- Admin mobile shell hardening --------------------------------------
+   Admin mode adds the "MODE ADMIN / se déconnecter" badge to the same
+   topbar. On narrow phones that extra item can make the flex row wider than
+   the viewport; the browser then exposes a horizontal scroll area and the
+   fixed bottom navigation can appear outside the visual viewport. Keep the
+   shell width-constrained and let the admin badge/language control shrink
+   instead of widening the document.
+*/
+.topbar {
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+}
+.topbar > * {
+  min-width: 0;
+}
+.admin-badge {
+  min-width: 0;
+}
+.topbar-lang-quick {
+  min-width: 0;
+}
+
+@media (max-width: 699px) {
+  .topbar {
+    gap: 6px;
+    padding-inline: 10px;
+  }
+
+  .admin-badge {
+    flex: 0 1 auto;
+    max-width: 170px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 2px 7px;
+    font-size: 10px;
+  }
+
+  .admin-badge-logout-form,
+  .admin-badge-logout {
+    min-width: 0;
+    font-size: 10px;
+  }
+
+  .topbar-lang-quick .lang-switcher select {
+    max-width: 84px;
+    padding-inline: 4px;
+    font-size: 12px;
+  }
+
+  .nav-toggle {
+    flex: 0 0 30px;
+    width: 30px;
+    height: 30px;
+    padding: 2px;
+  }
+}
+
+/* --- SOSDZ UI charter v6: mobile fit + menu direction + green active states --- */
+
+/* Keep the quick-action dropdown attached below its trigger.
+   On mobile the header shortcut row is above the page content, so opening
+   upward can place the menu behind the browser/header area. */
+.quick-actions-menu {
+  top: calc(100% + 8px);
+  bottom: auto;
+  z-index: 1600;
+}
+
+/* Active/selected UI states use the charter green instead of SOS red.
+   Emergency SOS surfaces and explicit danger actions remain red. */
+.topbar-nav-desktop a.active,
+.topbar-nav-mobile a.active,
+.bottom-nav a.active,
+.view-toggle button.active,
+.deliveries-page .view-toggle button.active {
+  background: var(--brand-green) !important;
+  border-color: var(--brand-green) !important;
+  color: #fff !important;
+}
+
+.quick-actions-btn[aria-expanded="true"] {
+  background: var(--brand-green-soft);
+  border-color: var(--brand-green-border);
+  color: var(--brand-green);
+}
+
+.home-create-trigger[aria-expanded="true"] {
+  box-shadow: 0 0 0 2px var(--brand-green-border);
+}
+
+/* Mobile home: bring the complete five-card action stack into the initial
+   viewport, including the full "Qui sommes-nous ?" card above the fixed
+   bottom navigation. */
+@media (max-width: 699px) {
+  .home {
+    padding: 4px 10px 10px;
+  }
+
+  .home-tagline {
+    margin-bottom: 6px;
+    font-size: clamp(15px, 4.2vw, 18px);
+    line-height: 1.16;
+  }
+
+  .home-sos-card {
+    min-height: 92px;
+    margin-bottom: 7px;
+    padding: 10px;
+    gap: 8px;
+    border-radius: 13px;
+  }
+
+  .home-sos-icon {
+    width: 46px;
+    height: 46px;
+    -webkit-mask-size: 29px;
+    mask-size: 29px;
+  }
+
+  .home-sos-copy {
+    gap: 1px;
+  }
+
+  .home-sos-copy strong {
+    font-size: clamp(17px, 4.8vw, 21px);
+  }
+
+  .home-sos-copy span,
+  .home-sos-copy small {
+    font-size: clamp(11px, 3.1vw, 13px);
+  }
+
+  .home-card-arrow {
+    font-size: 31px;
+  }
+
+  .home-collection-grid {
+    gap: 7px;
+    margin-bottom: 7px;
+  }
+
+  .home-collection-card {
+    min-height: 132px;
+    padding: 10px 9px;
+    border-radius: 12px;
+  }
+
+  .home-card-icon {
+    width: 38px;
+    height: 38px;
+    margin-bottom: 6px;
+  }
+
+  .home-collection-card strong,
+  .home-create-copy strong,
+  .home-about-copy strong {
+    font-size: clamp(14px, 3.8vw, 16px);
+    line-height: 1.1;
+  }
+
+  .home-collection-card > span:not(.home-card-icon),
+  .home-create-copy > span,
+  .home-about-copy > span {
+    margin-top: 3px;
+    font-size: 11px;
+    line-height: 1.22;
+  }
+
+  .home-collection-card em,
+  .home-create-copy em,
+  .home-about-copy em {
+    padding-top: 4px;
+    font-size: 11px;
+  }
+
+  .home-collection-card em b,
+  .home-create-copy em b,
+  .home-about-copy em b {
+    margin-inline-start: 5px;
+    font-size: 18px;
+  }
+
+  .home-create-card {
+    margin-bottom: 7px;
+  }
+
+  .home-create-trigger,
+  .home-about-card {
+    grid-template-columns: 43px minmax(0, 1fr);
+    gap: 8px;
+    min-height: 76px;
+    padding: 10px;
+    border-radius: 12px;
+  }
+
+  .home-create-trigger .home-card-icon,
+  .home-about-card .home-card-icon {
+    width: 40px;
+    height: 40px;
+  }
+
+  .home-create-copy em,
+  .home-about-copy em {
+    margin-top: 3px;
+  }
+}
+
+
+/* --- SOSDZ map performance/layout v1 ---------------------------------
+   All map pages share one predictable frame. Desktop/tablet maps are
+   compact enough to fit below the page controls without requiring a
+   second scroll just to reach the bottom of the map; mobile keeps its
+   own viewport-aware height. The existing map controls, including
+   fullscreen, remain available.
+*/
+.map-frame {
+  height: 420px;
+  min-height: 420px;
+  overflow: hidden;
+  position: relative;
+}
+
+.map-frame > [id$="-map"] {
+  height: 100%;
+  min-height: 0;
+}
+
+@media (max-width: 699px) {
+  .map-frame {
+    height: 400px;
+    min-height: 400px;
+  }
+}
+
+/* International map uses the same shared frame as every other map page.
+   Keep the historical 600px rule from overriding the responsive frame. */
+.map-frame[style*="600px"] {
+  height: 420px !important;
+  min-height: 420px !important;
+}
+@media (max-width: 699px) {
+  .map-frame[style*="600px"] {
+    height: 400px !important;
+    min-height: 400px !important;
+  }
+}
+
+
+/* Map data loading indicator: lightweight CSS, no image/GIF request. */
+.map-points-loader {
+  position: absolute;
+  z-index: 900;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(35, 168, 114, 0.22);
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.12);
+  color: #238b5f;
+  font-size: 13px;
+  font-weight: 700;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.map-points-loader-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(35, 168, 114, 0.22);
+  border-top-color: #23a872;
+  border-radius: 50%;
+  animation: sosdz-map-loader-spin 0.75s linear infinite;
+}
+
+@keyframes sosdz-map-loader-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 699px) {
+  .map-points-loader {
+    padding: 9px 12px;
+    font-size: 12px;
+  }
+}
+
+
+/* Map popup interaction: the popup body is part of the map gesture surface.
+   Leaflet's popup container normally blocks touch/mouse press events, so the
+   shared popup behavior explicitly re-enables map dragging from the popup.
+   Keep the browser from turning the gesture into page scrolling. */
+.map-frame .leaflet-popup-pane {
+  z-index: 1400;
+}
+
+.sosdz-map-popup {
+  z-index: 1401 !important;
+}
+
+.sosdz-map-popup .leaflet-popup-content-wrapper {
+  touch-action: none;
+}
+
+@media (max-width: 699px) {
+  .map-international-link {
+    left: 10px;
+    right: auto;
+    top: 56px;
+    max-width: calc(100% - 20px);
+  }
+
+  .map-frame-fullscreen {
+    height: 100dvh !important;
+    min-height: 100dvh !important;
+  }
+
+  .sosdz-map-popup .leaflet-popup-content {
+    width: min(260px, calc(100vw - 44px)) !important;
+    max-width: min(260px, calc(100vw - 44px)) !important;
+    max-height: none !important;
+    overflow: visible !important;
+    margin: 5px 7px;
+    padding-block-start: 2px;
+    padding-inline-end: 3px;
+    font-size: 13px;
+    line-height: 1.3;
+  }
+
+  .sosdz-map-popup .leaflet-popup-content strong:first-child {
+    font-size: 13px;
+  }
+}
+
+/* --- Urgent SOS voice V2 -------------------------------------------------- */
+.urgent-sos-page{min-height:calc(100dvh - 180px);padding:8px 16px 36px;background:linear-gradient(180deg,rgba(248,251,249,.72),rgba(255,255,255,.9));}
+.urgent-sos-shell{width:min(760px,100%);margin:0 auto;}
+.urgent-sos-back{display:inline-flex;align-items:center;gap:6px;margin:4px 0 14px;color:#5e6b66;font-weight:600;text-decoration:none;}
+.urgent-sos-kicker{display:inline-flex;align-items:center;gap:7px;color:var(--sos-red);font-size:13px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px;}
+.urgent-sos-hero{display:flex;align-items:center;gap:14px;margin-bottom:18px;}
+.urgent-sos-icon{width:64px;height:64px;flex:0 0 64px;border-radius:20px;background:var(--sos-red);color:#fff;display:grid;place-items:center;box-shadow:0 10px 26px rgba(239,43,59,.2);}
+.urgent-sos-hero h1{margin:0;color:var(--text);font-size:clamp(26px,5vw,40px);line-height:1.08;}
+.urgent-sos-hero p{margin:7px 0 0;color:#64716c;font-size:15px;line-height:1.45;}
+.urgent-sos-progress{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin:0 0 12px;}
+.urgent-sos-progress span{height:5px;border-radius:999px;background:#dce5e0;}
+.urgent-sos-progress span.active{background:var(--brand-green);}
+.urgent-sos-card{background:rgba(255,255,255,.96);border:1px solid var(--border);border-radius:22px;padding:clamp(18px,4vw,30px);box-shadow:0 10px 34px rgba(31,54,45,.08);}
+.urgent-sos-card h2{margin:0 0 8px;color:var(--text);font-size:clamp(21px,4vw,29px);}
+.urgent-sos-card>p{color:#65726d;line-height:1.55;margin:0 0 18px;}
+.urgent-sos-step-label{color:var(--brand-green);font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px;}
+.urgent-sos-audio{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:14px 0 20px;}
+.urgent-sos-audio-btn{min-height:48px;border:1px solid var(--brand-green-border);border-radius:14px;background:var(--brand-green-soft);color:var(--brand-green);font-weight:800;padding:0 17px;cursor:pointer;}
+.urgent-sos-audio-fallback{font-size:12px;color:#68756f;}
+.urgent-sos-language{display:flex;gap:8px;margin:8px 0 16px;}
+.urgent-sos-language button{min-height:44px;border:1px solid var(--border);border-radius:12px;background:#fff;padding:0 15px;color:var(--text);font-weight:700;}
+.urgent-sos-language button.selected{border-color:var(--brand-green);background:var(--brand-green-soft);color:var(--brand-green);}
+.urgent-sos-primary,.urgent-sos-secondary,.urgent-sos-danger{min-height:52px;border-radius:15px;padding:0 20px;border:1px solid transparent;font-weight:800;font-size:15px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;}
+.urgent-sos-primary{background:var(--brand-green);color:#fff;border-color:var(--brand-green);box-shadow:0 6px 16px rgba(44,143,103,.18);}
+.urgent-sos-primary:hover{background:var(--brand-green-hover);}
+.urgent-sos-secondary{background:#fff;color:var(--text);border-color:var(--border);}
+.urgent-sos-danger{background:var(--sos-red);color:#fff;border-color:var(--sos-red);}
+.urgent-sos-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px;}
+.urgent-sos-actions>*{flex:1 1 180px;}
+.urgent-sos-recording{display:flex;align-items:center;justify-content:center;gap:10px;min-height:94px;margin:18px 0;border-radius:18px;background:#f4f7f5;color:#65716d;}
+.urgent-sos-recording.active{background:#fff1f2;color:var(--sos-red);}
+.urgent-sos-recording-dot{width:12px;height:12px;border-radius:50%;background:#b7c3be;}
+.urgent-sos-recording.active .urgent-sos-recording-dot{background:var(--sos-red);box-shadow:0 0 0 7px rgba(239,43,59,.1);animation:urgent-sos-pulse 1.2s infinite;}
+@keyframes urgent-sos-pulse{50%{transform:scale(.7);opacity:.6}}
+.urgent-sos-record-button{min-height:60px;width:100%;font-size:17px;}
+.urgent-sos-preview{width:100%;margin:8px 0;border-radius:12px;}
+.urgent-sos-center{text-align:center;display:grid;place-items:center;gap:8px;}
+.urgent-sos-loader{width:40px;height:40px;border:4px solid #dce8e2;border-top-color:var(--brand-green);border-radius:50%;animation:urgent-sos-spin .8s linear infinite;}
+@keyframes urgent-sos-spin{to{transform:rotate(360deg)}}
+.urgent-sos-transcript{margin:0 0 16px;border:1px solid var(--border);border-radius:13px;padding:12px 14px;background:#f8faf9;color:#5d6964;}
+.urgent-sos-transcript summary{cursor:pointer;font-weight:700;color:var(--brand-green);}
+.urgent-sos-fields{display:grid;gap:12px;}
+.urgent-sos-fields label{display:grid;gap:6px;color:var(--text);font-weight:700;font-size:13px;}
+.urgent-sos-fields input,.urgent-sos-fields textarea{width:100%;box-sizing:border-box;border:1px solid var(--border);border-radius:12px;background:#fff;padding:12px 13px;font:inherit;color:var(--text);outline:none;}
+.urgent-sos-fields input:focus,.urgent-sos-fields textarea:focus{border-color:var(--brand-green);box-shadow:0 0 0 3px rgba(44,143,103,.1);}
+.urgent-sos-confirm{background:var(--sos-red);border-color:var(--sos-red);box-shadow:0 8px 20px rgba(239,43,59,.2);}
+.urgent-sos-confirm:hover{background:#d92839;}
+.urgent-sos-error{margin:14px 0 0!important;padding:12px 14px;border-radius:12px;background:#fff1f2;color:#a61d2d!important;border:1px solid #ffd1d6;font-weight:600;}
+.urgent-sos-token-box{width:100%;box-sizing:border-box;margin:6px 0 4px;padding:18px;border:2px solid var(--brand-green);border-radius:18px;background:linear-gradient(180deg,#f2fbf6,#fff);box-shadow:0 8px 24px rgba(44,143,103,.12);text-align:left;}
+.urgent-sos-token-title{color:var(--brand-green);font-size:16px;font-weight:900;text-transform:uppercase;letter-spacing:.05em;}
+.urgent-sos-token-warning{margin:7px 0 14px!important;color:var(--brand-green)!important;font-size:16px;line-height:1.45;font-weight:800;}
+.urgent-sos-token-row{display:flex;align-items:center;gap:10px;}
+.urgent-sos-token{flex:1;min-width:0;padding:13px 12px;border-radius:12px;background:#e8f7ef;color:#178257;font-size:clamp(17px,4.5vw,22px);line-height:1.2;letter-spacing:.04em;overflow-wrap:anywhere;word-break:break-word;}
+.urgent-sos-copy-token{flex:0 0 auto;min-height:48px;padding:0 14px;border:1px solid var(--brand-green);border-radius:12px;background:#fff;color:var(--brand-green);font-weight:900;cursor:pointer;}
+.urgent-sos-copy-token:active{transform:translateY(1px);}
+
+@media(max-width:699px){
+ .urgent-sos-page{padding:4px 10px calc(88px + env(safe-area-inset-bottom));}
+ .urgent-sos-hero{align-items:flex-start;gap:10px;}
+ .urgent-sos-icon{width:52px;height:52px;flex-basis:52px;border-radius:16px;}
+ .urgent-sos-icon svg{width:27px;height:27px;}
+ .urgent-sos-hero h1{font-size:26px;}
+ .urgent-sos-hero p{font-size:13px;}
+ .urgent-sos-card{border-radius:17px;padding:16px;box-shadow:0 6px 22px rgba(31,54,45,.07);}
+ .urgent-sos-primary,.urgent-sos-secondary,.urgent-sos-danger{width:100%;min-height:54px;}
+ .urgent-sos-actions{gap:9px;}
+ .urgent-sos-actions>*{flex-basis:100%;}
+ .urgent-sos-language button{flex:1;}
+}
+
+
+
+/* --- Urgent SOS voice page: mobile viewport fit (page scope only) ---
+   Deliberately does not target the global header or bottom navigation.
+   The wizard cards are compacted so the active step fits in the visual
+   viewport on narrow phones instead of creating a second page scroll. */
+@media (max-width: 699px) {
+  .urgent-sos-page {
+    min-height: 0;
+    padding: 2px 8px calc(78px + env(safe-area-inset-bottom));
+  }
+
+  .urgent-sos-shell {
+    width: 100%;
+  }
+
+  .urgent-sos-back {
+    margin: 1px 0 6px;
+    font-size: 13px;
+  }
+
+  .urgent-sos-kicker {
+    margin-bottom: 5px;
+    font-size: 11px;
+  }
+
+  .urgent-sos-hero {
+    margin-bottom: 8px;
+    gap: 8px;
+  }
+
+  .urgent-sos-hero h1 {
+    font-size: 23px;
+  }
+
+  .urgent-sos-hero p {
+    margin-top: 3px;
+    font-size: 12px;
+    line-height: 1.25;
+  }
+
+  .urgent-sos-progress {
+    margin-bottom: 7px;
+  }
+
+  .urgent-sos-card {
+    padding: 13px;
+    border-radius: 15px;
+  }
+
+  .urgent-sos-card h2 {
+    margin-bottom: 5px;
+    font-size: 20px;
+  }
+
+  .urgent-sos-card > p {
+    margin-bottom: 9px;
+    line-height: 1.32;
+    font-size: 13px;
+  }
+
+  .urgent-sos-audio {
+    margin: 8px 0 10px;
+    gap: 6px;
+  }
+
+  .urgent-sos-audio-btn {
+    min-height: 42px;
+    padding-inline: 13px;
+    font-size: 13px;
+  }
+
+  .urgent-sos-language {
+    margin: 5px 0 9px;
+  }
+
+  .urgent-sos-language button {
+    min-height: 40px;
+  }
+
+  .urgent-sos-recording {
+    min-height: 64px;
+    margin: 10px 0;
+  }
+
+  .urgent-sos-primary,
+  .urgent-sos-secondary,
+  .urgent-sos-danger {
+    min-height: 46px;
+    font-size: 14px;
+  }
+
+  .urgent-sos-actions {
+    margin-top: 10px;
+    gap: 7px;
+  }
+
+  .urgent-sos-fields {
+    gap: 7px;
+  }
+
+  .urgent-sos-fields input,
+  .urgent-sos-fields textarea {
+    padding: 9px 10px;
+  }
+
+  .urgent-sos-fields textarea {
+    min-height: 58px;
+  }
+
+  .urgent-sos-token-box {
+    padding: 12px;
+    border-radius: 14px;
+  }
+
+  .urgent-sos-token-warning {
+    margin: 5px 0 9px !important;
+    font-size: 13px;
+    line-height: 1.3;
+  }
+
+  .urgent-sos-token-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .urgent-sos-token {
+    padding: 9px 10px;
+    font-size: 15px;
+  }
+
+  .urgent-sos-copy-token {
+    min-height: 42px;
+  }
+
+  .urgent-sos-token-saved {
+    margin: 0 0 8px !important;
+    font-size: 12px;
+  }
+}
+
+
+/* --- SOS vocal wizard polish: page-scoped only --- */
+.urgent-sos-stepper{
+  display:grid;
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:7px;
+  margin:0 0 12px;
+}
+.urgent-sos-stepper>div{
+  min-width:0;
+  display:grid;
+  grid-template-columns:28px 1fr;
+  align-items:center;
+  gap:6px;
+  padding:7px 8px;
+  border:1px solid var(--border);
+  border-radius:13px;
+  background:rgba(255,255,255,.82);
+  color:#7b8781;
+}
+.urgent-sos-stepper>div>span{
+  width:28px;
+  height:28px;
+  display:grid;
+  place-items:center;
+  border-radius:50%;
+  background:#edf1ef;
+  font-size:12px;
+  font-weight:900;
+}
+.urgent-sos-stepper>div.done{
+  border-color:#bfe1cf;
+  background:#f1faf5;
+  color:var(--brand-green);
+}
+.urgent-sos-stepper>div.done>span{
+  background:var(--brand-green);
+  color:#fff;
+}
+.urgent-sos-stepper>div[data-current="true"]{
+  box-shadow:0 0 0 2px rgba(44,143,103,.10);
+}
+.urgent-sos-stepper small{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:11px;
+  font-weight:800;
+}
+.urgent-sos-location-status{
+  margin:9px 0 0;
+  padding:10px 12px;
+  border-radius:12px;
+  font-size:13px;
+  font-weight:700;
+  line-height:1.35;
+}
+.urgent-sos-location-status.success{background:#edf9f4;color:#16734c;border:1px solid #c8e8d7;}
+.urgent-sos-location-status.warning{background:#fff8e9;color:#8a5a00;border:1px solid #f0dfb0;}
+.urgent-sos-location-status.error{background:#fff1f2;color:#a61d2d;border:1px solid #ffd1d6;}
+.urgent-sos-final-badge{
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  margin-bottom:2px;
+  padding:6px 11px;
+  border-radius:999px;
+  background:#edf9f4;
+  color:var(--brand-green);
+  font-size:12px;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.05em;
+}
+.urgent-sos-final-warning{
+  width:100%;
+  box-sizing:border-box;
+  margin:10px 0 4px;
+  padding:13px 14px;
+  border:2px solid #e7b93e;
+  border-radius:14px;
+  background:#fff9e8;
+  color:#704b00;
+  text-align:left;
+  line-height:1.4;
+}
+.urgent-sos-done-card .urgent-sos-audio{
+  margin:9px 0;
+}
+.urgent-sos-review-card .urgent-sos-fields{
+  grid-template-columns:repeat(2,minmax(0,1fr));
+}
+.urgent-sos-review-card .urgent-sos-fields label:last-child{
+  grid-column:1 / -1;
+}
+
+@media(max-width:699px){
+  .urgent-sos-stepper{
+    gap:4px;
+    margin-bottom:7px;
+  }
+  .urgent-sos-stepper>div{
+    display:flex;
+    justify-content:center;
+    padding:4px 2px;
+    border-radius:10px;
+  }
+  .urgent-sos-stepper>div>span{
+    width:23px;
+    height:23px;
+    font-size:10px;
+  }
+  .urgent-sos-stepper small{
+    display:none;
+  }
+  .urgent-sos-location-status{
+    padding:8px 10px;
+    font-size:12px;
+  }
+  .urgent-sos-final-warning{
+    margin-top:7px;
+    padding:10px 11px;
+    font-size:13px;
+  }
+  .urgent-sos-done-card{
+    gap:5px;
+  }
+  .urgent-sos-done-card .urgent-sos-token-box{
+    margin:2px 0;
+  }
+  .urgent-sos-review-card .urgent-sos-fields{
+    grid-template-columns:1fr;
+  }
+  .urgent-sos-review-card .urgent-sos-fields label:last-child{
+    grid-column:auto;
+  }
+}
+
+/* --- SOS vocal wizard: optional campaign wilaya + compact navigation ----
+   Page-scoped only. No header/footer selectors are used here. */
+.urgent-sos-wilaya-field{
+  display:grid;
+  gap:5px;
+  margin:8px 0 10px;
+}
+.urgent-sos-wilaya-field label{
+  color:var(--text);
+  font-size:13px;
+  font-weight:800;
+}
+.urgent-sos-wilaya-field select{
+  width:100%;
+  min-height:44px;
+  border:1px solid var(--border);
+  border-radius:12px;
+  background:#fff;
+  color:var(--text);
+  padding:0 12px;
+  font:inherit;
+}
+.urgent-sos-wilaya-field select:focus{
+  outline:none;
+  border-color:var(--brand-green);
+  box-shadow:0 0 0 3px rgba(44,143,103,.1);
+}
+.urgent-sos-wilaya-field small{
+  color:var(--text-muted);
+  font-size:11px;
+  line-height:1.25;
+}
+.urgent-sos-previous{
+  min-width:0;
+}
+.urgent-sos-record-actions .urgent-sos-record-button{
+  width:auto;
+  flex:1 1 220px;
+}
+@media(max-width:699px){
+  /* Keep the active wizard step inside the page viewport as far as the
+     content naturally permits; the page itself owns the compact spacing. */
+  .urgent-sos-page{
+    overflow-x:hidden;
+  }
+  .urgent-sos-card{
+    padding:11px;
+  }
+  .urgent-sos-card h2{
+    font-size:19px;
+  }
+  .urgent-sos-card > p{
+    font-size:12px;
+    line-height:1.25;
+    margin-bottom:7px;
+  }
+  .urgent-sos-wilaya-field{
+    margin:5px 0 7px;
+  }
+  .urgent-sos-wilaya-field select{
+    min-height:40px;
+    font-size:13px;
+  }
+  .urgent-sos-wilaya-field small{
+    font-size:10px;
+  }
+  .urgent-sos-actions{
+    margin-top:7px;
+    gap:6px;
+  }
+  .urgent-sos-actions .urgent-sos-previous{
+    flex:0 0 auto;
+    width:auto;
+    min-height:40px;
+    padding-inline:12px;
+    font-size:12px;
+  }
+  .urgent-sos-record-actions .urgent-sos-record-button{
+    flex:1 1 auto;
+    min-height:46px;
+  }
+  .urgent-sos-location-status{
+    margin:6px 0 0;
+    padding:7px 9px;
+  }
+  .urgent-sos-preview{
+    margin:4px 0;
+  }
+  .urgent-sos-review-card .urgent-sos-fields{
+    gap:5px;
+  }
+  .urgent-sos-review-card .urgent-sos-fields input,
+  .urgent-sos-review-card .urgent-sos-fields textarea{
+    padding:7px 9px;
+  }
+  .urgent-sos-review-card .urgent-sos-fields textarea{
+    min-height:48px;
+    max-height:64px;
+  }
+  .urgent-sos-review-card .urgent-sos-transcript{
+    padding:8px 10px;
+    margin-bottom:8px;
+  }
+}
+
+/* SOS voice location fallback: compact and page-scoped. */
+.urgent-sos-location-help{
+  display:grid;
+  gap:2px;
+  line-height:1.2;
+  padding:7px 9px;
+  margin:6px 0;
+  font-size:11px;
+}
+.urgent-sos-location-help strong{
+  font-size:12px;
+}
+.urgent-sos-location-help span{
+  display:block;
+}
+@media(max-width:699px){
+  .urgent-sos-location-help{
+    padding:6px 8px;
+    margin:5px 0;
+    font-size:10px;
+  }
+  .urgent-sos-location-help strong{
+    font-size:11px;
+  }
+  .urgent-sos-card .urgent-sos-actions{
+    flex-wrap:nowrap;
+  }
+  .urgent-sos-card .urgent-sos-actions > button{
+    min-width:0;
+    flex:1 1 0;
+    padding-inline:8px;
+  }
+}
+
+/* Searchable wilaya picker: SOS voice page only. */
+.urgent-sos-wilaya-field input[type="search"]{
+  width:100%;
+  min-height:40px;
+  box-sizing:border-box;
+  border:1px solid var(--border);
+  border-radius:10px;
+  background:#fff;
+  color:var(--text);
+  padding:7px 10px;
+  font:inherit;
+}
+.urgent-sos-wilaya-field select[size]{
+  min-height:72px;
+  max-height:112px;
+  overflow-y:auto;
+}
+@media(max-width:699px){
+  .urgent-sos-wilaya-field input[type="search"]{
+    min-height:36px;
+    font-size:12px;
+  }
+  .urgent-sos-wilaya-field select[size]{
+    min-height:64px;
+    max-height:88px;
+  }
+}
+
+/* --- SOS vocal flow: single searchable wilaya + compact mobile actions --- */
+.urgent-sos-wilaya-field input[type="search"]{
+  width:100%;
+  min-height:48px;
+  box-sizing:border-box;
+  border:1px solid var(--border);
+  border-radius:12px;
+  background:#fff;
+  color:var(--text);
+  padding:0 13px;
+  font:inherit;
+}
+.urgent-sos-wilaya-field input[type="search"]:focus{
+  outline:none;
+  border-color:var(--brand-green);
+  box-shadow:0 0 0 3px rgba(44,143,103,.1);
+}
+
+@media(max-width:699px){
+  .urgent-sos-preview-actions,
+  .urgent-sos-location-actions{
+    display:grid;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:8px;
+    flex-wrap:nowrap;
+  }
+
+  .urgent-sos-preview-actions > button,
+  .urgent-sos-location-actions > button{
+    width:100%;
+    min-width:0;
+    min-height:58px;
+    flex:none;
+    padding:8px 6px;
+    font-size:13px;
+    line-height:1.15;
+    white-space:normal;
+    overflow-wrap:anywhere;
+  }
+
+  .urgent-sos-preview-actions .urgent-sos-previous,
+  .urgent-sos-location-actions .urgent-sos-previous{
+    padding-inline:5px;
+  }
+
+  .urgent-sos-wilaya-field input[type="search"]{
+    min-height:44px;
+    font-size:13px;
+  }
+
+  .urgent-sos-review-card .urgent-sos-audio{
+    margin:7px 0 9px;
+  }
+
+  .urgent-sos-token-box{
+    margin-top:8px;
+  }
+}
+
+
+/* Four-step SOS vocal wizard (the intro is not counted as a form step). */
+.urgent-sos-stepper{
+  grid-template-columns:repeat(4,minmax(0,1fr));
+}
+.urgent-sos-progress{
+  grid-template-columns:repeat(4,minmax(0,1fr));
+}
+
+@media(max-width:699px){
+  .urgent-sos-preview-actions > button{
+    font-size:14px;
+    padding-inline:4px;
+  }
+}
+
+/* SOS vocal page: recording countdown only */
+.urgent-sos-countdown {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: .35rem;
+  min-height: 110px;
+  text-align: center;
+}
+.urgent-sos-countdown-number {
+  font-size: clamp(3rem, 12vw, 5rem);
+  line-height: 1;
+  font-weight: 800;
+}
+
+/* --- SOS vocal: searchable wilaya combobox + viewport-safe controls --- */
+.urgent-sos-wilaya-combobox{
+  position:relative;
+  display:flex;
+  align-items:center;
+}
+.urgent-sos-wilaya-combobox input{
+  width:100%;
+  min-height:48px;
+  box-sizing:border-box;
+  padding:0 92px 0 13px;
+  border:1px solid var(--border);
+  border-radius:13px;
+  background:#fff;
+  color:var(--text);
+  font:inherit;
+}
+.urgent-sos-wilaya-combobox input:focus{
+  outline:none;
+  border-color:var(--brand-green);
+  box-shadow:0 0 0 3px rgba(44,143,103,.1);
+}
+.urgent-sos-wilaya-chevron{
+  position:absolute;
+  right:52px;
+  top:50%;
+  transform:translateY(-50%);
+  pointer-events:none;
+  color:#64716c;
+  font-size:22px;
+  line-height:1;
+}
+.urgent-sos-wilaya-reset{
+  position:absolute;
+  right:7px;
+  top:50%;
+  transform:translateY(-50%);
+  width:40px;
+  height:40px;
+  border:1px solid #cfd9d4;
+  border-radius:10px;
+  background:#f7f9f8;
+  color:#4f5c57;
+  font-size:28px;
+  line-height:1;
+  font-weight:700;
+  cursor:pointer;
+  display:grid;
+  place-items:center;
+  z-index:3;
+}
+.urgent-sos-wilaya-reset:hover{
+  background:#eef3f0;
+  border-color:#aebbb5;
+}
+.urgent-sos-wilaya-options{
+  position:absolute;
+  z-index:20;
+  left:0;
+  right:0;
+  top:calc(100% + 5px);
+  max-height:180px;
+  overflow-y:auto;
+  padding:5px;
+  border:1px solid var(--border);
+  border-radius:13px;
+  background:#fff;
+  box-shadow:0 12px 28px rgba(31,54,45,.16);
+}
+.urgent-sos-wilaya-option{
+  display:block;
+  width:100%;
+  min-height:42px;
+  padding:8px 11px;
+  border:0;
+  border-radius:9px;
+  background:#fff;
+  color:var(--text);
+  text-align:left;
+  font:inherit;
+  cursor:pointer;
+}
+.urgent-sos-wilaya-option:hover,
+.urgent-sos-wilaya-option:focus{
+  background:var(--brand-green-soft);
+  color:var(--brand-green);
+  outline:none;
+}
+@media(max-width:699px){
+  .urgent-sos-page{
+    min-height:calc(100dvh - 180px);
+  }
+  .urgent-sos-shell{
+    max-height:calc(100dvh - 190px);
+  }
+  .urgent-sos-wilaya-combobox input{
+    min-height:46px;
+    padding-right:96px;
+  }
+  .urgent-sos-wilaya-reset{
+    width:42px;
+    height:42px;
+    font-size:29px;
+  }
+  .urgent-sos-wilaya-options{
+    max-height:150px;
+  }
+  .urgent-sos-countdown{
+    min-height:82px;
+    margin:8px 0;
+  }
+}
+
+/* Final SOS confirmation: keep the password/token screen visible on one mobile viewport. */
+@media (max-width:699px){
+  .urgent-sos-done-card{
+    padding:10px 12px;
+  }
+  .urgent-sos-done-card .urgent-sos-final-badge{
+    margin-bottom:4px;
+    padding:6px 9px;
+  }
+  .urgent-sos-done-card h2{
+    margin-bottom:3px;
+    font-size:19px;
+  }
+  .urgent-sos-done-card > p{
+    margin-bottom:6px;
+    line-height:1.2;
+    font-size:12px;
+  }
+  .urgent-sos-done-card .urgent-sos-final-warning{
+    margin:5px 0;
+    padding:7px 9px;
+    font-size:12px;
+    line-height:1.2;
+  }
+  .urgent-sos-done-card .urgent-sos-audio{
+    margin:5px 0;
+  }
+  .urgent-sos-done-card .urgent-sos-audio-btn{
+    min-height:38px;
+    font-size:12px;
+  }
+  .urgent-sos-done-card .urgent-sos-token-box{
+    margin:5px 0 4px;
+    padding:9px;
+  }
+  .urgent-sos-done-card .urgent-sos-token-title{
+    font-size:13px;
+  }
+  .urgent-sos-done-card .urgent-sos-token-warning{
+    margin:3px 0 6px !important;
+    font-size:11px;
+    line-height:1.2;
+  }
+  .urgent-sos-done-card .urgent-sos-token-row{
+    flex-direction:row;
+    align-items:center;
+    gap:6px;
+  }
+  .urgent-sos-done-card .urgent-sos-token{
+    padding:8px;
+    font-size:13px;
+  }
+  .urgent-sos-done-card .urgent-sos-copy-token{
+    min-height:38px;
+    padding:0 9px;
+    font-size:12px;
+  }
+  .urgent-sos-done-card .urgent-sos-actions{
+    margin-top:5px;
+  }
+  .urgent-sos-done-card .urgent-sos-actions .urgent-sos-secondary{
+    min-height:38px;
+  }
+}
+
+
+/* SOS vocal: keep the final token state fully visible on phone screens. */
+@media (max-width: 699px) {
+  .urgent-sos-done-card {
+    min-height: 0;
+    box-sizing: border-box;
+    padding: 9px 10px;
+  }
+  .urgent-sos-done-card .urgent-sos-final-badge {
+    margin-bottom: 0;
+    padding: 4px 8px;
+    font-size: 10px;
+  }
+  .urgent-sos-done-card h2 {
+    margin: 2px 0 3px;
+    font-size: 18px;
+  }
+  .urgent-sos-done-card > p {
+    margin-bottom: 4px;
+    font-size: 11px;
+    line-height: 1.2;
+  }
+  .urgent-sos-done-card .urgent-sos-audio {
+    margin: 4px 0;
+  }
+  .urgent-sos-done-card .urgent-sos-audio-btn {
+    min-height: 36px;
+    padding-inline: 10px;
+    font-size: 11px;
+  }
+  .urgent-sos-done-card .urgent-sos-token-box {
+    margin: 3px 0;
+    padding: 8px;
+  }
+  .urgent-sos-done-card .urgent-sos-token-warning {
+    margin: 3px 0 5px !important;
+    font-size: 11px;
+    line-height: 1.2;
+  }
+  .urgent-sos-done-card .urgent-sos-token {
+    padding: 7px 8px;
+    font-size: 14px;
+  }
+  .urgent-sos-done-card .urgent-sos-copy-token {
+    min-height: 38px;
+    font-size: 12px;
+  }
+  .urgent-sos-done-card .urgent-sos-actions {
+    margin-top: 4px;
+  }
+  .urgent-sos-validation-panel {
+    margin-top: 5px;
+  }
+  .urgent-sos-validation-panel > p {
+    margin: 3px 0;
+    font-size: 12px;
+    line-height: 1.2;
+  }
 }

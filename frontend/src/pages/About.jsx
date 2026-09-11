@@ -12,6 +12,7 @@ export default function About() {
       <p>{t('about.p1')}</p>
       <p>{t('about.p2')}</p>
       <p>{t('about.p3')}</p>
+      <p>{t('about.p4')}</p>
       {/* Always shown, even with nothing configured yet -- an admin who
           hasn't set up AdminContactPhone entries in Django Admin should
           still see that WhatsApp exists as a channel (with a "coming

@@ -5,7 +5,7 @@ import L from 'leaflet'
 import { useApp } from '../context/AppContext'
 import { useDialog } from '../context/DialogContext'
 import { api } from '../api'
-import { maskPhone, formatDate, googleMapsUrl } from '../utils'
+import { maskPhone, formatDate, googleMapsDirectionsUrl, getCurrentPosition } from '../utils'
 import { translateApiError } from '../apiErrors'
 import { IconMapPin } from '../icons'
 import { fetchDrivingRoute } from '../routing'
@@ -13,6 +13,7 @@ import CommentThread from '../components/CommentThread'
 import CopyButton from '../components/CopyButton'
 import ModerationBadge from '../components/ModerationBadge'
 import PickupManager from '../components/PickupManager'
+import { attachMapPopupBehavior } from '../mapMarkers'
 
 function statusLabel(t, s) {
   return t(`status.${s}`, s)
@@ -34,6 +35,13 @@ export default function NeedDetail() {
   const [anonymizingNeed, setAnonymizingNeed] = useState(false)
   const mapElRef = useRef(null)
   const mapRef = useRef(null)
+  // Fetched eagerly in the background on mount, not awaited at click time
+  // (see the Maps button below) -- see CollectionPointDetail.jsx's own
+  // originRef for why: a navigation issued after the browser's short-lived
+  // "this was directly triggered by the user" activation window expires is
+  // no longer treated as user-initiated, which is exactly what makes
+  // Android's Maps-app handoff intermittently fail into a blank tab.
+  const originRef = useRef(null)
 
   const isNeedOwner = needTokens[id] && needTokens[id].access_token
   const viewerToken = searchParams.get('viewer')
@@ -46,6 +54,12 @@ export default function NeedDetail() {
   useEffect(() => {
     load().catch(() => {}) // offline/network failure -- offline banner already informs the user
   }, [load])
+
+  useEffect(() => {
+    getCurrentPosition().then((origin) => {
+      originRef.current = origin
+    })
+  }, [])
 
   const checkLiveMapAccess = useCallback(async () => {
     // Always ask the backend rather than gating the request on a locally
@@ -99,6 +113,7 @@ export default function NeedDetail() {
       maxZoom: 19,
     }).addTo(map)
     L.control.attribution({ prefix: false }).addTo(map)
+    attachMapPopupBehavior(map)
     mapRef.current = map
     const allPoints = []
     const dest = destinationPoint()
@@ -113,7 +128,7 @@ export default function NeedDetail() {
       const trail = entry.trail
       if (!trail.length) return
       const latlngs = trail.map((p) => [p.latitude, p.longitude])
-      L.polyline(latlngs, { color: '#111' }).addTo(map)
+      L.polyline(latlngs, { color: '#2c8f67' }).addTo(map)
       // A truck pin (Uber-style: a small vehicle glyph on a white circle)
       // instead of Leaflet's default blue map-pin icon, so a responder en
       // route reads at a glance as "a delivery," distinct from the
@@ -146,7 +161,7 @@ export default function NeedDetail() {
         fetchDrivingRoute(latlngs[latlngs.length - 1], dest)
           .then((route) => {
             if (mapRef.current !== map) return // map was torn down/re-rendered since this fetch started
-            L.polyline(route.coordinates, { color: '#2f6fed', weight: 4, dashArray: '1,10', lineCap: 'round' }).addTo(map)
+            L.polyline(route.coordinates, { color: '#2563eb', weight: 4, dashArray: '1,10', lineCap: 'round' }).addTo(map)
             map.fitBounds(L.latLngBounds([...allPoints, ...route.coordinates]).pad(0.3), { maxZoom: 15 })
             setRouteInfo({ distanceKm: route.distanceKm, durationMin: route.durationMin })
           })
@@ -189,10 +204,23 @@ export default function NeedDetail() {
   }
 
   const cancelNeed = async () => {
-    const reason = await showPrompt(t('needDetail.cancelThisNeed') + '?', '')
-    if (reason === null) return
-    editNeed({ is_cancelled: true, cancellation_reason: reason })
-    refreshConfig()
+    // Cancellation does not require a reason or a token entry here: the
+    // access token is already held by the app and sent with the PATCH.
+    // Ask for an explicit Yes/No confirmation so the user cannot mistake
+    // the dialog for a field where a token or reason must be entered.
+    const confirmed = await showConfirm(t('needDetail.cancelNeedConfirm'))
+    if (!confirmed) return
+    try {
+      // Wait for the server-side cancellation before refreshing/navigating.
+      // The list endpoint excludes cancelled needs, so returning only after
+      // this PATCH succeeds prevents the cancelled card from remaining in a
+      // stale list while the map has already removed its pin.
+      await editNeed({ is_cancelled: true, cancellation_reason: '' })
+      refreshConfig()
+      navigate('/needs', { replace: true, state: { needsChanged: true } })
+    } catch (e) {
+      showAlert(translateApiError(e, t))
+    }
   }
 
   const promptUpdateGPS = () => {
@@ -274,16 +302,50 @@ export default function NeedDetail() {
         <span className={`badge urgency-${need.urgency}`}>{t(`urgency.${need.urgency}`)}</span>
       )}{' '}
       <span className="status">{statusLabel(t, need.overall_status)}</span>
-      <p>
-        {need.wilaya_name}
-        {need.commune ? ' — ' + need.commune : ''}
-      </p>
+      {/* has_no_location means the wilaya below is only a submission-time
+          fallback (see NeedCreateSerializer, backend), never a place the
+          reporter actually confirmed -- showing it plainly here would
+          read as a real location when it isn't one. */}
+      {need.has_no_location ? (
+        <p className="hint">{t('needsList.noGeographicPosition')}</p>
+      ) : (
+        <p>
+          {need.wilaya_name}
+          {need.commune ? ' — ' + need.commune : ''}
+        </p>
+      )}
       {need.location_description && <p>{need.location_description}</p>}
+      {/* For a guided voice SOS this is the corrected Whisper transcript
+          (see process_voice_need, backend) -- the only place the actual
+          content of the report is readable rather than just audible.
+          Never rendered before this, for any need (voice or manually
+          typed alike). */}
+      {need.description && (
+        <p>
+          {need.voice_file ? <strong>{t('needDetail.voiceTranscript')}: </strong> : null}
+          {need.description}
+        </p>
+      )}
       {need.position_accuracy === 'exact' && need.latitude != null && need.longitude != null ? (
         <p>
-          <a className="link field-label-icon" href={googleMapsUrl(need.latitude, need.longitude)} target="_blank" rel="noopener noreferrer">
+          {/* See CollectionPointDetail.jsx for why this navigates the
+              current tab instead of opening a new one (a window.open()'d
+              tab consistently got stuck on "about:blank" on Android
+              Chrome), and why the click handler itself is synchronous,
+              reading the prefetched originRef rather than awaiting
+              getCurrentPosition() here (a navigation issued after the
+              browser's short user-activation window expires is no longer
+              treated as user-initiated, which intermittently broke the
+              Maps-app handoff depending on how long the GPS fix took). */}
+          <button
+            type="button"
+            className="link field-label-icon"
+            onClick={() => {
+              window.location.href = googleMapsDirectionsUrl(need.latitude, need.longitude, originRef.current)
+            }}
+          >
             <IconMapPin width={16} height={16} strokeWidth={2} /> {t('common.openInMaps')}
-          </a>
+          </button>
         </p>
       ) : (
         <p className="hint">{t('common.noExactGpsPosition')}</p>
@@ -327,7 +389,7 @@ export default function NeedDetail() {
             <div className="photo-thumb" key={photo.id}>
               {photo.image ? (
                 <button type="button" className="gallery-thumb-btn" onClick={() => setLightbox({ src: photo.image })}>
-                  <img className="gallery-thumb" src={photo.image} alt="" />
+                  <img className="gallery-thumb" src={photo.image} alt={t('common.photoAlt')} />
                 </button>
               ) : (
                 <ModerationBadge t={t} status={photo.moderation_status} moderatedBy={photo.moderated_by} />
@@ -407,9 +469,9 @@ export default function NeedDetail() {
           <div className="map-wrap">
             <div id="need-detail-map" ref={mapElRef} style={{ height: 420 }} />
           </div>
-          {routeInfo === 'unavailable' && <p className="hint">{t('needDetail.routeUnavailable')}</p>}
+          {routeInfo === 'unavailable' && <p className="hint">{t('map.routeUnavailable')}</p>}
           {routeInfo && routeInfo !== 'unavailable' && (
-            <p className="status">{t('needDetail.routeDistance', { km: routeInfo.distanceKm.toFixed(1), min: Math.round(routeInfo.durationMin) })}</p>
+            <p className="status">{t('map.routeDistance', { km: routeInfo.distanceKm.toFixed(1), min: Math.round(routeInfo.durationMin) })}</p>
           )}
         </>
       ) : (
@@ -429,7 +491,7 @@ export default function NeedDetail() {
           <button type="button" className="lightbox-close" onClick={() => setLightbox(null)} aria-label={t('needDetail.closeLightbox')}>
             ×
           </button>
-          <img src={lightbox.src} alt="" onClick={(e) => e.stopPropagation()} />
+          <img src={lightbox.src} alt={t('common.photoAlt')} onClick={(e) => e.stopPropagation()} />
         </div>
       )}
     </section>

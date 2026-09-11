@@ -1,3 +1,7 @@
+import subprocess
+from django.core.files.uploadedfile import SimpleUploadedFile
+
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.test import TestCase, override_settings
@@ -165,6 +169,231 @@ class NeedCreationTests(BaseAPITestCase):
         )
         self.assertEqual(patch_resp.status_code, 200, patch_resp.content)
         self.assertEqual(patch_resp.data["other_phones"], "0555999999")
+
+    def test_explicit_wilaya_leaves_has_no_location_false(self):
+        resp = self.client.post("/api/needs/", self._payload(), format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+        need = Need.objects.get(pk=resp.data["id"])
+        self.assertFalse(need.has_no_location)
+        self.assertEqual(need.wilaya, self.wilaya)
+
+
+class NeedFallbackWilayaTests(BaseAPITestCase):
+    """The guided voice SOS flow (CreateNeedVoiceGuide.jsx) has no wilaya
+    picker of its own and lets the reporter decline geolocation entirely --
+    it never sends a `wilaya` field at all in that case. NeedCreateSerializer
+    must still accept the submission (a real emergency report must never
+    dead-end on a missing wilaya) by assigning a fallback and flagging
+    has_no_location, so the map can group these separately (see
+    NeedsList.jsx's "sans localisation" bubble)."""
+
+    def _payload(self, **overrides):
+        data = dict(NEED_PAYLOAD, campaign=self.campaign.pk)
+        data.update(overrides)
+        return data
+
+    def test_falls_back_to_alger_when_authorized(self):
+        alger = Wilaya.objects.get(name="Alger")
+        others = list(Wilaya.objects.exclude(name="Alger")[:2])
+        self.campaign = make_campaign(wilayas=[alger, *others])
+        resp = self.client.post("/api/needs/", self._payload(), format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+        # Exposed on the response itself (NeedPublicSerializer, also used
+        # by /api/needs/ and /api/needs/<id>/) -- the frontend needs this
+        # to show "no geographic position" instead of the fallback wilaya's
+        # name as if the reporter had actually confirmed being there.
+        self.assertTrue(resp.data["has_no_location"])
+        need = Need.objects.get(pk=resp.data["id"])
+        self.assertEqual(need.wilaya, alger)
+        self.assertTrue(need.has_no_location)
+
+    def test_falls_back_to_first_authorized_wilaya_when_alger_not_authorized(self):
+        # make_campaign()'s default (no wilayas= override) is the first 3
+        # wilayas by id -- Adrar, Chlef, Laghouat -- none of which is Alger.
+        self.campaign = make_campaign()
+        resp = self.client.post("/api/needs/", self._payload(), format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+        need = Need.objects.get(pk=resp.data["id"])
+        self.assertEqual(need.wilaya.name, "Adrar")  # alphabetically first of the 3
+        self.assertTrue(need.has_no_location)
+
+    def test_alphabetical_fallback_is_accent_insensitive(self):
+        """Reproduces the real 'Feux en Algérie' campaign (migration
+        0007_wildfire_campaign): Alger isn't authorized, and a naive
+        database ORDER BY sorts the accented 'Aïn Defla' after plain-ASCII
+        'Annaba' -- confirmed live, this picked 'Annaba' as the fallback
+        even though it's alphabetically later once accents are ignored."""
+        annaba = Wilaya.objects.get(name="Annaba")
+        ain_defla = Wilaya.objects.get(name="Aïn Defla")
+        self.campaign = make_campaign(wilayas=[annaba, ain_defla])
+        resp = self.client.post("/api/needs/", self._payload(), format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+        need = Need.objects.get(pk=resp.data["id"])
+        self.assertEqual(need.wilaya, ain_defla)
+
+    def test_explicit_wilaya_still_works_and_is_not_flagged(self):
+        self.campaign = make_campaign()
+        wilaya = self.campaign.authorized_wilayas.first()
+        resp = self.client.post("/api/needs/", self._payload(wilaya=wilaya.pk), format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+        need = Need.objects.get(pk=resp.data["id"])
+        self.assertEqual(need.wilaya, wilaya)
+        self.assertFalse(need.has_no_location)
+
+    def test_no_location_filter_returns_every_unlocated_need_regardless_of_wilaya(self):
+        """The map's "sans localisation" bubble (NeedsList.jsx) must show
+        every has_no_location need together, even though each one may have
+        fallen back to a different wilaya -- filtering by one wilaya alone
+        cannot express that (see NeedViewSet.get_queryset's no_location
+        param)."""
+        alger = Wilaya.objects.get(name="Alger")
+        adrar = Wilaya.objects.get(name="Adrar")
+        self.campaign = make_campaign(wilayas=[alger, adrar])
+        no_loc_1 = self.client.post("/api/needs/", self._payload(recovery_code="rc-nl-1"), format="json")
+        self.assertEqual(no_loc_1.status_code, 201, no_loc_1.content)
+        located = self.client.post("/api/needs/", self._payload(wilaya=alger.pk, recovery_code="rc-loc-1"), format="json")
+        self.assertEqual(located.status_code, 201, located.content)
+
+        resp = self.client.get("/api/needs/?no_location=1")
+        self.assertEqual(resp.status_code, 200)
+        ids = {row["id"] for row in resp.data["results"]}
+        self.assertIn(no_loc_1.data["id"], ids)
+        self.assertNotIn(located.data["id"], ids)
+
+
+class VoiceGuideEndpointTests(BaseAPITestCase):
+    """CreateNeedVoiceGuide.jsx submits to /api/needs/voice-guide/, not the
+    regular /api/needs/ -- this feature is still pending approval, unlinked
+    from the site, and meant to stay Algeria-only (or admin) regardless of
+    the sitewide geo_restrict_writes_to_algeria toggle (see
+    NeedViewSet.create_via_voice_guide). The ordinary /api/needs/ endpoint
+    (CreateNeed.jsx) must stay completely unaffected."""
+
+    def setUp(self):
+        super().setUp()
+        self.campaign = make_campaign()
+
+    def _payload(self, **overrides):
+        data = dict(NEED_PAYLOAD, campaign=self.campaign.pk)
+        data.update(overrides)
+        return data
+
+    def test_blocked_for_anonymous_non_algeria(self):
+        # No real GeoLite2 DB here -- is_algeria_ip() always resolves to
+        # None (unknown), which counts as "not Algeria".
+        resp = self.client.post("/api/needs/voice-guide/", self._payload(), format="json")
+        self.assertEqual(resp.status_code, 403)
+        self.assertEqual(Need.objects.count(), 0)
+
+    def test_allowed_from_algeria(self):
+        from unittest.mock import patch
+
+        with patch("core.views.is_algeria_ip", return_value=True):
+            resp = self.client.post("/api/needs/voice-guide/", self._payload(), format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+        self.assertIn("access_token", resp.data)
+
+    def test_allowed_for_admin_regardless_of_location(self):
+        admin = get_user_model().objects.create_superuser("voiceadmin", "va@example.com", "pw123456!")
+        self.client.force_authenticate(admin)
+        resp = self.client.post("/api/needs/voice-guide/", self._payload(), format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+
+    def test_still_falls_back_to_wilaya_when_none_sent(self):
+        from unittest.mock import patch
+
+        with patch("core.views.is_algeria_ip", return_value=True):
+            resp = self.client.post("/api/needs/voice-guide/", self._payload(), format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+        need = Need.objects.get(pk=resp.data["id"])
+        self.assertTrue(need.has_no_location)
+
+    def test_voice_create_returns_token_immediately_and_queues_processing(self):
+        from unittest.mock import patch
+
+        audio = SimpleUploadedFile("urgent-sos.webm", b"fake-webm", content_type="audio/webm")
+        payload = self._payload(
+            title="SOS urgent",
+            contact_name="",
+            contact_phone="",
+            recovery_code="voicequeue1",
+            voice_file=audio,
+        )
+        with patch("core.views.is_algeria_ip", return_value=True):
+            resp = self.client.post("/api/needs/voice-guide/", payload, format="multipart")
+
+        self.assertEqual(resp.status_code, 201, resp.content)
+        self.assertIn("access_token", resp.data)
+        self.assertEqual(resp.data["voice_processing_status"], Need.VOICE_PROCESSING_PENDING)
+        need = Need.objects.get(pk=resp.data["id"])
+        self.assertEqual(need.voice_processing_status, Need.VOICE_PROCESSING_PENDING)
+
+        public_list = self.client.get("/api/needs/")
+        self.assertEqual(public_list.status_code, 200)
+        self.assertFalse(any(row["id"] == need.pk for row in public_list.data["results"]))
+
+        locations = self.client.get("/api/needs/locations/")
+        self.assertEqual(locations.status_code, 200)
+        self.assertFalse(any(row["id"] == need.pk for row in locations.data))
+
+    def test_voice_analyze_endpoint_transcription_and_llm_are_wired(self):
+        from unittest.mock import patch
+
+        audio = SimpleUploadedFile("urgent-sos.webm", b"fake-webm", content_type="audio/webm")
+        transcript = "Je suis à Blida et j'ai besoin d'eau."
+        extraction = {
+            "title": "Besoin d'eau",
+            "contact_name": "",
+            "contact_phone": "",
+            "estimated_quantity": "",
+            "commune": "Blida",
+            "location_description": "Blida",
+            "organization_or_person_name": "",
+            "description": transcript,
+        }
+        with patch("core.views.is_algeria_ip", return_value=True), patch(
+            "core.views.transcribe_audio", return_value=transcript
+        ) as transcribe, patch(
+            "core.views.extract_need_data", return_value=extraction
+        ) as extract:
+            resp = self.client.post(
+                "/api/needs/voice-guide/analyze/",
+                {"audio": audio, "language": "fr"},
+                format="multipart",
+            )
+
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.assertEqual(resp.data["transcript"], transcript)
+        self.assertEqual(resp.data["extraction"], extraction)
+        transcribe.assert_called_once()
+        extract.assert_called_once_with(transcript)
+
+    def test_admin_gps_outside_algeria_is_dropped_not_kept(self):
+        """An admin testing the guided voice SOS from their own device (e.g.
+        outside Algeria) must not publish a listing pinned outside Algeria
+        -- the coordinates are dropped rather than rejected or kept as-is,
+        so the Need still falls back to its wilaya's own position."""
+        admin = get_user_model().objects.create_superuser("voiceadmin2", "va2@example.com", "pw123456!")
+        self.client.force_authenticate(admin)
+        wilaya = self.campaign.authorized_wilayas.first()
+        resp = self.client.post(
+            "/api/needs/voice-guide/",
+            self._payload(wilaya=wilaya.pk, latitude=48.8566, longitude=2.3522),  # Paris
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 201, resp.content)
+        need = Need.objects.get(pk=resp.data["id"])
+        self.assertIsNone(need.latitude)
+        self.assertIsNone(need.longitude)
+        self.assertEqual(need.wilaya_id, wilaya.pk)
+
+    def test_ordinary_needs_endpoint_unaffected_by_this_restriction(self):
+        """The regular CreateNeed.jsx path must never be gated by this --
+        confirms create_via_voice_guide's extra check lives only on its own
+        action, not on NeedViewSet.create()."""
+        wilaya = self.campaign.authorized_wilayas.first()
+        resp = self.client.post("/api/needs/", self._payload(wilaya=wilaya.pk), format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
 
 
 class OptionalContactFieldsTests(BaseAPITestCase):
@@ -1046,6 +1275,49 @@ class MapAndLocationPrivacyTests(BaseAPITestCase):
         self.assertEqual(update.gps_latitude, 36.75)  # it WAS stored, just never publicly serialized
 
 
+class NeedMapPinUnlocatedTests(BaseAPITestCase):
+    """`/api/needs/locations/` must surface has_no_location and voice_file
+    so the map (NeedsList.jsx) can group guided-voice SOS reports with no
+    location fix into one "sans localisation" bubble with per-item audio
+    playback, instead of scattering them as ordinary pins."""
+
+    def setUp(self):
+        super().setUp()
+        alger = Wilaya.objects.get(name="Alger")
+        self.campaign = make_campaign(wilayas=[alger, *Wilaya.objects.exclude(name="Alger")[:2]])
+
+    def test_unlocated_need_flagged_on_map(self):
+        resp = self.client.post("/api/needs/", dict(NEED_PAYLOAD, campaign=self.campaign.pk), format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+
+        locations_resp = self.client.get("/api/needs/locations/")
+        self.assertEqual(locations_resp.status_code, 200)
+        pin = next(p for p in locations_resp.data if p["id"] == resp.data["id"])
+        self.assertTrue(pin["has_no_location"])
+        self.assertIsNone(pin["voice_file"])  # no voice recording attached in this payload
+
+    def test_map_pin_exposes_wilaya_id(self):
+        """NeedsList.jsx's "sans localisation" bubble click needs the raw
+        wilaya id (not just wilaya_name) to filter the "Liste" view the
+        same way CollectionPoints.jsx's own .cp-bubble does."""
+        alger = Wilaya.objects.get(name="Alger")
+        resp = self.client.post("/api/needs/", dict(NEED_PAYLOAD, campaign=self.campaign.pk), format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+
+        locations_resp = self.client.get("/api/needs/locations/")
+        pin = next(p for p in locations_resp.data if p["id"] == resp.data["id"])
+        self.assertEqual(pin["wilaya"], alger.pk)
+
+    def test_ordinary_need_not_flagged_on_map(self):
+        wilaya = self.campaign.authorized_wilayas.exclude(name="Alger").first()
+        resp = self.client.post("/api/needs/", dict(NEED_PAYLOAD, campaign=self.campaign.pk, wilaya=wilaya.pk), format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+
+        locations_resp = self.client.get("/api/needs/locations/")
+        pin = next(p for p in locations_resp.data if p["id"] == resp.data["id"])
+        self.assertFalse(pin["has_no_location"])
+
+
 @override_settings(GEOIP_DB_PATH="/nonexistent/GeoLite2-Country.mmdb")
 class GeoRestrictionTests(BaseAPITestCase):
     disable_geo_restriction = False
@@ -1660,6 +1932,27 @@ class AppConfigurationEndpointTests(BaseAPITestCase):
         resp = self.client.get("/api/config/")
         self.assertTrue(resp.data["is_admin"])
 
+    def test_voice_guide_unavailable_for_anonymous_non_algeria(self):
+        # No real GeoLite2 DB in this test environment -- is_algeria_ip()
+        # always resolves to None (unknown) here, which must be treated as
+        # "not Algeria", same as core.permissions.geo_restriction_block's
+        # own "only exactly True counts" rule.
+        resp = self.client.get("/api/config/")
+        self.assertFalse(resp.data["voice_guide_available"])
+
+    def test_voice_guide_available_from_algeria(self):
+        from unittest.mock import patch
+
+        with patch("core.views.is_algeria_ip", return_value=True):
+            resp = self.client.get("/api/config/")
+        self.assertTrue(resp.data["voice_guide_available"])
+
+    def test_voice_guide_available_for_admin_regardless_of_location(self):
+        admin_user = get_user_model().objects.create_superuser("cfgadmin2", "cfg2@example.com", "pw123456!")
+        self.client.force_authenticate(admin_user)
+        resp = self.client.get("/api/config/")
+        self.assertTrue(resp.data["voice_guide_available"])
+
     def test_needs_open_count_excludes_covered_and_cancelled(self):
         campaign = make_campaign()
         wilaya = campaign.authorized_wilayas.first()
@@ -1679,6 +1972,22 @@ class AppConfigurationEndpointTests(BaseAPITestCase):
         CollectionPoint.objects.create(status=CollectionPoint.STATUS_CLOSED, **common)
         resp = self.client.get("/api/config/")
         self.assertEqual(resp.data["collection_points_active_count"], 2)
+
+    def test_collection_points_active_count_excludes_international(self):
+        # An international point (see InternationalCollectionPointTests)
+        # must inflate its own badge only, never the national one.
+        wilaya = Wilaya.objects.first()
+        CollectionPoint.objects.create(
+            status=CollectionPoint.STATUS_ACTIVE, point_name="National", contact_name="A", contact_phone="0555000000",
+            wilaya=wilaya, location_description="Somewhere",
+        )
+        CollectionPoint.objects.create(
+            status=CollectionPoint.STATUS_ACTIVE, point_name="International", contact_name="A", contact_phone="0555000000",
+            country_code="FR", country_name="France", location_description="Paris", latitude=48.85, longitude=2.35,
+        )
+        resp = self.client.get("/api/config/")
+        self.assertEqual(resp.data["collection_points_active_count"], 1)
+        self.assertEqual(resp.data["international_collection_points_active_count"], 1)
 
     def test_deliveries_en_route_count_excludes_delivered_and_cancelled(self):
         campaign = make_campaign()
@@ -1706,6 +2015,28 @@ class AppConfigurationEndpointTests(BaseAPITestCase):
         response = django_client.get(f"/admin/core/appconfiguration/{config.pk}/change/")
         # max_num=5 with 5 existing rows leaves no empty "extra" form to add a 6th.
         self.assertEqual(response.context["inline_admin_formsets"][0].formset.extra_forms, [])
+
+
+class VersionEndpointTests(BaseAPITestCase):
+    def test_returns_current_head_commit(self):
+        from core.views import _git_version
+
+        _git_version.cache_clear()
+        resp = self.client.get("/api/version/")
+        self.assertEqual(resp.status_code, 200)
+        expected = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=settings.REPO_ROOT).decode().strip()
+        self.assertEqual(resp.data["commit"], expected)
+        self.assertEqual(resp.data["commit_short"], expected[:7])
+        self.assertTrue(resp.data["commit_date"])
+
+    def test_cached_across_requests(self):
+        from core.views import _git_version
+
+        _git_version.cache_clear()
+        first = self.client.get("/api/version/").data
+        second = self.client.get("/api/version/").data
+        self.assertEqual(first, second)
+        self.assertEqual(_git_version.cache_info().hits, 1)
 
 
 class TranslationOverridesTests(BaseAPITestCase):
@@ -1813,6 +2144,14 @@ class CollectionPointTests(BaseAPITestCase):
         self.assertFalse(resp.data[0]["has_exact_position"])
         self.assertIsNotNone(resp.data[0]["display_latitude"])
 
+    def test_description_is_optional_and_round_trips(self):
+        resp = self.client.post("/api/collection-points/", self._payload(), format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+        self.assertEqual(resp.data["description"], "")
+        resp = self.client.post("/api/collection-points/", self._payload(description="Runs every Friday afternoon."), format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+        self.assertEqual(resp.data["description"], "Runs every Friday afternoon.")
+
     def test_closed_points_excluded_from_locations(self):
         create_resp = self.client.post("/api/collection-points/", self._payload(), format="json")
         self.client.post(
@@ -1848,6 +2187,292 @@ class CollectionPointTests(BaseAPITestCase):
             format="json",
         )
         self.assertEqual(resp.status_code, 403)
+
+    def test_edit_with_access_token(self):
+        create_resp = self.client.post("/api/collection-points/", self._payload(), format="json")
+        resp = self.client.patch(
+            f"/api/collection-points/{create_resp.data['id']}/",
+            {"hours": "9am-5pm", "access_token": create_resp.data["access_token"]},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.assertEqual(resp.data["hours"], "9am-5pm")
+
+    def test_edit_with_matching_name_phone_same_fallback_as_close(self):
+        create_resp = self.client.post("/api/collection-points/", self._payload(), format="json")
+        resp = self.client.patch(
+            f"/api/collection-points/{create_resp.data['id']}/",
+            {
+                "hours": "9am-5pm",
+                "contact_name": COLLECTION_POINT_PAYLOAD["contact_name"],
+                "contact_phone": COLLECTION_POINT_PAYLOAD["contact_phone"],
+            },
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 200, resp.content)
+
+    def test_edit_rejected_with_wrong_token_or_identity(self):
+        create_resp = self.client.post("/api/collection-points/", self._payload(), format="json")
+        resp = self.client.patch(
+            f"/api/collection-points/{create_resp.data['id']}/",
+            {"hours": "9am-5pm", "access_token": "wrong"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 403)
+
+    def test_edit_rejects_changing_wilaya_or_country_code(self):
+        """Not in the editable-fields allowlist -- flipping national vs.
+        international is a different creation flow with its own
+        validation, not a simple field edit."""
+        other_wilaya = Wilaya.objects.exclude(pk=self.wilaya.pk).first()
+        create_resp = self.client.post("/api/collection-points/", self._payload(), format="json")
+        resp = self.client.patch(
+            f"/api/collection-points/{create_resp.data['id']}/",
+            {"wilaya": other_wilaya.pk, "country_code": "FR", "access_token": create_resp.data["access_token"]},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.assertEqual(resp.data["wilaya"], self.wilaya.pk)
+        self.assertFalse(resp.data["is_international"])
+
+    def test_edit_validates_social_urls(self):
+        create_resp = self.client.post("/api/collection-points/", self._payload(), format="json")
+        resp = self.client.patch(
+            f"/api/collection-points/{create_resp.data['id']}/",
+            {"facebook_url": "javascript:alert(1)", "access_token": create_resp.data["access_token"]},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 400)
+
+    def test_access_token_visible_to_admin_with_copy_button(self):
+        """Same as NeedAdmin/PickupAdmin -- an admin must be able to read
+        this and relay it to a creator who lost access and contacted
+        support, as a second recovery path alongside the self-service
+        name+phone/code one. Rendered with a copy-icon button (see
+        copyable_token_field) rather than the raw field, hence the
+        dedicated access_token_copy display method."""
+        from core.admin import CollectionPointAdmin
+
+        self.assertIn("access_token_copy", CollectionPointAdmin.readonly_fields)
+        point = CollectionPoint.objects.create(**self._payload(wilaya=self.wilaya))
+        modeladmin = CollectionPointAdmin(CollectionPoint, _admin_site())
+        rendered = str(modeladmin.access_token_copy(point))
+        self.assertIn(point.access_token, rendered)
+        self.assertIn("<button", rendered)
+
+
+INTERNATIONAL_COLLECTION_POINT_PAYLOAD = {
+    "country_code": "FR",
+    "country_name": "France",
+    "point_name": "Centre de collecte Paris",
+    "contact_name": "Amel",
+    "contact_phone": "+33612345678",
+    "location_description": "Near Gare du Nord",
+    "latitude": 48.8809,
+    "longitude": 2.3553,
+}
+
+
+class InternationalCollectionPointTests(BaseAPITestCase):
+    def _payload(self, **overrides):
+        data = dict(INTERNATIONAL_COLLECTION_POINT_PAYLOAD)
+        data.update(overrides)
+        return data
+
+    def test_create_international_point(self):
+        resp = self.client.post("/api/collection-points/", self._payload(), format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+        self.assertTrue(resp.data["is_international"])
+        self.assertEqual(resp.data["country_name"], "France")
+        self.assertIsNone(resp.data["wilaya"])
+
+    def test_rejects_algeria_as_country_code(self):
+        resp = self.client.post("/api/collection-points/", self._payload(country_code="DZ"), format="json")
+        self.assertEqual(resp.status_code, 400)
+
+    def test_description_is_optional_and_round_trips(self):
+        resp = self.client.post("/api/collection-points/", self._payload(description="Collects for the local shelter."), format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+        self.assertEqual(resp.data["description"], "Collects for the local shelter.")
+
+    def test_rejects_position_inside_algeria(self):
+        # Algiers coordinates -- must be rejected for an international point.
+        resp = self.client.post("/api/collection-points/", self._payload(latitude=36.75, longitude=3.06), format="json")
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("latitude", resp.data)
+
+    def test_rejects_wilaya_set_on_international_point(self):
+        wilaya = Wilaya.objects.first()
+        resp = self.client.post("/api/collection-points/", self._payload(wilaya=wilaya.pk), format="json")
+        self.assertEqual(resp.status_code, 400)
+
+    def test_requires_exact_position(self):
+        resp = self.client.post("/api/collection-points/", self._payload(latitude=None, longitude=None), format="json")
+        self.assertEqual(resp.status_code, 400)
+
+    def test_national_create_still_requires_wilaya(self):
+        resp = self.client.post("/api/collection-points/", dict(COLLECTION_POINT_PAYLOAD), format="json")
+        self.assertEqual(resp.status_code, 400)
+
+    def test_pickup_rejected_for_international_collection_point(self):
+        cp_resp = self.client.post("/api/collection-points/", self._payload(), format="json")
+        resp = self.client.post(
+            "/api/pickups/",
+            {
+                "collection_point": cp_resp.data["id"],
+                "responder_type": "individual_volunteer",
+                "responder_name": "Karim",
+                "responder_phone": "0666000000",
+                "content_brought": "blankets",
+            },
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 400)
+
+    def test_national_list_excludes_international_points(self):
+        self.client.post("/api/collection-points/", self._payload(), format="json")
+        self.client.post("/api/collection-points/", dict(COLLECTION_POINT_PAYLOAD, wilaya=Wilaya.objects.first().pk), format="json")
+        resp = self.client.get("/api/collection-points/")
+        self.assertEqual(len(resp.data["results"]), 1)
+        self.assertFalse(resp.data["results"][0]["is_international"])
+
+    def test_international_scope_shows_only_international_points(self):
+        self.client.post("/api/collection-points/", self._payload(), format="json")
+        self.client.post("/api/collection-points/", dict(COLLECTION_POINT_PAYLOAD, wilaya=Wilaya.objects.first().pk), format="json")
+        resp = self.client.get("/api/collection-points/?international=1")
+        self.assertEqual(len(resp.data["results"]), 1)
+        self.assertTrue(resp.data["results"][0]["is_international"])
+
+    def test_international_scope_filterable_by_country(self):
+        self.client.post("/api/collection-points/", self._payload(country_code="FR", country_name="France"), format="json")
+        self.client.post(
+            "/api/collection-points/",
+            self._payload(country_code="TN", country_name="Tunisia", latitude=36.8, longitude=10.18),
+            format="json",
+        )
+        resp = self.client.get("/api/collection-points/?international=1&country=fr")
+        self.assertEqual(len(resp.data["results"]), 1)
+        self.assertEqual(resp.data["results"][0]["country_code"], "FR")
+
+    def test_retrieve_by_id_works_regardless_of_scope(self):
+        cp_resp = self.client.post("/api/collection-points/", self._payload(), format="json")
+        resp = self.client.get(f"/api/collection-points/{cp_resp.data['id']}/")
+        self.assertEqual(resp.status_code, 200)
+
+    def test_international_search_matches_organization_name(self):
+        self.client.post("/api/collection-points/", self._payload(organization="Croissant Rouge Paris"), format="json")
+        self.client.post(
+            "/api/collection-points/",
+            self._payload(organization="Autre association", latitude=45.75, longitude=4.85),
+            format="json",
+        )
+        resp = self.client.get("/api/collection-points/?international=1&search=Croissant")
+        self.assertEqual(len(resp.data["results"]), 1)
+        self.assertEqual(resp.data["results"][0]["organization"], "Croissant Rouge Paris")
+
+    def test_international_search_matches_location_description(self):
+        # As broad as the national search -- a match on the street/landmark
+        # text is just as useful for an international point as for a
+        # national one (see CollectionPointViewSet.get_queryset).
+        self.client.post("/api/collection-points/", self._payload(location_description="Near Gare du Nord"), format="json")
+        resp = self.client.get("/api/collection-points/?international=1&search=Gare")
+        self.assertEqual(len(resp.data["results"]), 1)
+
+    def test_international_point_excluded_from_locations_by_default(self):
+        self.client.post("/api/collection-points/", self._payload(), format="json")
+        resp = self.client.get("/api/collection-points/locations/")
+        self.assertEqual(resp.data, [])
+        resp = self.client.get("/api/collection-points/locations/?international=1")
+        self.assertEqual(len(resp.data), 1)
+
+
+@override_settings(GEOIP_DB_PATH="/nonexistent/GeoLite2-Country.mmdb")
+class InternationalCollectionPointGeoRestrictionTests(BaseAPITestCase):
+    disable_geo_restriction = False
+
+    def _payload(self, **overrides):
+        data = dict(INTERNATIONAL_COLLECTION_POINT_PAYLOAD)
+        data.update(overrides)
+        return data
+
+    def test_international_create_bypasses_algeria_ip_restriction(self):
+        config = AppConfiguration.get_solo()
+        config.geo_restrict_writes_to_algeria = True
+        config.save()
+        resp = self.client.post("/api/collection-points/", self._payload(), format="json", REMOTE_ADDR="8.8.8.8")
+        self.assertEqual(resp.status_code, 201, resp.content)
+
+    def test_national_create_still_blocked_by_algeria_ip_restriction(self):
+        config = AppConfiguration.get_solo()
+        config.geo_restrict_writes_to_algeria = True
+        config.save()
+        resp = self.client.post(
+            "/api/collection-points/",
+            dict(COLLECTION_POINT_PAYLOAD, wilaya=Wilaya.objects.first().pk),
+            format="json",
+            REMOTE_ADDR="8.8.8.8",
+        )
+        self.assertEqual(resp.status_code, 403)
+
+    def test_international_edit_bypasses_algeria_ip_restriction(self):
+        """Same reasoning as create() -- editing one's own international
+        point is expected to happen from outside Algeria too, unlike a
+        national point (see test_national_edit_still_blocked below)."""
+        config = AppConfiguration.get_solo()
+        config.geo_restrict_writes_to_algeria = True
+        config.save()
+        create_resp = self.client.post("/api/collection-points/", self._payload(), format="json", REMOTE_ADDR="8.8.8.8")
+        resp = self.client.patch(
+            f"/api/collection-points/{create_resp.data['id']}/",
+            {"hours": "9am-5pm", "access_token": create_resp.data["access_token"]},
+            format="json",
+            REMOTE_ADDR="8.8.8.8",
+        )
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.assertEqual(resp.data["hours"], "9am-5pm")
+
+    def test_national_edit_still_blocked_by_algeria_ip_restriction(self):
+        config = AppConfiguration.get_solo()
+        config.geo_restrict_writes_to_algeria = False
+        config.save()
+        create_resp = self.client.post(
+            "/api/collection-points/",
+            dict(COLLECTION_POINT_PAYLOAD, wilaya=Wilaya.objects.first().pk),
+            format="json",
+        )
+        config.geo_restrict_writes_to_algeria = True
+        config.save()
+        resp = self.client.patch(
+            f"/api/collection-points/{create_resp.data['id']}/",
+            {"hours": "9am-5pm", "access_token": create_resp.data["access_token"]},
+            format="json",
+            REMOTE_ADDR="8.8.8.8",
+        )
+        self.assertEqual(resp.status_code, 403)
+
+    def test_edit_from_a_different_country_stamps_only_editor_country(self):
+        """The France-from-abroad scenario: audit_creator_country stays
+        whatever it was at creation, only audit_editor_country moves to
+        reflect who just edited it -- same convention as Need (see
+        AuditTrailTests), exercised here through a real international
+        CollectionPoint edit rather than only at the model layer."""
+        from unittest.mock import patch
+
+        with patch("core.middleware.resolve_country_code", return_value="FR"):
+            create_resp = self.client.post("/api/collection-points/", self._payload(), format="json", REMOTE_ADDR="41.100.0.5")
+        point_id, token = create_resp.data["id"], create_resp.data["access_token"]
+
+        with patch("core.middleware.resolve_country_code", return_value="DZ"):
+            edit_resp = self.client.patch(
+                f"/api/collection-points/{point_id}/",
+                {"hours": "9am-5pm", "access_token": token},
+                format="json",
+                REMOTE_ADDR="41.200.0.1",
+            )
+        self.assertEqual(edit_resp.status_code, 200, edit_resp.content)
+        point = CollectionPoint.objects.get(pk=point_id)
+        self.assertEqual(point.audit_creator_country, "FR")
+        self.assertEqual(point.audit_editor_country, "DZ")
 
 
 class CollectionPointAccessRecoveryTests(BaseAPITestCase):
@@ -2929,10 +3554,43 @@ class CommentTests(BaseAPITestCase):
         detail = self.client.get(f"/api/collection-points/{cp_resp.data['id']}/")
         self.assertEqual(len(detail.data["comments"]), 1)
 
-    def test_must_target_exactly_one_of_need_or_collection_point(self):
+    def test_comment_on_pickup(self):
+        pickup_resp = self.client.post(
+            "/api/pickups/",
+            {
+                "need": self.need_id,
+                "responder_type": "individual_volunteer",
+                "responder_name": "Sara Amrani",
+                "responder_phone": "0666000002",
+                "content_brought": "30 blankets",
+            },
+            format="json",
+        )
+        resp = self.client.post(
+            "/api/comments/",
+            {"pickup": pickup_resp.data["id"], "author_name": "X", "text": "Thanks for confirming"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 201, resp.content)
+
+        detail = self.client.get(f"/api/pickups/{pickup_resp.data['id']}/")
+        self.assertEqual(len(detail.data["comments"]), 1)
+
+    def test_must_target_exactly_one_of_need_or_collection_point_or_pickup(self):
         resp = self.client.post(
             "/api/comments/",
             {"author_name": "X", "author_phone": "0600", "text": "orphan comment"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 400)
+
+    def test_cannot_target_more_than_one_at_once(self):
+        cp_resp = self.client.post(
+            "/api/collection-points/", dict(COLLECTION_POINT_PAYLOAD, wilaya=self.wilaya.pk), format="json"
+        )
+        resp = self.client.post(
+            "/api/comments/",
+            {"need": self.need_id, "collection_point": cp_resp.data["id"], "author_name": "X", "text": "ambiguous"},
             format="json",
         )
         self.assertEqual(resp.status_code, 400)
@@ -3057,3 +3715,287 @@ class VideoDurationValidationTests(TestCase):
         video = SimpleUploadedFile("clip.webm", b"fake-video-bytes", content_type="video/webm")
         with patch("core.media_validation.ffprobe_available", return_value=False):
             validate_video_duration(video)  # should not raise
+
+
+class AuditTrailTests(BaseAPITestCase):
+    """core.audit.AuditMixin: audit_created_at/audit_updated_at/
+    audit_creator_ip/audit_editor_ip/audit_creator_country/
+    audit_editor_country, retrofitted onto every table."""
+
+    def setUp(self):
+        super().setUp()
+        self.campaign = make_campaign()
+        self.wilaya = self.campaign.authorized_wilayas.first()
+
+    def _payload(self):
+        return dict(NEED_PAYLOAD, campaign=self.campaign.pk, wilaya=self.wilaya.pk)
+
+    def test_create_stamps_creation_and_update_fields_from_the_request_ip(self):
+        resp = self.client.post("/api/needs/", self._payload(), format="json", REMOTE_ADDR="41.100.0.5")
+        self.assertEqual(resp.status_code, 201)
+        need = Need.objects.get(pk=resp.data["id"])
+        self.assertIsNotNone(need.audit_created_at)
+        self.assertIsNotNone(need.audit_updated_at)
+        # USE_TZ=True (settings.py) -- Django always stores/returns these as
+        # UTC-aware, regardless of TIME_ZONE ("Africa/Algiers").
+        self.assertEqual(need.audit_created_at.utcoffset().total_seconds(), 0)
+        self.assertEqual(need.audit_creator_ip, "41.100.0.5")
+        self.assertEqual(need.audit_editor_ip, "41.100.0.5")
+
+    def test_edit_moves_updated_fields_but_leaves_created_fields_untouched(self):
+        create_resp = self.client.post("/api/needs/", self._payload(), format="json", REMOTE_ADDR="41.100.0.5")
+        need_id, token = create_resp.data["id"], create_resp.data["access_token"]
+        need = Need.objects.get(pk=need_id)
+        original_created_at, original_creator_ip = need.audit_created_at, need.audit_creator_ip
+
+        edit_resp = self.client.patch(
+            f"/api/needs/{need_id}/",
+            {"title": "New title", "access_token": token},
+            format="json",
+            REMOTE_ADDR="9.9.9.9",
+        )
+        self.assertEqual(edit_resp.status_code, 200)
+        need.refresh_from_db()
+        # Creation snapshot never moves once set...
+        self.assertEqual(need.audit_created_at, original_created_at)
+        self.assertEqual(need.audit_creator_ip, original_creator_ip)
+        # ...only the editor snapshot reflects the most recent write.
+        self.assertGreater(need.audit_updated_at, original_created_at)
+        self.assertEqual(need.audit_editor_ip, "9.9.9.9")
+
+    def test_create_stamps_country_resolved_from_the_request_ip(self):
+        """No GeoLite2 database is installed in this dev/test environment
+        (see core/geoip.py's own warning, confirmed at the top of a test
+        run) -- resolve_country_code is mocked here to simulate a real
+        lookup succeeding, the same way other tests in this file mock
+        ffprobe/NSFWJS for dependencies this environment doesn't have."""
+        from unittest.mock import patch
+
+        with patch("core.middleware.resolve_country_code", return_value="FR"):
+            resp = self.client.post("/api/needs/", self._payload(), format="json", REMOTE_ADDR="41.100.0.5")
+        self.assertEqual(resp.status_code, 201)
+        need = Need.objects.get(pk=resp.data["id"])
+        self.assertEqual(need.audit_creator_country, "FR")
+        self.assertEqual(need.audit_editor_country, "FR")
+
+    def test_edit_from_a_different_country_moves_only_the_editor_country(self):
+        from unittest.mock import patch
+
+        with patch("core.middleware.resolve_country_code", return_value="FR"):
+            create_resp = self.client.post("/api/needs/", self._payload(), format="json", REMOTE_ADDR="41.100.0.5")
+        need_id, token = create_resp.data["id"], create_resp.data["access_token"]
+
+        with patch("core.middleware.resolve_country_code", return_value="DZ"):
+            edit_resp = self.client.patch(
+                f"/api/needs/{need_id}/",
+                {"title": "New title", "access_token": token},
+                format="json",
+                REMOTE_ADDR="41.200.0.1",
+            )
+        self.assertEqual(edit_resp.status_code, 200)
+        need = Need.objects.get(pk=need_id)
+        self.assertEqual(need.audit_creator_country, "FR")
+        self.assertEqual(need.audit_editor_country, "DZ")
+
+    def test_country_stays_null_when_it_cannot_be_resolved(self):
+        """The real behavior in this environment (no GeoLite2 database) --
+        resolve_country_code itself already returns None, unmocked."""
+        resp = self.client.post("/api/needs/", self._payload(), format="json", REMOTE_ADDR="41.100.0.5")
+        self.assertEqual(resp.status_code, 201)
+        need = Need.objects.get(pk=resp.data["id"])
+        self.assertIsNone(need.audit_creator_country)
+        self.assertIsNone(need.audit_editor_country)
+
+    def test_write_with_no_bound_request_ip_leaves_ip_columns_null(self):
+        """A management command, a data migration, a test creating rows
+        directly via the ORM -- no request, so no IP (or country) to
+        attribute the write to. Dates are still stamped (timezone.now()
+        has no such dependency), only the IP/country columns stay NULL."""
+        need = Need.objects.create(
+            campaign=self.campaign,
+            wilaya=self.wilaya,
+            title="Direct ORM create",
+            contact_name="X",
+            contact_phone="0555000002",
+        )
+        self.assertIsNotNone(need.audit_created_at)
+        self.assertIsNone(need.audit_creator_ip)
+        self.assertIsNone(need.audit_editor_ip)
+        self.assertIsNone(need.audit_creator_country)
+        self.assertIsNone(need.audit_editor_country)
+
+    def test_pre_existing_rows_added_by_the_audit_migration_stay_null(self):
+        """The migration that added these columns (core/migrations/
+        0031_...) is a plain ALTER TABLE ADD COLUMN with no backfill --
+        seed rows created by earlier migrations (e.g. the 58 Wilaya rows)
+        must come back with every audit_* column NULL."""
+        wilaya = Wilaya.objects.exclude(pk=self.wilaya.pk).first()
+        self.assertIsNone(wilaya.audit_created_at)
+        self.assertIsNone(wilaya.audit_updated_at)
+        self.assertIsNone(wilaya.audit_creator_ip)
+        self.assertIsNone(wilaya.audit_editor_ip)
+
+
+class AdminTokenCopyButtonTests(BaseAPITestCase):
+    """core.admin.copyable_token_field: access_token shown in Django Admin
+    (Need/Pickup/CollectionPoint) must render with a copy-icon button, not
+    just the raw value -- see CollectionPointTests.
+    test_access_token_visible_to_admin_with_copy_button for the
+    CollectionPoint case."""
+
+    def setUp(self):
+        super().setUp()
+        self.campaign = make_campaign()
+        self.wilaya = self.campaign.authorized_wilayas.first()
+
+    def test_need_access_token_has_copy_button(self):
+        from core.admin import NeedAdmin
+
+        need = Need.objects.create(
+            campaign=self.campaign, wilaya=self.wilaya, title="x", contact_name="X", contact_phone="0555000003"
+        )
+        modeladmin = NeedAdmin(Need, _admin_site())
+        rendered = str(modeladmin.access_token_copy(need))
+        self.assertIn(need.access_token, rendered)
+        self.assertIn("<button", rendered)
+
+    def test_pickup_access_token_has_copy_button(self):
+        from core.admin import PickupAdmin
+
+        need = Need.objects.create(
+            campaign=self.campaign, wilaya=self.wilaya, title="x", contact_name="X", contact_phone="0555000004"
+        )
+        pickup = Pickup.objects.create(need=need, responder_type=Pickup.RESPONDER_INDIVIDUAL, responder_name="Y")
+        modeladmin = PickupAdmin(Pickup, _admin_site())
+        rendered = str(modeladmin.access_token_copy(pickup))
+        self.assertIn(pickup.access_token, rendered)
+        self.assertIn("<button", rendered)
+
+class UrgentSOSVoiceAnalysisTests(BaseAPITestCase):
+    def setUp(self):
+        super().setUp()
+        self.campaign = make_campaign()
+
+    def test_analysis_is_restricted_outside_algeria(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        response = self.client.post("/api/needs/voice-guide/analyze/", {"audio": SimpleUploadedFile("voice.webm", b"audio", content_type="audio/webm"), "language": "fr"}, format="multipart")
+        self.assertEqual(response.status_code, 403)
+
+    def test_analysis_transcribes_and_extracts_without_creating_need(self):
+        from unittest.mock import patch
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        with patch("core.views.is_algeria_ip", return_value=True), patch("core.views.transcribe_audio", return_value="Je suis Ahmed à Blida, j'ai besoin d'eau.") as transcribe, patch("core.views.extract_need_data", return_value={"title": "Besoin d'eau", "contact_name": "Ahmed", "contact_phone": "", "estimated_quantity": "", "commune": "", "location_description": "Blida", "organization_or_person_name": "", "description": "Ahmed a besoin d'eau."}) as extract:
+            response = self.client.post("/api/needs/voice-guide/analyze/", {"audio": SimpleUploadedFile("voice.webm", b"audio", content_type="audio/webm"), "language": "fr"}, format="multipart")
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(response.data["transcript"], "Je suis Ahmed à Blida, j'ai besoin d'eau.")
+        self.assertEqual(response.data["extraction"]["contact_name"], "Ahmed")
+        self.assertEqual(Need.objects.count(), 0)
+        transcribe.assert_called_once()
+        extract.assert_called_once()
+
+    def test_analysis_keeps_transcript_when_llm_extraction_fails(self):
+        from unittest.mock import patch
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from core.voice_ai import VoiceAIError
+
+        with patch("core.views.is_algeria_ip", return_value=True),              patch("core.views.transcribe_audio", return_value="Je suis Ahmed et j'ai besoin d'eau."),              patch("core.views.extract_need_data", side_effect=VoiceAIError("LLM unavailable")):
+            response = self.client.post(
+                "/api/needs/voice-guide/analyze/",
+                {"audio": SimpleUploadedFile("voice.webm", b"audio", content_type="audio/webm"), "language": "fr"},
+                format="multipart",
+            )
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(response.data["transcript"], "Je suis Ahmed et j'ai besoin d'eau.")
+        self.assertEqual(response.data["extraction"], {})
+        self.assertEqual(Need.objects.count(), 0)
+
+    @override_settings(
+        VOICE_WHISPER_MODEL="small",
+        VOICE_WHISPER_DEVICE="cpu",
+        VOICE_WHISPER_COMPUTE_TYPE="int8",
+    )
+    def test_whisper_auto_detects_language_instead_of_forcing_ui_language(self):
+        from unittest.mock import Mock, patch
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from core.voice_ai import transcribe_audio
+
+        upload = SimpleUploadedFile("voice.webm", b"fake-audio", content_type="audio/webm")
+        model = Mock()
+        model.transcribe.return_value = (
+            iter([Mock(text="Bonjour, j'ai besoin d'eau.")]),
+            Mock(language="fr"),
+        )
+
+        with patch("core.voice_ai._whisper_model", return_value=model):
+            transcript = transcribe_audio(upload, language="ar")
+
+        self.assertEqual(transcript, "Bonjour, j'ai besoin d'eau.")
+        _, kwargs = model.transcribe.call_args
+        self.assertNotIn("language", kwargs)
+
+    def test_voice_creation_allows_anonymous_report_with_private_recovery_code(self):
+        from unittest.mock import patch
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        with patch("core.views.is_algeria_ip", return_value=True):
+            response = self.client.post("/api/needs/voice-guide/", {"campaign": self.campaign.pk, "title": "SOS urgent", "urgency": "critical", "location_description": "Sans localisation", "voice_file": SimpleUploadedFile("voice.webm", b"audio", content_type="audio/webm")}, format="multipart")
+        self.assertEqual(response.status_code, 201, response.content)
+        need = Need.objects.get(pk=response.data["id"])
+        self.assertEqual(need.contact_name, "")
+        self.assertTrue(need.recovery_code.startswith("voice-"))
+        self.assertEqual(response.data["recovery_code"], need.recovery_code)
+        self.assertTrue(response.data["recovery_code"])
+
+    def test_admin_abroad_gps_for_voice_sos_is_dropped_not_kept(self):
+        """An admin testing from their own device abroad must not publish
+        a listing pinned outside Algeria -- the coordinates are dropped
+        (not rejected, not kept as-is), falling back to the wilaya's own
+        position like any other guided SOS with no exact GPS."""
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        admin = get_user_model().objects.create_superuser("abroadadmin", "abroad@example.com", "pw123456!")
+        self.client.force_authenticate(admin)
+        response = self.client.post(
+            "/api/needs/voice-guide/",
+            {
+                "campaign": self.campaign.pk,
+                "title": "SOS urgent",
+                "urgency": "critical",
+                "location_description": "Test admin abroad",
+                "latitude": "48.8566",
+                "longitude": "2.3522",
+                "voice_file": SimpleUploadedFile("voice.webm", b"audio", content_type="audio/webm"),
+            },
+            format="multipart",
+        )
+        self.assertEqual(response.status_code, 201, response.content)
+        need = Need.objects.get(pk=response.data["id"])
+        self.assertIsNone(need.latitude)
+        self.assertIsNone(need.longitude)
+        self.assertEqual(need.position_accuracy, Need.POSITION_APPROXIMATE)
+        self.assertIsNotNone(need.wilaya_id)
+
+    def test_admin_algeria_gps_for_voice_sos_is_kept_exact(self):
+        """The drop only applies to coordinates actually outside Algeria --
+        an admin's real GPS fix inside Algeria stays exact, same as a
+        non-admin reporter's."""
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        admin = get_user_model().objects.create_superuser("localadmin", "local@example.com", "pw123456!")
+        self.client.force_authenticate(admin)
+        response = self.client.post(
+            "/api/needs/voice-guide/",
+            {
+                "campaign": self.campaign.pk,
+                "title": "SOS urgent",
+                "urgency": "critical",
+                "location_description": "Test admin in Algeria",
+                "latitude": "36.75",
+                "longitude": "3.06",
+                "voice_file": SimpleUploadedFile("voice.webm", b"audio", content_type="audio/webm"),
+            },
+            format="multipart",
+        )
+        self.assertEqual(response.status_code, 201, response.content)
+        need = Need.objects.get(pk=response.data["id"])
+        self.assertEqual(float(need.latitude), 36.75)
+        self.assertEqual(float(need.longitude), 3.06)
+        self.assertEqual(need.position_accuracy, Need.POSITION_EXACT)

@@ -1,6 +1,9 @@
 import logging
+import secrets
+import subprocess
+from functools import lru_cache
 
-from django.db.models import Count, Prefetch, Q
+from django.db.models import Prefetch, Q
 from django.shortcuts import get_object_or_404
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
@@ -15,10 +18,16 @@ from core.duplicates import find_similar_collection_points, find_similar_needs
 from core.gemini_extraction import (
     ExtractionError,
     ExtractionUnavailable,
-    contains_money_collection_mention,
     extract_flyer_data,
 )
-from core.geo import geocode_address, geocode_city_centroid, get_country_centroid
+from core.collection_point_geocoding import (
+    OFFLINE_CITY_COORDS,
+    NominatimClient,
+    contains_fundraising_keyword,
+    split_phones,
+)
+from core.geo import get_country_centroid
+from core.geoip import is_algeria_ip
 from core.media_validation import validate_photo_count, validate_photo_size
 from core.moderation import moderate_image_field, moderate_video_field, moderation_active
 from core.models import (
@@ -42,20 +51,19 @@ from core.models import (
     TranslationOverride,
     Wilaya,
 )
-from core.permissions import write_guard
+from core.permissions import read_only_block, write_guard
+from core.validators import is_within_algeria_bounds, normalize_place_name, validate_social_url
 from core.serializers import (
     AnonymizeSerializer,
     AppConfigurationPublicSerializer,
     CampaignSerializer,
     CollectionPointCloseSerializer,
-    CollectionPointCountryListSerializer,
     CollectionPointCreateSerializer,
     CollectionPointMapPinSerializer,
     CollectionPointSerializer,
     CommentCreateSerializer,
     CommentSerializer,
     ContentReportSerializer,
-    CountryGroupSerializer,
     DisasterTypeSerializer,
     DuplicateReportCreateSerializer,
     FlyerSubmissionCreateSerializer,
@@ -75,6 +83,7 @@ from core.serializers import (
     WilayaSerializer,
 )
 from core.throttling import CreationRateThrottle
+from core.voice_ai import VoiceAIError, extract_need_data, transcribe_audio
 
 logger = logging.getLogger(__name__)
 
@@ -131,6 +140,46 @@ class CampaignViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets
         return qs
 
 
+@lru_cache(maxsize=1)
+def _git_version():
+    # Deploys here are a manual `git pull` + rebuild on the VPS (see
+    # DEPLOYMENT.md step 6) with nothing else surfacing whether it actually
+    # ran -- this lets a redeploy be confirmed by comparing this endpoint's
+    # commit against `git log -1` on GitHub, instead of guessing from bug
+    # reports whether a merged fix ever reached the live server. Cached for
+    # the process lifetime since it can't change without a restart, which
+    # is already how a redeploy takes effect here (systemctl restart).
+    from django.conf import settings
+
+    try:
+        commit = (
+            subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=settings.REPO_ROOT, stderr=subprocess.DEVNULL)
+            .decode()
+            .strip()
+        )
+        commit_date = (
+            subprocess.check_output(
+                ["git", "show", "-s", "--format=%cI", "HEAD"], cwd=settings.REPO_ROOT, stderr=subprocess.DEVNULL
+            )
+            .decode()
+            .strip()
+        )
+    except (subprocess.CalledProcessError, FileNotFoundError, OSError):
+        return {"commit": None, "commit_short": None, "commit_date": None}
+
+    return {"commit": commit, "commit_short": commit[:7], "commit_date": commit_date}
+
+
+class VersionView(APIView):
+    """Public endpoint exposing the backend's currently running git commit
+    -- see _git_version above for why this exists."""
+
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        return Response(_git_version())
+
+
 class AppConfigurationView(APIView):
     """Public subset of AppConfiguration -- read_only banner + moderation toggle."""
 
@@ -148,16 +197,33 @@ class AppConfigurationView(APIView):
         # otherwise be rejected) -- never a security boundary itself,
         # every actual write still re-checks is_admin_request server-side.
         data["is_admin"] = is_admin_request(request)
+        # The guided voice SOS flow (CreateNeedVoiceGuide.jsx) isn't linked
+        # from the site yet and, unlike the rest of the app, is meant to
+        # always stay Algeria-only (or admin) regardless of the sitewide
+        # geo_restrict_writes_to_algeria toggle above -- it's still pending
+        # approval, reachable only via a direct link for testing. Re-checked
+        # server-side on submission itself (NeedViewSet.create_via_voice_guide);
+        # this copy is only so the page can show an explanatory message
+        # instead of letting someone go through all 7 steps first.
+        data["voice_guide_available"] = is_admin_request(request) or is_algeria_ip(getattr(request, "client_ip", None)) is True
         # Bottom-nav notification badges (frontend rounds/formats the
         # number) -- "active" on purpose, not a lifetime total: reflects
         # what there actually is to look at right now, not a count that
         # only ever grows.
         data["needs_open_count"] = Need.objects.filter(
-            overall_status__in=[Need.STATUS_OPEN, Need.STATUS_PARTIALLY_COVERED]
+            overall_status__in=[Need.STATUS_OPEN, Need.STATUS_PARTIALLY_COVERED],
+            voice_processing_status=Need.VOICE_PROCESSING_READY,
         ).count()
+        # country_code="" is the national/Algeria case (see
+        # CollectionPoint.country_code) -- without this filter an
+        # international point would inflate the *national* badge instead
+        # of (or as well as) its own.
         data["collection_points_active_count"] = CollectionPoint.objects.filter(
-            status=CollectionPoint.STATUS_ACTIVE
+            status=CollectionPoint.STATUS_ACTIVE, country_code=""
         ).count()
+        data["international_collection_points_active_count"] = CollectionPoint.objects.filter(
+            status=CollectionPoint.STATUS_ACTIVE
+        ).exclude(country_code="").count()
         data["deliveries_en_route_count"] = Pickup.objects.filter(status=Pickup.STATUS_EN_ROUTE).count()
         return Response(data)
 
@@ -190,25 +256,47 @@ class NeedViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retriev
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get_serializer_class(self):
-        if self.action == "create":
+        if self.action in ("create", "create_via_voice_guide"):
             return NeedCreateSerializer
         return NeedPublicSerializer
 
     def get_throttles(self):
-        if self.action in ("create",):
+        if self.action in ("create", "create_via_voice_guide", "analyze_voice_guide"):
             return [CreationRateThrottle()]
         return []
 
     def get_queryset(self):
         qs = super().get_queryset()
+        # A guided voice SOS still being transcribed has a valid token but
+        # isn't ready for public discovery yet. One whose automatic
+        # transcription failed (e.g. no speech detected, Whisper/Ollama
+        # unavailable) stays published -- the reporter's audio and the
+        # anonymous placeholders from creation are still there, so
+        # responders can listen to it directly (see
+        # core.voice_ai._mark_voice_need_failed) -- only PENDING is
+        # filtered. Detail/recovery access remains available regardless;
+        # only collection endpoints are filtered.
+        if self.action in ("list", "locations"):
+            qs = qs.exclude(voice_processing_status=Need.VOICE_PROCESSING_PENDING)
         wilaya = self.request.query_params.get("wilaya")
         campaign = self.request.query_params.get("campaign")
         search = self.request.query_params.get("search")
+        no_location = self.request.query_params.get("no_location")
         if wilaya:
             qs = qs.filter(wilaya_id=wilaya)
         if campaign:
             qs = qs.filter(campaign_id=campaign)
+        if no_location:
+            # The map's "no location" bubble (NeedsList.jsx) groups every
+            # such need behind one count regardless of its fallback
+            # wilaya -- filtering by that wilaya would miss the ones that
+            # fell back to a different one, so this is its own param.
+            qs = qs.filter(has_no_location=True)
         if search:
+            # As broad as the model reasonably allows -- a visitor searching
+            # "Ahmed" or "0555..." should find a need by its contact just as
+            # readily as by its title/location, same principle applied to
+            # CollectionPointViewSet/PickupViewSet's own search below.
             qs = qs.filter(
                 Q(title__icontains=search)
                 | Q(location_description__icontains=search)
@@ -216,6 +304,9 @@ class NeedViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retriev
                 | Q(wilaya__name__icontains=search)
                 | Q(organization_or_person_name__icontains=search)
                 | Q(contact_name__icontains=search)
+                | Q(contact_phone__icontains=search)
+                | Q(other_phones__icontains=search)
+                | Q(contact_email__icontains=search)
             )
         return qs
 
@@ -235,6 +326,14 @@ class NeedViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retriev
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         need = serializer.save()
+
+        if self.action == "create_via_voice_guide" and need.voice_file:
+            # Return the token immediately. Whisper + LLM are handled by the
+            # dedicated worker and the need stays hidden from public lists/map
+            # until the complete transcript and structured extraction exist.
+            need.voice_processing_status = Need.VOICE_PROCESSING_PENDING
+            need.voice_processing_error = ""
+            need.save(update_fields=["voice_processing_status", "voice_processing_error", "last_modified_at"])
 
         if need.video_file:
             need.video_moderation_status = moderate_video_field(need.video_file)
@@ -257,6 +356,111 @@ class NeedViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retriev
             many=True,
         ).data
         return Response(out, status=status.HTTP_201_CREATED)
+
+    def _voice_feature_allowed(self, request):
+        return is_admin_request(request) or is_algeria_ip(getattr(request, "client_ip", None)) is True
+
+    @action(detail=False, methods=["post"], url_path="voice-guide/analyze")
+    def analyze_voice_guide(self, request, *args, **kwargs):
+        """Transcribe and extract a guided SOS without creating a Need.
+
+        Publication remains a separate, explicit button action in the SPA.
+        This endpoint is deliberately server-side so the LLM credential is
+        never exposed to the browser.
+        """
+        if not self._voice_feature_allowed(request):
+            return Response({"detail": "This feature is only available from Algeria."}, status=status.HTTP_403_FORBIDDEN)
+        audio = request.FILES.get("audio")
+        if not audio:
+            return Response({"detail": "No audio file was provided."}, status=status.HTTP_400_BAD_REQUEST)
+        if audio.size <= 0:
+            return Response({"detail": "The audio file is empty."}, status=status.HTTP_400_BAD_REQUEST)
+        if audio.size > 20 * 1024 * 1024:
+            return Response({"detail": "The audio file is too large."}, status=status.HTTP_400_BAD_REQUEST)
+        language = request.data.get("language", "fr")
+        try:
+            # Do not force the browser/UI language onto Whisper. The reporter
+            # may speak a different language (or mix languages), so the STT
+            # layer must auto-detect the actual recording language.
+            transcript = transcribe_audio(audio)
+            logger.info(
+                "Urgent SOS transcription ready: language_hint=%s chars=%s transcript=%r",
+                language, len(transcript), transcript[:5000],
+            )
+        except VoiceAIError as exc:
+            logger.error(
+                "Urgent SOS transcription unavailable: language_hint=%s "
+                "audio_name=%s content_type=%s size=%s reason=%s",
+                language,
+                getattr(audio, "name", None),
+                getattr(audio, "content_type", None),
+                getattr(audio, "size", None),
+                exc,
+            )
+            return Response({"detail": str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        except Exception:
+            logger.exception("Unexpected urgent SOS voice transcription error")
+            return Response({"detail": "Voice transcription is temporarily unavailable."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+        try:
+            extraction = extract_need_data(transcript)
+            logger.info(
+                "Urgent SOS LLM extraction succeeded: fields=%s extraction=%s",
+                sorted(extraction.keys()), extraction,
+            )
+        except VoiceAIError:
+            # A good transcript is still valuable even if the structured LLM
+            # extraction is unavailable. The frontend can show the transcript
+            # and the user can correct the fields manually before confirming.
+            logger.exception(
+                "Urgent SOS transcript succeeded but LLM extraction failed; "
+                "transcript=%r",
+                transcript[:5000],
+            )
+            extraction = {}
+        except Exception:
+            logger.exception("Unexpected urgent SOS voice extraction error")
+            extraction = {}
+
+        return Response({"transcript": transcript, "extraction": extraction})
+
+    @action(detail=False, methods=["post"], url_path="voice-guide")
+    def create_via_voice_guide(self, request, *args, **kwargs):
+        """CreateNeedVoiceGuide.jsx submits here instead of the regular
+        create() above -- unlike an ordinary need report, this feature isn't
+        linked from the site yet and is meant to stay Algeria-only (or
+        admin) regardless of the sitewide geo_restrict_writes_to_algeria
+        toggle (see write_guard, still applied below via create()), since
+        it remains pending approval. AppConfigurationView exposes the same
+        check as voice_guide_available so the page can show an explanatory
+        message instead of letting someone go through all 7 steps first --
+        that copy is UI-only, this is the actual enforcement."""
+        if not self._voice_feature_allowed(request):
+            return Response(
+                {"detail": "This feature is only available from Algeria."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        # The regular Need serializer intentionally requires a recovery path.
+        # A guided emergency may legitimately be anonymous, so give the
+        # server-generated access-token path a private recovery code instead
+        # of blocking publication when name/phone are both unknown.
+        data = request.data.copy()
+        if not ((data.get("contact_name") or "").strip() and (data.get("contact_phone") or "").strip()) and not (data.get("recovery_code") or "").strip():
+            data["recovery_code"] = "voice-" + secrets.token_urlsafe(9)[:12]
+        # Voice SOS is an admin-only exception to the normal Algeria write
+        # restriction: keep the administrator's real GPS coordinates even
+        # when they are outside Algeria. Do not silently convert a valid GPS
+        # fix into "no location".
+        request._full_data = data
+        response = self.create(request, *args, **kwargs)
+        # The guided SOS recovery code is the code the reporter can use later
+        # to recover/delete the SOS. The regular Need response intentionally
+        # does not expose recovery_code, so add it only to this dedicated
+        # voice-SOS response where it is explicitly shown once on the final
+        # screen.
+        if response.status_code == status.HTTP_201_CREATED:
+            response.data["recovery_code"] = data.get("recovery_code", "")
+        return response
 
     @action(detail=False, methods=["get"], url_path="check-duplicates")
     def check_duplicates(self, request):
@@ -318,7 +522,7 @@ class NeedViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retriev
     def locations(self, request):
         """Public: main map pins. Need locations only, never volunteer positions."""
         qs = self.get_queryset().exclude(is_cancelled=True)
-        return Response(NeedMapPinSerializer(qs, many=True).data)
+        return Response(NeedMapPinSerializer(qs, many=True, context={"request": request}).data)
 
     @action(detail=True, methods=["get"], url_path="pickup-locations")
     def pickup_locations(self, request, pk=None):
@@ -460,6 +664,9 @@ class PickupViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retri
         elif destination_type == "collection_point":
             qs = qs.filter(collection_point__isnull=False)
         if search:
+            # As broad as the model reasonably allows, matching against both
+            # the courier's own info and their destination's (need or
+            # collection point) -- see NeedViewSet's own search above.
             qs = qs.filter(
                 Q(responder_name__icontains=search)
                 | Q(responder_phone__icontains=search)
@@ -467,11 +674,18 @@ class PickupViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retri
                 | Q(content_brought__icontains=search)
                 | Q(organization_or_person_name__icontains=search)
                 | Q(need__title__icontains=search)
+                | Q(need__location_description__icontains=search)
                 | Q(need__wilaya__name__icontains=search)
+                | Q(need__contact_name__icontains=search)
                 | Q(need__contact_phone__icontains=search)
+                | Q(need__other_phones__icontains=search)
                 | Q(collection_point__point_name__icontains=search)
+                | Q(collection_point__organization__icontains=search)
+                | Q(collection_point__location_description__icontains=search)
                 | Q(collection_point__wilaya__name__icontains=search)
+                | Q(collection_point__contact_name__icontains=search)
                 | Q(collection_point__contact_phone__icontains=search)
+                | Q(collection_point__other_phones__icontains=search)
             )
         return qs
 
@@ -499,7 +713,10 @@ class PickupViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retri
             Pickup.objects.filter(status=Pickup.STATUS_EN_ROUTE)
             .filter(Q(location_sharing_active=True) | Q(departure_latitude__isnull=False))
             .select_related("need", "need__wilaya", "collection_point", "collection_point__wilaya")
-            .prefetch_related(Prefetch("location_pings", queryset=LocationPing.objects.order_by("-recorded_at")))
+            .prefetch_related(
+                Prefetch("location_pings", queryset=LocationPing.objects.order_by("-recorded_at")),
+                "delivery_photos",
+            )
         )
         result = []
         for pickup in pickups:
@@ -511,6 +728,10 @@ class PickupViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retri
                 latitude, longitude, recorded_at, is_live = pickup.departure_latitude, pickup.departure_longitude, None, False
             else:
                 continue
+            # Same "hidden until approved" gate as PickupListSerializer's
+            # own photo field -- lets the map popup offer a "view photo"
+            # shortcut without a second request.
+            approved_photo = next((p for p in pickup.delivery_photos.all() if p.moderation_status == Need.MODERATION_APPROVED), None)
             entry = {
                 "pickup_id": pickup.id,
                 # Exactly one of these two pairs is populated, matching
@@ -525,6 +746,7 @@ class PickupViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retri
                 "collection_point_wilaya_name": pickup.collection_point.wilaya.name if pickup.collection_point_id else None,
                 "responder_name": pickup.organization_or_person_name or pickup.responder_name,
                 "content_brought": pickup.content_brought,
+                "photo": (request.build_absolute_uri(approved_photo.image.url) if approved_photo else None),
                 "latitude": latitude,
                 "longitude": longitude,
                 # Destination's own coordinates, when it has one set -- lets
@@ -757,6 +979,26 @@ class ContentReportViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
         return Response(self.get_serializer(report).data, status=status.HTTP_201_CREATED)
 
 
+COLLECTION_POINT_NOT_AUTHORIZED_MESSAGE = (
+    "Not authorized: this access token doesn't match this collection point "
+    "(or provide the matching name/phone/recovery code)."
+)
+
+
+def collection_point_identity_authorized(request, point):
+    """Admin, a matching access_token, or (same fallback close() has always
+    offered) the creator's own name+phone or recovery code -- shared so
+    partial_update() below gives a creator who lost their access_token the
+    same way back in that close() already does, rather than a stricter,
+    token-only check for editing than for closing."""
+    if is_admin_request(request) or owner_authorized(request, point):
+        return True
+    serializer = CollectionPointCloseSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    d = serializer.validated_data
+    return point.matches_code(d.get("code")) if d.get("code") else point.matches_creator(d.get("contact_name"), d.get("contact_phone"))
+
+
 class CollectionPointViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.RetrieveModelMixin):
     queryset = CollectionPoint.objects.select_related("wilaya").prefetch_related(
         "comments__replies", "pickups__progress_updates", "pickups__delivery_photos"
@@ -773,23 +1015,64 @@ class CollectionPointViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mix
 
     def get_queryset(self):
         qs = super().get_queryset()
+        # Only the browsing endpoints (list/locations) split national vs.
+        # international -- a direct retrieve-by-id (e.g. following a link
+        # or a comment) always works regardless of which kind the point is,
+        # since the caller doesn't necessarily know in advance.
+        is_international_scope = False
+        if self.action in ("list", "locations"):
+            international = self.request.query_params.get("international")
+            if international:
+                is_international_scope = True
+                qs = qs.exclude(country_code="")
+                country = self.request.query_params.get("country")
+                if country:
+                    qs = qs.filter(country_code=country.upper())
+            else:
+                qs = qs.filter(country_code="")
         wilaya = self.request.query_params.get("wilaya")
         search = self.request.query_params.get("search")
         if wilaya:
             qs = qs.filter(wilaya_id=wilaya)
         if search:
-            qs = qs.filter(
-                Q(point_name__icontains=search)
-                | Q(contact_name__icontains=search)
-                | Q(organization__icontains=search)
-                | Q(location_description__icontains=search)
-                | Q(hours__icontains=search)
-                | Q(wilaya__name__icontains=search)
-            )
+            # As broad as the model reasonably allows, on both branches --
+            # a visitor should be able to find a point by its phone number,
+            # its accepted donations, or its own free-text description just
+            # as readily as by name (see NeedViewSet's own search above).
+            if is_international_scope:
+                qs = qs.filter(
+                    Q(point_name__icontains=search)
+                    | Q(contact_name__icontains=search)
+                    | Q(organization__icontains=search)
+                    | Q(location_description__icontains=search)
+                    | Q(description__icontains=search)
+                    | Q(accepted_donations__icontains=search)
+                    | Q(contact_phone__icontains=search)
+                    | Q(other_phones__icontains=search)
+                    | Q(country_name__icontains=search)
+                )
+            else:
+                qs = qs.filter(
+                    Q(point_name__icontains=search)
+                    | Q(contact_name__icontains=search)
+                    | Q(organization__icontains=search)
+                    | Q(location_description__icontains=search)
+                    | Q(description__icontains=search)
+                    | Q(accepted_donations__icontains=search)
+                    | Q(hours__icontains=search)
+                    | Q(contact_phone__icontains=search)
+                    | Q(other_phones__icontains=search)
+                    | Q(wilaya__name__icontains=search)
+                )
         return qs
 
     def create(self, request, *args, **kwargs):
-        block_reason = write_guard(request)
+        # An international collection point is deliberately created from
+        # outside Algeria (that's the whole point) -- the Algeria-IP write
+        # restriction would otherwise block almost every real submission.
+        # Read-only mode still applies to everyone regardless.
+        is_international = bool(request.data.get("country_code"))
+        block_reason = read_only_block(request) if is_international else write_guard(request)
         if block_reason:
             return Response({"detail": block_reason}, status=status.HTTP_403_FORBIDDEN)
         flyer_image = request.FILES.get("flyer_image")
@@ -801,15 +1084,14 @@ class CollectionPointViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mix
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         point = serializer.save()
-        # This form never collects country/city -- it's Algeria-only via
-        # wilaya, and the model default already sets country="Algérie".
-        # precision_level only needs setting here: PRECISION_EXACT when the
-        # submitter captured/typed real GPS, PRECISION_CITY (falls back to
-        # the wilaya centroid, jittered -- see CollectionPointMapPinSerializer)
-        # otherwise. Same distinction the map already made dynamically via
-        # has_exact_position before precision_level existed.
-        point.precision_level = CollectionPoint.PRECISION_EXACT if point.latitude is not None else CollectionPoint.PRECISION_CITY
-        point.save(update_fields=["precision_level"])
+        # International always carries real GPS (validated above), so it's
+        # always PRECISION_EXACT (the model default) -- only the national
+        # branch needs setting explicitly here, matching what
+        # has_exact_position already showed before precision_level existed
+        # (real GPS vs. the wilaya-centroid fallback).
+        if not is_international:
+            point.precision_level = CollectionPoint.PRECISION_EXACT if point.latitude is not None else CollectionPoint.PRECISION_CITY
+            point.save(update_fields=["precision_level"])
 
         if point.flyer_image:
             point.flyer_moderation_status = moderate_image_field(point.flyer_image)
@@ -820,66 +1102,64 @@ class CollectionPointViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mix
         out["access_token"] = point.access_token
         return Response(out, status=status.HTTP_201_CREATED)
 
+    def partial_update(self, request, *args, **kwargs):
+        point = self.get_object()
+        # Same reasoning as create()/close() above: editing one's own
+        # international point is expected to happen from outside Algeria too.
+        block_reason = read_only_block(request) if point.is_international else write_guard(request)
+        if block_reason:
+            return Response({"detail": block_reason}, status=status.HTTP_403_FORBIDDEN)
+        if not collection_point_identity_authorized(request, point):
+            return Response(
+                {"detail": COLLECTION_POINT_NOT_AUTHORIZED_MESSAGE},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        data = request.data
+        # Deliberately excludes wilaya/country_code (would flip national vs.
+        # international -- a different creation flow with its own
+        # validation, not a simple field edit) and latitude/longitude/
+        # flyer_image (re-validating a moved pin or re-moderating a new
+        # flyer is more than this endpoint takes on for now) -- same
+        # curated-allowlist approach as NeedViewSet.partial_update.
+        editable_fields = [
+            "point_name", "contact_name", "contact_phone", "other_phones",
+            "organization", "location_description", "hours",
+            "description", "accepted_donations",
+        ]
+        changed = False
+        for f in editable_fields:
+            if f in data:
+                setattr(point, f, data[f])
+                changed = True
+        for f in ("facebook_url", "tiktok_url", "instagram_url"):
+            if f in data:
+                setattr(point, f, validate_social_url(data[f]))
+                changed = True
+
+        if changed:
+            point.save()
+            log_admin_action(request, "edited collection point", point)
+
+        return Response(CollectionPointSerializer(point, context={"request": request}).data)
+
     @action(detail=False, methods=["get"], url_path="locations")
     def locations(self, request):
         """Public: pins for the SAME main map as Need pins (Wave 1) -- a
-        visually distinct icon, same public/no-auth visibility as Needs.
-        PRECISION_COUNTRY points are excluded -- they have no individual
-        pin, see country_groups/by_country below."""
-        qs = self.get_queryset().exclude(status=CollectionPoint.STATUS_CLOSED).exclude(precision_level=CollectionPoint.PRECISION_COUNTRY)
-        return Response(CollectionPointMapPinSerializer(qs, many=True).data)
-
-    @action(detail=False, methods=["get"], url_path="country-groups")
-    def country_groups(self, request):
-        """One aggregated count per country for points whose location is
-        only known at country level (no city, no address) -- rendered as a
-        single bubble on the map rather than one indistinguishable pin per
-        point piled on the same spot. See by_country for the list a click
-        on that bubble should show."""
-        qs = (
-            CollectionPoint.objects.filter(precision_level=CollectionPoint.PRECISION_COUNTRY)
-            .exclude(status=CollectionPoint.STATUS_CLOSED)
-            .values("country")
-            .annotate(count=Count("id"))
-        )
-        groups = []
-        for row in qs:
-            centroid = get_country_centroid(row["country"])
-            groups.append({
-                "country": row["country"],
-                "count": row["count"],
-                "latitude": centroid[0] if centroid else None,
-                "longitude": centroid[1] if centroid else None,
-            })
-        return Response(CountryGroupSerializer(groups, many=True).data)
-
-    @action(detail=False, methods=["get"], url_path="by-country")
-    def by_country(self, request):
-        """The list shown when a country bubble (country_groups above) is
-        clicked -- deliberately a list, never a single-point popup, since
-        none of these points has a location precise enough to center one
-        on (see spec)."""
-        country = request.query_params.get("country", "")
-        qs = CollectionPoint.objects.filter(
-            precision_level=CollectionPoint.PRECISION_COUNTRY, country=country
-        ).exclude(status=CollectionPoint.STATUS_CLOSED)
-        return Response(CollectionPointCountryListSerializer(qs, many=True).data)
+        visually distinct icon, same public/no-auth visibility as Needs."""
+        qs = self.get_queryset().exclude(status=CollectionPoint.STATUS_CLOSED)
+        return Response(CollectionPointMapPinSerializer(qs, many=True, context={"request": request}).data)
 
     @action(detail=True, methods=["post"], url_path="close")
     def close(self, request, pk=None):
         point = self.get_object()
-        block_reason = write_guard(request)
+        # Same reasoning as create() above: closing one's own international
+        # point is expected to happen from outside Algeria too.
+        block_reason = read_only_block(request) if point.is_international else write_guard(request)
         if block_reason:
             return Response({"detail": block_reason}, status=status.HTTP_403_FORBIDDEN)
-        if is_admin_request(request) or owner_authorized(request, point):
-            pass  # admin override, or a recovered access_token, needs no re-matching
-        else:
-            serializer = CollectionPointCloseSerializer(data=request.data)
-            serializer.is_valid(raise_exception=True)
-            d = serializer.validated_data
-            matched = point.matches_code(d.get("code")) if d.get("code") else point.matches_creator(d.get("contact_name"), d.get("contact_phone"))
-            if not matched:
-                return Response({"detail": "Name/phone (or recovery code) don't match this collection point's contact."}, status=status.HTTP_403_FORBIDDEN)
+        if not collection_point_identity_authorized(request, point):
+            return Response({"detail": COLLECTION_POINT_NOT_AUTHORIZED_MESSAGE}, status=status.HTTP_403_FORBIDDEN)
         point.status = CollectionPoint.STATUS_CLOSED
         point.save(update_fields=["status"])
         log_admin_action(request, "closed collection point", point)
@@ -903,23 +1183,94 @@ class CollectionPointViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mix
 
 def _safe_url(value):
     """Only keeps LLM-extracted social links that are actually well-formed
-    http(s) URLs (same scheme restriction as validate_social_url) --
-    ExtractedCollectionPoint rows are created directly via
-    .objects.create(), bypassing serializer validation, so unlike the
-    manual form nothing else would ever catch e.g. a bare "@handle" or a
-    scheme this app doesn't want rendered as a link."""
+    http(s) URLs -- ExtractedCollectionPoint rows are created directly via
+    .objects.create(), bypassing CollectionPointCreateSerializer's own
+    validate_social_url, so nothing else would catch e.g. a bare "@handle"
+    read straight off a flyer."""
     value = (value or "").strip()
     return value if value.startswith("http://") or value.startswith("https://") else ""
 
 
+def _resolve_extracted_point_location(point_data, geocoder):
+    """Turns one LLM-extracted point (country_code/city/address) into a
+    dict describing where it actually goes: a matched Wilaya for Algeria,
+    or country_code/country_name for anywhere else, plus best-effort
+    coordinates and the precision they were found at. Mirrors the same
+    address-then-city-then-nothing cascade as
+    management/commands/import_collection_points.py's own resolve_national/
+    resolve_international, except this pipeline is allowed to keep a
+    point that only resolves to a city or a bare country -- that command
+    rejects those outright since its target (CollectionPointCreateSerializer)
+    requires exact GPS for international and a wilaya for national.
+    Returns None if country_code is blank (caller decides what that means)."""
+    country_code = (point_data.get("country_code") or "").strip().upper()
+    country_name = (point_data.get("country_name") or "").strip()
+    city = (point_data.get("city") or "").strip()
+    address = (point_data.get("address") or "").strip()
+    if not country_code:
+        return None
+
+    if country_code == "DZ":
+        wilaya = None
+        if city:
+            normalized_city = normalize_place_name(city)
+            for w in Wilaya.objects.all():
+                if normalize_place_name(w.name) == normalized_city:
+                    wilaya = w
+                    break
+        latitude = longitude = None
+        precision_level = CollectionPoint.PRECISION_CITY if wilaya else CollectionPoint.PRECISION_COUNTRY
+        # A real street address (longer/more specific than the bare city
+        # name) is worth a live geocode for an exact pin; a bare city name
+        # adds nothing over the wilaya's own centroid fallback.
+        if address and len(address) > len(city) + 3:
+            hit = geocoder.search(address, country_code="dz")
+            if hit:
+                latitude, longitude, _ = hit
+                if is_within_algeria_bounds(latitude, longitude):
+                    precision_level = CollectionPoint.PRECISION_EXACT
+                else:
+                    latitude = longitude = None
+        return {
+            "wilaya": wilaya, "country_code": "", "country_name": "", "city": city,
+            "latitude": latitude, "longitude": longitude, "precision_level": precision_level,
+        }
+
+    # International.
+    country_name = country_name or country_code
+    latitude = longitude = None
+    precision_level = CollectionPoint.PRECISION_COUNTRY
+    if address and normalize_place_name(address) not in (normalize_place_name(city), normalize_place_name(country_name)):
+        hit = geocoder.search(address, country_code=country_code)
+        if hit:
+            latitude, longitude, _ = hit
+            precision_level = CollectionPoint.PRECISION_EXACT
+    if precision_level == CollectionPoint.PRECISION_COUNTRY and city:
+        hit = geocoder.search(f"{city}, {country_name}", country_code=country_code)
+        if hit:
+            latitude, longitude, _ = hit
+            precision_level = CollectionPoint.PRECISION_CITY
+        else:
+            offline = OFFLINE_CITY_COORDS.get((normalize_place_name(city), country_code))
+            if offline:
+                latitude, longitude = offline
+                precision_level = CollectionPoint.PRECISION_CITY
+    return {
+        "wilaya": None, "country_code": country_code, "country_name": country_name, "city": city,
+        "latitude": latitude, "longitude": longitude, "precision_level": precision_level,
+    }
+
+
 class FlyerSubmissionViewSet(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
-    """The 'add a collection point from a flyer photo' pipeline (Wave 5):
-    upload a photo, Gemini vision extracts one or more candidate points
+    """The 'add a collection point from a flyer photo' pipeline: upload a
+    photo, Gemini vision extracts one or more candidate points
     (core.gemini_extraction), and the result always lands in
     STATUS_NEEDS_REVIEW for a human to publish via Django Admin -- never
     published automatically, same principle as flyer_image moderation on
-    the manual form. See models.FlyerSubmission/ExtractedCollectionPoint.
-    """
+    the manual forms. See models.FlyerSubmission/ExtractedCollectionPoint,
+    and the CSV-batch counterpart to this,
+    management/commands/import_collection_points.py, for the offline
+    version of the same idea."""
 
     queryset = FlyerSubmission.objects.prefetch_related("extracted_points__wilaya", "extracted_points__duplicate_of")
     permission_classes = [AllowAny]
@@ -932,7 +1283,12 @@ class FlyerSubmissionViewSet(viewsets.GenericViewSet, mixins.RetrieveModelMixin)
         return [CreationRateThrottle()] if self.action == "create" else []
 
     def create(self, request, *args, **kwargs):
-        block_reason = write_guard(request)
+        # A submission can turn out to be national or international only
+        # AFTER extraction runs -- unlike CollectionPointViewSet.create,
+        # which already knows from country_code in the request body. Uses
+        # the more permissive read_only_block unconditionally (still blocks
+        # everyone while the app is in read-only mode) rather than guessing.
+        block_reason = read_only_block(request)
         if block_reason:
             return Response({"detail": block_reason}, status=status.HTTP_403_FORBIDDEN)
 
@@ -948,11 +1304,11 @@ class FlyerSubmissionViewSet(viewsets.GenericViewSet, mixins.RetrieveModelMixin)
         serializer.is_valid(raise_exception=True)
         submission = serializer.save()
 
-        # Same fail-toward-review NSFW gate as the manual form's flyer_image
-        # (core.moderation) -- but here it only blocks on a confirmed
-        # REJECTED; a still-PENDING flyer (sidecar unreachable) proceeds to
-        # extraction below same as an approved one, it just won't show the
-        # image publicly until an admin clears it (see FlyerSubmissionAdmin).
+        # Same fail-toward-review NSFW gate as the manual forms' flyer_image
+        # -- but here it only blocks on a confirmed REJECTED; a still-
+        # PENDING flyer (sidecar unreachable) proceeds to extraction below
+        # same as an approved one, it just won't show the image publicly
+        # until an admin clears it (see FlyerSubmissionAdmin).
         submission.flyer_moderation_status = moderate_image_field(submission.flyer_image)
         submission.flyer_moderated_by = Need.MODERATED_BY_SYSTEM if moderation_active() else ""
         submission.save(update_fields=["flyer_moderation_status", "flyer_moderated_by"])
@@ -984,10 +1340,10 @@ class FlyerSubmissionViewSet(viewsets.GenericViewSet, mixins.RetrieveModelMixin)
         submission.organization_common = data.get("organization_common", "")
         submission.save(update_fields=["raw_extracted_text", "llm_raw_response", "organization_common"])
 
-        # Hard rejects, per spec -- neither is a "maybe", both stop here
-        # with nothing published and no candidate points created at all.
+        # Hard rejects, per spec -- neither is a "maybe": nothing published
+        # and no candidate points created at all.
         point_texts = [str(p) for p in data.get("points", [])]
-        if data.get("has_money_collection") or contains_money_collection_mention(submission.raw_extracted_text, *point_texts):
+        if data.get("has_money_collection") or contains_fundraising_keyword(submission.raw_extracted_text, *point_texts):
             submission.status = FlyerSubmission.STATUS_REJECTED
             submission.rejection_reason = FlyerSubmission.REJECTION_MONEY_COLLECTION
             submission.save(update_fields=["status", "rejection_reason"])
@@ -999,62 +1355,46 @@ class FlyerSubmissionViewSet(viewsets.GenericViewSet, mixins.RetrieveModelMixin)
             submission.save(update_fields=["status", "rejection_reason"])
             return Response(FlyerSubmissionStatusSerializer(submission, context={"request": request}).data, status=status.HTTP_201_CREATED)
 
+        geocoder = NominatimClient()
         for point_data in data["points"]:
-            self._create_extracted_point(submission, point_data)
+            self._create_extracted_point(submission, point_data, geocoder)
 
         submission.status = FlyerSubmission.STATUS_NEEDS_REVIEW
         submission.save(update_fields=["status"])
         log_admin_action(request, "flyer submitted for review", submission)
         return Response(FlyerSubmissionStatusSerializer(submission, context={"request": request}).data, status=status.HTTP_201_CREATED)
 
-    def _create_extracted_point(self, submission, point_data):
-        country = (point_data.get("country") or "").strip()
-        city = (point_data.get("city") or "").strip()
-        address = (point_data.get("address") or "").strip()
+    def _create_extracted_point(self, submission, point_data, geocoder):
+        location = _resolve_extracted_point_location(point_data, geocoder) or {
+            "wilaya": None, "country_code": "", "country_name": "", "city": "",
+            "latitude": None, "longitude": None, "precision_level": CollectionPoint.PRECISION_COUNTRY,
+        }
         organization = (point_data.get("organization") or "").strip() or submission.organization_common
-        contact_phone = (point_data.get("contact_phone") or "").strip()
+        contact_phone, extra_phones = split_phones((point_data.get("contact_phone") or "").strip())
+        other_phones_field = (point_data.get("other_phones") or "").strip()
+        if other_phones_field:
+            extra_phones = f"{extra_phones}\n{other_phones_field}".strip("\n") if extra_phones else other_phones_field
 
-        wilaya = None
-        if country.lower() in ("algérie", "algerie", "algeria") and city:
-            wilaya = Wilaya.objects.filter(name__icontains=city).first()
-
-        # Precision cascades from the most specific thing we could resolve
-        # down to the least: a real geocoded address, then a city/wilaya
-        # centroid (jittered at display time, see CollectionPointMapPinSerializer),
-        # then the country alone (no marker, folded into a country bubble).
-        latitude = longitude = None
-        precision_level = CollectionPoint.PRECISION_COUNTRY
-        if address:
-            coords = geocode_address(address, city, country)
-            if coords:
-                latitude, longitude = coords
-                precision_level = CollectionPoint.PRECISION_EXACT
-        if precision_level == CollectionPoint.PRECISION_COUNTRY and wilaya:
-            precision_level = CollectionPoint.PRECISION_CITY
-        elif precision_level == CollectionPoint.PRECISION_COUNTRY and city:
-            coords = geocode_city_centroid(city, country)
-            if coords:
-                latitude, longitude = coords
-                precision_level = CollectionPoint.PRECISION_CITY
-
-        duplicate = find_similar_collection_points(organization, city or (wilaya.name if wilaya else ""), contact_phone)
+        city_or_wilaya = location["city"] or (location["wilaya"].name if location["wilaya"] else "")
+        duplicate = find_similar_collection_points(organization, city_or_wilaya, contact_phone)
 
         ExtractedCollectionPoint.objects.create(
             submission=submission,
-            point_name=(point_data.get("point_name") or "").strip() or organization or city or country or "Point de collecte",
+            point_name=(point_data.get("point_name") or "").strip() or organization or city_or_wilaya or location["country_name"] or "Point de collecte",
             organization=organization,
-            country=country,
-            city=city,
-            wilaya=wilaya,
-            location_description=address,
-            precision_level=precision_level,
-            latitude=latitude,
-            longitude=longitude,
+            wilaya=location["wilaya"],
+            country_code=location["country_code"],
+            country_name=location["country_name"],
+            city=location["city"],
+            location_description=(point_data.get("address") or "").strip(),
+            precision_level=location["precision_level"],
+            latitude=location["latitude"],
+            longitude=location["longitude"],
             hours=(point_data.get("hours") or "").strip(),
             accepted_donations=(point_data.get("accepted_donations") or "").strip(),
             contact_name=(point_data.get("contact_name") or "").strip(),
             contact_phone=contact_phone,
-            other_phones=(point_data.get("other_phones") or "").strip(),
+            other_phones=extra_phones,
             facebook_url=_safe_url(point_data.get("facebook_url")),
             tiktok_url=_safe_url(point_data.get("tiktok_url")),
             instagram_url=_safe_url(point_data.get("instagram_url")),

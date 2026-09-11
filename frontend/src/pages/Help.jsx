@@ -3,9 +3,11 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import L from 'leaflet'
 import { useApp } from '../context/AppContext'
+import { useDialog } from '../context/DialogContext'
 import { api } from '../api'
-import { urgencyColor, haversineKm, isInAlgeria } from '../utils'
-import { needIcon, collectionPointIcon, needPopupHtml, collectionPointPopupHtml } from '../mapMarkers'
+import { urgencyColor, haversineKm, isInAlgeria, getCurrentPosition, RECENTER_BOX_METERS } from '../utils'
+import { needIcon, collectionPointIcon, needPopupHtml, collectionPointPopupHtml, spreadNeedMarkers } from '../mapMarkers'
+import { IconLocate } from '../icons'
 
 function statusLabel(t, s) {
   return t(`status.${s}`, s)
@@ -21,6 +23,7 @@ function statusLabel(t, s) {
 export default function Help() {
   const { t } = useTranslation()
   const { activeCampaignWilayas } = useApp()
+  const { showAlert } = useDialog()
   const [filterWilaya, setFilterWilaya] = useState('')
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
@@ -37,6 +40,11 @@ export default function Help() {
     const timer = setTimeout(() => setSearch(searchInput.trim()), 300)
     return () => clearTimeout(timer)
   }, [searchInput])
+
+  const resetFilters = () => {
+    setFilterWilaya('')
+    setSearchInput('')
+  }
 
   const loadList = useCallback(async () => {
     const params = new URLSearchParams()
@@ -157,6 +165,11 @@ export default function Help() {
 
         needsWithPos.forEach((p) => {
           const marker = L.marker([p.display_latitude, p.display_longitude], { icon: needIcon(L, urgencyColor, p.urgency) }).addTo(map)
+          // Several needs with no exact GPS commonly share the same
+          // fallback wilaya centroid and would otherwise stack exactly on
+          // top of each other, leaving only the topmost one clickable --
+          // spreadNeedMarkers below nudges them apart once all are placed.
+          marker._sosdzNeedMarker = true
           marker.bindPopup(needPopupHtml(t, p, statusLabel))
           markers.push(marker)
         })
@@ -167,6 +180,7 @@ export default function Help() {
           markers.push(marker)
         })
 
+        spreadNeedMarkers(map, markers)
         markersRef.current = markers
         const allPoints = [...needsWithPos, ...cpsWithPos].map((p) => [p.display_latitude, p.display_longitude])
         smartZoom(map, allPoints, filterWilaya)
@@ -179,6 +193,19 @@ export default function Help() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewMode, filterWilaya, search, activeCampaignWilayas])
+
+  const recenterOnMe = async () => {
+    const map = mapRef.current
+    if (!map) return
+    const pos = await getCurrentPosition()
+    // See CollectionPoints.jsx's own recenterOnMe -- an explicit tap
+    // deserves feedback on failure.
+    if (!pos) {
+      showAlert(t('map.locationUnavailable'))
+      return
+    }
+    map.fitBounds(L.latLng(pos[0], pos[1]).toBounds(RECENTER_BOX_METERS))
+  }
 
   // Switching to "Liste" unmounts the map div -- see NeedsList.jsx for why
   // the Leaflet instance must be torn down here too.
@@ -213,6 +240,9 @@ export default function Help() {
             ))}
           </select>
         </label>
+        <button type="button" className="btn" onClick={resetFilters}>
+          {t('needsList.resetFilters')}
+        </button>
         <div className="view-toggle">
           <button className={viewMode === 'list' ? 'active' : ''} onClick={() => setViewMode('list')}>
             {t('needsList.list')}
@@ -267,7 +297,12 @@ export default function Help() {
       {viewMode === 'map' && (
         <div className="map-wrap">
           {mapHasNothing && <p className="hint">{t('help.nothingToShow')}</p>}
-          <div id="help-map" ref={mapElRef} style={{ height: 600 }} />
+          <div className="map-frame">
+            <div id="help-map" ref={mapElRef} style={{ height: 600 }} />
+            <button type="button" className="locate-btn" onClick={recenterOnMe} aria-label={t('map.recenterOnMe')} title={t('map.recenterOnMe')}>
+              <IconLocate width={18} height={18} />
+            </button>
+          </div>
           <div className="legend">
             <span className="legend-item">
               <span className="legend-dot" style={{ background: urgencyColor('critical') }} />

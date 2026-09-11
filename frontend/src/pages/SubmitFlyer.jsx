@@ -84,14 +84,14 @@ export default function SubmitFlyer() {
         {result.status === 'needs_review' && (
           <>
             <p className="success">{t('submitFlyer.resultNeedsReview', { count: result.extracted_points.length })}</p>
-            <ul className="needs-list">
+            <div className="needs-list">
               {result.extracted_points.map((p) => (
-                <li key={p.id} className="need-card">
-                  <strong>{p.point_name}</strong> — {p.city || p.country}
+                <div key={p.id} className="need-card">
+                  <strong>{p.point_name}</strong> — {p.city || p.wilaya_name || p.country_name}
                   {p.duplicate_of && <p className="hint">{t('submitFlyer.possibleDuplicate')}</p>}
-                </li>
+                </div>
               ))}
-            </ul>
+            </div>
             <p className="hint">{t('submitFlyer.trackingCode')}: <strong>{result.access_token}</strong></p>
           </>
         )}

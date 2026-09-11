@@ -18,6 +18,7 @@ const DEFAULT_FORM = {
   organization: '',
   location_description: '',
   hours: '',
+  description: '',
   accepted_donations: '',
   facebook_url: '',
   tiktok_url: '',
@@ -33,6 +34,9 @@ export default function CreateCollectionPoint() {
   const [gpsStatus, setGpsStatus] = useState(null) // null | 'locating' | 'error'
   const [error, setError] = useState('')
   const [flyer, setFlyer] = useState(null) // { file, previewUrl } | null
+  // Same lightbox pattern as CreateNeed.jsx's own damage-photo gallery --
+  // lets the flyer just picked be viewed full-size before submitting.
+  const [lightbox, setLightbox] = useState(null)
 
   const addFlyer = (e) => {
     const file = e.target.files[0]
@@ -134,22 +138,6 @@ export default function CreateCollectionPoint() {
         <label>
           {t('collectionPoints.pointName')} * <input type="text" value={form.point_name} onChange={set('point_name')} required {...validityProps} />
         </label>
-        <p className="hint">{t('createNeed.contactDetailsHint')}</p>
-        <label>
-          {t('collectionPoints.contactName')} <input type="text" value={form.contact_name} onChange={set('contact_name')} />
-        </label>
-        <label>
-          {t('collectionPoints.contactPhone')} <input type="tel" value={form.contact_phone} onChange={set('contact_phone')} />
-        </label>
-        <label>
-          {t('collectionPoints.otherPhones')}
-          <textarea rows={3} value={form.other_phones} onChange={set('other_phones')} placeholder={t('collectionPoints.otherPhonesPlaceholder')} />
-        </label>
-        <label>
-          {t('createNeed.recoveryCode')}{' '}
-          <input type="text" value={form.recovery_code} onChange={set('recovery_code')} placeholder={t('createNeed.recoveryCodePlaceholder')} minLength={6} {...validityProps} />
-          <span className="hint">{t('createNeed.recoveryCodeHint')}</span>
-        </label>
         <label>
           {t('collectionPoints.organization')} <input type="text" value={form.organization} onChange={set('organization')} />
         </label>
@@ -167,8 +155,30 @@ export default function CreateCollectionPoint() {
             onInvalid={validityProps.onInvalid}
           />
         </label>
+        {/* Right after the location field it fills in -- previously
+            stranded near the bottom of the form, well past several
+            unrelated fields, even though it only ever affects the Lieu
+            field above. */}
+        <div className="gps-controls">
+          <button type="button" className="btn" onClick={useMyLocation} disabled={gpsStatus === 'locating'}>
+            {t('collectionPoints.useMyLocation')}
+          </button>
+          {(gpsStatus === 'error' || form.latitude) && (
+            <button type="button" className="link" onClick={clearLocation}>
+              {t('createNeed.clearGps')}
+            </button>
+          )}
+        </div>
+        {!config.is_admin && <p className="hint">{t('createNeed.gpsAlgeriaOnly')}</p>}
+        {gpsStatus === 'locating' && <p className="hint">{t('createNeed.gpsLocating')}</p>}
+        {gpsStatus === 'error' && <p className="error">{t('createNeed.gpsError')}</p>}
+        {form.latitude && !gpsStatus && <p>{t('createNeed.gpsCaptured', { lat: form.latitude, lon: form.longitude })}</p>}
         <label>
           {t('collectionPoints.hours')} <input type="text" value={form.hours} onChange={set('hours')} placeholder={t('collectionPoints.hoursPlaceholder')} />
+        </label>
+        <label>
+          {t('collectionPoints.description')}
+          <textarea rows={3} value={form.description} onChange={set('description')} placeholder={t('collectionPoints.descriptionPlaceholder')} />
         </label>
         <label>
           {t('collectionPoints.acceptedDonations')}
@@ -180,7 +190,9 @@ export default function CreateCollectionPoint() {
           {flyer ? (
             <div className="photo-thumbs">
               <div className="photo-thumb">
-                <img src={flyer.previewUrl} alt="" />
+                <button type="button" className="flyer-thumb-btn" onClick={() => setLightbox({ src: flyer.previewUrl })}>
+                  <img className="flyer-thumb" src={flyer.previewUrl} alt={t('common.flyerAlt')} />
+                </button>
                 <button type="button" className="link" onClick={removeFlyer}>
                   <IconTrash width={14} height={14} strokeWidth={2} />
                 </button>
@@ -211,25 +223,46 @@ export default function CreateCollectionPoint() {
           </span>
           <input type="url" value={form.instagram_url} onChange={set('instagram_url')} placeholder={t('collectionPoints.instagramPlaceholder')} />
         </label>
-        <div className="gps-controls">
-          <button type="button" className="btn" onClick={useMyLocation} disabled={gpsStatus === 'locating'}>
-            {t('createNeed.useMyLocation')}
-          </button>
-          {(gpsStatus === 'error' || form.latitude) && (
-            <button type="button" className="link" onClick={clearLocation}>
-              {t('createNeed.clearGps')}
-            </button>
-          )}
-        </div>
-        {!config.is_admin && <p className="hint">{t('createNeed.gpsAlgeriaOnly')}</p>}
-        {gpsStatus === 'locating' && <p className="hint">{t('createNeed.gpsLocating')}</p>}
-        {gpsStatus === 'error' && <p className="error">{t('createNeed.gpsError')}</p>}
-        {form.latitude && !gpsStatus && <p>{t('createNeed.gpsCaptured', { lat: form.latitude, lon: form.longitude })}</p>}
         {error && <p className="error">{error}</p>}
+
+        {/* Contact/identity fields last, same convention as every other
+            form in the app (CreateNeed.jsx, TakeCharge.jsx) -- useful only
+            for managing/closing this listing later, not for finding it, so
+            it doesn't need to compete with the actually-descriptive fields
+            above for a reporter's attention. */}
+        <fieldset>
+          <legend>{t('createNeed.contactDetailsLegend')}</legend>
+          <p className="hint">{t('createNeed.contactDetailsHint')}</p>
+          <label>
+            {t('collectionPoints.contactName')} <input type="text" value={form.contact_name} onChange={set('contact_name')} />
+          </label>
+          <label>
+            {t('collectionPoints.contactPhone')} <input type="tel" value={form.contact_phone} onChange={set('contact_phone')} />
+          </label>
+          <label>
+            {t('collectionPoints.otherPhones')}
+            <textarea rows={3} value={form.other_phones} onChange={set('other_phones')} placeholder={t('collectionPoints.otherPhonesPlaceholder')} />
+          </label>
+          <label>
+            {t('createNeed.recoveryCode')}{' '}
+            <input type="text" value={form.recovery_code} onChange={set('recovery_code')} placeholder={t('createNeed.recoveryCodePlaceholder')} minLength={6} {...validityProps} />
+            <span className="hint">{t('createNeed.recoveryCodeHint')}</span>
+          </label>
+        </fieldset>
+
         <button type="submit" className="btn btn-primary">
           {t('collectionPoints.publish')}
         </button>
       </form>
+
+      {lightbox && (
+        <div className="lightbox-overlay" onClick={() => setLightbox(null)}>
+          <button type="button" className="lightbox-close" onClick={() => setLightbox(null)} aria-label={t('needDetail.closeLightbox')}>
+            ×
+          </button>
+          <img src={lightbox.src} alt={t('common.flyerAlt')} onClick={(e) => e.stopPropagation()} />
+        </div>
+      )}
     </section>
   )
 }

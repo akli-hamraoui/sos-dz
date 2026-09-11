@@ -51,6 +51,15 @@ python manage.py createsuperuser
 python manage.py runserver
 ```
 
+For the guided voice SOS flow, Whisper + the local LLM are processed outside the HTTP request by a Django management-command worker. In local development, run a second terminal:
+
+```bash
+cd backend
+python manage.py process_voice_sos
+```
+
+The worker polls pending voice SOS records, writes the complete Whisper transcript into `Need.description`, then stores the LLM-extracted fields. Pending/failed voice SOS records are excluded from public lists and map pins until processing succeeds.
+
 Open http://localhost:8000/ for the app, and http://localhost:8000/admin/ for the Django Admin dashboard (disaster types, campaigns, moderation, config toggles). A logged-in admin can switch the admin site's own interface language (French/English/Arabic, top-right dropdown) independently of the public app's language.
 
 **Always use the same hostname (`localhost`, not `127.0.0.1`) for both Django Admin and the frontend below.** Django's session cookie is host-only -- `localhost` and `127.0.0.1` never share it, even on the same machine -- so logging into `/admin/` on one and browsing the frontend on the other silently drops the admin bypass (e.g. the GeoIP write restriction below applies again as if you were logged out, or Django Admin's "View site" link opens a host the admin session doesn't reach).
@@ -91,6 +100,38 @@ cd backend
 python manage.py test core
 ```
 
+### Updating an existing checkout (pull + rebuild + restart)
+
+Whenever you've pulled new commits and want the whole local setup back up to date -- backend dependencies, migrations, and a fresh frontend build -- run this from the repo root (adjust paths if your checkout lives elsewhere):
+
+```bash
+git pull
+source backend-venv/bin/activate
+pip install -r backend/requirements.txt
+cd backend
+python manage.py migrate
+cd ../frontend
+npm install
+npm run build
+cd ..
+```
+
+Same thing as one copy-pasteable command:
+
+```bash
+git pull && source backend-venv/bin/activate && pip install -r backend/requirements.txt && (cd backend && python manage.py migrate) && (cd frontend && npm install && npm run build) && echo "Up to date -- (re)start the dev servers below."
+```
+
+Then (re)start both dev servers -- kill whatever's already running first so the new build/code is actually picked up:
+
+```bash
+pkill -f "manage.py runserver"; pkill -f "vite"
+(cd backend && source ../backend-venv/bin/activate && nohup python manage.py runserver > /tmp/sos-dz-backend.log 2>&1 &)
+(cd frontend && nohup npm run preview -- --port 4173 > /tmp/sos-dz-frontend.log 2>&1 &)
+```
+
+This restarts with the production-style build (`npm run preview`, matching the real PWA/service-worker behavior) on http://localhost:4173/, backend on http://localhost:8000/. For day-to-day development instead (hot-reload, no rebuild step needed), just run `npm run dev` in `frontend/` as shown below rather than build+preview.
+
 ## Frontend (React + Vite PWA)
 
 Requires Node.js 20+. The dev server proxies `/api` and `/media` to the Django backend, so run both at once.
@@ -125,7 +166,51 @@ Single monolithic Django project (Django + Django REST Framework), not microserv
 
 ## Deployment
 
-See [`DEPLOYMENT.md`](./DEPLOYMENT.md) for the exact IONOS VPS setup (Gunicorn + Nginx + systemd + Let's Encrypt), plus a temporary Railway/Render fallback. **Not yet actually deployed** — no live public URL exists yet; see that file for why.
+**Live at [sosdz.org](https://sosdz.org).** See [`DEPLOYMENT.md`](./DEPLOYMENT.md) for the exact first-time VPS setup (Gunicorn + Nginx + systemd + Let's Encrypt) and a temporary Railway/Render fallback.
+
+### Redeploying to the live server (SSH)
+
+The server already exists and is already set up (see `DEPLOYMENT.md` if you ever need to rebuild it from scratch) -- for a routine update after pushing to `main`, SSH in and pull + rebuild + restart everything:
+
+```bash
+ssh <your-ssh-user>@<vps-ip-or-host>
+cd /opt/sos-dz
+git pull
+source backend-venv/bin/activate
+pip install -r backend/requirements.txt
+cd backend
+python manage.py migrate
+python manage.py collectstatic --noinput
+cd ../frontend
+npm install
+npm run build
+cd ..
+# Guided voice SOS worker (one-time installation on the VPS)
+sudo cp deploy/sos-dz-voice-worker.service /etc/systemd/system/sos-dz-voice-worker.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now sos-dz-voice-worker
+
+sudo systemctl restart sos-dz-gunicorn
+```
+
+Same thing as one command once you're already SSH'd in and in `/opt/sos-dz`:
+
+```bash
+git pull && source backend-venv/bin/activate && pip install -r backend/requirements.txt && (cd backend && python manage.py migrate && python manage.py collectstatic --noinput) && (cd frontend && npm install && npm run build) && sudo systemctl restart sos-dz-gunicorn
+```
+
+`npm run build` regenerates `frontend/dist/`, which Nginx serves directly -- no restart needed for the frontend, only for Gunicorn (the Django backend). If `moderation-sidecar/package.json` changed, also run:
+
+```bash
+(cd moderation-sidecar && npm install --production) && sudo systemctl restart sos-dz-nsfwjs
+```
+
+Sanity-check after redeploying:
+
+```bash
+sudo systemctl status sos-dz-gunicorn --no-pager
+curl -sS https://sosdz.org/api/config/
+```
 
 ## Security notes
 

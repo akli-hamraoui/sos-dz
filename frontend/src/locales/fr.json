@@ -1,6 +1,8 @@
 {
   "common": {
     "brand": "SOS DZ",
+    "photoAlt": "Photo jointe",
+    "flyerAlt": "Affiche du point de collecte",
     "loading": "Chargement...",
     "save": "Enregistrer",
     "ok": "OK",
@@ -14,6 +16,7 @@
     "post": "Publier",
     "edit": "Modifier",
     "close": "Fermer",
+    "viewFlyer": "Voir le flyer",
     "open": "Ouvrir",
     "yes": "Oui",
     "no": "Non",
@@ -22,11 +25,15 @@
     "showFullNumber": "afficher le numéro complet",
     "hideNumber": "masquer le numéro",
     "noExactGpsPosition": "sans position GPS exacte",
+    "approxLocationLabel": "Pas d'adresse précise disponible",
+    "approxLocationPopup": "{{count}} points sans adresse précise ici — cliquer pour voir la liste",
     "openInMaps": "Voir sur Google Maps",
     "adminContact": "Contact admin",
-    "searchPlaceholder": "Rechercher (nom, description...)",
+    "searchPlaceholder": "association, dons, téléphone, ville, nom, etc.",
     "adminModeBadge": "Mode admin",
-    "adminLogout": "se déconnecter"
+    "adminLogout": "se déconnecter",
+    "nonOfficialFooterNote": "Site non-officiel, développé et déployé par un bénévole.",
+    "filters": "Filtres"
   },
   "validation": {
     "required": "Ce champ est obligatoire.",
@@ -38,7 +45,18 @@
   "map": {
     "gestureTouch": "Utilisez deux doigts pour déplacer la carte",
     "gestureScroll": "Utilisez Ctrl + molette pour zoomer sur la carte",
-    "gestureScrollMac": "Utilisez ⌘ + molette pour zoomer sur la carte"
+    "gestureScrollMac": "Utilisez ⌘ + molette pour zoomer sur la carte",
+    "recenterOnMe": "Centrer sur ma position",
+    "tapToInteract": "👆 Touchez pour déplacer la carte",
+    "exitMapInteraction": "✕ Quitter la carte",
+    "viewFullscreen": "Agrandir la carte",
+    "exitFullscreen": "Fermer le plein écran",
+    "locationUnavailable": "Impossible d'accéder à votre position. Vérifiez que la localisation est autorisée pour ce site dans les réglages de votre navigateur, et que le GPS/la localisation est activé(e) sur votre appareil.",
+    "youAreHere": "Vous êtes ici",
+    "routeDistance": "Itinéraire estimé : {{km}} km · {{min}} min",
+    "routeUnavailable": "Itinéraire indisponible pour l'instant (service de routage injoignable).",
+    "tooFarForRoute": "Ce point est à plus de 100 km -- trop loin pour une estimation d'itinéraire en voiture.",
+    "approxDistance": "Environ {{km}} km depuis votre position"
   },
   "readOnly": {
     "banner": "L'application est actuellement en mode lecture seule. Les données existantes restent consultables."
@@ -54,12 +72,15 @@
     "home": "Accueil",
     "needs": "Besoins",
     "collectionPoints": "Points de collecte",
-    "collectionPointsShort": "Collectes",
+    "collectionPointsLine1": "Collecte",
+    "collectionPointsLine2": "Algérie",
+    "internationalCollectionPointsLine1": "Collecte",
+    "internationalCollectionPointsLine2": "Internationale",
     "iNeedHelp": "J'ai besoin d'aide",
     "forgotDetails": "Retrouver mon annonce ou livraison",
     "support": "Aide",
     "deliveries": "Position Livreurs",
-    "deliveriesShort": "Transporteurs",
+    "deliveriesShort": "Bénévoles",
     "menu": "Menu",
     "reportBug": "Signaler un bug",
     "about": "Qui sommes-nous",
@@ -69,8 +90,24 @@
   "home": {
     "privacyNotice": "Les informations des associations, demandes d'aide et transporteurs (nom, téléphone, adresse, points de collecte) sont publiques pour permettre aux bénévoles de vous contacter.\n* Le téléphone n'est pas obligatoire.\n* Vous pouvez anonymiser vos informations à tout moment.",
     "tagline": "Coordination de l'aide suite aux feux de forêt en Algérie.",
-    "iNeedHelp": "J'ai besoin d'aide",
-    "iWantToHelp": "Je veux aider"
+    "iNeedHelp": "Lancer un SOS",
+    "iWantToHelp": "Je veux aider",
+    "collectionPointsAlgeria": "Points de collecte en Algérie",
+    "collectionPointsInternational": "Points de collecte à l'étranger",
+    "createCollectionPoint": "Créer un point de collecte",
+    "createCollectionPointAlgeria": "En Algérie",
+    "createCollectionPointInternational": "À l'international",
+    "summary": "SOSDZ coordonne l'aide d'urgence en Algérie face aux catastrophes naturelles (feux de forêt...) : signalez un besoin, aidez comme bénévole ou transporteur, ou créez un point de collecte de dons.",
+    "mission": "Solidarité · Entraide · Action",
+    "sosTitle": "Lancer un SOS",
+    "sosSubtitle": "Besoin d'aide urgente ?",
+    "sosDetail": "Signalez un besoin maintenant.",
+    "collectionPointsAlgeriaDescription": "Trouvez les points de collecte près de chez vous.",
+    "collectionPointsInternationalDescription": "Découvrez les points de collecte internationaux.",
+    "viewPoints": "Voir les points",
+    "createCollectionPointDescription": "Ajoutez un nouveau point de collecte dans votre région.",
+    "createPoint": "Créer un point",
+    "learnMore": "En savoir plus"
   },
   "status": {
     "open": "ouvert",
@@ -103,9 +140,11 @@
     "mediaSectionLegend": "Ajouter plus de détails (optionnel) : voix, vidéo ou photo",
     "mediaVoice": "Message vocal",
     "mediaVideo": "Vidéo (20s max)",
-    "startRecording": "Démarrer l'enregistrement",
+    "startRecording": "Démarrer",
     "stopRecording": "Arrêter ({{seconds}}s / 20s)",
-    "discardRerecord": "Supprimer et réenregistrer",
+    "discardRerecord": "Supprimer",
+    "listenRecording": "Écouter",
+    "watchRecording": "Voir",
     "cameraBack": "Caméra arrière",
     "cameraFront": "Caméra avant",
     "startSpeaking": "Commencer à parler",
@@ -140,6 +179,26 @@
     "clearGps": "Supprimer la position",
     "gpsPlaceSet": "Lieu rempli automatiquement à partir de votre position."
   },
+  "voiceGuide": {
+    "title": "SOS vocal guidé",
+    "step0Caption": "Vous êtes sur le point d'envoyer un SOS en urgence. Pour le français, cliquez sur « Français ».",
+    "langFr": "Français",
+    "langAr": "العربية",
+    "step1Caption": "Vous voulez lancer un SOS urgent. Donnez votre nom, votre téléphone, votre adresse ou village, et décrivez votre besoin. Cliquez sur « Enregistrer la voix » pour commencer.",
+    "startRecording": "Enregistrer la voix",
+    "recordingInProgress": "Enregistrement en cours… {{seconds}}s",
+    "finishRecording": "Terminé",
+    "step2Caption": "Autorisez-vous la localisation ? Confirmez avec le bouton « Oui » ou cliquez sur « Non ».",
+    "step3Caption": "Confirmation. Géolocalisation acceptée.",
+    "step4Caption": "Géolocalisation refusée.",
+    "step5Caption": "Appuyez sur le bouton « Valider » pour envoyer votre SOS.",
+    "validate": "Valider",
+    "submitting": "Envoi en cours…",
+    "stillWaitingHint": "Prenez votre temps, appuyez sur un bouton quand vous êtes prêt.",
+    "step6Caption": "Le SOS a été envoyé. Votre annonce sera publiée immédiatement, en urgence.",
+    "backHome": "Retour à l'accueil",
+    "viewListing": "Voir mon annonce"
+  },
   "needsList": {
     "filterByWilaya": "Filtrer par wilaya",
     "all": "Toutes",
@@ -149,7 +208,13 @@
     "pickupsCount": "{{count}} prise(s) en charge",
     "collectionPointLabel": "Point de collecte",
     "legendNote": "— les points sans GPS exact sont placés au centre approximatif de la wilaya (« sans position GPS exacte »)",
-    "addButton": "+ J'ai besoin d'aide"
+    "addButton": "+ J'ai besoin d'aide",
+    "resetFilters": "Réinitialiser les filtres",
+    "searchPlaceholder": "association, dons, téléphone, ville, nom, etc.",
+    "noLocationBubbleLabel": "Sans localisation",
+    "playAudio": "Écouter l'audio",
+    "stopAudio": "Arrêter",
+    "noGeographicPosition": "Pas de position géographique"
   },
   "help": {
     "instructions": "Veuillez choisir sur la carte un point de collecte ou un SOS à aider, ou utiliser la liste ou les filtres.",
@@ -158,10 +223,12 @@
     "nothingToShow": "Rien à afficher pour le moment."
   },
   "needDetail": {
+    "voiceTranscript": "Transcription",
     "contact": "Contact",
     "editedOn": "modifié le {{date}}",
     "manageMyNeed": "Gérer mon besoin",
     "cancelThisNeed": "Annuler ce besoin",
+    "cancelNeedConfirm": "Êtes-vous sûr de vouloir annuler ce besoin ? Cette action est définitive.",
     "addUpdateGps": "Ajouter/mettre à jour le GPS précis",
     "shareLiveTracking": "Partager le suivi en direct",
     "shareLink": "Lien de partage",
@@ -187,8 +254,6 @@
     "removedByModeration": "supprimé par la modération",
     "removed": "supprimé",
     "reportContent": "Signaler ce contenu",
-    "routeDistance": "Itinéraire estimé : {{km}} km · {{min}} min",
-    "routeUnavailable": "Itinéraire indisponible pour l'instant (service de routage injoignable).",
     "moderationBadge": {
       "systemApproved": "Validé automatiquement",
       "adminApproved": "Validé par l'admin",
@@ -213,8 +278,7 @@
     "title": "Détails de la livraison",
     "notFound": "Cette prise en charge est introuvable.",
     "addDeparture": "+ Ajouter mon lieu de départ",
-    "editDeparture": "Modifier mon lieu de départ",
-    "currentPosition": "Position actuelle"
+    "editDeparture": "Modifier mon lieu de départ"
   },
   "takeCharge": {
     "title": "Prendre en charge : {{need}}",
@@ -244,10 +308,13 @@
     "stillNotWorking": "Toujours bloqué ? Contactez le support admin",
     "forgotCode": "Code oublié ? Utiliser mon nom et téléphone",
     "useCodeInstead": "J'ai un code de récupération",
+    "haveTokenInstead": "J'ai déjà mon jeton d'accès",
     "noContextHint": "Cette page s'utilise depuis le bouton « Récupérer l'accès » sur la page d'un besoin ou d'une prise en charge précis. Si vous ne retrouvez plus ce lien, cherchez votre annonce dans la liste des besoins ci-dessous.",
     "codeLabel": "Code de récupération",
     "nameLabel": "Nom complet",
-    "phoneLabel": "Téléphone"
+    "phoneLabel": "Téléphone",
+    "tokenLabel": "Jeton d'accès",
+    "tokenHint": "Affiché une seule fois lors de la création de cette annonce. Si vous avez contacté le support admin et qu'on vous en a communiqué un, collez-le ici."
   },
   "support": {
     "title": "Retrouver mon annonce ou livraison / contacter l'admin",
@@ -263,8 +330,11 @@
   },
   "collectionPoints": {
     "title": "Points de collecte",
-    "addButton": "+ Ajouter un point de collecte",
+    "shortIntro": "Point de collecte en Algérie",
+    "addButton": "+ Ajouter un point de collecte en Algérie",
+    "searchPlaceholder": "association, dons, téléphone, ville, nom, etc.",
     "noPointsYet": "Aucun point de collecte listé pour cette wilaya pour le moment.",
+    "viewInternationalOnMap": "Voir les points internationaux",
     "hoursNotSpecified": "horaires non précisés",
     "createTitle": "Ajouter un point de collecte",
     "pointName": "Nom du point",
@@ -275,8 +345,11 @@
     "otherPhonesPlaceholder": "D'autres numéros, un par ligne",
     "organization": "Organisation (optionnel)",
     "locationDescription": "Lieu",
+    "useMyLocation": "Utiliser ma position GPS actuelle comme lieu du point de collecte",
     "hours": "Horaires",
     "hoursPlaceholder": "ex. 8h-18h tous les jours",
+    "description": "Description (optionnel)",
+    "descriptionPlaceholder": "Quelques précisions sur ce point de collecte...",
     "acceptedDonations": "Dons acceptés (optionnel)",
     "acceptedDonationsLabel": "Dons acceptés",
     "acceptedDonationsPlaceholder": "ex. couvertures, eau, vêtements chauds, conserves...",
@@ -327,7 +400,25 @@
     "submitAnother": "Envoyer un autre flyer",
     "useManualForm": "Utiliser le formulaire manuel",
     "checkStatusTitle": "Suivre un envoi précédent",
-    "checkStatusButton": "Vérifier le statut"
+    "checkStatusButton": "Vérifier le statut",
+    "navButton": "Depuis un flyer"
+  },
+  "internationalCollectionPoints": {
+    "navButton": "🌍 Collecte internationale",
+    "viewLink": "🌍 Voir les points de collecte à l'international",
+    "intro": "Points de collecte hors d'Algérie, dans le monde entier.",
+    "goToNationalLink": "Voir les points de collecte en Algérie",
+    "searchPlaceholder": "association, dons, téléphone, ville, nom, etc.",
+    "noPointsYet": "Aucun point de collecte international listé pour le moment.",
+    "locationLabel": "Localisation",
+    "locationPlaceholder": "Ville ou pays (ex : Paris, France)",
+    "resetFilters": "Réinitialiser les filtres",
+    "addButton": "+ Ajouter un point de collecte international",
+    "createTitle": "Créer un point de collecte international",
+    "country": "Pays",
+    "exactPositionRequired": "Une position exacte (via la recherche de lieu ou « Utiliser ma position ») est obligatoire pour un point international.",
+    "positionInAlgeria": "Cette position se trouve en Algérie. Merci d'utiliser la page nationale des points de collecte.",
+    "positionInAlgeriaLink": "Créer un point de collecte en Algérie"
   },
   "language": {
     "label": "Langue",
@@ -341,7 +432,7 @@
     "responder": "Livreur/livreuse",
     "since": "depuis",
     "liveMapNote": "Positions partagées volontairement par les livreurs, mises à jour automatiquement.",
-    "searchPlaceholder": "Rechercher un transporteur (nom, téléphone, email, besoin, point de collecte...)",
+    "searchPlaceholder": "association, dons, téléphone, ville, nom, etc.",
     "yours": "La vôtre",
     "deliverToNeed": "Livrer un besoin",
     "deliverToCollectionPoint": "Livrer vers un point de collecte",
@@ -357,6 +448,12 @@
     "positionWithout": "Sans position",
     "viewTransporterDetail": "Voir les détails du transporteur"
   },
+  "quickActions": {
+    "create": "Collecte",
+    "national": "+ Collecte en Algérie",
+    "international": "+ Collecte en dehors de l'Algérie",
+    "deliver": "Livrer un don"
+  },
   "reportBug": {
     "title": "Signaler un bug",
     "description": "Décrivez le problème rencontré sur le site (page, appareil, ce qui s'est passé). Laissez un téléphone ou un email si vous voulez être tenu au courant.",
@@ -370,6 +467,7 @@
     "p1": "SOS DZ est une plateforme communautaire, bénévole et open-source, créée pour coordonner l'entraide autour des feux de forêt en Algérie : signaler un besoin, proposer de l'aide, et suivre les livraisons en temps réel.",
     "p2": "Le projet n'est affilié à aucune administration ni organisation officielle -- c'est un outil citoyen, gratuit et sans publicité, pensé pour rester simple à utiliser même en connexion faible.",
     "p3": "Le code source est public ; toute personne peut vérifier son fonctionnement ou contribuer.",
+    "p4": "SOSDZ est un projet open source développé et déployé bénévolement par Akli HAMRAOUI, un bénévole algérien, pour faciliter la coordination de l'aide humanitaire en Algérie lors de catastrophes naturelles. Ce site n'est pas une plateforme officielle ou gouvernementale -- c'est une initiative citoyenne indépendante.",
     "contactLink": "Une question, une suggestion ? Contactez l'admin.",
     "whatsappHeading": "Nous contacter sur WhatsApp",
     "whatsappComingSoon": "WhatsApp : numéro à venir."
@@ -383,7 +481,8 @@
     "project": {
       "title": "Le projet",
       "p1": "SOS DZ est une application citoyenne, gratuite et open-source, créée par solidarité pour aider à coordonner l'entraide en cas de catastrophe (feux de forêt, séismes, inondations, etc.) en Algérie. Elle ne fait aucune détection de catastrophe : elle sert uniquement à coordonner l'aide humanitaire une fois une crise déclarée par les autorités compétentes.",
-      "p2": "Le projet est entièrement gratuit, sans publicité, et ne vend ni ne revend aucune donnée personnelle à des tiers."
+      "p2": "Le projet est entièrement gratuit, sans publicité, et ne vend ni ne revend aucune donnée personnelle à des tiers.",
+      "p3": "SOS DZ n'est pas une plateforme officielle ni gouvernementale : il s'agit d'une initiative citoyenne indépendante, développée et déployée par un bénévole."
     },
     "openSource": {
       "title": "Code source",
@@ -412,6 +511,7 @@
       "article5Body": "Le Site est conçu pour limiter au strict minimum la collecte de données personnelles (pas de compte utilisateur, anonymisation des informations sensibles). Le détail exact du traitement des données est visible dans le code source, public.",
       "article6Title": "Article 6 — Sécurité et vulnérabilités",
       "article6Body": "Les dépendances logicielles du Site sont analysées régulièrement à la recherche de vulnérabilités connues (notamment via Snyk), et corrigées dès qu'un correctif existe.",
+      "article6Https": "Toutes les communications entre votre navigateur et le Site sont chiffrées en HTTPS (protocole TLS). Le certificat est émis par Let's Encrypt, une autorité de certification gratuite et à but non lucratif gérée par l'Internet Security Research Group (ISRG), et renouvelé automatiquement tous les 90 jours.",
       "article6LinkLabel": "Statut de sécurité du dépôt (Snyk) :",
       "article7Title": "Article 7 — Modification des CGU",
       "article7Body": "Ces CGU peuvent être modifiées à tout moment, notamment pour suivre l'évolution du projet."
@@ -441,10 +541,13 @@
     "commentTargetInvalid": "Erreur technique : la cible du commentaire est invalide.",
     "commentReplyTooDeep": "Impossible de répondre à une réponse (un seul niveau de réponses est autorisé).",
     "coordinatesOutsideAlgeria": "Ces coordonnées sont en dehors de l'Algérie et ont été refusées. Utilisez les champs wilaya + description à la place.",
+    "internationalPositionRequired": "Une position exacte (via la recherche de lieu ou « Utiliser ma position ») est obligatoire pour un point de collecte international.",
+    "internationalNoDeliveries": "Les points de collecte internationaux n'acceptent pas de livraisons ni de transporteurs.",
     "recoveryCodeTooShort": "Le code de récupération doit contenir au moins 6 caractères.",
     "recoveryCodeTaken": "Ce code de récupération est déjà utilisé. Choisissez-en un autre.",
     "readOnlyMode": "L'application est actuellement en lecture seule. Les données existantes restent consultables.",
     "geoRestricted": "Seules les personnes en Algérie peuvent créer ou modifier des annonces — vous pouvez tout de même tout consulter.",
+    "voiceGuideAlgeriaOnly": "Cette fonctionnalité est disponible uniquement depuis l'Algérie.",
     "captchaRequired": "Merci de valider le contrôle anti-spam avant d'envoyer.",
     "captchaFailed": "Le contrôle anti-spam a échoué, veuillez réessayer.",
     "captchaUnavailable": "Impossible de vérifier le contrôle anti-spam pour le moment, veuillez réessayer.",
@@ -458,7 +561,7 @@
     "pickupAnonymizeConfirm": "Cette prise en charge est toujours active. Vos coordonnées seront supprimées, les autres ne pourront plus vous contacter à ce sujet. Confirmez pour continuer.",
     "notAuthorizedPickupUpdates": "Non autorisé : seul le bénévole propriétaire de cette prise en charge peut publier des mises à jour.",
     "notAuthorizedPickupPosition": "Non autorisé : seul le bénévole propriétaire de cette prise en charge peut envoyer sa position.",
-    "nameDontMatchCollectionPoint": "Le nom/téléphone ne correspond pas au contact de ce point de collecte.",
+    "notAuthorizedCollectionPoint": "Non autorisé : ce jeton d'accès ne correspond pas à ce point de collecte (ou indiquez le nom/téléphone/code de récupération correspondant).",
     "notAuthorizedDeleteComment": "Non autorisé à supprimer ce commentaire.",
     "videoDurationUnverifiable": "La durée de la vidéo n'a pas pu être vérifiée côté serveur, elle ne peut donc pas être acceptée. Réessayez, ou contactez le support si cela persiste.",
     "tooManyPhotos": "Maximum 3 photos autorisées.",
@@ -470,5 +573,129 @@
     "payloadTooLarge": "Le fichier envoyé est trop volumineux. Réduisez sa taille et réessayez.",
     "invalidSocialUrlField": "Merci d'indiquer un lien {{network}} valide, commençant par http:// ou https://",
     "genericFieldError": "Merci de vérifier les champs du formulaire et réessayer."
+  },
+  "seo": {
+    "keywords": "aide urgence Algérie, catastrophe naturelle, incendie Kabylie, bénévolat Algérie, point de collecte, solidarité Algérie",
+    "default": {
+      "title": "SOSDZ — Coordination de l'aide d'urgence en Algérie",
+      "description": "SOSDZ coordonne l'aide d'urgence en Algérie : signalez un besoin, proposez votre aide ou trouvez un point de collecte de dons près de chez vous."
+    },
+    "home": {
+      "title": "SOSDZ — Coordination de l'aide d'urgence en Algérie",
+      "description": "SOSDZ coordonne l'aide d'urgence en Algérie : signalez un besoin, proposez votre aide ou trouvez un point de collecte près de chez vous, partout au pays."
+    },
+    "needsList": {
+      "title": "Besoins signalés — SOSDZ",
+      "description": "Consultez les besoins d'urgence signalés en Algérie (nourriture, eau, abri, soins) et proposez votre aide directement depuis la carte ou la liste."
+    },
+    "help": {
+      "title": "Je veux aider — SOSDZ",
+      "description": "Devenez bénévole ou transporteur pour SOSDZ : aidez à répondre aux besoins urgents signalés en Algérie, livrez des dons ou proposez votre soutien."
+    },
+    "collectionPoints": {
+      "title": "Points de collecte en Algérie — SOSDZ",
+      "description": "Trouvez un point de collecte de dons près de chez vous en Algérie : dons acceptés, horaires d'ouverture, contact et localisation sur une carte interactive."
+    },
+    "internationalCollectionPoints": {
+      "title": "Points de collecte internationaux — SOSDZ",
+      "description": "Points de collecte de dons pour l'Algérie situés à l'étranger : associations, horaires, dons acceptés et localisation partout dans le monde."
+    },
+    "deliveries": {
+      "title": "Transporteurs bénévoles — SOSDZ",
+      "description": "Suivez en direct les transporteurs bénévoles qui livrent les dons collectés aux points de collecte et aux personnes dans le besoin partout en Algérie."
+    },
+    "about": {
+      "title": "Qui sommes-nous — SOSDZ",
+      "description": "Découvrez SOSDZ, la plateforme citoyenne de coordination de l'aide d'urgence en Algérie : notre mission, notre fonctionnement et notre équipe."
+    },
+    "legal": {
+      "title": "Mentions légales — SOSDZ",
+      "description": "Mentions légales, protection des données et conditions d'utilisation de la plateforme SOSDZ de coordination de l'aide d'urgence en Algérie."
+    }
+  },
+  "urgentSos": {
+    "title": "SOS urgent vocal",
+    "kicker": "SOS vocal urgent",
+    "subtitle": "Un parcours simple pour signaler rapidement une situation urgente.",
+    "back": "Retour",
+    "progressLabel": "Progression du SOS",
+    "stepIntro": "Préparer",
+    "stepRecord": "Parler",
+    "stepPreview": "Écouter",
+    "stepLocation": "Localiser",
+    "stepReview": "Valider",
+    "introTitle": "Nous allons vous aider",
+    "introText": "Écoutez l'instruction si vous le souhaitez, puis utilisez les boutons. La validation finale se fait uniquement par un appui sur le bouton.",
+    "playAudio": "Écouter l'instruction",
+    "pauseAudio": "Mettre en pause",
+    "audioUnavailable": "Audio indisponible : le texte reste disponible.",
+    "continue": "Continuer",
+    "previous": "Précédent",
+    "wilayaOptional": "Wilaya (facultatif)",
+    "wilayaPlaceholder": "Choisir une wilaya si vous le souhaitez",
+    "wilayaSearchPlaceholder": "Rechercher une wilaya (ex. Tizi)",
+    "wilayaHelp": "Seules les wilayas concernées par le SOS en cours sont proposées.",
+    "step": "Étape {{current}} sur {{total}}",
+    "recordTitle": "Enregistrez votre SOS",
+    "recordText": "Parlez naturellement. Dites tout ce qui peut aider : qui vous êtes, ce dont vous avez besoin, où vous êtes et pourquoi c'est urgent.",
+    "ready": "Prêt à enregistrer",
+    "start": "Démarrer l'enregistrement",
+    "countdownSpeak": "L’enregistrement va démarrer dans",
+    "cancelCountdown": "Annuler",    "stop": "Arrêter l'enregistrement",
+    "recording": "Enregistrement en cours",
+    "previewTitle": "Écoutez votre message",
+    "previewText": "Vérifiez l'enregistrement avant de continuer. Vous pouvez le refaire autant de fois que nécessaire.",
+    "rerecord": "Recommencer",
+    "locationTitle": "Ajouter votre localisation",
+    "locationText": "Votre position peut aider les secours et apparaîtra sur la carte. Vous pouvez continuer sans la partager.",
+    "noLocation": "Continuer sans localisation",
+    "useLocation": "Utiliser ma position",
+    "locating": "Localisation…",
+    "locationDetected": "Position détectée et prête à être envoyée.",
+    "locationOutsideAlgeria": "Votre position est hors d’Algérie. Elle ne sera pas publiée sur ce SOS.",
+    "locationDenied": "L’accès à la localisation a été refusé. Autorisez la localisation pour ce site puis réessayez.",
+    "locationUnavailable": "La position n’est pas disponible. Vérifiez le GPS et la localisation du téléphone.",
+    "locationTimeout": "La localisation prend trop de temps. Réessayez ou continuez sans localisation.",
+    "locationUnsupported": "Ce navigateur ne permet pas d’utiliser la localisation.",
+    "locationError": "Impossible d’obtenir votre position. Réessayez ou continuez sans localisation.",
+    "locationNoGpsTitle": "Pas de géolocalisation possible",
+    "locationSelectWilaya": "Veuillez sélectionner la wilaya si vous souhaitez indiquer une zone. Cette sélection reste facultative.",
+    "analyzingTitle": "Analyse de votre SOS",
+    "analyzingText": "Nous transcrivons votre message et recherchons les informations utiles. Cela peut prendre quelques secondes.",
+    "analysisPartial": "La transcription est disponible, mais l’analyse automatique n’a pas pu extraire tous les champs. Vous pouvez corriger les informations avant de confirmer.",
+    "reviewTitle": "Vérifiez votre SOS",
+    "reviewText": "Nous avons extrait les informations que nous avons pu trouver. Corrigez-les si nécessaire avant de confirmer.",
+    "showTranscript": "Afficher la transcription",
+    "name": "Nom",
+    "phone": "Téléphone",
+    "need": "Besoin",
+    "location": "Localisation",
+    "description": "Description",
+    "restart": "Recommencer l'enregistrement",
+    "confirm": "Confirmer le SOS",
+    "sending": "Envoi…",
+    "doneTitle": "SOS urgent créé",
+    "doneText": "Votre SOS est enregistré. Copiez et conservez votre token avant de quitter cette page.",
+    "processingText": "Votre message vocal est en cours de transcription et d'analyse. Il sera publié sur la carte une fois le traitement terminé.",
+    "finalPasswordWarning": "Écoutez les instructions finales, puis copiez votre token avant de quitter cette page.",
+    "tokenMissing": "Le serveur n’a pas renvoyé le token d’accès. Le SOS n’est pas considéré comme terminé. Réessayez.",
+    "tokenTitle": "Token à copier",
+    "tokenWarning": "Copiez et conservez ce token : il permet de retrouver et gérer votre SOS plus tard.",
+    "copyToken": "Copier",
+    "tokenSaved": "Le token d’accès a été enregistré sur cet appareil.",
+    "accessTokenTitle": "Token d’accès",
+    "accessTokenWarning": "Conservez également ce token : il permet à cet appareil d’accéder à votre SOS.",
+    "copyAccessToken": "Copier le token",
+    "accessTokenCopied": "Token copié",
+    "tokenCopied": "Copié",
+    "copyTokenFailed": "Impossible de copier automatiquement. Sélectionnez et copiez le mot de passe." ,
+    "viewNeed": "Voir le SOS",
+    "backHome": "Retour à l'accueil",
+    "microphoneUnsupported": "Votre navigateur ne permet pas l'enregistrement audio.",
+    "microphoneDenied": "L'accès au microphone a été refusé. Autorisez le microphone puis réessayez.",
+    "microphoneUnavailable": "Le microphone est indisponible. Vérifiez les réglages de votre téléphone.",
+    "recordingError": "L'enregistrement a rencontré un problème. Réessayez.",
+    "emptyAudio": "Aucun son n'a été enregistré. Réessayez.",
+    "campaignUnavailable": "Le SOS ne peut pas être envoyé pour le moment. Réessayez plus tard."
   }
 }

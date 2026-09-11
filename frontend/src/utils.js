@@ -1,3 +1,5 @@
+import { COUNTRY_MAINLAND_BOUNDS } from './countries'
+
 // Builds a wa.me link from a phone number as an admin would naturally type
 // it (local Algerian format, e.g. "0555 12 34 56") -- wa.me needs bare
 // digits in international format with no leading 0, so a local-format
@@ -10,11 +12,19 @@ export function whatsappLink(phone) {
   return `https://wa.me/${intl}`
 }
 
-// Google's documented "always works" link format -- opens the Google Maps
-// app if installed (iOS/Android), else the web version. No API key needed
-// since this is a plain search deep-link, not the JS/embed API.
-export function googleMapsUrl(lat, lon) {
-  return `https://www.google.com/maps/search/?api=1&query=${lat},${lon}`
+// Google's documented "always works" directions deep-link -- opens the
+// Google Maps app if installed (iOS/Android), else the web version, and
+// straight into turn-by-turn navigation instead of just a pin. No API key
+// needed since this is a plain deep-link, not the JS/embed API. `origin`
+// is set to the visitor's own captured position (see getCurrentPosition
+// below) so Maps doesn't have to re-resolve "your location" itself once
+// it opens (that's the "Votre position" field not finding a GPS fix that
+// a bare destination-only link leaves to chance) -- omitted entirely when
+// the visitor's position couldn't be captured (denied/unavailable/timed
+// out), in which case Maps just falls back to asking for it itself.
+export function googleMapsDirectionsUrl(destLat, destLon, origin) {
+  const originParam = origin ? `&origin=${origin[0]},${origin[1]}` : ''
+  return `https://www.google.com/maps/dir/?api=1${originParam}&destination=${destLat},${destLon}&travelmode=driving`
 }
 
 // Bottom-nav notification badge text: exact under 100, rounded down to the
@@ -52,6 +62,56 @@ export function formatDate(iso, locale) {
   )
 }
 
+// "Center on my location" map buttons frame a fixed 100km radius around the
+// visitor. Leaflet's LatLng.toBounds(sizeInMeters) places each edge
+// sizeInMeters/2 away from the point, so 200000 here means 100km in every
+// direction: L.latLng(lat, lon).toBounds(RECENTER_BOX_METERS).
+export const RECENTER_BOX_METERS = 200000
+
+// Promise-wrapped geolocation lookup shared by every "recenter on my
+// position" map button (and the Maps-directions buttons on the detail
+// pages). `getCurrentPosition`'s own `timeout` option isn't honored by
+// every browser (confirmed in NeedsList.jsx/Help.jsx's smartZoom, where
+// neither callback ever fired) -- the manual setTimeout race below
+// guarantees this always resolves regardless. Both were originally a
+// tight ~3.5s, which reliably lost the race against the OS's own
+// location-permission prompt: a fresh "Allow this site to use your
+// location?" dialog routinely takes a visitor longer than that just to
+// notice and tap, so the very first tap on a permission-cold page gave up
+// and silently resolved null before they'd even answered the prompt --
+// reported as "recenter on me"/directions doing nothing on a first try,
+// then working on a second one (permission already granted by then).
+// 8s/10s matches the timeout already used for a comparable one-off
+// geolocation call elsewhere (Deliveries.jsx's drawRouteToPoint). Resolves
+// to null (never rejects) on denial/unavailability/timeout so callers can
+// stay best-effort/silent, matching the rest of the app's geolocation UX.
+export function getCurrentPosition(options = {}) {
+  return new Promise((resolve) => {
+    if (!navigator.geolocation) {
+      resolve(null)
+      return
+    }
+    const timeout = options.timeout ?? 8000
+    const positionOptions = {
+      enableHighAccuracy: options.enableHighAccuracy ?? false,
+      maximumAge: options.maximumAge ?? 0,
+      timeout,
+    }
+    let settled = false
+    const settle = (value) => {
+      if (settled) return
+      settled = true
+      resolve(value)
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => settle([pos.coords.latitude, pos.coords.longitude]),
+      () => settle(null),
+      positionOptions
+    )
+    setTimeout(() => settle(null), Math.max(timeout + 1000, 10000))
+  })
+}
+
 export function haversineKm([lat1, lon1], [lat2, lon2]) {
   const R = 6371
   const dLat = ((lat2 - lat1) * Math.PI) / 180
@@ -83,16 +143,78 @@ export function isInAlgeria(lat, lon) {
 
 const NOMINATIM_BASE = 'https://nominatim.openstreetmap.org'
 
-// Free-text place search via Nominatim (OpenStreetMap), restricted to
-// Algeria. Best-effort only: any network/CORS failure just means no
-// suggestions show up -- the caller always keeps whatever the visitor
-// actually typed regardless (see components/PlaceAutocomplete.jsx), so a
-// place that isn't in OSM's data never blocks a report from going through.
-export async function searchPlaces(query, lang, signal) {
-  const url = `${NOMINATIM_BASE}/search?format=json&countrycodes=dz&addressdetails=0&limit=6&accept-language=${lang}&q=${encodeURIComponent(query)}`
+// Free-text place search via Nominatim (OpenStreetMap). Restricted to
+// Algeria by default (countryCode omitted) for every national form; pass an
+// ISO 3166-1 alpha-2 code to restrict to a different single country instead
+// (InternationalCollectionPoints.jsx's country filter), or the literal
+// string 'any' for a worldwide search with no restriction at all (that
+// page's own "go to a place/street" search, so typing "Paris" or a street
+// address works before a country is even picked). Best-effort only: any
+// network/CORS failure just means no suggestions show up -- the caller
+// always keeps whatever the visitor actually typed regardless (see
+// components/PlaceAutocomplete.jsx), so a place that isn't in OSM's data
+// never blocks a report from going through.
+//
+// `excludeCountryCode` drops any result actually located in that country
+// from the returned list -- used by the international collection points
+// pages (worldwide search) to keep Algeria out of it entirely, since an
+// international point is by definition never there (same rule the
+// backend already enforces on submit). Nominatim's own `countrycodes`
+// filter only supports an allow-list, not an exclude-list, so this asks
+// for `addressdetails` and filters client-side instead.
+export async function searchPlaces(query, lang, signal, countryCode = 'dz', excludeCountryCode = null) {
+  const countryParam = countryCode === 'any' ? '' : `&countrycodes=${countryCode.toLowerCase()}`
+  const addressParam = excludeCountryCode ? '&addressdetails=1' : '&addressdetails=0'
+  const url = `${NOMINATIM_BASE}/search?format=json${addressParam}&limit=6&accept-language=${lang}${countryParam}&q=${encodeURIComponent(query)}`
   const resp = await fetch(url, { signal })
   if (!resp.ok) throw new Error('Place search failed')
-  return resp.json()
+  const results = await resp.json()
+  if (!excludeCountryCode) return results
+  return results.filter((r) => r.address?.country_code?.toLowerCase() !== excludeCountryCode.toLowerCase())
+}
+
+// Geocodes a whole country (by its ISO code) to a bounding box, so
+// InternationalCollectionPoints.jsx can zoom its map to roughly the right
+// place as soon as a country is picked from the filter, before any
+// individual collection point or street search narrows it further.
+// Best-effort: the caller falls back to a world view on any failure.
+export async function geocodeCountryBounds(countryCode, lang) {
+  // A handful of countries' real OSM boundary bundles in overseas
+  // territories thousands of km from the mainland (see
+  // COUNTRY_MAINLAND_BOUNDS in countries.js) -- Nominatim's own bounding
+  // box for those is technically correct but so wide it zooms out to
+  // nearly the whole planet, which just looks broken. Skip the network
+  // round trip entirely for those and use the curated extent instead.
+  if (COUNTRY_MAINLAND_BOUNDS[countryCode]) {
+    return COUNTRY_MAINLAND_BOUNDS[countryCode]
+  }
+  // Uses Nominatim's structured-query `country=` field -- the field it
+  // documents specifically for "look up a country by name" -- rather
+  // than the free-text `q` search: `q` needs an actual place name (the
+  // bare ISO code, e.g. "FR", matched nothing) and even combined with
+  // the country's own localized name, mixing free-text with
+  // featureType/countrycodes was unreliable in practice. `countrycodes`
+  // is still added as a belt-and-suspenders filter in case a country's
+  // English name collides with something else.
+  let name = countryCode
+  try {
+    // English, not the visitor's own language: Nominatim's structured
+    // `country=` field matches best against a place's indexed name, and
+    // OSM indexes country boundaries primarily by their English name
+    // regardless of the `accept-language` used for display.
+    const displayNames = new Intl.DisplayNames(['en'], { type: 'region' })
+    name = displayNames.of(countryCode) || countryCode
+  } catch {
+    // Unsupported locale/browser -- fall back to searching the raw code.
+  }
+  const url = `${NOMINATIM_BASE}/search?format=json&addressdetails=0&limit=1&accept-language=${lang}&countrycodes=${countryCode.toLowerCase()}&country=${encodeURIComponent(name)}`
+  const resp = await fetch(url)
+  if (!resp.ok) throw new Error('Country geocode failed')
+  const data = await resp.json()
+  const hit = data[0]
+  if (!hit || !hit.boundingbox) return null
+  const [south, north, west, east] = hit.boundingbox.map(Number)
+  return { south, north, west, east }
 }
 
 // Reverse-geocodes a GPS position into a human-readable place name --
