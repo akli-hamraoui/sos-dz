@@ -6,7 +6,7 @@ import { useApp } from '../context/AppContext'
 import { useDialog } from '../context/DialogContext'
 import { api } from '../api'
 import { urgencyColor, haversineKm, isInAlgeria, getCurrentPosition, RECENTER_BOX_METERS } from '../utils'
-import { flyerPopupButtonHtml, attachMapPopupBehavior, attachMapTapToActivate, spreadNeedMarkers } from '../mapMarkers'
+import { needIcon, flyerPopupButtonHtml, attachMapPopupBehavior, attachMapTapToActivate, spreadNeedMarkers } from '../mapMarkers'
 import PhotoThumb from '../components/PhotoThumb'
 import PhotoLightbox from '../components/PhotoLightbox'
 import { IconLocate, IconExpand, IconClose } from '../icons'
@@ -289,12 +289,7 @@ export default function NeedsList() {
         const unlocated = needsWithPos.filter((p) => p.has_no_location)
 
         located.forEach((p) => {
-          const icon = L.divIcon({
-            className: 'need-marker-icon',
-            html: `<span class="need-marker-pin" style="background:${urgencyColor(p.urgency)}">${NEED_SOS_ICON}</span>`,
-            iconSize: [30, 30],
-            iconAnchor: [15, 15],
-          })
+          const icon = needIcon(L, urgencyColor, p.urgency)
           const marker = L.marker([p.display_latitude, p.display_longitude], { icon }).addTo(map)
           // Several needs with no exact GPS commonly fall back to the same
           // wilaya centroid (see NeedCreateSerializer/process_voice_need)
