@@ -30,35 +30,175 @@ const TRUCK_SVG =
 
 export const TRUCK_GREEN = '#2f6b52'
 
-// Same truck-on-white-circle marker used on the Transporteurs map
-// (Deliveries.jsx) and the per-need live map (NeedDetail.jsx) -- factored
-// out here for PickupDetail's single-position map so a third inline copy
-// of this SVG isn't needed. isLive=false gets the muted/dashed
-// pickup-marker-pin-departure styling (see index.css) so a declared
-// pickup location doesn't visually imply that a transport is currently
-// active.
-export function truckIcon(L, color = TRUCK_GREEN, isLive = true) {
-  const svg = TRUCK_SVG.replace('{color}', color)
+export function truckIcon(L, isLive) {
   return L.divIcon({
-    className: 'truck-marker-icon',
-    html: `<span class="truck-marker-pin${isLive ? '' : ' truck-marker-pin-departure'}">${svg}</span>`,
-    iconSize: [34, 34],
-    iconAnchor: [17, 17],
+    className: `pickup-marker-icon${isLive ? '' : ' pickup-marker-departure'}`,
+    html: `<span class="pickup-marker-pin${isLive ? '' : ' pickup-marker-pin-departure'}">${TRUCK_SVG.replace('{color}', TRUCK_GREEN)}</span>`,
+    iconSize: [30, 30],
+    iconAnchor: [15, 15],
   })
 }
 
-export function flyerPopupButtonHtml(id) {
-  return `<button type="button" class="flyer-popup-btn" data-flyer-id="${id}">Voir le besoin</button>`
-}
-
-export function attachMapPopupBehavior(map, navigate) {
-  map.on('popupopen', (e) => {
-    const btn = e.popup.getElement()?.querySelector('.flyer-popup-btn')
-    if (!btn) return
-    btn.addEventListener('click', () => navigate(`/needs/${btn.dataset.flyerId}`))
+export function collectionPointIcon(L) {
+  return L.divIcon({
+    className: 'cp-marker-icon',
+    html: `<span class="cp-marker-pin">${CP_BOX_SVG}</span>`,
+    iconSize: [40, 40],
+    iconAnchor: [20, 20],
   })
 }
 
-export function attachMapTapToActivate(map, setMapActive) {
-  map.on('click', () => setMapActive(true))
+export function spreadCollectionPointMarkers(map, markers, minDistance = 46) {
+  if (!map || !Array.isArray(markers)) return
+  map._sosdzCollectionMarkers = markers
+  if (!map._sosdzCollectionSpreadZoomWired) {
+    map._sosdzCollectionSpreadZoomWired = true
+    map.on('zoomend', () => spreadCollectionPointMarkers(map, map._sosdzCollectionMarkers || [], minDistance))
+  }
+  const cpMarkers = markers.filter((marker) => marker?._sosdzCollectionPoint && marker._icon)
+  if (!cpMarkers.length) return
+  const positions = cpMarkers.map((marker) => map.latLngToContainerPoint(marker.getLatLng()))
+  const offsets = cpMarkers.map(() => ({ x: 0, y: 0 }))
+  for (let pass = 0; pass < 5; pass += 1) {
+    for (let i = 0; i < positions.length; i += 1) {
+      for (let j = i + 1; j < positions.length; j += 1) {
+        const ax = positions[i].x + offsets[i].x
+        const ay = positions[i].y + offsets[i].y
+        const bx = positions[j].x + offsets[j].x
+        const by = positions[j].y + offsets[j].y
+        const dx = bx - ax
+        const dy = by - ay
+        const distance = Math.hypot(dx, dy)
+        if (distance >= minDistance) continue
+        const safeDistance = distance || 1
+        const push = (minDistance - safeDistance) / 2 + 1
+        const ux = dx / safeDistance
+        const uy = dy / safeDistance
+        offsets[i].x -= ux * push
+        offsets[i].y -= uy * push
+        offsets[j].x += ux * push
+        offsets[j].y += uy * push
+      }
+    }
+  }
+  cpMarkers.forEach((marker, index) => {
+    const pin = marker._icon?.querySelector('.cp-marker-pin')
+    if (!pin) return
+    const x = Math.max(-24, Math.min(24, offsets[index].x))
+    const y = Math.max(-24, Math.min(24, offsets[index].y))
+    pin.style.transform = `translate3d(${x}px, ${y}px, 0)`
+  })
+}
+
+export function countryFlagEmoji(countryCode) {
+  const code = (countryCode || 'DZ').toUpperCase()
+  if (!/^[A-Z]{2}$/.test(code)) return ''
+  return String.fromCodePoint(...[...code].map((c) => 127397 + c.charCodeAt(0)))
+}
+
+export function formatApproxKm(km) {
+  if (km >= 1000) return `~${Math.round(km / 1000)}k`
+  return km.toFixed(1)
+}
+
+const FLYER_ICON_SVG =
+  '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ' +
+  'stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><rect x="3" y="3" width="18" height="18" rx="2.5"/>' +
+  '<circle cx="9" cy="9" r="1.8"/><path d="m21 15-4.5-4.5a2 2 0 0 0-2.8 0L6 18"/></svg>'
+
+export function flyerPopupButtonHtml(t, photoUrl) {
+  if (!photoUrl) return ''
+  return `<button type="button" class="popup-photo-btn" data-photo-url="${photoUrl}">${FLYER_ICON_SVG} ${t('common.viewFlyer')}</button>`
+}
+
+export function attachMapTapToActivate(map, onActivate) {
+  if (!map || map._sosdzTapActivationWired) return
+  map._sosdzTapActivationWired = true
+  map.on('click', (event) => {
+    const target = event?.originalEvent?.target
+    if (target?.closest?.('.leaflet-marker-icon, .leaflet-popup, .leaflet-control, button, a')) return
+    onActivate?.()
+  })
+}
+
+export function attachMapPopupBehavior(map, onPhoto, onActivate) {
+  if (!map) return
+  let openPopup = null
+  const centerPopupOnScreen = (popup) => {
+    const center = () => {
+      if (!map._container?.isConnected || !popup?.isOpen?.()) return
+      const mapEl = map.getContainer()
+      const popupEl = popup.getElement()
+      if (!mapEl || !popupEl) return
+      const mapRect = mapEl.getBoundingClientRect()
+      const popupRect = popupEl.getBoundingClientRect()
+      if (!mapRect.width || !mapRect.height || !popupRect.width || !popupRect.height) return
+      const frame = mapEl.closest('.map-frame')
+      const topControls = frame?.querySelectorAll('.map-activate-hint, .map-deactivate-btn, .expand-btn, .locate-btn') || []
+      let topReserve = 0
+      topControls.forEach((control) => {
+        const rect = control.getBoundingClientRect()
+        const overlapsMap = rect.bottom > mapRect.top && rect.top < mapRect.bottom
+        if (overlapsMap) topReserve = Math.max(topReserve, Math.min(76, rect.bottom - mapRect.top + 8))
+      })
+      const padding = Math.min(10, Math.max(6, mapRect.width * 0.02))
+      const targetCenterX = mapRect.left + mapRect.width / 2
+      const targetCenterY = mapRect.top + topReserve + (mapRect.height - topReserve) / 2
+      const minCenterX = mapRect.left + padding + popupRect.width / 2
+      const maxCenterX = mapRect.right - padding - popupRect.width / 2
+      const minCenterY = mapRect.top + padding + topReserve + popupRect.height / 2
+      const maxCenterY = mapRect.bottom - padding - popupRect.height / 2
+      const desiredCenterX = Math.min(Math.max(targetCenterX, minCenterX), maxCenterX)
+      const desiredCenterY = Math.min(Math.max(targetCenterY, minCenterY), maxCenterY)
+      const popupCenterX = popupRect.left + popupRect.width / 2
+      const popupCenterY = popupRect.top + popupRect.height / 2
+      const dx = popupCenterX - desiredCenterX
+      const dy = popupCenterY - desiredCenterY
+      if (Math.abs(dx) > 1 || Math.abs(dy) > 1) map.panBy([dx, dy], { animate: false })
+    }
+    requestAnimationFrame(() => requestAnimationFrame(center))
+  }
+  map._sosdzCenterOpenPopup = () => { if (openPopup) centerPopupOnScreen(openPopup) }
+  const onOpen = (e) => {
+    const popup = e.popup
+    const popupEl = popup.getElement()
+    openPopup = popup
+    onActivate?.()
+    if (popupEl) {
+      L.DomEvent.off(popupEl, 'mousedown touchstart')
+      popupEl.querySelectorAll('a, button, .leaflet-popup-close-button').forEach((control) => {
+        if (control.dataset.mapDragGuard) return
+        control.dataset.mapDragGuard = '1'
+        const stop = (event) => event.stopPropagation()
+        control.addEventListener('mousedown', stop)
+        control.addEventListener('touchstart', stop, { passive: true })
+      })
+    }
+    const btn = popupEl?.querySelector('.popup-photo-btn')
+    if (btn && onPhoto) btn.onclick = () => onPhoto(btn.dataset.photoUrl)
+    centerPopupOnScreen(popup)
+  }
+  const onClose = (e) => {
+    if (e.popup === openPopup) openPopup = null
+    if (e.popup) delete e.popup._sosdzRecenter
+  }
+  map.on('popupopen', onOpen)
+  map.on('popupclose', onClose)
+}
+
+export function needPopupHtml(t, p, statusLabel) {
+  const gpsNote = p.has_exact_position ? '' : `<br><em>${t('common.noExactGpsPosition')}</em>`
+  const urgencyPrefix = p.urgency !== 'medium' ? `${t(`urgency.${p.urgency}`)} — ` : ''
+  return (
+    `<strong>${p.title}</strong><br>${urgencyPrefix}${p.wilaya_name}<br>${(p.location_description || '').slice(0, 80)}` +
+    `<br>${statusLabel(t, p.overall_status)}${gpsNote}<br><a href="/needs/${p.id}">${t('common.open')}</a>`
+  )
+}
+
+export function collectionPointPopupHtml(t, p) {
+  const gpsNote = p.has_exact_position ? '' : `<br><em>${t('common.noExactGpsPosition')}</em>`
+  return (
+    `<strong>${p.point_name} ${countryFlagEmoji(p.country_code)}</strong><br>${p.contact_name}${p.organization ? '<br>' + p.organization : ''}` +
+    `${p.hours ? '<br>' + p.hours : ''}<br>${p.wilaya_name}${gpsNote}<br><a href="/collection-points/${p.id}">${t('common.open')}</a>`
+  )
 }
