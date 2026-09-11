@@ -61,18 +61,21 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-// Free client-side reverse geocoding: the GPS coordinates are obtained from
-// the user's browser and are sent directly to BigDataCloud. No API key is
-// required for this client-side endpoint. We use it only for the urgent SOS
-// flow, and never send an IP address or stored coordinates to the service.
-// See: https://www.bigdatacloud.com/docs/article/why-is-reverse-geocoding-api-free
+// Free client-side reverse geocoding is used ONLY when the browser could not
+// provide GPS coordinates. BigDataCloud supports calling the client endpoint
+// without latitude/longitude and then performs a best-effort IP geolocation.
+// This request stays in the browser and requires no API key.
+// If GPS coordinates are available, we do not call BigDataCloud at all: the
+// backend validates those coordinates directly against Algeria's bounds.
 async function verifyUrgentSOSLocation(formData) {
   if (!formData || typeof formData.get !== 'function') return
   const latitude = Number(formData.get('latitude'))
   const longitude = Number(formData.get('longitude'))
-  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return
 
-  const endpoint = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${encodeURIComponent(latitude)}&longitude=${encodeURIComponent(longitude)}&localityLanguage=fr`
+  // GPS is available: deliberately skip BigDataCloud.
+  if (Number.isFinite(latitude) && Number.isFinite(longitude)) return
+
+  const endpoint = 'https://api.bigdatacloud.net/data/reverse-geocode-client?localityLanguage=fr'
   let lastError = null
 
   for (let attempt = 0; attempt <= BIGDATACLOUD_MAX_RETRIES; attempt += 1) {
@@ -84,26 +87,27 @@ async function verifyUrgentSOSLocation(formData) {
       const countryCode = String(data?.countryCode || '').toUpperCase()
       if (!countryCode) throw new Error('BigDataCloud returned no countryCode')
       if (countryCode !== 'DZ') {
-        const error = new Error('La géolocalisation indique que la position est hors d’Algérie.')
+        const error = new Error('This feature is only available from Algeria.')
         error.status = 403
         error.data = { detail: error.message, countryCode }
         throw error
       }
+      // Keep the assertion in the multipart payload for diagnostics. The
+      // server does NOT trust this client-provided value for authorization.
       formData.set('location_country_code', 'DZ')
-      console.info('[SOS] BigDataCloud a confirmé la position en Algérie.')
+      console.info('[SOS] BigDataCloud a estimé la connexion en Algérie (GPS non disponible).')
       return
     } catch (error) {
       lastError = error
       if (error?.status === 403) throw error
-      console.warn(`[SOS] Échec BigDataCloud (tentative ${attempt + 1}/${BIGDATACLOUD_MAX_RETRIES + 1}).`, error)
+      console.warn(`[SOS] Échec BigDataCloud IP (tentative ${attempt + 1}/${BIGDATACLOUD_MAX_RETRIES + 1}).`, error)
     }
   }
 
-  // BigDataCloud is an additional location confirmation, not the only
-  // security gate. If the external service is temporarily unavailable after
-  // 3 retries, keep the SOS flow available and let the backend's GPS bounds
-  // validation make the final decision.
-  console.warn('[SOS] BigDataCloud indisponible après 3 retries; poursuite avec la validation GPS serveur.', lastError)
+  // BigDataCloud is only a client-side fallback for the no-GPS case. If it is
+  // unavailable after 3 retries, keep the request alive and let the backend's
+  // own IP-based geo restriction make the authoritative decision.
+  console.warn('[SOS] BigDataCloud IP indisponible après 3 retries; validation serveur conservée.', lastError)
 }
 
 // Upload retry (Wave 2): 3 attempts with increasing delay on network
