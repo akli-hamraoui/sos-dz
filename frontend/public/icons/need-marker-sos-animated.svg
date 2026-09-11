@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" role="img" aria-label="SOS urgent">
+  <defs>
+    <filter id="glow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="1.8" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Animated pulse rings: the animation is inside the SVG itself,
+       independent from the page CSS animation system. -->
+  <circle cx="20" cy="20" r="8" fill="none" stroke="#d92626" stroke-width="3" opacity="0.75" filter="url(#glow)">
+    <animate attributeName="r" values="8;18;8" dur="1.2s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.75;0;0.75" dur="1.2s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="20" cy="20" r="10" fill="none" stroke="#ff4a4a" stroke-width="2" opacity="0.55">
+    <animate attributeName="r" values="10;16;10" dur="1.2s" begin="0.25s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.55;0;0.55" dur="1.2s" begin="0.25s" repeatCount="indefinite"/>
+  </circle>
+
+  <!-- Same SOS speech-bubble symbol as the existing marker, red/white. -->
+  <g>
+    <circle cx="20" cy="20" r="9.5" fill="#d92626" stroke="#fff" stroke-width="1.5"/>
+    <path d="M14.2 17.3c0-2.1 1.7-3.8 3.8-3.8h4c2.1 0 3.8 1.7 3.8 3.8v2.7c0 2.1-1.7 3.8-3.8 3.8h-2.1l-2.2 1.8.5-1.8H18c-2.1 0-3.8-1.7-3.8-3.8z" fill="none" stroke="#fff" stroke-width="1.2" stroke-linejoin="round"/>
+    <text x="20" y="20.8" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="4.6" font-weight="700" fill="#fff">SOS</text>
+    <animate attributeName="opacity" values="1;0.22;1;0.35;1" dur="1.2s" repeatCount="indefinite"/>
+    <animateTransform attributeName="transform" type="scale" values="1;1.08;1;1.05;1" dur="1.2s" repeatCount="indefinite" additive="sum"/>
+  </g>
+</svg>
