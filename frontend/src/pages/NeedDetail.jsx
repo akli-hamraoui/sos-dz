@@ -315,6 +315,17 @@ export default function NeedDetail() {
         </p>
       )}
       {need.location_description && <p>{need.location_description}</p>}
+      {/* For a guided voice SOS this is the corrected Whisper transcript
+          (see process_voice_need, backend) -- the only place the actual
+          content of the report is readable rather than just audible.
+          Never rendered before this, for any need (voice or manually
+          typed alike). */}
+      {need.description && (
+        <p>
+          {need.voice_file ? <strong>{t('needDetail.voiceTranscript')}: </strong> : null}
+          {need.description}
+        </p>
+      )}
       {need.position_accuracy === 'exact' && need.latitude != null && need.longitude != null ? (
         <p>
           {/* See CollectionPointDetail.jsx for why this navigates the

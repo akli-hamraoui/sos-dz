@@ -13,13 +13,15 @@ from core.validators import normalize_place_name
 logger = logging.getLogger(__name__)
 
 
-def _match_wilaya_from_commune(commune_guess, campaign):
-    """Best-effort: does the LLM-extracted 'commune' name a wilaya
-    authorized for this campaign? Used only to correct an administrative
-    wilaya that was never a real signal in the first place (see
-    process_voice_need) -- never touches a Need that already has an exact
-    GPS fix."""
-    guess = normalize_place_name(commune_guess)
+def _match_wilaya_from_text(place_text, campaign):
+    """Best-effort: does this free-text place name (the LLM-extracted
+    'commune', or failing that 'location_description' -- the model isn't
+    reliably consistent about which of the two it puts a spoken wilaya
+    name into) name a wilaya authorized for this campaign? Used only to
+    correct an administrative wilaya that was never a real signal in the
+    first place (see process_voice_need) -- never touches a Need that
+    already has an exact GPS fix."""
+    guess = normalize_place_name(place_text)
     if not guess:
         return None
     for wilaya in campaign.authorized_wilayas.all():
@@ -247,8 +249,14 @@ def process_voice_need(need_id):
         # was actually said. Once the transcript names a real place,
         # prefer that over the fallback guess.
         if need.position_accuracy != Need.POSITION_EXACT:
-            commune_guess = (extraction.get("commune") or "").strip()
-            matched_wilaya = _match_wilaya_from_commune(commune_guess, need.campaign) if commune_guess else None
+            matched_wilaya = None
+            for candidate in (extraction.get("commune"), extraction.get("location_description")):
+                candidate = (candidate or "").strip()
+                if not candidate:
+                    continue
+                matched_wilaya = _match_wilaya_from_text(candidate, need.campaign)
+                if matched_wilaya:
+                    break
             if matched_wilaya and matched_wilaya.pk != need.wilaya_id:
                 need.wilaya = matched_wilaya
         need.description = corrected_transcript

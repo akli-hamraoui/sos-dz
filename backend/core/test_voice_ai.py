@@ -206,6 +206,40 @@ class VoiceNeedProcessingTests(TestCase):
         self.assertEqual(need.wilaya, real_wilaya)
         self.assertNotEqual(need.wilaya, fallback_wilaya)
 
+    def test_reconciles_fallback_wilaya_from_location_description_when_commune_empty(self):
+        """Confirmed live: for a very short recording the LLM sometimes
+        puts the spoken place only in location_description ("Tizi Ouzou,
+        Algérie") and leaves commune blank -- the wilaya must still be
+        corrected, not just left on the arbitrary fallback next to a
+        location_description that plainly names somewhere else."""
+        from core.models import Wilaya
+
+        need = self._create_need("voice-test-4b")
+        fallback_wilaya = need.wilaya
+        real_wilaya = Wilaya.objects.exclude(pk=fallback_wilaya.pk).get(name="Tizi Ouzou")
+        need.campaign.authorized_wilayas.add(real_wilaya)
+        transcript = "Tizi Ouzou"
+        extraction = {
+            "title": "",
+            "contact_name": "",
+            "contact_phone": "",
+            "estimated_quantity": "",
+            "commune": "",
+            "location_description": "Tizi Ouzou, Algérie",
+            "organization_or_person_name": "",
+            "description": transcript,
+        }
+
+        with patch("core.voice_ai.transcribe_audio", return_value=transcript), patch(
+            "core.voice_ai.extract_need_data", return_value=extraction
+        ):
+            from core.voice_ai import process_voice_need
+            process_voice_need(need.pk)
+
+        need.refresh_from_db()
+        self.assertEqual(need.wilaya, real_wilaya)
+        self.assertNotEqual(need.wilaya, fallback_wilaya)
+
     def test_does_not_override_wilaya_when_position_is_exact(self):
         """A real GPS fix (nearest-wilaya lookup) is a genuine signal --
         must never be second-guessed by a short/noisy transcript."""

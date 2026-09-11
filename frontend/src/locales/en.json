@@ -223,6 +223,7 @@
     "nothingToShow": "Nothing to show right now."
   },
   "needDetail": {
+    "voiceTranscript": "Transcript",
     "contact": "Contact",
     "editedOn": "edited on {{date}}",
     "manageMyNeed": "Manage my need",
