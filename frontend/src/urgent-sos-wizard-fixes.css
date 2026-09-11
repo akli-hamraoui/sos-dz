@@ -37,10 +37,12 @@
 .urgent-sos-copy-token svg{display:block;}
 .urgent-sos-copy-label{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;}
 .urgent-sos-turnstile{margin:12px auto;max-width:100%;overflow:hidden;}
-.urgent-sos-audio-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;}
+.urgent-sos-audio-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;position:relative;}
 .urgent-sos-audio-btn svg{display:block;flex:0 0 auto;}
 .urgent-sos-audio-btn-label{font-size:13px;line-height:1;}
-.urgent-sos-audio.is-muted .urgent-sos-audio-btn{color:#c62828;}
+.urgent-sos-audio.is-muted .urgent-sos-audio-btn{color:#d71920;}
+.urgent-sos-audio.is-muted .urgent-sos-audio-btn svg{color:#d71920;}
+.urgent-sos-audio.is-muted .urgent-sos-audio-btn::after{content:'✕';position:absolute;inset:0;display:grid;place-items:center;font-size:24px;font-weight:1000;line-height:1;color:#d71920;text-shadow:0 1px 1px #fff;pointer-events:none;}
 .urgent-sos-audio.is-muted .urgent-sos-audio-btn:hover,.urgent-sos-audio.is-muted .urgent-sos-audio-btn:focus-visible{color:#b71c1c;}
 .urgent-sos-audio-btn.is-replay{color:var(--brand-green);}
 @media(max-width:699px){

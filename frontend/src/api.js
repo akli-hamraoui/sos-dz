@@ -1,4 +1,5 @@
 import { enqueue } from './offlineQueue'
+import { playVoiceGeoRestrictedAudio } from './voiceGuide'
 
 const API = '/api'
 
@@ -92,8 +93,8 @@ async function verifyUrgentSOSLocation(formData) {
         error.data = { detail: error.message, countryCode }
         throw error
       }
-      // Keep the result in the multipart payload so the server can apply the
-      // dedicated voice-SOS location policy when GPS is unavailable.
+      // Keep the result in the multipart payload for diagnostics only. The
+      // server must never trust this client-supplied country as authorization.
       formData.set('location_country_code', 'DZ')
       console.info('[SOS] BigDataCloud a estimé la connexion en Algérie (GPS non disponible).')
       return
@@ -104,9 +105,6 @@ async function verifyUrgentSOSLocation(formData) {
     }
   }
 
-  // No GeoLite2 fallback: if BigDataCloud is unavailable, keep the request
-  // blocked rather than accepting an unverified location. This prevents the
-  // voice SOS from being created outside Algeria when GPS is unavailable.
   const error = new Error('Impossible de vérifier votre localisation. Cette fonctionnalité est uniquement disponible en Algérie.')
   error.status = 403
   error.data = { detail: error.message, cause: lastError?.message || null }
@@ -114,12 +112,7 @@ async function verifyUrgentSOSLocation(formData) {
 }
 
 // Upload retry (Wave 2): 3 attempts with increasing delay on network
-// failure or 5xx, never on a 4xx validation error. `url` is an absolute
-// path (e.g. "/api/needs/") -- callers decide the prefix, this never adds
-// one, so it's usable both from apiUpload() (relative app paths) and from
-// createOrQueue()/offlineQueue.js (which already store full "/api/..."
-// endpoints, since the offline queue's own sync has no access to the API
-// prefix constant without a circular import).
+// failure or 5xx, never on a 4xx validation error.
 async function uploadWithRetry(url, formData, method = 'POST', onStatus = () => {}) {
   let lastError = null
   for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
@@ -163,6 +156,16 @@ export async function apiUpload(path, formData, method = 'POST', onStatus = () =
     return await uploadWithRetry(API + path, formData, method, onStatus)
   } catch (error) {
     if (path === '/needs/voice-guide/') {
+      // Play the dedicated step-9 restriction message for either GPS-outside
+      // Algeria or BigDataCloud-detected non-DZ. This is intentionally tied to
+      // the final geo rejection, not to transient BigDataCloud retry failures.
+      if (error?.status === 403 && /uniquement disponible en Algérie/i.test(error?.message || error?.data?.detail || '')) {
+        try {
+          playVoiceGeoRestrictedAudio(document?.documentElement?.lang === 'ar' ? 'ar' : 'fr')
+        } catch {
+          /* audio must never mask the original SOS error */
+        }
+      }
       console.error('[SOS] Échec de l’enregistrement du SOS vocal côté serveur.', {
         path,
         status: error?.status,
@@ -175,10 +178,7 @@ export async function apiUpload(path, formData, method = 'POST', onStatus = () =
   }
 }
 
-// Wave 5: offline-aware creation for Need/Pickup/ProgressUpdate. If the
-// device is offline (or the request fails with a network error), the
-// creation is queued in IndexedDB instead of failing, and synced
-// automatically once connectivity returns (see offlineQueue.js).
+// Wave 5: offline-aware creation for Need/Pickup/ProgressUpdate.
 export async function createOrQueue({ type, endpoint, fields, files = {}, dependsOnField = null, dependsOnLocalId = null, onStatus = () => {} }) {
   if (navigator.onLine) {
     try {
@@ -192,8 +192,7 @@ export async function createOrQueue({ type, endpoint, fields, files = {}, depend
       const data = await uploadWithRetry(endpoint, formData, 'POST', onStatus)
       return { queued: false, data }
     } catch (e) {
-      if (e.status) throw e // real validation error -- don't silently queue a request the server will just reject again
-      // network error despite navigator.onLine -- fall through to queueing
+      if (e.status) throw e
     }
   }
   const record = await enqueue({ type, endpoint, fields, files, dependsOnField, dependsOnLocalId })
