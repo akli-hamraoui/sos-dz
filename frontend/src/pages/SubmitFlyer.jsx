@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { api, apiUpload } from '../api'
 import { translateApiError } from '../apiErrors'
-import { IconCamera, IconTrash } from '../icons'
+import { IconCamera, IconCopy, IconTrash } from '../icons'
 
 // Upload a flyer photo and let the backend's Gemini-vision pipeline
 // (core.gemini_extraction) propose one or more collection points from it
@@ -24,6 +24,18 @@ export default function SubmitFlyer() {
   const [checkToken, setCheckToken] = useState('')
   const [checking, setChecking] = useState(false)
   const [checkError, setCheckError] = useState('')
+  const [copied, setCopied] = useState(false)
+
+  const copyTrackingCode = async (code) => {
+    if (!code) return
+    try {
+      await navigator.clipboard.writeText(code)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2200)
+    } catch {
+      /* best-effort only -- no clipboard permission/API, the code is still shown as plain text */
+    }
+  }
 
   const addFlyer = (e) => {
     const file = e.target.files[0]
@@ -92,7 +104,22 @@ export default function SubmitFlyer() {
                 </div>
               ))}
             </div>
-            <p className="hint">{t('submitFlyer.trackingCode')}: <strong>{result.access_token}</strong></p>
+            <div className="urgent-sos-token-box">
+              <div className="urgent-sos-token-title">{t('submitFlyer.trackingCode')}</div>
+              <div className="urgent-sos-token-row">
+                <strong className="urgent-sos-token">{result.access_token}</strong>
+                <button
+                  type="button"
+                  className="urgent-sos-copy-token"
+                  onClick={() => copyTrackingCode(result.access_token)}
+                  aria-label={copied ? t('common.copied') : t('common.copy')}
+                  title={copied ? t('common.copied') : t('common.copy')}
+                >
+                  {copied ? '✓' : <IconCopy width={17} height={17} />}
+                  <span className="urgent-sos-copy-label">{copied ? t('common.copied') : t('common.copy')}</span>
+                </button>
+              </div>
+            </div>
           </>
         )}
         {result.status === 'rejected' && (
