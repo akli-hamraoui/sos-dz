@@ -8,29 +8,8 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import './sos-map-marker.css'
 import './sos-map-marker-fix.css'
-// leaflet-gesture-handling is an old-style Leaflet plugin: it patches the
-// global `L.Map` (via L.Map.addInitHook) and expects a global `window.L`
-// to already exist, rather than importing leaflet itself -- since this
-// app uses `import L from 'leaflet'` everywhere (no global), it must be
-// exposed explicitly here before the plugin loads, or the whole app
-// crashes at startup with "L is not defined".
 window.L = L
-// Every marker popup app-wide (see mapMarkers.js and each map page's own
-// bindPopup calls) is a plain HTML string with <br>-separated fields --
-// Leaflet's default maxWidth (300px) leaves almost no room to auto-pan on
-// a narrow phone screen once a marker sits near the map container's own
-// edge (a Europe-wide map's westernmost point, a marker near the screen's
-// left border, etc.), so the popup's left side can render running off the
-// visible viewport entirely -- confirmed live: reported as an unreadable,
-// cut-off popup. A smaller maxWidth keeps every popup narrow enough to
-// fit regardless of where its marker sits.
-L.Popup.mergeOptions({
-  maxWidth: 280,
-  maxHeight: null,
-  className: 'sosdz-map-popup',
-  autoPan: false,
-  keepInView: false,
-})
+L.Popup.mergeOptions({ maxWidth: 280, maxHeight: null, className: 'sosdz-map-popup', autoPan: false, keepInView: false })
 import 'leaflet-gesture-handling'
 import 'leaflet-gesture-handling/dist/leaflet-gesture-handling.css'
 import './i18n'
@@ -38,10 +17,11 @@ import App from './App.jsx'
 import { AppProvider } from './context/AppContext.jsx'
 import { DialogProvider } from './context/DialogContext.jsx'
 
-// The "sans localisation" SOS indicator belongs in the Needs toolbar, not
-// on the map. The map already creates the real grouped marker with the
-// authoritative count; mirror that control into the toolbar so the count
-// stays in sync without duplicating API/state logic in another component.
+// Toolbar SOS for needs that have no real geographic position. The count is
+// mirrored from the existing grouped map marker, so there is one source of
+// truth and no second API request. Clicking it reuses the marker's existing
+// filter behavior; from the list view it first switches to the map, waits for
+// the grouped marker, then activates that same behavior.
 function installUnlocatedSosToolbar() {
   const sync = () => {
     const toolbar = document.querySelector('.needs-page .toolbar-compact')
@@ -69,12 +49,17 @@ function installUnlocatedSosToolbar() {
       control.setAttribute('aria-label', 'Besoins sans position')
       control.innerHTML = '<img src="/icons/need-marker-sos.png" alt="" aria-hidden="true"><span class="unlocated-sos-toolbar-count"></span>'
       control.addEventListener('click', () => {
-        document.querySelector('.need-marker-pin-unlocated')?.closest('.leaflet-marker-icon')?.click()
-        const filterButton = document.querySelector('.needs-page .filters-toggle')
-        if (!document.querySelector('.need-marker-pin-unlocated') && filterButton) {
-          document.querySelectorAll('.needs-page .view-toggle button').forEach((button) => {
-            if (button.textContent?.trim().toLowerCase() === 'liste') button.click()
-          })
+        const marker = document.querySelector('.need-marker-pin-unlocated')?.closest('.leaflet-marker-icon')
+        if (marker) {
+          marker.click()
+          return
+        }
+        const mapButton = Array.from(document.querySelectorAll('.needs-page .view-toggle button')).find((button) => button.textContent?.trim().toLowerCase() === 'carte')
+        if (mapButton) {
+          mapButton.click()
+          window.setTimeout(() => {
+            document.querySelector('.need-marker-pin-unlocated')?.closest('.leaflet-marker-icon')?.click()
+          }, 500)
         }
       })
       toolbar.insertBefore(control, viewToggle)
