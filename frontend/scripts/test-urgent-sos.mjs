@@ -22,8 +22,10 @@ assert.match(api, /api\.bigdatacloud\.net\/data\/reverse-geocode-client/, 'SOS m
 assert.match(api, /BIGDATACLOUD_RETRY_DELAY_MS = 2000/, 'BigDataCloud retries must wait 2 seconds')
 assert.match(api, /BIGDATACLOUD_MAX_RETRIES = 3/, 'BigDataCloud must retry 3 times')
 assert.match(api, /for \(let attempt = 0; attempt <= BIGDATACLOUD_MAX_RETRIES; attempt \+= 1\)/, 'initial request plus 3 retries must be attempted')
+assert.match(api, /GPS is available: deliberately skip BigDataCloud/, 'GPS-authorized SOS must not call BigDataCloud')
+assert.match(api, /const endpoint = 'https:\/\/api\.bigdatacloud\.net\/data\/reverse-geocode-client\?localityLanguage=fr'/, 'no-GPS SOS must use BigDataCloud IP fallback without coordinates')
 assert.match(api, /countryCode !== 'DZ'/, 'SOS location must reject a non-Algeria country')
-assert.match(api, /validation GPS serveur/, 'BigDataCloud failure must fall back to server GPS validation')
+assert.match(api, /validation serveur conservée/, 'BigDataCloud failure must fall back to authoritative server validation')
 assert.match(api, /verifyUrgentSOSLocation\(formData\)/, 'voice-guide upload must trigger location verification')
 
 console.log('✓ Urgent SOS static regression tests passed')
