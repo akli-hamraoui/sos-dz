@@ -1,5 +1,6 @@
 import secrets
 from datetime import timedelta
+from pathlib import Path
 
 from django.conf import settings
 from django.db import models
@@ -13,6 +14,27 @@ def generate_token():
     """32-char random access token. Not hashed: it's a temporary access key
     scoped to one resource, not a password (see spec, AUTHENTICATION MODEL)."""
     return secrets.token_urlsafe(24)[:32]
+
+
+def _random_filename(folder, filename):
+    """Stores a file under folder/ with a random name instead of the name
+    the uploader's device gave it -- e.g. a flyer photo's own filename can
+    otherwise leak into a public media URL (a phone's camera default, a
+    WhatsApp-forwarded name, sometimes a person's own name in it) with
+    nothing to gain from keeping it. Only the extension survives. Two
+    thin, named wrappers below (not a factory returning a closure) so
+    each is its own plain, top-level function -- Django's migration
+    serializer needs an upload_to callable it can reference by
+    module-level name, which a closure isn't."""
+    return f"{folder}/{secrets.token_hex(16)}{Path(filename).suffix.lower()}"
+
+
+def collection_point_flyer_upload_path(instance, filename):
+    return _random_filename("collection_point_flyers", filename)
+
+
+def flyer_submission_upload_path(instance, filename):
+    return _random_filename("flyer_submissions", filename)
 
 
 # ---------------------------------------------------------------------------
@@ -812,7 +834,7 @@ class CollectionPoint(AuditMixin, models.Model):
     # model + moderation_status/moderated_by shape as Need.video_file
     # (one flyer per point, not a gallery -- DamagePhoto's separate-model
     # pattern is for up to 3 photos per listing, not this).
-    flyer_image = models.ImageField(upload_to="collection_point_flyers/", null=True, blank=True)
+    flyer_image = models.ImageField(upload_to=collection_point_flyer_upload_path, null=True, blank=True)
     flyer_moderation_status = models.CharField(max_length=10, choices=Need.MODERATION_CHOICES, default=Need.MODERATION_APPROVED)
     flyer_moderated_by = models.CharField(max_length=10, choices=Need.MODERATED_BY_CHOICES, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -915,7 +937,7 @@ class FlyerSubmission(AuditMixin, models.Model):
     # off the flyer itself, not from these.
     submitter_name = models.CharField(max_length=200, blank=True)
     submitter_phone = models.CharField(max_length=30, blank=True)
-    flyer_image = models.ImageField(upload_to="flyer_submissions/")
+    flyer_image = models.ImageField(upload_to=flyer_submission_upload_path)
     flyer_moderation_status = models.CharField(max_length=10, choices=Need.MODERATION_CHOICES, default=Need.MODERATION_APPROVED)
     flyer_moderated_by = models.CharField(max_length=10, choices=Need.MODERATED_BY_CHOICES, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PROCESSING)
