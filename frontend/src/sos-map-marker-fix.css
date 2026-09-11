@@ -1,0 +1,134 @@
+/* Final SOS visibility fix: this file is loaded after the legacy marker CSS. */
+.need-marker-pin.need-marker-critical,
+.need-marker-pin[style*="#d92626"] {
+  animation: sosdz-final-red-blink 850ms ease-in-out infinite !important;
+  -webkit-animation: sosdz-final-red-blink 850ms ease-in-out infinite !important;
+  background: #d92626 !important;
+  opacity: 1 !important;
+  box-shadow: 0 3px 12px rgba(217,38,38,.45), 0 0 0 3px rgba(217,38,38,.20) !important;
+}
+.need-marker-pin.need-marker-critical::after,
+.need-marker-pin[style*="#d92626"]::after {
+  content: '' !important;
+  position: absolute !important;
+  inset: -9px !important;
+  display: block !important;
+  border: 3px solid #d92626 !important;
+  border-radius: 50% !important;
+  background: rgba(217,38,38,.12) !important;
+  opacity: 1 !important;
+  pointer-events: none !important;
+  z-index: 1 !important;
+  animation: sosdz-final-red-halo 850ms ease-out infinite !important;
+}
+.need-marker-pin.need-marker-critical::before,
+.need-marker-pin[style*="#d92626"]::before { display: none !important; }
+.need-marker-pin.need-marker-critical > img,
+.need-marker-pin[style*="#d92626"] > img {
+  display: block !important;
+  width: 18px !important;
+  height: 18px !important;
+  position: relative !important;
+  z-index: 3 !important;
+}
+
+.need-marker-pin-unlocated {
+  background: #d92626 !important;
+  animation: sosdz-final-red-blink 850ms ease-in-out infinite !important;
+  -webkit-animation: sosdz-final-red-blink 850ms ease-in-out infinite !important;
+}
+.need-marker-pin-unlocated::after {
+  content: '' !important;
+  position: absolute !important;
+  inset: -10px !important;
+  border: 3px solid #d92626 !important;
+  border-radius: 50% !important;
+  background: rgba(217,38,38,.12) !important;
+  animation: sosdz-final-red-halo 850ms ease-out infinite !important;
+  pointer-events: none !important;
+  z-index: 1 !important;
+}
+.need-marker-count-badge {
+  position: absolute !important;
+  right: -7px !important;
+  top: -7px !important;
+  min-width: 21px !important;
+  height: 21px !important;
+  padding: 0 5px !important;
+  display: grid !important;
+  place-items: center !important;
+  box-sizing: border-box !important;
+  border: 2px solid #fff !important;
+  border-radius: 999px !important;
+  background: #d92626 !important;
+  color: #fff !important;
+  font: 800 11px/1 Arial,sans-serif !important;
+  z-index: 4 !important;
+}
+
+.unlocated-sos-toolbar {
+  position: relative !important;
+  flex: 0 0 auto !important;
+  width: 42px !important;
+  height: 42px !important;
+  padding: 0 !important;
+  margin: 0 8px 0 0 !important;
+  display: grid !important;
+  place-items: center !important;
+  border: 2px solid #d92626 !important;
+  border-radius: 50% !important;
+  background: #d92626 !important;
+  color: #fff !important;
+  cursor: pointer !important;
+  box-shadow: 0 3px 12px rgba(217,38,38,.45) !important;
+  animation: sosdz-final-toolbar-blink 850ms ease-in-out infinite !important;
+  -webkit-animation: sosdz-final-toolbar-blink 850ms ease-in-out infinite !important;
+  z-index: 5 !important;
+}
+.unlocated-sos-toolbar img { width: 21px !important; height: 21px !important; filter: invert(1) !important; }
+.unlocated-sos-toolbar-count {
+  position: absolute !important;
+  right: -7px !important;
+  top: -7px !important;
+  min-width: 20px !important;
+  height: 20px !important;
+  padding: 0 5px !important;
+  display: grid !important;
+  place-items: center !important;
+  border: 2px solid #fff !important;
+  border-radius: 999px !important;
+  background: #d92626 !important;
+  color: #fff !important;
+  font: 800 10px/1 Arial,sans-serif !important;
+  z-index: 6 !important;
+}
+
+@keyframes sosdz-final-red-blink {
+  0%,100% { opacity: 1; box-shadow: 0 3px 12px rgba(217,38,38,.45), 0 0 0 2px rgba(217,38,38,.20); }
+  45% { opacity: .28; box-shadow: 0 1px 4px rgba(217,38,38,.15), 0 0 0 1px rgba(217,38,38,.08); }
+  55% { opacity: 1; box-shadow: 0 5px 22px rgba(217,38,38,.78), 0 0 0 9px rgba(217,38,38,.34); }
+}
+@keyframes sosdz-final-red-halo {
+  0% { transform: scale(.65); opacity: .90; }
+  70% { opacity: .30; }
+  100% { transform: scale(1.90); opacity: 0; }
+}
+@keyframes sosdz-final-toolbar-blink {
+  0%,100% { opacity: 1; transform: scale(1); }
+  45% { opacity: .35; transform: scale(.94); }
+  55% { opacity: 1; transform: scale(1.06); }
+}
+
+@media (max-width:699px) {
+  .need-marker-pin { width: 40px !important; height: 40px !important; margin: -5px !important; }
+  .unlocated-sos-toolbar { width: 38px !important; height: 38px !important; margin-right: 5px !important; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .need-marker-pin.need-marker-critical,
+  .need-marker-pin[style*="#d92626"],
+  .need-marker-pin.need-marker-critical::after,
+  .need-marker-pin[style*="#d92626"]::after,
+  .need-marker-pin-unlocated,
+  .need-marker-pin-unlocated::after,
+  .unlocated-sos-toolbar { animation: none !important; -webkit-animation: none !important; }
+}
