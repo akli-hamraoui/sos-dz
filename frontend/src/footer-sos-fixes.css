@@ -16,45 +16,40 @@
   height: 26px !important;
 }
 
-/* Critical/urgent SOS markers: clearly visible blink without changing
-   the marker size or any other map marker behavior. */
-@keyframes sos-urgent-heartbeat {
+/* ONLY the red/critical SOS marker directly on the map. */
+@keyframes sos-urgent-blink {
   0%,
   100% {
     opacity: 1;
     transform: scale(1);
-    filter: none;
+    filter: drop-shadow(0 0 0 rgba(217, 38, 38, 0));
   }
-  10% {
-    opacity: 0.45;
-    transform: scale(1.06);
-    filter: drop-shadow(0 0 4px rgba(217, 38, 38, 0.55));
+  15% {
+    opacity: 0.22;
+    transform: scale(1.18);
+    filter: drop-shadow(0 0 9px rgba(217, 38, 38, 0.95));
   }
-  18% {
+  30% {
     opacity: 1;
     transform: scale(1);
-    filter: none;
+    filter: drop-shadow(0 0 2px rgba(217, 38, 38, 0.65));
   }
-  28% {
-    opacity: 0.55;
-    transform: scale(1.045);
-    filter: drop-shadow(0 0 3px rgba(217, 38, 38, 0.45));
+  45% {
+    opacity: 0.30;
+    transform: scale(1.14);
+    filter: drop-shadow(0 0 8px rgba(217, 38, 38, 0.95));
   }
-  38% {
+  60%,
+  100% {
     opacity: 1;
     transform: scale(1);
-    filter: none;
+    filter: drop-shadow(0 0 0 rgba(217, 38, 38, 0));
   }
 }
 
-.need-marker-pin[style*="#d92626"] {
-  animation: sos-urgent-heartbeat 2.2s ease-in-out infinite;
+.need-marker-pin[style*="d92626"] {
+  animation: sos-urgent-blink 0.9s linear infinite !important;
+  -webkit-animation: sos-urgent-blink 0.9s linear infinite !important;
   transform-origin: center;
   will-change: opacity, transform, filter;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .need-marker-pin[style*="#d92626"] {
-    animation: none;
-  }
 }
