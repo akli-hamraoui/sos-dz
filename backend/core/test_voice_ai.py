@@ -252,6 +252,39 @@ class VoiceNeedProcessingTests(TestCase):
         # (NeedsList.jsx groups every has_no_location need together).
         self.assertFalse(need.has_no_location)
 
+    def test_reconciles_wilaya_when_transcript_runs_the_words_together(self):
+        """Confirmed live: the LLM wrote "Tiziouzou" (no space) in
+        location_description instead of "Tizi Ouzou" -- normalize_place_name
+        must ignore spacing, or a two-word wilaya name can never match a
+        transcript that ran the words together."""
+        from core.models import Wilaya
+
+        need = self._create_need("voice-test-4c")
+        fallback_wilaya = need.wilaya
+        real_wilaya = Wilaya.objects.exclude(pk=fallback_wilaya.pk).get(name="Tizi Ouzou")
+        need.campaign.authorized_wilayas.add(real_wilaya)
+        transcript = "Tiziouzou"
+        extraction = {
+            "title": "",
+            "contact_name": "",
+            "contact_phone": "",
+            "estimated_quantity": "",
+            "commune": "",
+            "location_description": "Tiziouzou aux eaux en Algérie",
+            "organization_or_person_name": "",
+            "description": transcript,
+        }
+
+        with patch("core.voice_ai.transcribe_audio", return_value=transcript), patch(
+            "core.voice_ai.extract_need_data", return_value=extraction
+        ):
+            from core.voice_ai import process_voice_need
+            process_voice_need(need.pk)
+
+        need.refresh_from_db()
+        self.assertEqual(need.wilaya, real_wilaya)
+        self.assertFalse(need.has_no_location)
+
     def test_does_not_override_wilaya_when_position_is_exact(self):
         """A real GPS fix (nearest-wilaya lookup) is a genuine signal --
         must never be second-guessed by a short/noisy transcript."""

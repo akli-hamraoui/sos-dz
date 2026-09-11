@@ -5,6 +5,7 @@ which validates WHO is allowed to write based on where the request comes
 from. Both apply independently.
 """
 
+import re
 import unicodedata
 
 from django.conf import settings
@@ -14,15 +15,21 @@ from rest_framework import serializers
 
 
 def normalize_place_name(value):
-    """Lowercase and strip accents so 'Aïn Defla' / 'Ain Defla' / a Whisper
-    mis-accented variant all compare equal. Also used to pick a fallback
-    wilaya alphabetically (NeedCreateSerializer.validate): SQLite's default
-    string ordering is a raw byte comparison, where an accented character
-    like 'ï' sorts *after* plain ASCII letters -- 'Annaba' would otherwise
-    beat 'Aïn Defla' to the "alphabetically first" fallback for reasons
-    that have nothing to do with the actual alphabet."""
+    """Lowercase, strip accents, and drop spaces/hyphens so 'Aïn Defla' /
+    'Ain Defla' / a Whisper mis-accented variant all compare equal --
+    including the multi-word case, where a transcript sometimes runs a
+    wilaya's words together ('Tiziouzou') or hyphenates them instead of
+    spacing them ('Tizi-Ouzou'); confirmed live, that alone was enough to
+    make the wilaya-from-transcript match in voice_ai.py miss "Tizi
+    Ouzou". Also used to pick a fallback wilaya alphabetically
+    (NeedCreateSerializer.validate): SQLite's default string ordering is a
+    raw byte comparison, where an accented character like 'ï' sorts
+    *after* plain ASCII letters -- 'Annaba' would otherwise beat 'Aïn
+    Defla' to the "alphabetically first" fallback for reasons that have
+    nothing to do with the actual alphabet."""
     decomposed = unicodedata.normalize("NFKD", value or "")
-    return "".join(c for c in decomposed if not unicodedata.combining(c)).strip().lower()
+    stripped_accents = "".join(c for c in decomposed if not unicodedata.combining(c))
+    return re.sub(r"[\s\-]+", "", stripped_accents.lower())
 
 
 def is_within_algeria_bounds(latitude, longitude):
