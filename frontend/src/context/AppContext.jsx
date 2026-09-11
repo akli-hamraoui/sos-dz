@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react'
+import { useLocation } from 'react-router-dom'
 import { api, loadJSON, saveJSON } from '../api'
 import { setupAutoSync } from '../offlineQueue'
 import i18n from '../i18n'
@@ -24,6 +25,7 @@ export function AppProvider({ children }) {
   const [commentAuthor, setCommentAuthorState] = useState(() => loadJSON('rassemble_comment_author', { name: '' }))
   const [isOnline, setIsOnline] = useState(navigator.onLine)
   const [syncMessage, setSyncMessage] = useState('')
+  const location = useLocation()
 
   const refreshConfig = useCallback(() => {
     return api('/config/')
@@ -63,6 +65,14 @@ export function AppProvider({ children }) {
       })
       .catch(() => {})
   }, [])
+
+  // Refresh the public counters whenever navigation happens so the footer
+  // SOS badge does not keep the value from the previous page. The backend
+  // counter is the authoritative total of active/published needs and
+  // includes needs with and without a geographic position.
+  useEffect(() => {
+    refreshConfig()
+  }, [location.pathname, refreshConfig])
 
   useEffect(() => {
     const onOnline = () => setIsOnline(true)
