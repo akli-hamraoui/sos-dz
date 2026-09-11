@@ -87,13 +87,13 @@ async function verifyUrgentSOSLocation(formData) {
       const countryCode = String(data?.countryCode || '').toUpperCase()
       if (!countryCode) throw new Error('BigDataCloud returned no countryCode')
       if (countryCode !== 'DZ') {
-        const error = new Error('This feature is only available from Algeria.')
+        const error = new Error('Cette fonctionnalité est uniquement disponible en Algérie.')
         error.status = 403
         error.data = { detail: error.message, countryCode }
         throw error
       }
-      // Keep the assertion in the multipart payload for diagnostics. The
-      // server does NOT trust this client-provided value for authorization.
+      // Keep the result in the multipart payload so the server can apply the
+      // dedicated voice-SOS location policy when GPS is unavailable.
       formData.set('location_country_code', 'DZ')
       console.info('[SOS] BigDataCloud a estimé la connexion en Algérie (GPS non disponible).')
       return
@@ -104,10 +104,13 @@ async function verifyUrgentSOSLocation(formData) {
     }
   }
 
-  // BigDataCloud is only a client-side fallback for the no-GPS case. If it is
-  // unavailable after 3 retries, keep the request alive and let the backend's
-  // own IP-based geo restriction make the authoritative decision.
-  console.warn('[SOS] BigDataCloud IP indisponible après 3 retries; validation serveur conservée.', lastError)
+  // No GeoLite2 fallback: if BigDataCloud is unavailable, keep the request
+  // blocked rather than accepting an unverified location. This prevents the
+  // voice SOS from being created outside Algeria when GPS is unavailable.
+  const error = new Error('Impossible de vérifier votre localisation. Cette fonctionnalité est uniquement disponible en Algérie.')
+  error.status = 403
+  error.data = { detail: error.message, cause: lastError?.message || null }
+  throw error
 }
 
 // Upload retry (Wave 2): 3 attempts with increasing delay on network
