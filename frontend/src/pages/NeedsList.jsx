@@ -6,7 +6,7 @@ import { useApp } from '../context/AppContext'
 import { useDialog } from '../context/DialogContext'
 import { api } from '../api'
 import { urgencyColor, haversineKm, isInAlgeria, getCurrentPosition, RECENTER_BOX_METERS } from '../utils'
-import { flyerPopupButtonHtml, attachMapPopupBehavior, attachMapTapToActivate } from '../mapMarkers'
+import { flyerPopupButtonHtml, attachMapPopupBehavior, attachMapTapToActivate, spreadNeedMarkers } from '../mapMarkers'
 import PhotoThumb from '../components/PhotoThumb'
 import PhotoLightbox from '../components/PhotoLightbox'
 import { IconLocate, IconExpand, IconClose } from '../icons'
@@ -296,6 +296,12 @@ export default function NeedsList() {
             iconAnchor: [15, 15],
           })
           const marker = L.marker([p.display_latitude, p.display_longitude], { icon }).addTo(map)
+          // Several needs with no exact GPS commonly fall back to the same
+          // wilaya centroid (see NeedCreateSerializer/process_voice_need)
+          // and would otherwise stack exactly on top of each other -- only
+          // the topmost pin would ever be clickable. spreadNeedMarkers
+          // below nudges them apart on screen once all are placed.
+          marker._sosdzNeedMarker = true
           const gpsNote = p.has_exact_position ? '' : `<br><em>${t('common.noExactGpsPosition')}</em>`
           const urgencyPrefix = p.urgency !== 'medium' ? `${t(`urgency.${p.urgency}`)} — ` : ''
           const photoBtn = flyerPopupButtonHtml(t, p.photo)
@@ -335,6 +341,7 @@ export default function NeedsList() {
           markers.push(marker)
         }
 
+        spreadNeedMarkers(map, markers)
         markersRef.current = markers
         const allPoints = needsWithPos.map((p) => [p.display_latitude, p.display_longitude])
         const wilayaChanged = prevFilterWilayaRef.current !== filterWilaya

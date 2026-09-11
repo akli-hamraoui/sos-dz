@@ -6,7 +6,7 @@ import { useApp } from '../context/AppContext'
 import { useDialog } from '../context/DialogContext'
 import { api } from '../api'
 import { urgencyColor, haversineKm, isInAlgeria, getCurrentPosition, RECENTER_BOX_METERS } from '../utils'
-import { needIcon, collectionPointIcon, needPopupHtml, collectionPointPopupHtml } from '../mapMarkers'
+import { needIcon, collectionPointIcon, needPopupHtml, collectionPointPopupHtml, spreadNeedMarkers } from '../mapMarkers'
 import { IconLocate } from '../icons'
 
 function statusLabel(t, s) {
@@ -165,6 +165,11 @@ export default function Help() {
 
         needsWithPos.forEach((p) => {
           const marker = L.marker([p.display_latitude, p.display_longitude], { icon: needIcon(L, urgencyColor, p.urgency) }).addTo(map)
+          // Several needs with no exact GPS commonly share the same
+          // fallback wilaya centroid and would otherwise stack exactly on
+          // top of each other, leaving only the topmost one clickable --
+          // spreadNeedMarkers below nudges them apart once all are placed.
+          marker._sosdzNeedMarker = true
           marker.bindPopup(needPopupHtml(t, p, statusLabel))
           markers.push(marker)
         })
@@ -175,6 +180,7 @@ export default function Help() {
           markers.push(marker)
         })
 
+        spreadNeedMarkers(map, markers)
         markersRef.current = markers
         const allPoints = [...needsWithPos, ...cpsWithPos].map((p) => [p.display_latitude, p.display_longitude])
         smartZoom(map, allPoints, filterWilaya)
