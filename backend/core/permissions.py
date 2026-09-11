@@ -1,9 +1,9 @@
 """Server-side write-time checks shared by creation/edit endpoints.
 
-The guided voice SOS has its own Algeria-only location check. It deliberately
-uses the location information supplied by that flow (GPS when available, or
-the browser's BigDataCloud country fallback when GPS is unavailable) and does
-not depend on the GeoLite2 database.
+The guided voice SOS has its own Algeria-only location check. GPS coordinates
+are accepted when they are inside Algeria. When GPS is unavailable, the server
+uses the request IP as the authoritative fallback; the browser-side
+BigDataCloud result is never trusted for authorization.
 """
 
 from core.geoip import is_algeria_ip
@@ -28,12 +28,17 @@ def read_only_block(request):
 
 
 def _voice_sos_location_allowed(request):
-    """Validate the dedicated voice SOS location without GeoLite2.
+    """Validate the dedicated voice SOS location.
 
-    GPS coordinates are preferred and checked against Algeria's geographic
-    bounds. If GPS was not available, the browser may provide the country
-    returned by BigDataCloud's client-side IP fallback. This value is used
-    only for this dedicated voice-SOS flow.
+    A real GPS fix inside Algeria is accepted directly. Without GPS, use the
+    server-side IP geolocation as the authoritative fallback. We deliberately
+    do not trust the client-supplied BigDataCloud country code because it can
+    be modified by a caller.
+
+    The IP function is resolved from ``core.views`` for this endpoint so the
+    view and write guard use the exact same server-side decision. This also
+    keeps the endpoint's existing test seam intact when ``core.views`` is
+    patched in backend tests.
     """
     try:
         latitude = float(request.data.get("latitude"))
@@ -44,22 +49,29 @@ def _voice_sos_location_allowed(request):
     if is_within_algeria_bounds(latitude, longitude):
         return True
 
-    country_code = str(request.data.get("location_country_code") or "").strip().upper()
-    return country_code == "DZ"
+    try:
+        # Local import avoids the module-level circular import: views imports
+        # write_guard from this module.
+        from core.views import is_algeria_ip as view_is_algeria_ip
+
+        allowed = view_is_algeria_ip(getattr(request, "client_ip", None))
+    except (ImportError, AttributeError):
+        allowed = is_algeria_ip(getattr(request, "client_ip", None))
+    return allowed is True
 
 
 def geo_restriction_block(request):
     """Returns an error message if a write is blocked by geo restriction.
 
-    Administrators bypass geo restriction. The dedicated voice SOS does not
-    use the server GeoLite2/IP check: it relies on GPS, with the browser-side
-    BigDataCloud country fallback when GPS is unavailable.
+    Administrators bypass geo restriction. The dedicated voice SOS is always
+    Algeria-only for non-admin users, independently of the site-wide toggle.
     """
     if is_request_admin(request):
         return None
 
-    # The voice SOS has a dedicated location policy. Keep it independent from
-    # the site-wide GeoLite2 setting/database.
+    # The voice SOS has a dedicated location policy. GPS inside Algeria is
+    # sufficient; otherwise the server checks the caller's IP. The frontend's
+    # BigDataCloud lookup is only a UX guard and is not an authorization input.
     if request.path.rstrip("/").endswith("/needs/voice-guide"):
         if _voice_sos_location_allowed(request):
             return None
