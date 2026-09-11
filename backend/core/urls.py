@@ -14,13 +14,14 @@ from core.views import (
     VersionView,
     WilayaViewSet,
 )
+from core.voice_sos_views import VoiceSOSNeedViewSet
 from django.urls import path
 
 router = DefaultRouter()
 router.register("wilayas", WilayaViewSet, basename="wilaya")
 router.register("disaster-types", DisasterTypeViewSet, basename="disaster-type")
 router.register("campaigns", CampaignViewSet, basename="campaign")
-router.register("needs", NeedViewSet, basename="need")
+router.register("needs", VoiceSOSNeedViewSet, basename="need")
 router.register("pickups", PickupViewSet, basename="pickup")
 router.register("support-requests", SupportRequestViewSet, basename="support-request")
 router.register("content-reports", ContentReportViewSet, basename="content-report")
