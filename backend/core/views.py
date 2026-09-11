@@ -5,6 +5,7 @@ from functools import lru_cache
 
 from django.db.models import Prefetch, Q
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
@@ -26,6 +27,7 @@ from core.collection_point_geocoding import (
     contains_fundraising_keyword,
     split_phones,
 )
+from core.flyer_publish import publish_extracted_point
 from core.geo import get_country_centroid
 from core.geoip import is_algeria_ip
 from core.media_validation import validate_photo_count, validate_photo_size
@@ -1359,9 +1361,32 @@ class FlyerSubmissionViewSet(viewsets.GenericViewSet, mixins.RetrieveModelMixin)
         for point_data in data["points"]:
             self._create_extracted_point(submission, point_data, geocoder)
 
-        submission.status = FlyerSubmission.STATUS_NEEDS_REVIEW
-        submission.save(update_fields=["status"])
-        log_admin_action(request, "flyer submitted for review", submission)
+        # Auto-publish as soon as extraction succeeds -- no admin review
+        # queue in practice, so holding a valid point back until someone
+        # looks at it would mean it never goes live at all. The one thing
+        # still held back is a point that matched an existing, already-
+        # published one closely enough to be flagged as a likely duplicate
+        # (find_similar_collection_points): publishing that one too would
+        # just put two near-identical pins on the map, so it's left
+        # unpublished (still visible on this response, with a link to the
+        # match) for an admin to promote later via publish_extracted_points
+        # if the match turns out to be wrong.
+        published_any = False
+        for child in submission.extracted_points.all():
+            if child.duplicate_of_id:
+                continue
+            publish_extracted_point(child)
+            published_any = True
+
+        if published_any:
+            submission.status = FlyerSubmission.STATUS_PUBLISHED
+            submission.reviewed_at = timezone.now()
+            submission.save(update_fields=["status", "reviewed_at"])
+        else:
+            submission.status = FlyerSubmission.STATUS_REJECTED
+            submission.rejection_reason = FlyerSubmission.REJECTION_DUPLICATE
+            submission.save(update_fields=["status", "rejection_reason"])
+        log_admin_action(request, "flyer auto-published" if published_any else "flyer rejected (duplicate)", submission)
         return Response(FlyerSubmissionStatusSerializer(submission, context={"request": request}).data, status=status.HTTP_201_CREATED)
 
     def _create_extracted_point(self, submission, point_data, geocoder):

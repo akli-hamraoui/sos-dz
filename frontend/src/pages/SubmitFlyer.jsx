@@ -87,47 +87,64 @@ export default function SubmitFlyer() {
     money_collection: 'submitFlyer.rejectedMoneyCollection',
     flyer_moderation: 'submitFlyer.rejectedModeration',
     admin: 'submitFlyer.rejectedAdmin',
+    duplicate: 'submitFlyer.rejectedDuplicate',
   }
+
+  const pointsList = (points) => (
+    <div className="needs-list">
+      {points.map((p) => (
+        <div key={p.id} className="need-card">
+          <strong>{p.point_name}</strong> — {p.city || p.wilaya_name || p.country_name}
+          {p.duplicate_of ? (
+            <p className="hint">
+              {t('submitFlyer.duplicateSkipped')}{' '}
+              <Link to={`/collection-points/${p.duplicate_of}`}>{p.duplicate_of_name}</Link>
+            </p>
+          ) : (
+            <p className="hint">{t('submitFlyer.publishedNow')}</p>
+          )}
+        </div>
+      ))}
+    </div>
+  )
 
   if (result) {
     return (
       <section className="form-page">
         <h2>{t('submitFlyer.title')}</h2>
-        {result.status === 'needs_review' && (
+        {(result.status === 'published' || (result.status === 'rejected' && result.rejection_reason === 'duplicate')) && (
           <>
-            <p className="success">{t('submitFlyer.resultNeedsReview', { count: result.extracted_points.length })}</p>
-            <div className="needs-list">
-              {result.extracted_points.map((p) => (
-                <div key={p.id} className="need-card">
-                  <strong>{p.point_name}</strong> — {p.city || p.wilaya_name || p.country_name}
-                  {p.duplicate_of && <p className="hint">{t('submitFlyer.possibleDuplicate')}</p>}
+            {result.status === 'published' ? (
+              <p className="success">{t('submitFlyer.resultPublished', { count: result.extracted_points.filter((p) => p.is_published).length })}</p>
+            ) : (
+              <p className="error">{t('submitFlyer.rejectedDuplicate')}</p>
+            )}
+            {pointsList(result.extracted_points)}
+            {result.status === 'published' && (
+              <div className="urgent-sos-token-box">
+                <div className="urgent-sos-token-title">{t('submitFlyer.trackingCode')}</div>
+                <div className="urgent-sos-token-row">
+                  <strong className="urgent-sos-token">{result.access_token}</strong>
+                  <button
+                    type="button"
+                    className="urgent-sos-copy-token"
+                    onClick={() => copyTrackingCode(result.access_token)}
+                    aria-label={copied ? t('common.copied') : t('common.copy')}
+                    title={copied ? t('common.copied') : t('common.copy')}
+                  >
+                    {copied ? '✓' : <IconCopy width={17} height={17} />}
+                    <span className="urgent-sos-copy-label">{copied ? t('common.copied') : t('common.copy')}</span>
+                  </button>
                 </div>
-              ))}
-            </div>
-            <div className="urgent-sos-token-box">
-              <div className="urgent-sos-token-title">{t('submitFlyer.trackingCode')}</div>
-              <div className="urgent-sos-token-row">
-                <strong className="urgent-sos-token">{result.access_token}</strong>
-                <button
-                  type="button"
-                  className="urgent-sos-copy-token"
-                  onClick={() => copyTrackingCode(result.access_token)}
-                  aria-label={copied ? t('common.copied') : t('common.copy')}
-                  title={copied ? t('common.copied') : t('common.copy')}
-                >
-                  {copied ? '✓' : <IconCopy width={17} height={17} />}
-                  <span className="urgent-sos-copy-label">{copied ? t('common.copied') : t('common.copy')}</span>
-                </button>
               </div>
-            </div>
+            )}
           </>
         )}
-        {result.status === 'rejected' && (
+        {result.status === 'rejected' && result.rejection_reason !== 'duplicate' && (
           <p className="error">{t(rejectionMessageKey[result.rejection_reason] || 'submitFlyer.rejectedGeneric')}</p>
         )}
         {result.status === 'failed' && <p className="error">{t('submitFlyer.resultFailed')}</p>}
         {result.status === 'processing' && <p>{t('submitFlyer.resultProcessing')}</p>}
-        {result.status === 'published' && <p className="success">{t('submitFlyer.resultPublished')}</p>}
         <div className="gps-controls">
           <button type="button" className="btn" onClick={() => setResult(null)}>
             {t('submitFlyer.submitAnother')}

@@ -5,6 +5,7 @@ from django.utils import timezone
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 
+from core.flyer_publish import publish_extracted_point
 from core.models import (
     AdminContactPhone,
     AppConfiguration,
@@ -489,46 +490,19 @@ class ExtractedCollectionPointInline(admin.TabularInline):
 
 
 def publish_extracted_points(modeladmin, request, queryset):
-    """The only path from this pipeline to a real, public CollectionPoint
-    (nothing here is ever auto-published). Publishes every included,
-    not-yet-published child of each selected submission -- re-running this
-    action is safe, already-published children are skipped via
-    published_point__isnull."""
+    """Manual fallback: the pipeline itself auto-publishes every non-
+    duplicate point as soon as extraction succeeds (see
+    FlyerSubmissionViewSet.create) -- this action only still matters for
+    whatever didn't auto-publish (every candidate point on a submission
+    turned out to be a likely duplicate, see REJECTION_DUPLICATE) once an
+    admin has looked at it and decided it's not actually a duplicate after
+    all. Re-running this action is safe, already-published children are
+    skipped via published_point__isnull."""
     published_count = 0
     for submission in queryset:
         any_published = False
         for child in submission.extracted_points.filter(include_in_publish=True, published_point__isnull=True):
-            point = CollectionPoint.objects.create(
-                wilaya=child.wilaya,
-                country_code=child.country_code,
-                country_name=child.country_name,
-                city=child.city,
-                precision_level=child.precision_level,
-                point_name=child.point_name,
-                organization=child.organization,
-                location_description=child.location_description or child.city or child.country_name or "Adresse non précisée",
-                latitude=child.latitude,
-                longitude=child.longitude,
-                hours=child.hours,
-                description=child.description,
-                accepted_donations=child.accepted_donations,
-                contact_name=child.contact_name,
-                contact_phone=child.contact_phone,
-                other_phones=child.other_phones,
-                facebook_url=child.facebook_url,
-                tiktok_url=child.tiktok_url,
-                instagram_url=child.instagram_url,
-            )
-            if submission.flyer_image:
-                # Shares the same stored file rather than re-uploading it --
-                # several points from one flyer all show the same image, per
-                # spec ("the flyer in common for all of them").
-                point.flyer_image.name = submission.flyer_image.name
-                point.flyer_moderation_status = submission.flyer_moderation_status
-                point.flyer_moderated_by = submission.flyer_moderated_by
-                point.save(update_fields=["flyer_image", "flyer_moderation_status", "flyer_moderated_by"])
-            child.published_point = point
-            child.save(update_fields=["published_point"])
+            publish_extracted_point(child)
             published_count += 1
             any_published = True
         if any_published:
