@@ -14,7 +14,7 @@
 .urgent-sos-recorded-duration{margin-top:7px;font-size:13px;font-weight:800;color:var(--text-muted);text-align:center;}
 .urgent-sos-recording.active{color:#c62828!important;}
 .urgent-sos-recording.active .urgent-sos-recording-dot{background:#d9273f!important;box-shadow:0 0 0 0 rgba(217,39,63,.55);animation:urgent-sos-recording-pulse 1.25s ease-out infinite;}
-.urgent-sos-recording.active strong{color:#c62828!important;}
+.urgent-sos-recording.active strong,.urgent-sos-recording.active svg{color:#c62828!important;}
 @keyframes urgent-sos-recording-pulse{0%{transform:scale(1);box-shadow:0 0 0 0 rgba(217,39,63,.55)}70%{transform:scale(1.08);box-shadow:0 0 0 10px rgba(217,39,63,0)}100%{transform:scale(1);box-shadow:0 0 0 0 rgba(217,39,63,0)}}
 .urgent-sos-recording.active{animation:urgent-sos-recording-shake .8s ease-in-out infinite;}
 @keyframes urgent-sos-recording-shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-1px)}75%{transform:translateX(1px)}}
@@ -23,6 +23,11 @@
 .urgent-sos-validation-panel>p:not(.urgent-sos-error){display:none;}
 .urgent-sos-step-label{display:none;}
 .urgent-sos-location-summary{margin-top:8px;padding:9px 11px;border:1px solid #bfe1cf;border-radius:11px;background:var(--sos-green-soft);color:var(--brand-green);font-size:12px;font-weight:800;}
+.urgent-sos-location-confirmation{display:flex;align-items:center;gap:8px;margin-top:10px;padding:10px 12px;border-radius:12px;font-size:12px;line-height:1.35;}
+.urgent-sos-location-confirmation strong{flex:0 0 auto;}
+.urgent-sos-location-confirmation span{min-width:0;}
+.urgent-sos-location-confirmation.confirmed{border:1px solid #a9d8bc;background:#effaf3;color:#176b3a;}
+.urgent-sos-location-confirmation.refused{border:1px solid #e4c27a;background:#fff8e8;color:#795900;}
 .urgent-sos-final-warning{margin:8px 0;padding:9px 11px;border:1px solid #e0b43c;border-radius:11px;background:#fff8e9;color:#6e5200;font-size:12px;font-weight:800;}
 .urgent-sos-done-card .urgent-sos-token-box{margin:10px 0;}
 .urgent-sos-done-card .urgent-sos-audio{margin:7px 0;}
@@ -35,6 +40,9 @@
 .urgent-sos-audio-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;}
 .urgent-sos-audio-btn svg{display:block;flex:0 0 auto;}
 .urgent-sos-audio-btn-label{font-size:13px;line-height:1;}
+.urgent-sos-audio.is-muted .urgent-sos-audio-btn{color:#c62828;}
+.urgent-sos-audio.is-muted .urgent-sos-audio-btn:hover,.urgent-sos-audio.is-muted .urgent-sos-audio-btn:focus-visible{color:#b71c1c;}
+.urgent-sos-audio-btn.is-replay{color:var(--brand-green);}
 @media(max-width:699px){
   .urgent-sos-page{padding-top:0;overflow-x:hidden;}
   .urgent-sos-shell{width:100%;max-width:100%;}
@@ -47,7 +55,6 @@
   .urgent-sos-audio-btn-label{display:none;}
   .urgent-sos-language{margin:5px 0 8px;}
   .urgent-sos-actions{margin-top:7px;gap:6px;}
-  /* Keep the countdown fully above the navigation and away from the audio control. */
   .urgent-sos-countdown{position:relative;z-index:2;margin:6px 0 0;padding:8px 0 2px;gap:5px;}
   .urgent-sos-countdown strong{font-size:14px;}
   .urgent-sos-countdown-number{font-size:clamp(3rem,18vw,4.2rem);}
@@ -69,7 +76,6 @@
   .urgent-sos-token-box{padding:9px!important;max-width:100%;box-sizing:border-box;}
   .urgent-sos-token-title{font-size:13px!important;}
   .urgent-sos-token-warning{font-size:10px!important;margin:4px 0!important;}
-  /* Token and copy icon stay on one line; the icon has a fixed footprint and cannot cover text. */
   .urgent-sos-token-row{flex-direction:row;align-items:center;gap:7px!important;min-width:0;}
   .urgent-sos-token{width:auto;max-width:none;font-size:14px!important;padding:9px!important;min-width:0;}
   .urgent-sos-copy-token{width:42px;min-width:42px;height:42px;padding:0!important;}
@@ -77,6 +83,7 @@
   .urgent-sos-done-card .urgent-sos-audio{margin:4px 0;}
   .urgent-sos-done-card .urgent-sos-audio-btn{min-height:36px;font-size:0;}
   .urgent-sos-turnstile{transform-origin:top center;}
+  .urgent-sos-location-confirmation{align-items:flex-start;flex-direction:column;gap:3px;}
 }
 @media(max-width:379px){
   .urgent-sos-stepper small{font-size:10px;}
