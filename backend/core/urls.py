@@ -7,6 +7,7 @@ from core.views import (
     CommentViewSet,
     ContentReportViewSet,
     DisasterTypeViewSet,
+    FlyerSubmissionViewSet,
     NeedViewSet,
     PickupViewSet,
     SupportRequestViewSet,
@@ -25,6 +26,7 @@ router.register("pickups", PickupViewSet, basename="pickup")
 router.register("support-requests", SupportRequestViewSet, basename="support-request")
 router.register("content-reports", ContentReportViewSet, basename="content-report")
 router.register("collection-points", CollectionPointViewSet, basename="collection-point")
+router.register("flyer-submissions", FlyerSubmissionViewSet, basename="flyer-submission")
 router.register("comments", CommentViewSet, basename="comment")
 
 urlpatterns = router.urls + [

@@ -80,6 +80,11 @@ const MATCHERS = [
     // translated message instead of a one-size-fits-all "invalid link".
     params: (_, field) => ({ network: SOCIAL_FIELD_NAMES[field] || field }),
   },
+  { match: 'A flyer image is required.', key: 'flyerImageRequired' },
+  {
+    match: "This feature isn't available right now. Please try the manual form instead.",
+    key: 'flyerExtractionUnavailable',
+  },
   { match: 'This field is required.', key: 'genericFieldError' },
   { match: 'This field may not be blank.', key: 'genericFieldError' },
   { match: 'This field may not be null.', key: 'genericFieldError' },

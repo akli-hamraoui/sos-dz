@@ -11,6 +11,8 @@ from core.models import (
     DeliveryPhoto,
     DisasterType,
     DuplicateReport,
+    ExtractedCollectionPoint,
+    FlyerSubmission,
     LocationPing,
     Need,
     Pickup,
@@ -704,7 +706,7 @@ class CollectionPointSerializer(serializers.ModelSerializer):
         model = CollectionPoint
         fields = [
             "id", "wilaya", "wilaya_name", "country_code", "country_name", "is_international",
-            "point_name", "contact_name", "contact_phone",
+            "city", "precision_level", "point_name", "contact_name", "contact_phone",
             "other_phones", "organization", "location_description", "latitude", "longitude", "hours",
             "description", "accepted_donations", "status", "created_at", "comments", "pickups",
             "facebook_url", "tiktok_url", "instagram_url",
@@ -813,14 +815,14 @@ class CollectionPointMapPinSerializer(serializers.ModelSerializer):
         fields = [
             "id", "point_name", "contact_name", "contact_phone", "organization", "hours",
             "status", "wilaya", "wilaya_name", "country_code", "country_name", "is_international",
-            "display_latitude", "display_longitude", "has_exact_position", "flyer_image",
+            "city", "precision_level", "display_latitude", "display_longitude", "has_exact_position", "flyer_image",
         ]
 
     def get_wilaya_name(self, obj):
         return obj.wilaya.name if obj.wilaya_id else None
 
     def get_has_exact_position(self, obj):
-        return obj.latitude is not None
+        return obj.precision_level == CollectionPoint.PRECISION_EXACT
 
     def get_flyer_image(self, obj):
         if not obj.flyer_image or obj.flyer_moderation_status != Need.MODERATION_APPROVED:
@@ -829,18 +831,37 @@ class CollectionPointMapPinSerializer(serializers.ModelSerializer):
         url = obj.flyer_image.url
         return request.build_absolute_uri(url) if request else url
 
+    def _country_centroid(self, obj):
+        from core.geo import get_country_centroid
+
+        return get_country_centroid(obj.country_code, obj.country_name)
+
     def get_display_latitude(self, obj):
-        # International points always carry an exact position (enforced at
-        # creation, see CollectionPointCreateSerializer) -- no wilaya
-        # centroid to fall back on the way a national one would.
-        if obj.latitude is not None or obj.wilaya_id is None:
+        if obj.latitude is not None:
             return obj.latitude
-        return obj.wilaya.centroid_latitude
+        if obj.wilaya_id is not None:
+            return obj.wilaya.centroid_latitude
+        if obj.country_code:
+            # PRECISION_COUNTRY (flyer-extraction pipeline only -- the
+            # manual international form always requires real GPS) has no
+            # coordinates of its own at all; fall back to the country's own
+            # centroid purely so it's visible on the map somewhere. Several
+            # points in the same country land on this exact same position
+            # and cluster into one bubble (InternationalCollectionPoints.jsx),
+            # same as the existing city-level clustering.
+            centroid = self._country_centroid(obj)
+            return centroid[0] if centroid else None
+        return None
 
     def get_display_longitude(self, obj):
-        if obj.longitude is not None or obj.wilaya_id is None:
+        if obj.longitude is not None:
             return obj.longitude
-        return obj.wilaya.centroid_longitude
+        if obj.wilaya_id is not None:
+            return obj.wilaya.centroid_longitude
+        if obj.country_code:
+            centroid = self._country_centroid(obj)
+            return centroid[1] if centroid else None
+        return None
 
 
 class CollectionPointCloseSerializer(serializers.Serializer):
@@ -854,3 +875,41 @@ class CollectionPointCloseSerializer(serializers.Serializer):
     code = serializers.CharField(required=False, allow_blank=True)
     contact_name = serializers.CharField(required=False, allow_blank=True)
     contact_phone = serializers.CharField(required=False, allow_blank=True)
+
+
+# ---------------------------------------------------------------------------
+# Flyer extraction pipeline: create one or more CollectionPoints from a photo
+# ---------------------------------------------------------------------------
+
+class FlyerSubmissionCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FlyerSubmission
+        fields = ["flyer_image", "submitter_name", "submitter_phone"]
+
+
+class ExtractedCollectionPointSerializer(serializers.ModelSerializer):
+    wilaya_name = serializers.CharField(source="wilaya.name", read_only=True)
+    duplicate_of_name = serializers.CharField(source="duplicate_of.point_name", read_only=True)
+
+    class Meta:
+        model = ExtractedCollectionPoint
+        fields = [
+            "id", "point_name", "organization", "wilaya", "wilaya_name", "country_code", "country_name",
+            "city", "location_description", "precision_level", "hours", "description", "accepted_donations",
+            "contact_name", "contact_phone", "other_phones", "duplicate_of", "duplicate_of_name",
+        ]
+
+
+class FlyerSubmissionStatusSerializer(serializers.ModelSerializer):
+    """Returned right after upload (the extraction call runs synchronously
+    within that same request) and from a status lookup by access_token.
+    Never exposes llm_raw_response (internal debugging only)."""
+
+    extracted_points = ExtractedCollectionPointSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = FlyerSubmission
+        fields = [
+            "id", "access_token", "status", "rejection_reason", "organization_common",
+            "created_at", "extracted_points",
+        ]

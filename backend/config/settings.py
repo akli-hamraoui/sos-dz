@@ -284,6 +284,17 @@ NSFWJS_REJECT_THRESHOLD = float(env("NSFWJS_REJECT_THRESHOLD", default="0.85"))
 
 RATE_LIMIT_CREATIONS_PER_HOUR = int(env("RATE_LIMIT_CREATIONS_PER_HOUR", default="20"))
 
+# Gemini vision API (core.gemini_extraction) -- powers the "create a
+# collection point from a flyer photo" pipeline. Free tier: get a key at
+# https://aistudio.google.com/apikey. Left blank, that feature is simply
+# unavailable (core.views.FlyerSubmissionViewSet returns 503) -- the manual
+# creation form is entirely unaffected either way.
+GEMINI_API_KEY = env("GEMINI_API_KEY", default="")
+# "gemini-flash-latest" always points at Google's current free-tier Flash
+# model rather than a version that will eventually be retired -- override
+# in .env if you need to pin an exact version.
+GEMINI_MODEL = env("GEMINI_MODEL", default="gemini-flash-latest")
+
 # --- Logging --------------------------------------------------------------
 
 # Console output alone (Django's default) is lost as soon as the process's

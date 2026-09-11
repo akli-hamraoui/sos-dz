@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.contrib import admin
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
@@ -17,6 +18,8 @@ from core.models import (
     DeliveryPhoto,
     DisasterType,
     DuplicateReport,
+    ExtractedCollectionPoint,
+    FlyerSubmission,
     LocationPing,
     Need,
     Pickup,
@@ -445,6 +448,121 @@ class CollectionPointAdmin(admin.ModelAdmin):
     @admin.display(description="Access token")
     def access_token_copy(self, obj):
         return copyable_token_field(obj.access_token)
+
+
+# ---------------------------------------------------------------------------
+# Flyer extraction pipeline: review queue for LLM-proposed points
+# ---------------------------------------------------------------------------
+
+class ExtractedCollectionPointInline(admin.TabularInline):
+    """One row per candidate point the LLM proposed for this flyer.
+    include_in_publish is the reviewer's approve/drop checkbox (duplicates,
+    junk, anything they don't trust); every other field stays editable so a
+    misread name/phone/address can be fixed here rather than rejecting the
+    whole submission over one typo. duplicate_of/published_point are shown
+    as links, never as editable dropdowns -- per spec, the reviewer just
+    needs to see and click through to the existing point, not re-search
+    for it here."""
+
+    model = ExtractedCollectionPoint
+    extra = 0
+    fields = [
+        "include_in_publish", "point_name", "organization", "wilaya", "country_code", "country_name", "city",
+        "precision_level", "contact_name", "contact_phone", "other_phones", "hours",
+        "duplicate_of_link", "published_point_link",
+    ]
+    readonly_fields = ["duplicate_of_link", "published_point_link"]
+
+    def _link(self, point):
+        if not point:
+            return "—"
+        url = reverse("admin:core_collectionpoint_change", args=[point.pk])
+        return format_html('<a href="{}" target="_blank">{}</a>', url, point.point_name)
+
+    @admin.display(description="Possible duplicate")
+    def duplicate_of_link(self, obj):
+        return self._link(obj.duplicate_of)
+
+    @admin.display(description="Published as")
+    def published_point_link(self, obj):
+        return self._link(obj.published_point)
+
+
+def publish_extracted_points(modeladmin, request, queryset):
+    """The only path from this pipeline to a real, public CollectionPoint
+    (nothing here is ever auto-published). Publishes every included,
+    not-yet-published child of each selected submission -- re-running this
+    action is safe, already-published children are skipped via
+    published_point__isnull."""
+    published_count = 0
+    for submission in queryset:
+        any_published = False
+        for child in submission.extracted_points.filter(include_in_publish=True, published_point__isnull=True):
+            point = CollectionPoint.objects.create(
+                wilaya=child.wilaya,
+                country_code=child.country_code,
+                country_name=child.country_name,
+                city=child.city,
+                precision_level=child.precision_level,
+                point_name=child.point_name,
+                organization=child.organization,
+                location_description=child.location_description or child.city or child.country_name or "Adresse non précisée",
+                latitude=child.latitude,
+                longitude=child.longitude,
+                hours=child.hours,
+                description=child.description,
+                accepted_donations=child.accepted_donations,
+                contact_name=child.contact_name,
+                contact_phone=child.contact_phone,
+                other_phones=child.other_phones,
+                facebook_url=child.facebook_url,
+                tiktok_url=child.tiktok_url,
+                instagram_url=child.instagram_url,
+            )
+            if submission.flyer_image:
+                # Shares the same stored file rather than re-uploading it --
+                # several points from one flyer all show the same image, per
+                # spec ("the flyer in common for all of them").
+                point.flyer_image.name = submission.flyer_image.name
+                point.flyer_moderation_status = submission.flyer_moderation_status
+                point.flyer_moderated_by = submission.flyer_moderated_by
+                point.save(update_fields=["flyer_image", "flyer_moderation_status", "flyer_moderated_by"])
+            child.published_point = point
+            child.save(update_fields=["published_point"])
+            published_count += 1
+            any_published = True
+        if any_published:
+            submission.status = FlyerSubmission.STATUS_PUBLISHED
+            submission.reviewed_at = timezone.now()
+            submission.save(update_fields=["status", "reviewed_at"])
+    AuditLog.objects.create(
+        admin_user=request.user, action="published extracted collection points", target_description=f"{published_count} point(s)"
+    )
+    modeladmin.message_user(request, f"Published {published_count} collection point(s).")
+
+
+publish_extracted_points.short_description = "Publish included points as real collection points"
+
+
+def reject_flyer_submission(modeladmin, request, queryset):
+    count = queryset.exclude(status=FlyerSubmission.STATUS_PUBLISHED).update(
+        status=FlyerSubmission.STATUS_REJECTED, rejection_reason=FlyerSubmission.REJECTION_ADMIN, reviewed_at=timezone.now()
+    )
+    AuditLog.objects.create(admin_user=request.user, action="rejected flyer submission", target_description=f"{count} submission(s)")
+    modeladmin.message_user(request, f"Rejected {count} submission(s). Nothing was published from them.")
+
+
+reject_flyer_submission.short_description = "Reject (nothing published)"
+
+
+@admin.register(FlyerSubmission)
+class FlyerSubmissionAdmin(admin.ModelAdmin):
+    list_display = ["id", "status", "rejection_reason", "flyer_moderation_status", "organization_common", "created_at"]
+    list_filter = ["status", "rejection_reason", "flyer_moderation_status"]
+    search_fields = ["organization_common", "raw_extracted_text"]
+    readonly_fields = ["access_token", "llm_raw_response", "created_at"]
+    inlines = [ExtractedCollectionPointInline]
+    actions = [publish_extracted_points, reject_flyer_submission]
 
 
 @admin.register(Comment)

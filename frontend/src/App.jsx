@@ -21,6 +21,7 @@ import About from './pages/About'
 import Legal from './pages/Legal'
 import CollectionPoints from './pages/CollectionPoints'
 import CreateCollectionPoint from './pages/CreateCollectionPoint'
+import SubmitFlyer from './pages/SubmitFlyer'
 import CollectionPointDetail from './pages/CollectionPointDetail'
 import InternationalCollectionPoints from './pages/InternationalCollectionPoints'
 import CreateInternationalCollectionPoint from './pages/CreateInternationalCollectionPoint'
@@ -40,6 +41,7 @@ import {
   IconAlgeriaFlag,
   IconGlobeColor,
   IconPlus,
+  IconCamera,
 } from './icons'
 
 // Small "this opens a map" cue on a bottom-nav icon -- Besoins/Points de
@@ -91,6 +93,7 @@ const PAGE_TITLE_KEYS = {
   '/urgent-sos': 'urgentSos.title',
   '/collection-points': 'nav.collectionPoints',
   '/collection-points/create': 'collectionPoints.createTitle',
+  '/collection-points/submit-flyer': 'submitFlyer.title',
   '/international-collection-points': 'internationalCollectionPoints.navButton',
   '/international-collection-points/create': 'internationalCollectionPoints.createTitle',
   '/deliveries': 'nav.deliveries',
@@ -236,6 +239,9 @@ function QuickActions() {
             </Link>
             <Link to="/international-collection-points/create" onClick={() => setCreateMenuOpen(false)}>
               <IconGlobeColor width={16} height={16} /> {t('home.createCollectionPointInternational')}
+            </Link>
+            <Link to="/collection-points/submit-flyer" onClick={() => setCreateMenuOpen(false)}>
+              <IconCamera width={16} height={16} /> {t('submitFlyer.navButton')}
             </Link>
           </div>
         )}
@@ -455,6 +461,7 @@ export default function App() {
           <Route path="/legal" element={<Legal />} />
           <Route path="/collection-points" element={<CollectionPoints />} />
           <Route path="/collection-points/create" element={<CreateCollectionPoint />} />
+          <Route path="/collection-points/submit-flyer" element={<SubmitFlyer />} />
           <Route path="/collection-points/:id" element={<CollectionPointDetail />} />
           <Route path="/collection-points/:id/take-charge" element={<TakeCharge source="collection_point" />} />
           <Route path="/international-collection-points" element={<InternationalCollectionPoints />} />

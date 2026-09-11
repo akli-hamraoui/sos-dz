@@ -48,6 +48,22 @@ export function collectionPointIcon(L) {
   })
 }
 
+// One bubble per country for PRECISION_COUNTRY collection points (no
+// individual location known at all -- not even a city) -- size grows
+// (capped) with the count so a country with many points reads as visually
+// "bigger" without needing its own legend. See InternationalCollectionPoints.jsx:
+// clicking it opens a list panel rather than a popup, since there's no
+// single spot to anchor a popup on.
+export function countryBubbleIcon(L, count) {
+  const size = Math.round(Math.min(34 + Math.sqrt(count) * 10, 70))
+  return L.divIcon({
+    className: 'cp-country-bubble-icon',
+    html: `<span class="cp-country-bubble">${count}</span>`,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+  })
+}
+
 // Shared by every "spread these overlapping markers apart" call below --
 // several same-position pins (e.g. two needs that both fell back to the
 // same wilaya centroid, see NeedsList.jsx) otherwise stack exactly on top

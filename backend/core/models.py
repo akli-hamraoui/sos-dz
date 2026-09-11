@@ -1,5 +1,6 @@
 import secrets
 from datetime import timedelta
+from pathlib import Path
 
 from django.conf import settings
 from django.db import models
@@ -13,6 +14,27 @@ def generate_token():
     """32-char random access token. Not hashed: it's a temporary access key
     scoped to one resource, not a password (see spec, AUTHENTICATION MODEL)."""
     return secrets.token_urlsafe(24)[:32]
+
+
+def _random_filename(folder, filename):
+    """Stores a file under folder/ with a random name instead of the name
+    the uploader's device gave it -- e.g. a flyer photo's own filename can
+    otherwise leak into a public media URL (a phone's camera default, a
+    WhatsApp-forwarded name, sometimes a person's own name in it) with
+    nothing to gain from keeping it. Only the extension survives. Two
+    thin, named wrappers below (not a factory returning a closure) so
+    each is its own plain, top-level function -- Django's migration
+    serializer needs an upload_to callable it can reference by
+    module-level name, which a closure isn't."""
+    return f"{folder}/{secrets.token_hex(16)}{Path(filename).suffix.lower()}"
+
+
+def collection_point_flyer_upload_path(instance, filename):
+    return _random_filename("collection_point_flyers", filename)
+
+
+def flyer_submission_upload_path(instance, filename):
+    return _random_filename("flyer_submissions", filename)
 
 
 # ---------------------------------------------------------------------------
@@ -113,6 +135,17 @@ class AppConfiguration(AuditMixin, models.Model):
             "every video submission failing outright. Turn this on once ffmpeg is "
             "confirmed installed (see DEPLOYMENT.md step 1) if you want the 20s cap "
             "actually enforced server-side rather than relying on the client-side stop."
+        ),
+    )
+    flyer_extraction_active = models.BooleanField(
+        default=True,
+        help_text=(
+            "When enabled, the 'create a collection point from a flyer photo' feature "
+            "calls the Gemini vision API (core.gemini_extraction) to read the flyer and "
+            "propose one or more collection points for human review. If GEMINI_API_KEY "
+            "isn't configured, the feature is unavailable regardless of this flag. Turn "
+            "this off to disable flyer submissions entirely (e.g. API quota exhausted) "
+            "without touching the manual creation forms, which are unaffected."
         ),
     )
     # Phone numbers are a related model (AdminContactPhone, up to 5 --
@@ -724,6 +757,30 @@ class CollectionPoint(AuditMixin, models.Model):
     # than re-deriving a name from country_code on every read -- simpler
     # than adding a Country lookup table for what's otherwise just a label.
     country_name = models.CharField(max_length=100, blank=True)
+    # Free-text city -- optional extra precision alongside wilaya (national)
+    # or country_code/country_name (international). Purely informational
+    # until the flyer-extraction pipeline below: that's the first thing to
+    # actually populate it for points that have no exact address at all.
+    city = models.CharField(max_length=150, blank=True)
+    # PRECISION_EXACT covers every point created through the manual forms
+    # today (a national one either has real GPS or falls back to its
+    # wilaya's centroid -- both already treated as "the best we've got";
+    # an international one always has real GPS, mandatory at creation).
+    # PRECISION_CITY/COUNTRY only exist for points published from the
+    # flyer-extraction pipeline (ExtractedCollectionPoint below), where a
+    # photo sometimes gives no better anchor than a city or a bare country
+    # name -- see CollectionPointMapPinSerializer for how each is displayed
+    # (a city-level pin still gets real, if approximate, coordinates and
+    # relies on the frontend's own overlapping-marker spread; a
+    # country-level point gets no coordinates of its own at all and is
+    # positioned at the country's centroid only for map display).
+    PRECISION_EXACT, PRECISION_CITY, PRECISION_COUNTRY = "exact", "city", "country"
+    PRECISION_CHOICES = [
+        (PRECISION_EXACT, "Exact address"),
+        (PRECISION_CITY, "City only"),
+        (PRECISION_COUNTRY, "Country only"),
+    ]
+    precision_level = models.CharField(max_length=10, choices=PRECISION_CHOICES, default=PRECISION_EXACT)
     point_name = models.CharField(max_length=200)
     # Issued at creation, same shape as Need/Pickup's own access_token
     # (IdentityListingMixin) -- lets a creator "recover access" via
@@ -777,7 +834,7 @@ class CollectionPoint(AuditMixin, models.Model):
     # model + moderation_status/moderated_by shape as Need.video_file
     # (one flyer per point, not a gallery -- DamagePhoto's separate-model
     # pattern is for up to 3 photos per listing, not this).
-    flyer_image = models.ImageField(upload_to="collection_point_flyers/", null=True, blank=True)
+    flyer_image = models.ImageField(upload_to=collection_point_flyer_upload_path, null=True, blank=True)
     flyer_moderation_status = models.CharField(max_length=10, choices=Need.MODERATION_CHOICES, default=Need.MODERATION_APPROVED)
     flyer_moderated_by = models.CharField(max_length=10, choices=Need.MODERATED_BY_CHOICES, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -822,6 +879,135 @@ class CollectionPoint(AuditMixin, models.Model):
         if not self.recovery_code:
             return False
         return self.recovery_code.strip() == (code or "").strip()
+
+
+class CountryCentroidCache(models.Model):
+    """Lazily-populated cache of country-level centroids used to position a
+    PRECISION_COUNTRY point on the map (core.geo.get_country_centroid).
+    Common countries resolve from a hardcoded dict with no DB hit at all;
+    this table only exists for the long tail, so a country seen once never
+    needs a fresh Nominatim geocode again."""
+
+    country_code = models.CharField(max_length=2, unique=True)
+    latitude = models.FloatField()
+    longitude = models.FloatField()
+
+    def __str__(self):
+        return self.country_code
+
+
+class FlyerSubmission(AuditMixin, models.Model):
+    """One uploaded flyer photo, submitted through the 'add a collection
+    point from a flyer' pipeline (core.gemini_extraction) rather than a
+    manual form. A flyer can describe several collection points at once
+    (e.g. a table of cities) -- those are held as ExtractedCollectionPoint
+    children below, never published automatically. Manual review is
+    mandatory before anything from this pipeline becomes a real, publicly
+    visible CollectionPoint, same as flyer_image moderation is for the
+    manual forms."""
+
+    STATUS_PROCESSING = "processing"
+    STATUS_NEEDS_REVIEW = "needs_review"
+    STATUS_REJECTED = "rejected"
+    STATUS_PUBLISHED = "published"
+    STATUS_FAILED = "failed"
+    STATUS_CHOICES = [
+        (STATUS_PROCESSING, "Processing"),
+        (STATUS_NEEDS_REVIEW, "Needs review"),
+        (STATUS_REJECTED, "Rejected"),
+        (STATUS_PUBLISHED, "Published"),
+        (STATUS_FAILED, "Extraction failed"),
+    ]
+
+    REJECTION_NO_COUNTRY = "no_country"
+    REJECTION_MONEY_COLLECTION = "money_collection"
+    REJECTION_MODERATION = "flyer_moderation"
+    REJECTION_ADMIN = "admin"
+    REJECTION_CHOICES = [
+        (REJECTION_NO_COUNTRY, "No country identifiable on the flyer"),
+        (REJECTION_MONEY_COLLECTION, "Flyer solicits an online money transfer (CCP/IBAN/PayPal/cagnotte...)"),
+        (REJECTION_MODERATION, "Flyer image failed content moderation"),
+        (REJECTION_ADMIN, "Rejected by an admin during review"),
+    ]
+
+    access_token = models.CharField(max_length=32, unique=True, default=generate_token, editable=False)
+    # Optional -- only used so the submitter can check back on this
+    # specific submission's status later; the per-point contact_name/
+    # contact_phone actually shown publicly come from what the LLM read
+    # off the flyer itself, not from these.
+    submitter_name = models.CharField(max_length=200, blank=True)
+    submitter_phone = models.CharField(max_length=30, blank=True)
+    flyer_image = models.ImageField(upload_to=flyer_submission_upload_path)
+    flyer_moderation_status = models.CharField(max_length=10, choices=Need.MODERATION_CHOICES, default=Need.MODERATION_APPROVED)
+    flyer_moderated_by = models.CharField(max_length=10, choices=Need.MODERATED_BY_CHOICES, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PROCESSING)
+    rejection_reason = models.CharField(max_length=20, choices=REJECTION_CHOICES, blank=True)
+    # Full raw text the model read off the flyer -- nothing structured is
+    # invented from it, but it's kept for an admin to double check anything
+    # the structured fields below didn't capture.
+    raw_extracted_text = models.TextField(blank=True)
+    # Raw JSON response from the extraction call, for debugging a bad
+    # extraction after the fact -- never shown to the public.
+    llm_raw_response = models.TextField(blank=True)
+    organization_common = models.CharField(max_length=200, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Flyer submission #{self.pk} ({self.status})"
+
+
+class ExtractedCollectionPoint(models.Model):
+    """One candidate collection point proposed by the extraction pipeline
+    for a single FlyerSubmission. Deliberately its own row (not a JSON blob
+    on FlyerSubmission) so a human reviewer can edit, drop, or approve each
+    one individually in Django Admin (see ExtractedCollectionPointInline)
+    before anything is published as a real CollectionPoint. Fields mirror
+    CollectionPoint's own (country_code/country_name, not a free-text
+    country) so publishing is a straight field-for-field copy."""
+
+    submission = models.ForeignKey(FlyerSubmission, on_delete=models.CASCADE, related_name="extracted_points")
+    # Unchecked by a reviewer to drop a candidate (duplicate, junk, the
+    # flyer's own money-collection line item, ...) without deleting the row
+    # and losing the audit trail of what the LLM actually returned.
+    include_in_publish = models.BooleanField(default=True)
+    point_name = models.CharField(max_length=200, blank=True)
+    organization = models.CharField(max_length=200, blank=True)
+    wilaya = models.ForeignKey(Wilaya, on_delete=models.SET_NULL, null=True, blank=True)
+    country_code = models.CharField(max_length=2, blank=True)
+    country_name = models.CharField(max_length=100, blank=True)
+    city = models.CharField(max_length=150, blank=True)
+    location_description = models.TextField(blank=True)
+    precision_level = models.CharField(max_length=10, choices=CollectionPoint.PRECISION_CHOICES, default=CollectionPoint.PRECISION_COUNTRY)
+    latitude = models.FloatField(null=True, blank=True)
+    longitude = models.FloatField(null=True, blank=True)
+    hours = models.CharField(max_length=200, blank=True)
+    description = models.TextField(blank=True)
+    accepted_donations = models.TextField(blank=True)
+    contact_name = models.CharField(max_length=200, blank=True)
+    contact_phone = models.CharField(max_length=30, blank=True)
+    other_phones = models.TextField(blank=True)
+    facebook_url = models.URLField(max_length=300, blank=True)
+    tiktok_url = models.URLField(max_length=300, blank=True)
+    instagram_url = models.URLField(max_length=300, blank=True)
+    # Best-effort match against an existing, already-published
+    # CollectionPoint (core.duplicates.find_similar_collection_points) --
+    # shown to the reviewer as a link, per spec ("just show it's a
+    # duplicate and the link to the existing point"). Never auto-excluded:
+    # the reviewer decides whether it's really the same point.
+    duplicate_of = models.ForeignKey(CollectionPoint, on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    # Set once this row has actually been published, so re-running the
+    # publish action is a no-op for it instead of creating a second point.
+    published_point = models.ForeignKey(CollectionPoint, on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+
+    class Meta:
+        ordering = ["id"]
+
+    def __str__(self):
+        return self.point_name or f"Extracted point #{self.pk}"
 
 
 class Comment(AuditMixin, models.Model):
