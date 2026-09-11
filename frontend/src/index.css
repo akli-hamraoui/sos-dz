@@ -1699,19 +1699,22 @@ fieldset {
 
 /* Standalone active-filter indicator for a filter set from outside the
    filters panel itself (e.g. NeedsList.jsx's map "sans localisation"
-   bubble) -- names what's filtered and offers a one-tap way to clear
-   just that, since the panel's own select wouldn't show it as selected. */
+   bubble) -- names what's filtered and offers a one-tap way to clear just
+   that, since the panel's own select wouldn't show it as selected. Sits
+   as a flex sibling in .toolbar-compact (between the filters button and
+   the Liste/Carte toggle), not stacked above page content, so no block
+   margin of its own. */
 .filters-badge-chip {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  margin-block-end: 12px;
   padding: 6px 10px;
   border-radius: 999px;
   background: var(--danger);
   color: #fff;
   font-size: 13px;
   font-weight: 600;
+  white-space: nowrap;
 }
 .filters-badge-chip button {
   background: none;

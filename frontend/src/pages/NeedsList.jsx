@@ -509,6 +509,14 @@ export default function NeedsList() {
           ☰ {t('common.filters')}
           {hasActiveFilters && <span className="filters-badge" aria-hidden="true" />}
         </button>
+        {filterNoLocation && (
+          <div className="filters-badge-chip">
+            {t('needsList.noLocationBubbleLabel')}
+            <button type="button" onClick={() => setFilterNoLocation(false)} aria-label={t('common.close')}>
+              ×
+            </button>
+          </div>
+        )}
         <div className="view-toggle">
           <button className={viewMode === 'list' ? 'active' : ''} onClick={() => setViewMode('list')}>
             {t('needsList.list')}
@@ -552,14 +560,6 @@ export default function NeedsList() {
 
       {viewMode === 'list' && (
         <div className="needs-list">
-          {filterNoLocation && (
-            <div className="filters-badge-chip">
-              {t('needsList.noLocationBubbleLabel')}
-              <button type="button" onClick={() => setFilterNoLocation(false)} aria-label={t('common.close')}>
-                ×
-              </button>
-            </div>
-          )}
           {needs.length === 0 && <p>{t('needsList.noActiveNeeds')}</p>}
           {needs.map((n) => (
             <Link className="need-card" to={`/needs/${n.id}`} key={n.id}>
