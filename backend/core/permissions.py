@@ -25,15 +25,14 @@ def read_only_block(request):
 
 
 def geo_restriction_block(request):
-    """Returns an error message if the Algeria IP write restriction blocks
-    this request, else None. Admins always bypass this check, from anywhere.
+    """Returns an error message if the Algeria geo restriction blocks this
+    request, else None. Admins always bypass this check, from anywhere.
 
-    The guided voice SOS is a special case: a browser may legitimately reach
-    Django through a proxy whose public IP cannot be resolved because the
-    GeoLite2 database is unavailable. When the SOS payload contains GPS
-    coordinates, those coordinates are independently checked against the
-    Algeria bounding box and can safely serve as the write-location proof.
-    All other write endpoints keep the existing IP-only restriction.
+    The guided voice SOS may use GPS coordinates as a server-side proof when
+    the request IP cannot be resolved by GeoLite2 (for example while the
+    database is unavailable). If GPS is not available, the authoritative
+    check remains the request IP; a client-provided country code is never
+    trusted for authorization.
     """
     if is_request_admin(request):
         return None
@@ -53,6 +52,7 @@ def geo_restriction_block(request):
             latitude = longitude = None
         if is_within_algeria_bounds(latitude, longitude):
             return None
+        return "This feature is only available from Algeria."
 
     return (
         "Only visible from within Algeria can create or edit listings — "
