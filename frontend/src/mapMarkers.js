@@ -28,6 +28,22 @@ export function collectionPointIcon(L) {
   })
 }
 
+// One bubble per country for PRECISION_COUNTRY collection points (no
+// individual location known at all) -- size grows (capped) with the
+// count so a country with many points reads as visually "bigger" without
+// needing its own legend. See CollectionPoints.jsx: clicking it opens a
+// list panel rather than a popup, since there's no single spot to anchor
+// a popup on.
+export function countryBubbleIcon(L, count) {
+  const size = Math.round(Math.min(34 + Math.sqrt(count) * 10, 70))
+  return L.divIcon({
+    className: 'cp-country-bubble-icon',
+    html: `<span class="cp-country-bubble">${count}</span>`,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+  })
+}
+
 export function needPopupHtml(t, p, statusLabel) {
   const gpsNote = p.has_exact_position ? '' : `<br><em>${t('common.noExactGpsPosition')}</em>`
   const urgencyPrefix = p.urgency !== 'medium' ? `${t(`urgency.${p.urgency}`)} — ` : ''

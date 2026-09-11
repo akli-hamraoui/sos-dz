@@ -1,4 +1,6 @@
-from django.db.models import Prefetch, Q
+import logging
+
+from django.db.models import Count, Prefetch, Q
 from django.shortcuts import get_object_or_404
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
@@ -9,7 +11,14 @@ from rest_framework.views import APIView
 
 from core.access import authorized_for_write, get_presented_token, is_admin_request, owner_authorized
 from core.captcha import verify_turnstile
-from core.duplicates import find_similar_needs
+from core.duplicates import find_similar_collection_points, find_similar_needs
+from core.gemini_extraction import (
+    ExtractionError,
+    ExtractionUnavailable,
+    contains_money_collection_mention,
+    extract_flyer_data,
+)
+from core.geo import geocode_address, geocode_city_centroid, get_country_centroid
 from core.media_validation import validate_photo_count, validate_photo_size
 from core.moderation import moderate_image_field, moderate_video_field, moderation_active
 from core.models import (
@@ -23,6 +32,8 @@ from core.models import (
     DeliveryPhoto,
     DisasterType,
     DuplicateReport,
+    ExtractedCollectionPoint,
+    FlyerSubmission,
     LocationPing,
     Need,
     Pickup,
@@ -37,14 +48,18 @@ from core.serializers import (
     AppConfigurationPublicSerializer,
     CampaignSerializer,
     CollectionPointCloseSerializer,
+    CollectionPointCountryListSerializer,
     CollectionPointCreateSerializer,
     CollectionPointMapPinSerializer,
     CollectionPointSerializer,
     CommentCreateSerializer,
     CommentSerializer,
     ContentReportSerializer,
+    CountryGroupSerializer,
     DisasterTypeSerializer,
     DuplicateReportCreateSerializer,
+    FlyerSubmissionCreateSerializer,
+    FlyerSubmissionStatusSerializer,
     IdentityRecoverySerializer,
     LocationPingSerializer,
     NeedCreateSerializer,
@@ -60,6 +75,8 @@ from core.serializers import (
     WilayaSerializer,
 )
 from core.throttling import CreationRateThrottle
+
+logger = logging.getLogger(__name__)
 
 
 def log_admin_action(request, action_name, target):
@@ -784,6 +801,15 @@ class CollectionPointViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mix
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         point = serializer.save()
+        # This form never collects country/city -- it's Algeria-only via
+        # wilaya, and the model default already sets country="Algérie".
+        # precision_level only needs setting here: PRECISION_EXACT when the
+        # submitter captured/typed real GPS, PRECISION_CITY (falls back to
+        # the wilaya centroid, jittered -- see CollectionPointMapPinSerializer)
+        # otherwise. Same distinction the map already made dynamically via
+        # has_exact_position before precision_level existed.
+        point.precision_level = CollectionPoint.PRECISION_EXACT if point.latitude is not None else CollectionPoint.PRECISION_CITY
+        point.save(update_fields=["precision_level"])
 
         if point.flyer_image:
             point.flyer_moderation_status = moderate_image_field(point.flyer_image)
@@ -797,9 +823,47 @@ class CollectionPointViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mix
     @action(detail=False, methods=["get"], url_path="locations")
     def locations(self, request):
         """Public: pins for the SAME main map as Need pins (Wave 1) -- a
-        visually distinct icon, same public/no-auth visibility as Needs."""
-        qs = self.get_queryset().exclude(status=CollectionPoint.STATUS_CLOSED)
+        visually distinct icon, same public/no-auth visibility as Needs.
+        PRECISION_COUNTRY points are excluded -- they have no individual
+        pin, see country_groups/by_country below."""
+        qs = self.get_queryset().exclude(status=CollectionPoint.STATUS_CLOSED).exclude(precision_level=CollectionPoint.PRECISION_COUNTRY)
         return Response(CollectionPointMapPinSerializer(qs, many=True).data)
+
+    @action(detail=False, methods=["get"], url_path="country-groups")
+    def country_groups(self, request):
+        """One aggregated count per country for points whose location is
+        only known at country level (no city, no address) -- rendered as a
+        single bubble on the map rather than one indistinguishable pin per
+        point piled on the same spot. See by_country for the list a click
+        on that bubble should show."""
+        qs = (
+            CollectionPoint.objects.filter(precision_level=CollectionPoint.PRECISION_COUNTRY)
+            .exclude(status=CollectionPoint.STATUS_CLOSED)
+            .values("country")
+            .annotate(count=Count("id"))
+        )
+        groups = []
+        for row in qs:
+            centroid = get_country_centroid(row["country"])
+            groups.append({
+                "country": row["country"],
+                "count": row["count"],
+                "latitude": centroid[0] if centroid else None,
+                "longitude": centroid[1] if centroid else None,
+            })
+        return Response(CountryGroupSerializer(groups, many=True).data)
+
+    @action(detail=False, methods=["get"], url_path="by-country")
+    def by_country(self, request):
+        """The list shown when a country bubble (country_groups above) is
+        clicked -- deliberately a list, never a single-point popup, since
+        none of these points has a location precise enough to center one
+        on (see spec)."""
+        country = request.query_params.get("country", "")
+        qs = CollectionPoint.objects.filter(
+            precision_level=CollectionPoint.PRECISION_COUNTRY, country=country
+        ).exclude(status=CollectionPoint.STATUS_CLOSED)
+        return Response(CollectionPointCountryListSerializer(qs, many=True).data)
 
     @action(detail=True, methods=["post"], url_path="close")
     def close(self, request, pk=None):
@@ -835,6 +899,167 @@ class CollectionPointViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mix
             )
         token = point.regenerate_token()
         return Response({"access_token": token})
+
+
+def _safe_url(value):
+    """Only keeps LLM-extracted social links that are actually well-formed
+    http(s) URLs (same scheme restriction as validate_social_url) --
+    ExtractedCollectionPoint rows are created directly via
+    .objects.create(), bypassing serializer validation, so unlike the
+    manual form nothing else would ever catch e.g. a bare "@handle" or a
+    scheme this app doesn't want rendered as a link."""
+    value = (value or "").strip()
+    return value if value.startswith("http://") or value.startswith("https://") else ""
+
+
+class FlyerSubmissionViewSet(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
+    """The 'add a collection point from a flyer photo' pipeline (Wave 5):
+    upload a photo, Gemini vision extracts one or more candidate points
+    (core.gemini_extraction), and the result always lands in
+    STATUS_NEEDS_REVIEW for a human to publish via Django Admin -- never
+    published automatically, same principle as flyer_image moderation on
+    the manual form. See models.FlyerSubmission/ExtractedCollectionPoint.
+    """
+
+    queryset = FlyerSubmission.objects.prefetch_related("extracted_points__wilaya", "extracted_points__duplicate_of")
+    permission_classes = [AllowAny]
+    lookup_field = "access_token"
+
+    def get_serializer_class(self):
+        return FlyerSubmissionCreateSerializer if self.action == "create" else FlyerSubmissionStatusSerializer
+
+    def get_throttles(self):
+        return [CreationRateThrottle()] if self.action == "create" else []
+
+    def create(self, request, *args, **kwargs):
+        block_reason = write_guard(request)
+        if block_reason:
+            return Response({"detail": block_reason}, status=status.HTTP_403_FORBIDDEN)
+
+        flyer_image = request.FILES.get("flyer_image")
+        if not flyer_image:
+            return Response({"detail": "A flyer image is required."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            validate_photo_size([flyer_image])
+        except Exception as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        submission = serializer.save()
+
+        # Same fail-toward-review NSFW gate as the manual form's flyer_image
+        # (core.moderation) -- but here it only blocks on a confirmed
+        # REJECTED; a still-PENDING flyer (sidecar unreachable) proceeds to
+        # extraction below same as an approved one, it just won't show the
+        # image publicly until an admin clears it (see FlyerSubmissionAdmin).
+        submission.flyer_moderation_status = moderate_image_field(submission.flyer_image)
+        submission.flyer_moderated_by = Need.MODERATED_BY_SYSTEM if moderation_active() else ""
+        submission.save(update_fields=["flyer_moderation_status", "flyer_moderated_by"])
+        if submission.flyer_moderation_status == Need.MODERATION_REJECTED:
+            submission.status = FlyerSubmission.STATUS_REJECTED
+            submission.rejection_reason = FlyerSubmission.REJECTION_MODERATION
+            submission.save(update_fields=["status", "rejection_reason"])
+            return Response(FlyerSubmissionStatusSerializer(submission, context={"request": request}).data, status=status.HTTP_201_CREATED)
+
+        try:
+            submission.flyer_image.seek(0)
+            image_bytes = submission.flyer_image.read()
+            data, raw_response = extract_flyer_data(image_bytes, flyer_image.content_type or "image/jpeg")
+        except ExtractionUnavailable:
+            submission.status = FlyerSubmission.STATUS_FAILED
+            submission.save(update_fields=["status"])
+            return Response(
+                {"detail": "This feature isn't available right now. Please try the manual form instead."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        except ExtractionError:
+            logger.warning("Flyer extraction failed for submission #%s", submission.pk, exc_info=True)
+            submission.status = FlyerSubmission.STATUS_FAILED
+            submission.save(update_fields=["status"])
+            return Response(FlyerSubmissionStatusSerializer(submission, context={"request": request}).data, status=status.HTTP_201_CREATED)
+
+        submission.raw_extracted_text = data.get("raw_text", "")
+        submission.llm_raw_response = raw_response
+        submission.organization_common = data.get("organization_common", "")
+        submission.save(update_fields=["raw_extracted_text", "llm_raw_response", "organization_common"])
+
+        # Hard rejects, per spec -- neither is a "maybe", both stop here
+        # with nothing published and no candidate points created at all.
+        point_texts = [str(p) for p in data.get("points", [])]
+        if data.get("has_money_collection") or contains_money_collection_mention(submission.raw_extracted_text, *point_texts):
+            submission.status = FlyerSubmission.STATUS_REJECTED
+            submission.rejection_reason = FlyerSubmission.REJECTION_MONEY_COLLECTION
+            submission.save(update_fields=["status", "rejection_reason"])
+            return Response(FlyerSubmissionStatusSerializer(submission, context={"request": request}).data, status=status.HTTP_201_CREATED)
+
+        if not data.get("country_found") or not data.get("points"):
+            submission.status = FlyerSubmission.STATUS_REJECTED
+            submission.rejection_reason = FlyerSubmission.REJECTION_NO_COUNTRY
+            submission.save(update_fields=["status", "rejection_reason"])
+            return Response(FlyerSubmissionStatusSerializer(submission, context={"request": request}).data, status=status.HTTP_201_CREATED)
+
+        for point_data in data["points"]:
+            self._create_extracted_point(submission, point_data)
+
+        submission.status = FlyerSubmission.STATUS_NEEDS_REVIEW
+        submission.save(update_fields=["status"])
+        log_admin_action(request, "flyer submitted for review", submission)
+        return Response(FlyerSubmissionStatusSerializer(submission, context={"request": request}).data, status=status.HTTP_201_CREATED)
+
+    def _create_extracted_point(self, submission, point_data):
+        country = (point_data.get("country") or "").strip()
+        city = (point_data.get("city") or "").strip()
+        address = (point_data.get("address") or "").strip()
+        organization = (point_data.get("organization") or "").strip() or submission.organization_common
+        contact_phone = (point_data.get("contact_phone") or "").strip()
+
+        wilaya = None
+        if country.lower() in ("algérie", "algerie", "algeria") and city:
+            wilaya = Wilaya.objects.filter(name__icontains=city).first()
+
+        # Precision cascades from the most specific thing we could resolve
+        # down to the least: a real geocoded address, then a city/wilaya
+        # centroid (jittered at display time, see CollectionPointMapPinSerializer),
+        # then the country alone (no marker, folded into a country bubble).
+        latitude = longitude = None
+        precision_level = CollectionPoint.PRECISION_COUNTRY
+        if address:
+            coords = geocode_address(address, city, country)
+            if coords:
+                latitude, longitude = coords
+                precision_level = CollectionPoint.PRECISION_EXACT
+        if precision_level == CollectionPoint.PRECISION_COUNTRY and wilaya:
+            precision_level = CollectionPoint.PRECISION_CITY
+        elif precision_level == CollectionPoint.PRECISION_COUNTRY and city:
+            coords = geocode_city_centroid(city, country)
+            if coords:
+                latitude, longitude = coords
+                precision_level = CollectionPoint.PRECISION_CITY
+
+        duplicate = find_similar_collection_points(organization, city or (wilaya.name if wilaya else ""), contact_phone)
+
+        ExtractedCollectionPoint.objects.create(
+            submission=submission,
+            point_name=(point_data.get("point_name") or "").strip() or organization or city or country or "Point de collecte",
+            organization=organization,
+            country=country,
+            city=city,
+            wilaya=wilaya,
+            location_description=address,
+            precision_level=precision_level,
+            latitude=latitude,
+            longitude=longitude,
+            hours=(point_data.get("hours") or "").strip(),
+            accepted_donations=(point_data.get("accepted_donations") or "").strip(),
+            contact_name=(point_data.get("contact_name") or "").strip(),
+            contact_phone=contact_phone,
+            other_phones=(point_data.get("other_phones") or "").strip(),
+            facebook_url=_safe_url(point_data.get("facebook_url")),
+            tiktok_url=_safe_url(point_data.get("tiktok_url")),
+            instagram_url=_safe_url(point_data.get("instagram_url")),
+            duplicate_of=duplicate,
+        )
 
 
 class CommentViewSet(mixins.CreateModelMixin, mixins.DestroyModelMixin, viewsets.GenericViewSet):

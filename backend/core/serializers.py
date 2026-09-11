@@ -11,6 +11,8 @@ from core.models import (
     DeliveryPhoto,
     DisasterType,
     DuplicateReport,
+    ExtractedCollectionPoint,
+    FlyerSubmission,
     LocationPing,
     Need,
     Pickup,
@@ -18,6 +20,7 @@ from core.models import (
     SupportRequest,
     Wilaya,
 )
+from core.geo import jitter_point
 from core.media_validation import validate_video_duration, validate_video_size
 from core.validators import check_recovery_code_available, validate_algeria_bounds, validate_social_url
 
@@ -583,10 +586,10 @@ class CollectionPointSerializer(serializers.ModelSerializer):
     class Meta:
         model = CollectionPoint
         fields = [
-            "id", "wilaya", "wilaya_name", "point_name", "contact_name", "contact_phone",
-            "other_phones", "organization", "location_description", "latitude", "longitude", "hours",
-            "accepted_donations", "status", "created_at", "comments", "pickups",
-            "facebook_url", "tiktok_url", "instagram_url",
+            "id", "wilaya", "wilaya_name", "country", "city", "precision_level", "point_name",
+            "contact_name", "contact_phone", "other_phones", "organization", "location_description",
+            "latitude", "longitude", "hours", "accepted_donations", "status", "created_at",
+            "comments", "pickups", "facebook_url", "tiktok_url", "instagram_url",
             "flyer_image", "flyer_moderation_status", "flyer_moderated_by",
         ]
 
@@ -608,6 +611,15 @@ class CollectionPointSerializer(serializers.ModelSerializer):
 
 
 class CollectionPointCreateSerializer(serializers.ModelSerializer):
+    """The manual, Algeria-only creation form (CreateCollectionPoint.jsx).
+    wilaya is required here even though the model field itself is now
+    nullable (to also support the flyer-extraction pipeline's international
+    points, published directly via CollectionPoint.objects.create rather
+    than through this serializer) -- this form's own behavior is otherwise
+    unchanged. country/city/precision_level are deliberately not exposed
+    here: they stay at their model defaults (Algeria, blank, exact), same
+    as before this feature existed."""
+
     class Meta:
         model = CollectionPoint
         fields = [
@@ -616,6 +628,7 @@ class CollectionPointCreateSerializer(serializers.ModelSerializer):
             "accepted_donations", "facebook_url", "tiktok_url", "instagram_url", "flyer_image",
             "recovery_code",
         ]
+        extra_kwargs = {"wilaya": {"required": True}}
 
     def validate_facebook_url(self, value):
         return validate_social_url(value)
@@ -647,6 +660,16 @@ class CollectionPointCreateSerializer(serializers.ModelSerializer):
 
 
 class CollectionPointMapPinSerializer(serializers.ModelSerializer):
+    """Feeds the public map (CollectionPoints.jsx). PRECISION_COUNTRY points
+    are excluded upstream (CollectionPointViewSet.locations) -- they have
+    no individual pin at all, see country_groups/by_country instead.
+    PRECISION_CITY points are jittered (core.geo.jitter_point) around
+    their base coordinates -- deterministically, seeded by the point's own
+    id, so the same point always renders at the same spot rather than
+    hopping around on every reload -- and never carry has_exact_position,
+    so the frontend knows not to offer a GPS/"get directions" link for
+    coordinates that aren't real."""
+
     wilaya_name = serializers.CharField(source="wilaya.name", read_only=True)
     display_latitude = serializers.SerializerMethodField()
     display_longitude = serializers.SerializerMethodField()
@@ -656,17 +679,54 @@ class CollectionPointMapPinSerializer(serializers.ModelSerializer):
         model = CollectionPoint
         fields = [
             "id", "point_name", "contact_name", "contact_phone", "organization", "hours",
-            "status", "wilaya_name", "display_latitude", "display_longitude", "has_exact_position",
+            "status", "wilaya_name", "country", "city", "precision_level",
+            "display_latitude", "display_longitude", "has_exact_position",
         ]
 
     def get_has_exact_position(self, obj):
-        return obj.latitude is not None
+        return obj.precision_level == CollectionPoint.PRECISION_EXACT
+
+    def _base_coords(self, obj):
+        if obj.precision_level == CollectionPoint.PRECISION_COUNTRY:
+            return None, None
+        if obj.latitude is not None and obj.longitude is not None:
+            return obj.latitude, obj.longitude
+        if obj.wilaya and obj.wilaya.centroid_latitude is not None:
+            return obj.wilaya.centroid_latitude, obj.wilaya.centroid_longitude
+        return None, None
+
+    def _display_coords(self, obj):
+        lat, lon = self._base_coords(obj)
+        if lat is None or lon is None:
+            return None, None
+        if obj.precision_level == CollectionPoint.PRECISION_CITY:
+            return jitter_point(lat, lon, obj.pk)
+        return lat, lon
 
     def get_display_latitude(self, obj):
-        return obj.latitude if obj.latitude is not None else obj.wilaya.centroid_latitude
+        return self._display_coords(obj)[0]
 
     def get_display_longitude(self, obj):
-        return obj.longitude if obj.longitude is not None else obj.wilaya.centroid_longitude
+        return self._display_coords(obj)[1]
+
+
+class CountryGroupSerializer(serializers.Serializer):
+    """One aggregated bubble per country for PRECISION_COUNTRY points --
+    see CollectionPointViewSet.country_groups. Clicking a bubble lists
+    points (CollectionPointCountryListSerializer via by_country) instead
+    of opening a single-point popup, since there's no one location to
+    center a popup on."""
+
+    country = serializers.CharField()
+    count = serializers.IntegerField()
+    latitude = serializers.FloatField(allow_null=True)
+    longitude = serializers.FloatField(allow_null=True)
+
+
+class CollectionPointCountryListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CollectionPoint
+        fields = ["id", "point_name", "organization", "city", "contact_name", "contact_phone", "hours", "status"]
 
 
 class CollectionPointCloseSerializer(serializers.Serializer):
@@ -680,3 +740,41 @@ class CollectionPointCloseSerializer(serializers.Serializer):
     code = serializers.CharField(required=False, allow_blank=True)
     contact_name = serializers.CharField(required=False, allow_blank=True)
     contact_phone = serializers.CharField(required=False, allow_blank=True)
+
+
+# ---------------------------------------------------------------------------
+# Flyer extraction pipeline (Wave 5): create a CollectionPoint from a photo
+# ---------------------------------------------------------------------------
+
+class FlyerSubmissionCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FlyerSubmission
+        fields = ["flyer_image", "submitter_name", "submitter_phone"]
+
+
+class ExtractedCollectionPointSerializer(serializers.ModelSerializer):
+    wilaya_name = serializers.CharField(source="wilaya.name", read_only=True)
+    duplicate_of_name = serializers.CharField(source="duplicate_of.point_name", read_only=True)
+
+    class Meta:
+        model = ExtractedCollectionPoint
+        fields = [
+            "id", "point_name", "organization", "country", "city", "wilaya", "wilaya_name",
+            "location_description", "precision_level", "hours", "accepted_donations",
+            "contact_name", "contact_phone", "other_phones", "duplicate_of", "duplicate_of_name",
+        ]
+
+
+class FlyerSubmissionStatusSerializer(serializers.ModelSerializer):
+    """Returned right after upload (the extraction call runs synchronously
+    within that same request) and from the status/ lookup-by-token action.
+    Never exposes llm_raw_response (internal debugging only)."""
+
+    extracted_points = ExtractedCollectionPointSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = FlyerSubmission
+        fields = [
+            "id", "access_token", "status", "rejection_reason", "organization_common",
+            "created_at", "extracted_points",
+        ]

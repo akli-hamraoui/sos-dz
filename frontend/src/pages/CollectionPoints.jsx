@@ -5,6 +5,7 @@ import L from 'leaflet'
 import { useApp } from '../context/AppContext'
 import { api } from '../api'
 import { haversineKm, isInAlgeria } from '../utils'
+import { countryBubbleIcon } from '../mapMarkers'
 
 export default function CollectionPoints() {
   const { t } = useTranslation()
@@ -20,6 +21,24 @@ export default function CollectionPoints() {
   const mapRef = useRef(null)
   const mapElRef = useRef(null)
   const markersRef = useRef([])
+  // Points whose location is only known at country level get one bubble
+  // per country (see CollectionPointViewSet.country_groups) instead of an
+  // individual pin -- clicking one opens this list panel rather than a
+  // marker popup, since there's no single spot on the map to anchor a
+  // popup on. Only shown on the unfiltered view: a wilaya filter implies
+  // "Algeria only", where country-only points (all international) never
+  // apply anyway.
+  const [countryPanel, setCountryPanel] = useState(null) // null | { country, loading, points }
+
+  const openCountryPanel = useCallback(async (country) => {
+    setCountryPanel({ country, loading: true, points: [] })
+    try {
+      const points = await api(`/collection-points/by-country/?country=${encodeURIComponent(country)}`)
+      setCountryPanel({ country, loading: false, points })
+    } catch {
+      setCountryPanel({ country, loading: false, points: [] })
+    }
+  }, [])
 
   // Debounced so typing doesn't fire a request on every keystroke.
   useEffect(() => {
@@ -100,17 +119,22 @@ export default function CollectionPoints() {
 
     ;(async () => {
       let cpPins
+      let countryGroups = []
       const params = new URLSearchParams()
       if (filterWilaya) params.set('wilaya', filterWilaya)
       if (search) params.set('search', search)
       const qs = params.toString() ? `?${params.toString()}` : ''
       try {
         cpPins = await api(`/collection-points/locations/${qs}`)
+        // Country bubbles are all-international by construction (no wilaya
+        // filter can ever match them) -- only fetched on the unfiltered
+        // view so picking a wilaya doesn't leave unrelated bubbles on screen.
+        if (!filterWilaya) countryGroups = await api('/collection-points/country-groups/')
       } catch {
         return // offline/network failure -- offline banner already informs the user
       }
       if (cancelled) return
-      setMapHasNothing(cpPins.length === 0)
+      setMapHasNothing(cpPins.length === 0 && countryGroups.length === 0)
 
       // activeCampaignWilayas can settle in more than one wave while
       // campaigns/wilayas are still loading, re-running this whole effect
@@ -159,12 +183,25 @@ export default function CollectionPoints() {
           })
           const marker = L.marker([p.display_latitude, p.display_longitude], { icon }).addTo(map)
           const gpsNote = p.has_exact_position ? '' : `<br><em>${t('common.noExactGpsPosition')}</em>`
+          const place = p.wilaya_name || p.city || p.country || ''
           marker.bindPopup(
             `<strong>${p.point_name}</strong><br>${p.contact_name}${p.organization ? '<br>' + p.organization : ''}` +
-              `${p.hours ? '<br>' + p.hours : ''}<br>${p.wilaya_name}${gpsNote}<br><a href="/collection-points/${p.id}">${t('common.open')}</a>`
+              `${p.hours ? '<br>' + p.hours : ''}<br>${place}${gpsNote}<br><a href="/collection-points/${p.id}">${t('common.open')}</a>`
           )
           markers.push(marker)
         })
+
+        countryGroups
+          .filter((g) => g.latitude != null && g.longitude != null)
+          .forEach((g) => {
+            const marker = L.marker([g.latitude, g.longitude], { icon: countryBubbleIcon(L, g.count) }).addTo(map)
+            // Deliberately no popup here -- per spec, clicking a
+            // country-only bubble lists its points (openCountryPanel)
+            // instead of opening a single-point-style popup, since none of
+            // them has a location precise enough to anchor one on.
+            marker.on('click', () => openCountryPanel(g.country))
+            markers.push(marker)
+          })
 
         markersRef.current = markers
         const allPoints = cpsWithPos.map((p) => [p.display_latitude, p.display_longitude])
@@ -223,6 +260,9 @@ export default function CollectionPoints() {
         <Link className="btn btn-primary" to="/collection-points/create">
           {t('collectionPoints.addButton')}
         </Link>
+        <Link className="btn" to="/collection-points/submit-flyer">
+          {t('collectionPoints.addViaFlyer')}
+        </Link>
       </div>
 
       {viewMode === 'list' && (
@@ -233,7 +273,7 @@ export default function CollectionPoints() {
               <Link className="need-card" to={`/collection-points/${cp.id}`} key={cp.id}>
                 <h3>{cp.point_name}</h3>
                 <p>
-                  {cp.wilaya_name}
+                  {cp.wilaya_name || cp.city || cp.country}
                   {cp.organization ? ' — ' + cp.organization : ''}
                 </p>
                 <p className="status">{cp.status === 'closed' ? t('status.closed') : cp.hours || t('collectionPoints.hoursNotSpecified')}</p>
@@ -247,6 +287,30 @@ export default function CollectionPoints() {
         <div className="map-wrap">
           {mapHasNothing && <p className="hint">{t('collectionPoints.noPointsYet')}</p>}
           <div id="cp-map" ref={mapElRef} style={{ height: 600 }} />
+          {countryPanel && (
+            <div className="country-points-panel">
+              <div className="toolbar">
+                <h3>{t('collectionPoints.countryBubbleTitle', { country: countryPanel.country })}</h3>
+                <button type="button" className="link" onClick={() => setCountryPanel(null)}>
+                  {t('common.close')}
+                </button>
+              </div>
+              {countryPanel.loading && <p>{t('common.loading')}</p>}
+              {!countryPanel.loading && countryPanel.points.length === 0 && <p>{t('collectionPoints.noPointsYet')}</p>}
+              <div className="needs-list">
+                {countryPanel.points.map((cp) => (
+                  <Link className="need-card" to={`/collection-points/${cp.id}`} key={cp.id}>
+                    <h3>{cp.point_name}</h3>
+                    <p>
+                      {cp.city}
+                      {cp.organization ? ' — ' + cp.organization : ''}
+                    </p>
+                    <p className="status">{cp.status === 'closed' ? t('status.closed') : cp.hours || t('collectionPoints.hoursNotSpecified')}</p>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </section>

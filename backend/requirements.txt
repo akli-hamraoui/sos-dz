@@ -8,3 +8,4 @@ geoip2>=4.8,<5.0
 requests>=2.31,<3.0
 Pillow>=12.3,<13.0
 gunicorn>=22.0,<23.0
+google-genai>=1.0,<2.0

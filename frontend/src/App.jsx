@@ -19,6 +19,7 @@ import About from './pages/About'
 import Legal from './pages/Legal'
 import CollectionPoints from './pages/CollectionPoints'
 import CreateCollectionPoint from './pages/CreateCollectionPoint'
+import SubmitFlyer from './pages/SubmitFlyer'
 import CollectionPointDetail from './pages/CollectionPointDetail'
 import Deliveries from './pages/Deliveries'
 import BackButton from './components/BackButton'
@@ -72,6 +73,7 @@ const PAGE_TITLE_KEYS = {
   '/create': 'nav.iNeedHelp',
   '/collection-points': 'nav.collectionPoints',
   '/collection-points/create': 'collectionPoints.createTitle',
+  '/collection-points/submit-flyer': 'submitFlyer.title',
   '/deliveries': 'nav.deliveries',
   '/support': 'support.title',
   '/report-bug': 'reportBug.title',
@@ -267,6 +269,7 @@ export default function App() {
           <Route path="/legal" element={<Legal />} />
           <Route path="/collection-points" element={<CollectionPoints />} />
           <Route path="/collection-points/create" element={<CreateCollectionPoint />} />
+          <Route path="/collection-points/submit-flyer" element={<SubmitFlyer />} />
           <Route path="/collection-points/:id" element={<CollectionPointDetail />} />
           <Route path="/collection-points/:id/take-charge" element={<TakeCharge source="collection_point" />} />
           <Route path="/deliveries" element={<Deliveries />} />
