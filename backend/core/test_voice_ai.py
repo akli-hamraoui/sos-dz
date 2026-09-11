@@ -5,6 +5,7 @@ import tempfile
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
+from rest_framework.test import APIClient
 
 from core.models import Need
 from core.voice_ai import VoiceAIError, _configure_whisper_cache, extract_need_data, transcribe_audio
@@ -165,6 +166,83 @@ class VoiceNeedProcessingTests(TestCase):
         need.refresh_from_db()
         self.assertEqual(need.voice_processing_status, Need.VOICE_PROCESSING_FAILED)
         self.assertIn("No speech", need.voice_processing_error)
+        # A failed transcription must never drop the SOS: the audio and the
+        # anonymous contact placeholders set at creation stay, and a
+        # fallback description is added so it isn't blank.
+        self.assertEqual(need.contact_name, "Anonyme")
+        self.assertTrue(need.voice_file)
+        self.assertIn("audio", need.description.lower())
+
+    def test_reconciles_fallback_wilaya_with_spoken_commune(self):
+        """The wilaya set at creation was only ever an arbitrary fallback
+        (no exact GPS) -- once the transcript names a real place, that
+        should replace the guess rather than leaving a mismatched wilaya
+        next to a correct location_description."""
+        from core.models import Wilaya
+
+        need = self._create_need("voice-test-4")
+        fallback_wilaya = need.wilaya
+        real_wilaya = Wilaya.objects.exclude(pk=fallback_wilaya.pk).get(name="Tizi Ouzou")
+        need.campaign.authorized_wilayas.add(real_wilaya)
+        transcript = "Je suis à Tizi Ouzou, j'ai besoin d'aide."
+        extraction = {
+            "title": "",
+            "contact_name": "",
+            "contact_phone": "",
+            "estimated_quantity": "",
+            "commune": "Tizi Ouzou",
+            "location_description": "Tizi Ouzou, Algérie",
+            "organization_or_person_name": "",
+            "description": transcript,
+        }
+
+        with patch("core.voice_ai.transcribe_audio", return_value=transcript), patch(
+            "core.voice_ai.extract_need_data", return_value=extraction
+        ):
+            from core.voice_ai import process_voice_need
+            process_voice_need(need.pk)
+
+        need.refresh_from_db()
+        self.assertEqual(need.wilaya, real_wilaya)
+        self.assertNotEqual(need.wilaya, fallback_wilaya)
+
+    def test_does_not_override_wilaya_when_position_is_exact(self):
+        """A real GPS fix (nearest-wilaya lookup) is a genuine signal --
+        must never be second-guessed by a short/noisy transcript."""
+        from core.models import Wilaya
+
+        need = self._create_need("voice-test-5")
+        need.position_accuracy = Need.POSITION_EXACT
+        need.save(update_fields=["position_accuracy"])
+        gps_wilaya = need.wilaya
+        real_wilaya = Wilaya.objects.exclude(pk=gps_wilaya.pk).get(name="Tizi Ouzou")
+        need.campaign.authorized_wilayas.add(real_wilaya)
+        transcript = "Je suis à Tizi Ouzou, j'ai besoin d'aide."
+        extraction = {
+            "title": "", "contact_name": "", "contact_phone": "", "estimated_quantity": "",
+            "commune": "Tizi Ouzou", "location_description": "Tizi Ouzou, Algérie",
+            "organization_or_person_name": "", "description": transcript,
+        }
+
+        with patch("core.voice_ai.transcribe_audio", return_value=transcript), patch(
+            "core.voice_ai.extract_need_data", return_value=extraction
+        ):
+            from core.voice_ai import process_voice_need
+            process_voice_need(need.pk)
+
+        need.refresh_from_db()
+        self.assertEqual(need.wilaya, gps_wilaya)
+
+    def test_failed_voice_need_still_appears_in_public_listing(self):
+        need = self._create_need("voice-test-3")
+
+        with patch("core.voice_ai.transcribe_audio", side_effect=VoiceAIError("No speech was detected.")):
+            from core.voice_ai import process_voice_need
+            process_voice_need(need.pk)
+
+        response = APIClient().get("/api/needs/")
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(any(row["id"] == need.pk for row in response.data["results"]))
 
 
 class RealWhisperSmokeTest(TestCase):

@@ -217,6 +217,20 @@ class NeedFallbackWilayaTests(BaseAPITestCase):
         self.assertEqual(need.wilaya.name, "Adrar")  # alphabetically first of the 3
         self.assertTrue(need.has_no_location)
 
+    def test_alphabetical_fallback_is_accent_insensitive(self):
+        """Reproduces the real 'Feux en Algérie' campaign (migration
+        0007_wildfire_campaign): Alger isn't authorized, and a naive
+        database ORDER BY sorts the accented 'Aïn Defla' after plain-ASCII
+        'Annaba' -- confirmed live, this picked 'Annaba' as the fallback
+        even though it's alphabetically later once accents are ignored."""
+        annaba = Wilaya.objects.get(name="Annaba")
+        ain_defla = Wilaya.objects.get(name="Aïn Defla")
+        self.campaign = make_campaign(wilayas=[annaba, ain_defla])
+        resp = self.client.post("/api/needs/", self._payload(), format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+        need = Need.objects.get(pk=resp.data["id"])
+        self.assertEqual(need.wilaya, ain_defla)
+
     def test_explicit_wilaya_still_works_and_is_not_flagged(self):
         self.campaign = make_campaign()
         wilaya = self.campaign.authorized_wilayas.first()
@@ -225,6 +239,26 @@ class NeedFallbackWilayaTests(BaseAPITestCase):
         need = Need.objects.get(pk=resp.data["id"])
         self.assertEqual(need.wilaya, wilaya)
         self.assertFalse(need.has_no_location)
+
+    def test_no_location_filter_returns_every_unlocated_need_regardless_of_wilaya(self):
+        """The map's "sans localisation" bubble (NeedsList.jsx) must show
+        every has_no_location need together, even though each one may have
+        fallen back to a different wilaya -- filtering by one wilaya alone
+        cannot express that (see NeedViewSet.get_queryset's no_location
+        param)."""
+        alger = Wilaya.objects.get(name="Alger")
+        adrar = Wilaya.objects.get(name="Adrar")
+        self.campaign = make_campaign(wilayas=[alger, adrar])
+        no_loc_1 = self.client.post("/api/needs/", self._payload(recovery_code="rc-nl-1"), format="json")
+        self.assertEqual(no_loc_1.status_code, 201, no_loc_1.content)
+        located = self.client.post("/api/needs/", self._payload(wilaya=alger.pk, recovery_code="rc-loc-1"), format="json")
+        self.assertEqual(located.status_code, 201, located.content)
+
+        resp = self.client.get("/api/needs/?no_location=1")
+        self.assertEqual(resp.status_code, 200)
+        ids = {row["id"] for row in resp.data["results"]}
+        self.assertIn(no_loc_1.data["id"], ids)
+        self.assertNotIn(located.data["id"], ids)
 
 
 class VoiceGuideEndpointTests(BaseAPITestCase):
@@ -333,6 +367,25 @@ class VoiceGuideEndpointTests(BaseAPITestCase):
         self.assertEqual(resp.data["extraction"], extraction)
         transcribe.assert_called_once()
         extract.assert_called_once_with(transcript)
+
+    def test_admin_gps_outside_algeria_is_dropped_not_kept(self):
+        """An admin testing the guided voice SOS from their own device (e.g.
+        outside Algeria) must not publish a listing pinned outside Algeria
+        -- the coordinates are dropped rather than rejected or kept as-is,
+        so the Need still falls back to its wilaya's own position."""
+        admin = get_user_model().objects.create_superuser("voiceadmin2", "va2@example.com", "pw123456!")
+        self.client.force_authenticate(admin)
+        wilaya = self.campaign.authorized_wilayas.first()
+        resp = self.client.post(
+            "/api/needs/voice-guide/",
+            self._payload(wilaya=wilaya.pk, latitude=48.8566, longitude=2.3522),  # Paris
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 201, resp.content)
+        need = Need.objects.get(pk=resp.data["id"])
+        self.assertIsNone(need.latitude)
+        self.assertIsNone(need.longitude)
+        self.assertEqual(need.wilaya_id, wilaya.pk)
 
     def test_ordinary_needs_endpoint_unaffected_by_this_restriction(self):
         """The regular CreateNeed.jsx path must never be gated by this --
@@ -3893,7 +3946,11 @@ class UrgentSOSVoiceAnalysisTests(BaseAPITestCase):
         self.assertEqual(response.data["recovery_code"], need.recovery_code)
         self.assertTrue(response.data["recovery_code"])
 
-    def test_admin_can_submit_with_abroad_gps_for_voice_sos(self):
+    def test_admin_abroad_gps_for_voice_sos_is_dropped_not_kept(self):
+        """An admin testing from their own device abroad must not publish
+        a listing pinned outside Algeria -- the coordinates are dropped
+        (not rejected, not kept as-is), falling back to the wilaya's own
+        position like any other guided SOS with no exact GPS."""
         from django.core.files.uploadedfile import SimpleUploadedFile
         admin = get_user_model().objects.create_superuser("abroadadmin", "abroad@example.com", "pw123456!")
         self.client.force_authenticate(admin)
@@ -3912,7 +3969,33 @@ class UrgentSOSVoiceAnalysisTests(BaseAPITestCase):
         )
         self.assertEqual(response.status_code, 201, response.content)
         need = Need.objects.get(pk=response.data["id"])
-        self.assertFalse(need.has_no_location)
-        self.assertEqual(float(need.latitude), 48.8566)
-        self.assertEqual(float(need.longitude), 2.3522)
+        self.assertIsNone(need.latitude)
+        self.assertIsNone(need.longitude)
+        self.assertEqual(need.position_accuracy, Need.POSITION_APPROXIMATE)
+        self.assertIsNotNone(need.wilaya_id)
+
+    def test_admin_algeria_gps_for_voice_sos_is_kept_exact(self):
+        """The drop only applies to coordinates actually outside Algeria --
+        an admin's real GPS fix inside Algeria stays exact, same as a
+        non-admin reporter's."""
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        admin = get_user_model().objects.create_superuser("localadmin", "local@example.com", "pw123456!")
+        self.client.force_authenticate(admin)
+        response = self.client.post(
+            "/api/needs/voice-guide/",
+            {
+                "campaign": self.campaign.pk,
+                "title": "SOS urgent",
+                "urgency": "critical",
+                "location_description": "Test admin in Algeria",
+                "latitude": "36.75",
+                "longitude": "3.06",
+                "voice_file": SimpleUploadedFile("voice.webm", b"audio", content_type="audio/webm"),
+            },
+            format="multipart",
+        )
+        self.assertEqual(response.status_code, 201, response.content)
+        need = Need.objects.get(pk=response.data["id"])
+        self.assertEqual(float(need.latitude), 36.75)
+        self.assertEqual(float(need.longitude), 3.06)
         self.assertEqual(need.position_accuracy, Need.POSITION_EXACT)

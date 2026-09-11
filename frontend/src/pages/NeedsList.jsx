@@ -6,7 +6,7 @@ import { useApp } from '../context/AppContext'
 import { useDialog } from '../context/DialogContext'
 import { api } from '../api'
 import { urgencyColor, haversineKm, isInAlgeria, getCurrentPosition, RECENTER_BOX_METERS } from '../utils'
-import { flyerPopupButtonHtml, attachMapPopupBehavior, attachMapTapToActivate } from '../mapMarkers'
+import { flyerPopupButtonHtml, attachMapPopupBehavior, attachMapTapToActivate, spreadNeedMarkers } from '../mapMarkers'
 import PhotoThumb from '../components/PhotoThumb'
 import PhotoLightbox from '../components/PhotoLightbox'
 import { IconLocate, IconExpand, IconClose } from '../icons'
@@ -39,6 +39,12 @@ export default function NeedsList() {
   const { activeCampaignWilayas } = useApp()
   const { showAlert } = useDialog()
   const [filterWilaya, setFilterWilaya] = useState('')
+  // Set only by clicking the map's "sans localisation" bubble -- shows
+  // every need with has_no_location=True regardless of which wilaya it
+  // fell back to (see NeedViewSet.get_queryset's no_location param), which
+  // filterWilaya alone cannot express. Mutually exclusive with
+  // filterWilaya: picking a wilaya manually clears this, and vice versa.
+  const [filterNoLocation, setFilterNoLocation] = useState(false)
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
   const [needs, setNeeds] = useState([])
@@ -104,20 +110,25 @@ export default function NeedsList() {
     setPlayingNeedId(needId)
   }
 
-  const hasActiveFilters = !!(filterWilaya || searchInput)
+  const hasActiveFilters = !!(filterWilaya || searchInput || filterNoLocation)
   const resetFilters = () => {
     setFilterWilaya('')
     setSearchInput('')
+    setFilterNoLocation(false)
   }
 
   const loadNeeds = useCallback(async () => {
     const params = new URLSearchParams()
-    if (filterWilaya) params.set('wilaya', filterWilaya)
+    if (filterNoLocation) {
+      params.set('no_location', '1')
+    } else if (filterWilaya) {
+      params.set('wilaya', filterWilaya)
+    }
     if (search) params.set('search', search)
     const qs = params.toString() ? `?${params.toString()}` : ''
     const data = await api(`/needs/${qs}`)
     setNeeds(data.results || data)
-  }, [filterWilaya, search])
+  }, [filterWilaya, search, filterNoLocation])
 
   useEffect(() => {
     loadNeeds().catch(() => {}) // offline/network failure -- offline banner already informs the user, nothing more to do here
@@ -285,6 +296,12 @@ export default function NeedsList() {
             iconAnchor: [15, 15],
           })
           const marker = L.marker([p.display_latitude, p.display_longitude], { icon }).addTo(map)
+          // Several needs with no exact GPS commonly fall back to the same
+          // wilaya centroid (see NeedCreateSerializer/process_voice_need)
+          // and would otherwise stack exactly on top of each other -- only
+          // the topmost pin would ever be clickable. spreadNeedMarkers
+          // below nudges them apart on screen once all are placed.
+          marker._sosdzNeedMarker = true
           const gpsNote = p.has_exact_position ? '' : `<br><em>${t('common.noExactGpsPosition')}</em>`
           const urgencyPrefix = p.urgency !== 'medium' ? `${t(`urgency.${p.urgency}`)} — ` : ''
           const photoBtn = flyerPopupButtonHtml(t, p.photo)
@@ -305,15 +322,26 @@ export default function NeedsList() {
             iconSize: [44, 44],
             iconAnchor: [22, 22],
           })
-          const marker = L.marker([unlocated[0].display_latitude, unlocated[0].display_longitude], { icon, zIndexOffset: 1000 }).addTo(map)
+          // Anchored on Alger's own centroid, not the first unlocated
+          // need's own fallback position -- this bubble represents a
+          // whole group with no real location in common, so it must sit
+          // somewhere stable and central rather than wherever the array
+          // happens to start (see NeedCreateSerializer.validate's own
+          // Alger-first fallback -- same reasoning, applied here too).
+          const algerWilaya = (activeCampaignWilayas || []).find((w) => w.name === 'Alger')
+          const bubbleLat = algerWilaya?.centroid_latitude ?? unlocated[0].display_latitude
+          const bubbleLon = algerWilaya?.centroid_longitude ?? unlocated[0].display_longitude
+          const marker = L.marker([bubbleLat, bubbleLon], { icon, zIndexOffset: 1000 }).addTo(map)
           marker.bindTooltip(`${t('needsList.noLocationBubbleLabel')} (${unlocated.length})`)
           marker.on('click', () => {
-            if (unlocated[0].wilaya != null) setFilterWilaya(String(unlocated[0].wilaya))
+            setFilterWilaya('')
+            setFilterNoLocation(true)
             setViewMode('list')
           })
           markers.push(marker)
         }
 
+        spreadNeedMarkers(map, markers)
         markersRef.current = markers
         const allPoints = needsWithPos.map((p) => [p.display_latitude, p.display_longitude])
         const wilayaChanged = prevFilterWilayaRef.current !== filterWilaya
@@ -481,6 +509,14 @@ export default function NeedsList() {
           ☰ {t('common.filters')}
           {hasActiveFilters && <span className="filters-badge" aria-hidden="true" />}
         </button>
+        {filterNoLocation && (
+          <div className="filters-badge-chip">
+            {t('needsList.noLocationBubbleLabel')}
+            <button type="button" onClick={() => setFilterNoLocation(false)} aria-label={t('common.close')}>
+              ×
+            </button>
+          </div>
+        )}
         <div className="view-toggle">
           <button className={viewMode === 'list' ? 'active' : ''} onClick={() => setViewMode('list')}>
             {t('needsList.list')}
@@ -501,7 +537,13 @@ export default function NeedsList() {
           />
           <label>
             {t('needsList.filterByWilaya')}
-            <select value={filterWilaya} onChange={(e) => setFilterWilaya(e.target.value)}>
+            <select
+              value={filterWilaya}
+              onChange={(e) => {
+                setFilterWilaya(e.target.value)
+                setFilterNoLocation(false)
+              }}
+            >
               <option value="">{t('needsList.all')}</option>
               {activeCampaignWilayas.map((w) => (
                 <option key={w.id} value={w.id}>

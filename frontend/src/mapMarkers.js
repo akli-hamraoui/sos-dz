@@ -48,17 +48,18 @@ export function collectionPointIcon(L) {
   })
 }
 
-export function spreadCollectionPointMarkers(map, markers, minDistance = 46) {
-  if (!map || !Array.isArray(markers)) return
-  map._sosdzCollectionMarkers = markers
-  if (!map._sosdzCollectionSpreadZoomWired) {
-    map._sosdzCollectionSpreadZoomWired = true
-    map.on('zoomend', () => spreadCollectionPointMarkers(map, map._sosdzCollectionMarkers || [], minDistance))
-  }
-  const cpMarkers = markers.filter((marker) => marker?._sosdzCollectionPoint && marker._icon)
-  if (!cpMarkers.length) return
-  const positions = cpMarkers.map((marker) => map.latLngToContainerPoint(marker.getLatLng()))
-  const offsets = cpMarkers.map(() => ({ x: 0, y: 0 }))
+// Shared by every "spread these overlapping markers apart" call below --
+// several same-position pins (e.g. two needs that both fell back to the
+// same wilaya centroid, see NeedsList.jsx) otherwise stack exactly on top
+// of each other and only the topmost one is ever clickable/tappable.
+// Nudges each eligible marker's pin element apart in screen space (pure
+// CSS transform, the marker's actual L.LatLng never changes) via a few
+// passes of simple pairwise repulsion, capped so a pin never drifts more
+// than 24px from its true position.
+function spreadMarkersApart(map, eligibleMarkers, pinSelector, minDistance) {
+  if (!eligibleMarkers.length) return
+  const positions = eligibleMarkers.map((marker) => map.latLngToContainerPoint(marker.getLatLng()))
+  const offsets = eligibleMarkers.map(() => ({ x: 0, y: 0 }))
   for (let pass = 0; pass < 5; pass += 1) {
     for (let i = 0; i < positions.length; i += 1) {
       for (let j = i + 1; j < positions.length; j += 1) {
@@ -81,13 +82,35 @@ export function spreadCollectionPointMarkers(map, markers, minDistance = 46) {
       }
     }
   }
-  cpMarkers.forEach((marker, index) => {
-    const pin = marker._icon?.querySelector('.cp-marker-pin')
+  eligibleMarkers.forEach((marker, index) => {
+    const pin = marker._icon?.querySelector(pinSelector)
     if (!pin) return
     const x = Math.max(-24, Math.min(24, offsets[index].x))
     const y = Math.max(-24, Math.min(24, offsets[index].y))
     pin.style.transform = `translate3d(${x}px, ${y}px, 0)`
   })
+}
+
+export function spreadCollectionPointMarkers(map, markers, minDistance = 46) {
+  if (!map || !Array.isArray(markers)) return
+  map._sosdzCollectionMarkers = markers
+  if (!map._sosdzCollectionSpreadZoomWired) {
+    map._sosdzCollectionSpreadZoomWired = true
+    map.on('zoomend', () => spreadCollectionPointMarkers(map, map._sosdzCollectionMarkers || [], minDistance))
+  }
+  const cpMarkers = markers.filter((marker) => marker?._sosdzCollectionPoint && marker._icon)
+  spreadMarkersApart(map, cpMarkers, '.cp-marker-pin', minDistance)
+}
+
+export function spreadNeedMarkers(map, markers, minDistance = 46) {
+  if (!map || !Array.isArray(markers)) return
+  map._sosdzNeedMarkers = markers
+  if (!map._sosdzNeedSpreadZoomWired) {
+    map._sosdzNeedSpreadZoomWired = true
+    map.on('zoomend', () => spreadNeedMarkers(map, map._sosdzNeedMarkers || [], minDistance))
+  }
+  const needMarkers = markers.filter((marker) => marker?._sosdzNeedMarker && marker._icon)
+  spreadMarkersApart(map, needMarkers, '.need-marker-pin', minDistance)
 }
 
 export function countryFlagEmoji(countryCode) {

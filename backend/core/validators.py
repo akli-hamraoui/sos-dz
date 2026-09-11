@@ -5,10 +5,24 @@ which validates WHO is allowed to write based on where the request comes
 from. Both apply independently.
 """
 
+import unicodedata
+
 from django.conf import settings
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.validators import URLValidator
 from rest_framework import serializers
+
+
+def normalize_place_name(value):
+    """Lowercase and strip accents so 'Aïn Defla' / 'Ain Defla' / a Whisper
+    mis-accented variant all compare equal. Also used to pick a fallback
+    wilaya alphabetically (NeedCreateSerializer.validate): SQLite's default
+    string ordering is a raw byte comparison, where an accented character
+    like 'ï' sorts *after* plain ASCII letters -- 'Annaba' would otherwise
+    beat 'Aïn Defla' to the "alphabetically first" fallback for reasons
+    that have nothing to do with the actual alphabet."""
+    decomposed = unicodedata.normalize("NFKD", value or "")
+    return "".join(c for c in decomposed if not unicodedata.combining(c)).strip().lower()
 
 
 def is_within_algeria_bounds(latitude, longitude):
