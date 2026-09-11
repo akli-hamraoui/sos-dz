@@ -1,103 +1,118 @@
-/* Modern animated SOS marker for Leaflet maps.
-   The old marker used a static PNG inside .need-marker-pin. Keep that DOM
-   for compatibility, but visually replace it with a compact SOS badge and
-   a soft pulse ring. The animation is deliberately subtle enough for a map
-   while still making an urgent report immediately noticeable. */
+/* Definitive SOS map marker.
+   Loaded after Leaflet's stylesheet so Leaflet cannot override the marker's
+   visual box. The legacy PNG remains in the DOM for compatibility, but is
+   completely hidden and replaced by a crisp CSS/SVG badge. */
+
 .need-marker-icon {
+  width: 30px !important;
+  height: 30px !important;
   overflow: visible !important;
+  background: transparent !important;
+  border: 0 !important;
 }
 
 .need-marker-pin {
-  position: relative;
-  overflow: visible;
-  isolation: isolate;
-  border: 2px solid rgba(255, 255, 255, .96) !important;
-  box-shadow: 0 3px 9px rgba(21, 33, 58, .28) !important;
-  transform: translateZ(0);
-  animation: sosdz-marker-blink 1.35s ease-in-out infinite;
+  position: relative !important;
+  display: grid !important;
+  place-items: center !important;
+  width: 42px !important;
+  height: 42px !important;
+  margin: -6px !important;
+  box-sizing: border-box !important;
+  overflow: visible !important;
+  border: 3px solid #fff !important;
+  border-radius: 50% !important;
+  background: var(--sos-red) !important;
+  color: #fff !important;
+  box-shadow:
+    0 3px 10px rgba(21, 33, 58, .28),
+    0 0 0 2px rgba(217, 31, 49, .16) !important;
+  transform: translateZ(0) !important;
+  animation: sosdz-marker-breathe 1.5s ease-in-out infinite !important;
+  will-change: transform, box-shadow;
 }
 
-/* Remove the legacy PNG visually. Keeping it in the DOM means no JSX/data
-   contract changes are needed and avoids another round of marker regressions. */
+/* Never display the old static PNG. */
 .need-marker-pin > img {
   display: none !important;
 }
 
-/* Clean SOS monogram: more legible at map zoom levels than the old tiny PNG. */
+/* Modern speech-bubble SOS glyph. SVG is self-contained so there is no
+   dependency on another asset path or image cache. */
 .need-marker-pin::before {
-  content: 'SOS';
-  position: relative;
-  z-index: 2;
-  display: grid;
-  place-items: center;
-  width: 27px;
-  height: 27px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, .98);
-  color: var(--sos-red);
-  font-size: 8px;
-  font-weight: 950;
-  letter-spacing: .04em;
-  line-height: 1;
-  box-shadow: 0 1px 4px rgba(21, 33, 58, .18);
+  content: '' !important;
+  display: block !important;
+  width: 29px !important;
+  height: 29px !important;
+  margin: 0 !important;
+  background: center / contain no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cellipse cx='24' cy='21' rx='16' ry='11.5' fill='none' stroke='white' stroke-width='3.2'/%3E%3Cpath d='M14 29l-3 7 8-4' fill='none' stroke='white' stroke-width='3.2' stroke-linejoin='round'/%3E%3Ctext x='24' y='25.5' text-anchor='middle' font-family='Arial,sans-serif' font-size='10' font-weight='800' fill='white'%3ESOS%3C/text%3E%3C/svg%3E") !important;
+  pointer-events: none !important;
+  z-index: 2 !important;
 }
 
-/* Expanding halo: this is the visual "urgent / attention" signal. */
+/* Pulsing red halo. It deliberately sits behind the marker and never changes
+   the clickable area of the Leaflet marker. */
 .need-marker-pin::after {
-  content: '';
-  position: absolute;
-  z-index: -1;
-  inset: -5px;
-  border-radius: 50%;
-  border: 2px solid currentColor;
-  opacity: .55;
-  animation: sosdz-marker-pulse 1.35s ease-out infinite;
+  content: '' !important;
+  position: absolute !important;
+  inset: -7px !important;
+  display: block !important;
+  border: 2px solid rgba(217, 31, 49, .55) !important;
+  border-radius: 50% !important;
+  background: transparent !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  z-index: -1 !important;
+  animation: sosdz-marker-pulse 1.5s ease-out infinite !important;
+  will-change: transform, opacity;
+}
+
+@keyframes sosdz-marker-breathe {
+  0%, 100% {
+    transform: translateZ(0) scale(1);
+    box-shadow:
+      0 3px 10px rgba(21, 33, 58, .28),
+      0 0 0 2px rgba(217, 31, 49, .16) !important;
+  }
+  50% {
+    transform: translateZ(0) scale(1.045);
+    box-shadow:
+      0 4px 14px rgba(217, 31, 49, .38),
+      0 0 0 4px rgba(217, 31, 49, .18) !important;
+  }
 }
 
 @keyframes sosdz-marker-pulse {
   0% {
     transform: scale(.72);
-    opacity: .65;
+    opacity: .72;
   }
-  70%,
+  70% {
+    opacity: .18;
+  }
   100% {
-    transform: scale(1.42);
+    transform: scale(1.65);
     opacity: 0;
   }
 }
 
-@keyframes sosdz-marker-blink {
-  0%,
-  100% {
-    filter: saturate(1);
-    box-shadow: 0 3px 9px rgba(21, 33, 58, .28) !important;
-  }
-  50% {
-    filter: saturate(1.18) brightness(1.08);
-    box-shadow: 0 3px 14px rgba(217, 31, 49, .42) !important;
-  }
-}
-
-/* Keep the marker crisp and less distracting on smaller screens. */
 @media (max-width: 699px) {
   .need-marker-pin {
-    width: 34px;
-    height: 34px;
+    width: 40px !important;
+    height: 40px !important;
+    margin: -5px !important;
   }
 
   .need-marker-pin::before {
-    width: 25px;
-    height: 25px;
-    font-size: 7.5px;
+    width: 28px !important;
+    height: 28px !important;
   }
 
   .need-marker-pin::after {
-    inset: -4px;
+    inset: -6px !important;
   }
 }
 
-/* Respect the user's reduced-motion preference without removing the SOS
-   visual identity. The marker stays visible and the halo becomes static. */
 @media (prefers-reduced-motion: reduce) {
   .need-marker-pin,
   .need-marker-pin::after {
