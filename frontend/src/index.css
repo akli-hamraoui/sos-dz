@@ -797,11 +797,17 @@ main {
   width: clamp(26px, 8vw, 44px);
   height: clamp(26px, 8vw, 44px);
 }
+/* The voice icon sits below the "Nouveau" badge (itself pinned to the
+   card's top-right corner, see .home-badge-new below) with enough
+   clearance that the two never overlap -- unlike the plain bubble mask
+   icon on the orange half, this one isn't centered by a fixed 72px mask
+   box, so it needs its own top offset to stay clear of the badge. */
+.home-sos-half-red .home-sos-icon {
+  margin-top: clamp(16px, 5vw, 22px);
+}
 .home-sos-half .home-sos-icon-voice {
   display: grid;
   place-items: center;
-  background: rgba(255, 255, 255, .25);
-  border-radius: 50%;
 }
 .home-sos-half .home-sos-copy {
   align-items: center;
@@ -826,23 +832,28 @@ main {
    before this pass (voice SOS, flyer submission) -- a plain color badge
    like the old "urgent"/"non urgent" text tags would just read as more
    status noise, so this one blinks to actually draw the eye once, the
-   first time someone sees it. A normal flow child stacked above the
-   card's icon (not an absolutely-positioned overlay) -- an earlier
-   corner-ribbon version sat on top of the SOS icon underneath it and
-   partly hid it, which defeats the point of having an icon there. Uses
-   a teal/cyan gradient found nowhere else on this page (red, orange,
-   green, blue and purple are all already spoken for by other cards),
-   so "new" reads as its own distinct signal. */
+   first time someone sees it. Pinned to the same top-right corner on
+   both cards it appears on (each card is already `position: relative`)
+   so it reads as one consistent element rather than landing in a
+   different spot depending on that card's own text alignment. The
+   icons underneath (.home-sos-icon, .home-secondary-icon) each get
+   enough top clearance that this never overlaps them. Uses a teal/cyan
+   gradient found nowhere else on this page (red, orange, green, blue
+   and purple are all already spoken for by other cards), so "new"
+   reads as its own distinct signal. */
 .home-badge-new {
+  position: absolute;
+  top: 6px;
+  inset-inline-end: 7px;
+  z-index: 1;
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  margin-bottom: 1px;
-  padding: 2px 8px 2px 6px;
+  padding: 2px 7px 2px 6px;
   border-radius: 999px;
   background: linear-gradient(135deg, #22d3ee, #0e7490);
   color: #fff;
-  font-size: 9.5px;
+  font-size: 9px;
   font-weight: 800;
   letter-spacing: .04em;
   text-transform: uppercase;

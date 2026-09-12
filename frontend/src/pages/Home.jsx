@@ -73,7 +73,7 @@ export default function Home() {
           <Link to="/urgent-sos" className="home-sos-half home-sos-half-red">
             <NewBadge />
             <span className="home-sos-icon home-sos-icon-voice" aria-hidden="true">
-              <IconVoiceWave width={24} height={24} />
+              <IconVoiceWave width={26} height={26} strokeWidth={2.2} />
             </span>
             <span className="home-sos-copy">
               <strong><PlusBadge /> {t('home.sosUrgentTitle')}</strong>
