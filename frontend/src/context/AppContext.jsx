@@ -121,6 +121,33 @@ export function AppProvider({ children }) {
     })
   }, [])
 
+  // Drops a locally-held token once its listing has been permanently
+  // deleted -- otherwise it would keep sitting in localStorage pointing at
+  // an id that no longer exists (harmless, but stale).
+  const removeNeedToken = useCallback((needId) => {
+    setNeedTokens((prev) => {
+      const { [needId]: _removed, ...next } = prev
+      saveJSON('rassemble_need_tokens', next)
+      return next
+    })
+  }, [])
+
+  const removePickupToken = useCallback((pickupId) => {
+    setPickupTokens((prev) => {
+      const { [pickupId]: _removed, ...next } = prev
+      saveJSON('rassemble_pickup_tokens', next)
+      return next
+    })
+  }, [])
+
+  const removeCpToken = useCallback((cpId) => {
+    setCpTokens((prev) => {
+      const { [cpId]: _removed, ...next } = prev
+      saveJSON('rassemble_cp_tokens', next)
+      return next
+    })
+  }, [])
+
   const setCommentAuthor = useCallback((author) => {
     setCommentAuthorState(author)
     saveJSON('rassemble_comment_author', author)
@@ -155,10 +182,13 @@ export function AppProvider({ children }) {
     activeCampaignWilayas,
     needTokens,
     saveNeedToken,
+    removeNeedToken,
     pickupTokens,
     savePickupToken,
+    removePickupToken,
     cpTokens,
     saveCpToken,
+    removeCpToken,
     commentAuthor,
     setCommentAuthor,
     commentTokens,

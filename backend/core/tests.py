@@ -4250,3 +4250,183 @@ class FundraisingKeywordTests(TestCase):
         from core.collection_point_geocoding import contains_fundraising_keyword
 
         self.assertFalse(contains_fundraising_keyword("Point de collecte ouvert de 9h a 18h"))
+
+
+class NeedDeletionTests(BaseAPITestCase):
+    """DELETE /needs/{id}/ -- a real, permanent removal, distinct from the
+    is_cancelled soft-close already covered by PickupAndStatusTests/
+    AnonymizationTests. Covers the same three ways in as edit (access_token,
+    the tracking/recovery code, and admin), same as NeedViewSet.destroy."""
+
+    def setUp(self):
+        super().setUp()
+        self.campaign = make_campaign()
+        self.wilaya = self.campaign.authorized_wilayas.first()
+        resp = self.client.post(
+            "/api/needs/",
+            dict(NEED_PAYLOAD, campaign=self.campaign.pk, wilaya=self.wilaya.pk, recovery_code="my-secret-code"),
+            format="json",
+        )
+        self.need_id = resp.data["id"]
+        self.token = resp.data["access_token"]
+
+    def test_delete_with_access_token(self):
+        resp = self.client.delete(f"/api/needs/{self.need_id}/", {"access_token": self.token}, format="json")
+        self.assertEqual(resp.status_code, 204)
+        self.assertFalse(Need.objects.filter(pk=self.need_id).exists())
+
+    def test_delete_with_tracking_code_no_token_needed(self):
+        resp = self.client.delete(f"/api/needs/{self.need_id}/", {"code": "my-secret-code"}, format="json")
+        self.assertEqual(resp.status_code, 204)
+        self.assertFalse(Need.objects.filter(pk=self.need_id).exists())
+
+    def test_delete_with_name_and_phone_identity_fallback(self):
+        resp = self.client.delete(
+            f"/api/needs/{self.need_id}/",
+            {"name": NEED_PAYLOAD["contact_name"], "phone": NEED_PAYLOAD["contact_phone"]},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 204)
+        self.assertFalse(Need.objects.filter(pk=self.need_id).exists())
+
+    def test_delete_rejected_without_any_credential(self):
+        resp = self.client.delete(f"/api/needs/{self.need_id}/", {}, format="json")
+        self.assertEqual(resp.status_code, 403)
+        self.assertTrue(Need.objects.filter(pk=self.need_id).exists())
+
+    def test_delete_rejected_with_wrong_code(self):
+        resp = self.client.delete(f"/api/needs/{self.need_id}/", {"code": "not-it"}, format="json")
+        self.assertEqual(resp.status_code, 403)
+        self.assertTrue(Need.objects.filter(pk=self.need_id).exists())
+
+    def test_delete_cascades_to_its_pickups(self):
+        pickup_resp = self.client.post(
+            "/api/pickups/",
+            {"need": self.need_id, "responder_type": "individual_volunteer", "responder_name": "Sara", "content_brought": "Water"},
+            format="json",
+        )
+        self.assertEqual(pickup_resp.status_code, 201)
+        self.client.delete(f"/api/needs/{self.need_id}/", {"access_token": self.token}, format="json")
+        self.assertFalse(Pickup.objects.filter(pk=pickup_resp.data["id"]).exists())
+
+    def test_anonymized_need_cannot_be_deleted(self):
+        self.client.post(f"/api/needs/{self.need_id}/anonymize/", {"access_token": self.token, "confirm": True}, format="json")
+        resp = self.client.delete(f"/api/needs/{self.need_id}/", {"access_token": self.token}, format="json")
+        self.assertEqual(resp.status_code, 403)
+        self.assertTrue(Need.objects.filter(pk=self.need_id).exists())
+
+    def test_edit_now_accepts_contact_name_and_phone(self):
+        resp = self.client.patch(
+            f"/api/needs/{self.need_id}/",
+            {"contact_name": "Nouveau nom", "contact_phone": "0555999998", "access_token": self.token},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.assertEqual(resp.data["contact_name"], "Nouveau nom")
+        self.assertEqual(resp.data["contact_phone"], "0555999998")
+
+
+class PickupDeletionTests(BaseAPITestCase):
+    """DELETE /pickups/{id}/ -- same real-removal semantics as
+    NeedDeletionTests, plus the parent need's overall_status must be
+    recomputed once a delivery it was counting on disappears entirely."""
+
+    def setUp(self):
+        super().setUp()
+        self.campaign = make_campaign()
+        self.wilaya = self.campaign.authorized_wilayas.first()
+        need_resp = self.client.post(
+            "/api/needs/",
+            dict(NEED_PAYLOAD, campaign=self.campaign.pk, wilaya=self.wilaya.pk),
+            format="json",
+        )
+        self.need_id = need_resp.data["id"]
+        pickup_resp = self.client.post(
+            "/api/pickups/",
+            {
+                "need": self.need_id,
+                "responder_type": "individual_volunteer",
+                "responder_name": "Sara Amrani",
+                "responder_phone": "0666000002",
+                "content_brought": "30 blankets",
+                "recovery_code": "pickup-secret",
+            },
+            format="json",
+        )
+        self.pickup_id = pickup_resp.data["id"]
+        self.token = pickup_resp.data["access_token"]
+
+    def test_delete_with_access_token(self):
+        resp = self.client.delete(f"/api/pickups/{self.pickup_id}/", {"access_token": self.token}, format="json")
+        self.assertEqual(resp.status_code, 204)
+        self.assertFalse(Pickup.objects.filter(pk=self.pickup_id).exists())
+
+    def test_delete_with_tracking_code(self):
+        resp = self.client.delete(f"/api/pickups/{self.pickup_id}/", {"code": "pickup-secret"}, format="json")
+        self.assertEqual(resp.status_code, 204)
+        self.assertFalse(Pickup.objects.filter(pk=self.pickup_id).exists())
+
+    def test_delete_rejected_without_credential(self):
+        resp = self.client.delete(f"/api/pickups/{self.pickup_id}/", {}, format="json")
+        self.assertEqual(resp.status_code, 403)
+        self.assertTrue(Pickup.objects.filter(pk=self.pickup_id).exists())
+
+    def test_delete_recomputes_parent_need_status(self):
+        need = Need.objects.get(pk=self.need_id)
+        self.assertEqual(need.overall_status, Need.STATUS_PARTIALLY_COVERED)
+        self.client.delete(f"/api/pickups/{self.pickup_id}/", {"access_token": self.token}, format="json")
+        need.refresh_from_db()
+        self.assertEqual(need.overall_status, Need.STATUS_OPEN)
+
+    def test_edit_now_accepts_responder_identity_fields(self):
+        resp = self.client.patch(
+            f"/api/pickups/{self.pickup_id}/",
+            {"responder_name": "Nouveau nom", "responder_phone": "0555111222", "organization_or_person_name": "ONG X", "access_token": self.token},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.assertEqual(resp.data["responder_name"], "Nouveau nom")
+        self.assertEqual(resp.data["responder_phone"], "0555111222")
+        self.assertEqual(resp.data["organization_or_person_name"], "ONG X")
+
+
+class CollectionPointDeletionTests(BaseAPITestCase):
+    """DELETE /collection-points/{id}/ -- same real-removal semantics as
+    close() already covers for the soft "mark as closed" action, reusing
+    the exact same collection_point_identity_authorized authorization
+    (access_token, tracking code, or matching name+phone)."""
+
+    def setUp(self):
+        super().setUp()
+        self.wilaya = Wilaya.objects.first()
+        resp = self.client.post(
+            "/api/collection-points/",
+            dict(COLLECTION_POINT_PAYLOAD, wilaya=self.wilaya.pk, recovery_code="cp-secret"),
+            format="json",
+        )
+        self.point_id = resp.data["id"]
+        self.token = resp.data["access_token"]
+
+    def test_delete_with_access_token(self):
+        resp = self.client.delete(f"/api/collection-points/{self.point_id}/", {"access_token": self.token}, format="json")
+        self.assertEqual(resp.status_code, 204)
+        self.assertFalse(CollectionPoint.objects.filter(pk=self.point_id).exists())
+
+    def test_delete_with_tracking_code(self):
+        resp = self.client.delete(f"/api/collection-points/{self.point_id}/", {"code": "cp-secret"}, format="json")
+        self.assertEqual(resp.status_code, 204)
+        self.assertFalse(CollectionPoint.objects.filter(pk=self.point_id).exists())
+
+    def test_delete_with_matching_name_phone(self):
+        resp = self.client.delete(
+            f"/api/collection-points/{self.point_id}/",
+            {"contact_name": COLLECTION_POINT_PAYLOAD["contact_name"], "contact_phone": COLLECTION_POINT_PAYLOAD["contact_phone"]},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 204)
+        self.assertFalse(CollectionPoint.objects.filter(pk=self.point_id).exists())
+
+    def test_delete_rejected_without_credential(self):
+        resp = self.client.delete(f"/api/collection-points/{self.point_id}/", {}, format="json")
+        self.assertEqual(resp.status_code, 403)
+        self.assertTrue(CollectionPoint.objects.filter(pk=self.point_id).exists())

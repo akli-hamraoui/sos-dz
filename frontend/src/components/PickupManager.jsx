@@ -24,8 +24,8 @@ function statusLabel(t, s) {
 // just linked to collection_point instead of need.
 export default function PickupManager({ pickup, pickupToken, onChange, onLocationUpdate }) {
   const { t, i18n } = useTranslation()
-  const { refreshConfig } = useApp()
-  const { showConfirm, showPrompt } = useDialog()
+  const { refreshConfig, removePickupToken } = useApp()
+  const { showConfirm, showPrompt, showAlert } = useDialog()
   const owned = !!pickupToken
 
   const [revealedPhone, setRevealedPhone] = useState(false)
@@ -33,9 +33,12 @@ export default function PickupManager({ pickup, pickupToken, onChange, onLocatio
   const [deliveryPhotos, setDeliveryPhotos] = useState([])
   const [lightbox, setLightbox] = useState(null)
   const [anonymizing, setAnonymizing] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [editingDeparture, setEditingDeparture] = useState(false)
   const [departureForm, setDepartureForm] = useState({ departure_description: pickup.departure_description || '', departure_latitude: pickup.departure_latitude, departure_longitude: pickup.departure_longitude })
   const [gpsStatus, setGpsStatus] = useState(null) // null | 'locating' | 'error'
+  const [editingPickup, setEditingPickup] = useState(false)
+  const [editForm, setEditForm] = useState(null)
   const watchIdRef = useRef(null)
 
   const startLocationWatch = useCallback(() => {
@@ -163,6 +166,62 @@ export default function PickupManager({ pickup, pickupToken, onChange, onLocatio
     refreshConfig()
   }
 
+  // Full edit form covering every field PickupViewSet.partial_update accepts
+  // (its own allowlist, backend) -- responder identity fields plus
+  // content_brought, same as TakeCharge.jsx's own creation form fields.
+  const startEditPickup = () => {
+    setEditForm({
+      responder_type: pickup.responder_type,
+      responder_name: pickup.responder_name,
+      responder_phone: pickup.responder_phone,
+      responder_email: pickup.responder_email,
+      organization_or_person_name: pickup.organization_or_person_name,
+      content_brought: pickup.content_brought,
+    })
+    setEditingPickup(true)
+  }
+
+  const setEditField = (key) => (e) => setEditForm((f) => ({ ...f, [key]: e.target.value }))
+
+  const saveEditPickup = async (e) => {
+    e.preventDefault()
+    try {
+      await api(`/pickups/${pickup.id}/`, { method: 'PATCH', body: JSON.stringify({ ...editForm, access_token: pickupToken }) })
+      setEditingPickup(false)
+      onChange()
+    } catch (err) {
+      showAlert(translateApiError(err, t))
+    }
+  }
+
+  const deletePickupOwned = async () => {
+    if (!(await showConfirm(t('needDetail.deletePickupConfirm')))) return
+    if (deleting) return
+    setDeleting(true)
+    try {
+      await api(`/pickups/${pickup.id}/`, { method: 'DELETE', body: JSON.stringify({ access_token: pickupToken }) })
+      removePickupToken(pickup.id)
+      refreshConfig()
+      onChange()
+    } catch (err) {
+      showAlert(translateApiError(err, t))
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  const deletePickupByCode = async () => {
+    const code = await showPrompt(t('needDetail.deleteByCodePrompt'))
+    if (!code) return
+    if (!(await showConfirm(t('needDetail.deletePickupConfirm')))) return
+    try {
+      await api(`/pickups/${pickup.id}/`, { method: 'DELETE', body: JSON.stringify({ code }) })
+      onChange()
+    } catch (err) {
+      showAlert(translateApiError(err, t))
+    }
+  }
+
   const anonymize = async () => {
     if (anonymizing) return
     setAnonymizing(true)
@@ -285,6 +344,43 @@ export default function PickupManager({ pickup, pickupToken, onChange, onLocatio
       )}
       {owned && (
         <div className="pickup-owner-actions">
+          {editingPickup ? (
+            <form onSubmit={saveEditPickup} className="inline-edit-form">
+              <label>
+                {t('takeCharge.type')}
+                <select value={editForm.responder_type} onChange={setEditField('responder_type')}>
+                  <option value="individual_volunteer">{t('takeCharge.individualVolunteer')}</option>
+                  <option value="organization">{t('takeCharge.organization')}</option>
+                  <option value="collective_truck">{t('takeCharge.collectiveTruck')}</option>
+                </select>
+              </label>
+              <label>
+                {t('takeCharge.whatBringing')} <input type="text" value={editForm.content_brought} onChange={setEditField('content_brought')} />
+              </label>
+              <label>
+                {t('takeCharge.nameLabel')} <input type="text" value={editForm.responder_name} onChange={setEditField('responder_name')} />
+              </label>
+              <label>
+                {t('takeCharge.phoneLabel')} <input type="tel" value={editForm.responder_phone} onChange={setEditField('responder_phone')} />
+              </label>
+              <label>
+                {t('createNeed.email')} <input type="email" value={editForm.responder_email} onChange={setEditField('responder_email')} />
+              </label>
+              <label>
+                {t('createNeed.orgOrPerson')} <input type="text" value={editForm.organization_or_person_name} onChange={setEditField('organization_or_person_name')} />
+              </label>
+              <button type="submit" className="btn btn-primary">
+                {t('common.save')}
+              </button>
+              <button type="button" className="btn" onClick={() => setEditingPickup(false)}>
+                {t('common.cancel')}
+              </button>
+            </form>
+          ) : (
+            <button className="btn" onClick={startEditPickup}>
+              {t('common.edit')}
+            </button>
+          )}
           <input type="text" value={progressText} onChange={(e) => setProgressText(e.target.value)} placeholder={t('needDetail.progressUpdatePlaceholder')} />
           <button className="btn" onClick={addProgressUpdate}>
             {t('needDetail.postUpdate')}
@@ -328,6 +424,9 @@ export default function PickupManager({ pickup, pickupToken, onChange, onLocatio
           <button className="btn btn-danger" onClick={anonymize} disabled={anonymizing}>
             {t('needDetail.anonymizeMyInfo')}
           </button>
+          <button className="btn btn-danger" onClick={deletePickupOwned} disabled={deleting}>
+            {t('needDetail.deleteThisPickup')}
+          </button>
         </div>
       )}
       {!owned && (
@@ -335,6 +434,10 @@ export default function PickupManager({ pickup, pickupToken, onChange, onLocatio
           <Link className="link" to="/recover" state={{ type: 'pickup', id: pickup.id }}>
             {t('needDetail.isThisYourPickup')}
           </Link>
+          <br />
+          <button className="link" onClick={deletePickupByCode}>
+            {t('needDetail.deleteByCodeLink')}
+          </button>
         </div>
       )}
       {lightbox && (

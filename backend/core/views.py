@@ -13,7 +13,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from core.access import authorized_for_write, get_presented_token, is_admin_request, owner_authorized
+from core.access import authorized_for_write, delete_authorized, get_presented_token, is_admin_request, owner_authorized
 from core.captcha import verify_turnstile
 from core.duplicates import find_similar_collection_points, find_similar_needs
 from core.gemini_extraction import (
@@ -499,7 +499,7 @@ class NeedViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retriev
         data = request.data
         editable_fields = [
             "title", "estimated_quantity", "urgency", "commune", "location_description",
-            "organization_or_person_name", "contact_email", "other_phones",
+            "organization_or_person_name", "contact_name", "contact_phone", "contact_email", "other_phones",
         ]
         changed = False
         for f in editable_fields:
@@ -629,6 +629,29 @@ class NeedViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retriev
             target_description=f"Need #{need.pk}",
         )
         return Response(NeedPublicSerializer(need).data)
+
+    def destroy(self, request, *args, **kwargs):
+        """Permanently removes this need (and, via cascade, its own pickups)
+        -- unlike cancel_need's is_cancelled flag above, which only marks the
+        listing closed while keeping it around. Same authorization as
+        partial_update, plus the direct tracking-code/identity shortcut
+        (delete_authorized) so the creator doesn't have to first go through
+        the separate recover-access round trip just to delete their own
+        listing from a new device."""
+        need = self.get_object()
+        block_reason = write_guard(request)
+        if block_reason:
+            return Response({"detail": block_reason}, status=status.HTTP_403_FORBIDDEN)
+        if need.is_anonymized:
+            return Response({"detail": "This listing has been anonymized and is frozen from further edits."}, status=status.HTTP_403_FORBIDDEN)
+        if not delete_authorized(request, need):
+            return Response(
+                {"detail": "Not authorized: this access token or tracking code doesn't match this need."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        log_admin_action(request, "deleted need", need)
+        need.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class PickupViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.RetrieveModelMixin):
@@ -793,6 +816,9 @@ class PickupViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retri
             return Response({"detail": "Not authorized: this access token doesn't match this pickup."}, status=status.HTTP_403_FORBIDDEN)
 
         data = request.data
+        for f in ("responder_type", "responder_name", "responder_phone", "responder_email", "organization_or_person_name"):
+            if f in data:
+                setattr(pickup, f, data[f])
         if "content_brought" in data:
             pickup.content_brought = data["content_brought"]
         if "location_sharing_active" in data:
@@ -945,6 +971,30 @@ class PickupViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retri
             target_description=f"Pickup #{pickup.pk}",
         )
         return Response(PickupPublicSerializer(pickup).data)
+
+    def destroy(self, request, *args, **kwargs):
+        """Permanently removes this pickup/delivery -- distinct from
+        cancelling it (is_cancelled in partial_update above, which keeps the
+        record but stops tracking). Same authorization as partial_update,
+        plus the direct tracking-code/identity shortcut (delete_authorized),
+        same as NeedViewSet.destroy."""
+        pickup = self.get_object()
+        block_reason = write_guard(request)
+        if block_reason:
+            return Response({"detail": block_reason}, status=status.HTTP_403_FORBIDDEN)
+        if pickup.is_anonymized:
+            return Response({"detail": "This listing has been anonymized and is frozen from further edits."}, status=status.HTTP_403_FORBIDDEN)
+        if not delete_authorized(request, pickup):
+            return Response(
+                {"detail": "Not authorized: this access token or tracking code doesn't match this pickup."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        need = pickup.need
+        log_admin_action(request, "deleted pickup", pickup)
+        pickup.delete()
+        if need:
+            need.recompute_status()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class SupportRequestViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
@@ -1181,6 +1231,23 @@ class CollectionPointViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mix
             )
         token = point.regenerate_token()
         return Response({"access_token": token})
+
+    def destroy(self, request, *args, **kwargs):
+        """Permanently removes this collection point (and, via cascade, its
+        own pickups) -- distinct from close() above, which only marks the
+        point closed while keeping it (and its history) around. Same
+        authorization as close()/partial_update (collection_point_identity_
+        authorized already offers the direct code/name+phone shortcut, no
+        separate helper needed here)."""
+        point = self.get_object()
+        block_reason = read_only_block(request) if point.is_international else write_guard(request)
+        if block_reason:
+            return Response({"detail": block_reason}, status=status.HTTP_403_FORBIDDEN)
+        if not collection_point_identity_authorized(request, point):
+            return Response({"detail": COLLECTION_POINT_NOT_AUTHORIZED_MESSAGE}, status=status.HTTP_403_FORBIDDEN)
+        log_admin_action(request, "deleted collection point", point)
+        point.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 def _safe_url(value):

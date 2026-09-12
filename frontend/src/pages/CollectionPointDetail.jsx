@@ -27,11 +27,14 @@ export default function CollectionPointDetail() {
   const { t } = useTranslation()
   const { id } = useParams()
   const navigate = useNavigate()
-  const { showAlert, showPrompt } = useDialog()
-  const { refreshConfig, pickupTokens, cpTokens } = useApp()
+  const { showAlert, showPrompt, showConfirm } = useDialog()
+  const { refreshConfig, pickupTokens, cpTokens, removeCpToken } = useApp()
   const [cp, setCp] = useState(null)
   const [showPhone, setShowPhone] = useState(false)
   const [lightbox, setLightbox] = useState(null) // { src } for a full-size flyer preview
+  const [editing, setEditing] = useState(false)
+  const [editForm, setEditForm] = useState(null)
+  const [deleting, setDeleting] = useState(false)
 
   const isOwner = !!cpTokens[id]
   // Fetched eagerly in the background on mount, not awaited at click time
@@ -100,6 +103,79 @@ export default function CollectionPointDetail() {
     try {
       setCp(await api(`/collection-points/${id}/close/`, { method: 'POST', body: JSON.stringify(payload) }))
       refreshConfig()
+    } catch (e) {
+      showAlert(translateApiError(e, t))
+    }
+  }
+
+  // Full edit form covering every field CollectionPointViewSet.partial_update
+  // accepts (its own editable_fields allowlist, backend) -- same fields as
+  // CreateCollectionPoint/CreateInternationalCollectionPoint minus wilaya/
+  // country/GPS/flyer, which that endpoint deliberately excludes.
+  const startEdit = () => {
+    setEditForm({
+      point_name: cp.point_name,
+      organization: cp.organization,
+      location_description: cp.location_description,
+      hours: cp.hours,
+      description: cp.description,
+      accepted_donations: cp.accepted_donations,
+      contact_name: cp.contact_name,
+      contact_phone: cp.contact_phone,
+      other_phones: cp.other_phones,
+      facebook_url: cp.facebook_url || '',
+      tiktok_url: cp.tiktok_url || '',
+      instagram_url: cp.instagram_url || '',
+    })
+    setEditing(true)
+  }
+
+  const setEditField = (key) => (e) => setEditForm((f) => ({ ...f, [key]: e.target.value }))
+
+  const saveEditOwned = async (e) => {
+    e.preventDefault()
+    try {
+      setCp(await api(`/collection-points/${id}/`, { method: 'PATCH', body: JSON.stringify({ ...editForm, access_token: cpTokens[id] }) }))
+      setEditing(false)
+    } catch (err) {
+      showAlert(translateApiError(err, t))
+    }
+  }
+
+  const deletePointOwned = async () => {
+    if (!(await showConfirm(t('collectionPoints.deletePointConfirm')))) return
+    if (deleting) return
+    setDeleting(true)
+    try {
+      await api(`/collection-points/${id}/`, { method: 'DELETE', body: JSON.stringify({ access_token: cpTokens[id] }) })
+      removeCpToken(id)
+      refreshConfig()
+      navigate(cp.is_international ? '/international-collection-points' : '/collection-points', { replace: true })
+    } catch (e) {
+      showAlert(translateApiError(e, t))
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  const deletePointByIdentity = async () => {
+    // Same code-first, name+phone-fallback prompt sequence as
+    // closePointByIdentity above.
+    const code = await showPrompt(t('collectionPoints.closePromptCode'))
+    if (code === null) return
+    let payload
+    if (code.trim()) {
+      payload = { code: code.trim() }
+    } else {
+      const contact_name = await showPrompt(t('collectionPoints.closePromptName'))
+      if (!contact_name) return
+      const contact_phone = await showPrompt(t('collectionPoints.closePromptPhone'))
+      payload = { contact_name, contact_phone }
+    }
+    if (!(await showConfirm(t('collectionPoints.deletePointConfirm')))) return
+    try {
+      await api(`/collection-points/${id}/`, { method: 'DELETE', body: JSON.stringify(payload) })
+      navigate(cp.is_international ? '/international-collection-points' : '/collection-points', { replace: true })
     } catch (e) {
       showAlert(translateApiError(e, t))
     }
@@ -205,25 +281,100 @@ export default function CollectionPointDetail() {
           {t('collectionPoints.otherPhonesLabel')}: {cp.other_phones}
         </p>
       )}
-      {cp.status === 'active' &&
-        (isOwner ? (
-          <div className="owner-actions">
-            <h4>{t('collectionPoints.manageMyPoint')}</h4>
+      {isOwner ? (
+        <div className="owner-actions">
+          <h4>{t('collectionPoints.manageMyPoint')}</h4>
+          {editing ? (
+            <form onSubmit={saveEditOwned} className="inline-edit-form">
+              <label>
+                {t('collectionPoints.pointName')} <input type="text" value={editForm.point_name} onChange={setEditField('point_name')} />
+              </label>
+              <label>
+                {t('collectionPoints.organization')} <input type="text" value={editForm.organization} onChange={setEditField('organization')} />
+              </label>
+              <label>
+                {t('collectionPoints.locationDescription')}
+                <textarea value={editForm.location_description} onChange={setEditField('location_description')} />
+              </label>
+              <label>
+                {t('collectionPoints.hours')} <input type="text" value={editForm.hours} onChange={setEditField('hours')} />
+              </label>
+              <label>
+                {t('collectionPoints.description')}
+                <textarea value={editForm.description} onChange={setEditField('description')} />
+              </label>
+              <label>
+                {t('collectionPoints.acceptedDonations')}
+                <textarea value={editForm.accepted_donations} onChange={setEditField('accepted_donations')} />
+              </label>
+              <label>
+                <span className="field-label-icon">
+                  <IconFacebook width={18} height={18} strokeWidth={1.6} /> {t('collectionPoints.facebook')}
+                </span>
+                <input type="url" value={editForm.facebook_url} onChange={setEditField('facebook_url')} />
+              </label>
+              <label>
+                <span className="field-label-icon">
+                  <IconTikTok width={18} height={18} strokeWidth={1.6} /> {t('collectionPoints.tiktok')}
+                </span>
+                <input type="url" value={editForm.tiktok_url} onChange={setEditField('tiktok_url')} />
+              </label>
+              <label>
+                <span className="field-label-icon">
+                  <IconInstagram width={18} height={18} strokeWidth={1.6} /> {t('collectionPoints.instagram')}
+                </span>
+                <input type="url" value={editForm.instagram_url} onChange={setEditField('instagram_url')} />
+              </label>
+              <fieldset>
+                <legend>{t('createNeed.contactDetailsLegend')}</legend>
+                <label>
+                  {t('collectionPoints.contactName')} <input type="text" value={editForm.contact_name} onChange={setEditField('contact_name')} />
+                </label>
+                <label>
+                  {t('collectionPoints.contactPhone')} <input type="tel" value={editForm.contact_phone} onChange={setEditField('contact_phone')} />
+                </label>
+                <label>
+                  {t('collectionPoints.otherPhones')}
+                  <textarea value={editForm.other_phones} onChange={setEditField('other_phones')} />
+                </label>
+              </fieldset>
+              <button type="submit" className="btn btn-primary">
+                {t('common.save')}
+              </button>
+              <button type="button" className="btn" onClick={() => setEditing(false)}>
+                {t('common.cancel')}
+              </button>
+            </form>
+          ) : (
+            <button className="btn" onClick={startEdit}>
+              {t('common.edit')}
+            </button>
+          )}
+          {cp.status === 'active' && (
             <button className="btn" onClick={closePointOwned}>
               {t('collectionPoints.markAsClosed')}
             </button>
-          </div>
-        ) : (
-          <div>
+          )}
+          <button className="btn btn-danger" onClick={deletePointOwned} disabled={deleting}>
+            {t('collectionPoints.deleteThisPoint')}
+          </button>
+        </div>
+      ) : (
+        <div>
+          {cp.status === 'active' && (
             <button className="btn" onClick={closePointByIdentity}>
               {t('collectionPoints.markAsClosed')}
             </button>
-            <br />
-            <Link className="link" to="/recover" state={{ type: 'collection_point', id: cp.id }}>
-              {t('collectionPoints.isThisYourPoint')}
-            </Link>
-          </div>
-        ))}
+          )}
+          <button className="btn btn-danger" onClick={deletePointByIdentity}>
+            {t('collectionPoints.deleteThisPoint')}
+          </button>
+          <br />
+          <Link className="link" to="/recover" state={{ type: 'collection_point', id: cp.id }}>
+            {t('collectionPoints.isThisYourPoint')}
+          </Link>
+        </div>
+      )}
 
       {/* Always empty for an international point -- no take-charge ever
           possible, so this whole section (and its "(0)" count) is just
