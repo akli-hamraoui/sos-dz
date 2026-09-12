@@ -331,6 +331,7 @@
   },
   "collectionPoints": {
     "title": "Collection points",
+    "createdFromFlyer": "This point was created automatically from a flyer.",
     "shortIntro": "Collection point in Algeria",
     "addButton": "+ Add a collection point in Algeria",
     "searchPlaceholder": "association, donations, phone, city, name, etc.",
