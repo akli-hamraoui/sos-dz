@@ -874,7 +874,7 @@ main {
   letter-spacing: .04em;
   text-transform: uppercase;
   box-shadow: 0 2px 7px rgba(14, 116, 144, .45);
-  animation: home-badge-new-blink 1.8s ease-in-out infinite;
+  animation: home-badge-new-blink 2.4s ease-in-out infinite;
 }
 .home-badge-new-dot {
   width: 6px;
@@ -884,7 +884,7 @@ main {
 }
 @keyframes home-badge-new-blink {
   0%, 55%, 100% { opacity: 1; }
-  27% { opacity: .45; }
+  27% { opacity: .78; }
 }
 @media (prefers-reduced-motion: reduce) {
   .home-badge-new {
