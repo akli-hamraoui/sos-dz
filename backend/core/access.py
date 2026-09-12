@@ -37,3 +37,24 @@ def authorized_for_write(request, obj):
     by the explicit 'recover access' endpoint, which issues a fresh token
     rather than being accepted silently on every write."""
     return is_admin_request(request) or owner_authorized(request, obj)
+
+
+def delete_authorized(request, obj):
+    """Owner (token), admin, or an exact tracking-code / name+phone identity
+    match -- lets someone delete their own Need/Pickup straight from its
+    detail page using just the "code de suivi" (recovery_code) they were
+    given at creation, without first going through the separate
+    recover-access round trip that other identity-matched writes still
+    require. Mirrors CollectionPointViewSet's own
+    collection_point_identity_authorized, which already offers this same
+    direct-code shortcut for collection points."""
+    if is_admin_request(request) or owner_authorized(request, obj):
+        return True
+    data = request.data if hasattr(request, "data") else {}
+    code = data.get("code")
+    if code:
+        return obj.matches_code(code)
+    name, phone = data.get("name"), data.get("phone")
+    if name and phone:
+        return obj.matches_identity(name, phone)
+    return False

@@ -1770,6 +1770,9 @@ fieldset {
   width: 100%;
   font-size: 13px;
 }
+.inline-edit-form {
+  width: 100%;
+}
 
 .photo-thumbs {
   display: flex;

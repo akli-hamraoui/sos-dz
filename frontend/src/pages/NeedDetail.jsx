@@ -24,7 +24,7 @@ export default function NeedDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const { needTokens, saveNeedToken, pickupTokens, savePickupToken, wilayas, refreshConfig } = useApp()
+  const { needTokens, saveNeedToken, removeNeedToken, pickupTokens, savePickupToken, wilayas, refreshConfig } = useApp()
   const { showAlert, showConfirm, showPrompt } = useDialog()
   const [need, setNeed] = useState(null)
   const [showPhone, setShowPhone] = useState(false)
@@ -33,6 +33,9 @@ export default function NeedDetail() {
   const [routeInfo, setRouteInfo] = useState(null)
   const [lightbox, setLightbox] = useState(null) // { src } for a full-size image preview
   const [anonymizingNeed, setAnonymizingNeed] = useState(false)
+  const [editingNeed, setEditingNeed] = useState(false)
+  const [editForm, setEditForm] = useState(null)
+  const [deleting, setDeleting] = useState(false)
   const mapElRef = useRef(null)
   const mapRef = useRef(null)
   // Fetched eagerly in the background on mount, not awaited at click time
@@ -195,12 +198,68 @@ export default function NeedDetail() {
     const token = needTokens[id].access_token
     const data = await api(`/needs/${id}/`, { method: 'PATCH', body: JSON.stringify({ ...patch, access_token: token }) })
     setNeed(data)
+    return data
   }
 
-  const startEdit = async () => {
-    const title = await showPrompt(t('createNeed.typeOfNeed') + ':', need.title)
-    if (title === null) return
-    editNeed({ title })
+  // Full edit form covering every field NeedViewSet.partial_update accepts
+  // (see its own editable_fields allowlist, backend) -- replaces the old
+  // single-field "edit the title" prompt with one form for everything a
+  // reporter might need to correct after the fact.
+  const startEdit = () => {
+    setEditForm({
+      title: need.title,
+      urgency: need.urgency,
+      estimated_quantity: need.estimated_quantity,
+      commune: need.commune,
+      location_description: need.location_description,
+      organization_or_person_name: need.organization_or_person_name,
+      contact_name: need.contact_name,
+      contact_phone: need.contact_phone,
+      other_phones: need.other_phones,
+      contact_email: need.contact_email,
+    })
+    setEditingNeed(true)
+  }
+
+  const setEditField = (key) => (e) => setEditForm((f) => ({ ...f, [key]: e.target.value }))
+
+  const saveEdit = async (e) => {
+    e.preventDefault()
+    try {
+      await editNeed(editForm)
+      setEditingNeed(false)
+    } catch (err) {
+      showAlert(translateApiError(err, t))
+    }
+  }
+
+  const deleteNeedOwned = async () => {
+    if (!(await showConfirm(t('needDetail.deleteNeedConfirm')))) return
+    if (deleting) return
+    setDeleting(true)
+    try {
+      const token = needTokens[id].access_token
+      await api(`/needs/${id}/`, { method: 'DELETE', body: JSON.stringify({ access_token: token }) })
+      removeNeedToken(id)
+      refreshConfig()
+      navigate('/needs', { replace: true, state: { needsChanged: true } })
+    } catch (err) {
+      showAlert(translateApiError(err, t))
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  const deleteNeedByCode = async () => {
+    const code = await showPrompt(t('needDetail.deleteByCodePrompt'))
+    if (!code) return
+    if (!(await showConfirm(t('needDetail.deleteNeedConfirm')))) return
+    try {
+      await api(`/needs/${id}/`, { method: 'DELETE', body: JSON.stringify({ code }) })
+      navigate('/needs', { replace: true, state: { needsChanged: true } })
+    } catch (err) {
+      showAlert(translateApiError(err, t))
+    }
   }
 
   const cancelNeed = async () => {
@@ -427,9 +486,60 @@ export default function NeedDetail() {
       {isNeedOwner ? (
         <div className="owner-actions">
           <h4>{t('needDetail.manageMyNeed')}</h4>
-          <button className="btn" onClick={startEdit}>
-            {t('common.edit')}
-          </button>
+          {editingNeed ? (
+            <form onSubmit={saveEdit} className="inline-edit-form">
+              <label>
+                {t('needDetail.titleLabel')} <input type="text" value={editForm.title} onChange={setEditField('title')} />
+              </label>
+              <label>
+                {t('createNeed.urgency')}
+                <select value={editForm.urgency} onChange={setEditField('urgency')}>
+                  <option value="low">{t('urgency.low')}</option>
+                  <option value="medium">{t('urgency.medium')}</option>
+                  <option value="critical">{t('urgency.critical')}</option>
+                </select>
+              </label>
+              <label>
+                {t('createNeed.estimatedQuantity')} <input type="text" value={editForm.estimated_quantity} onChange={setEditField('estimated_quantity')} />
+              </label>
+              <label>
+                {t('createNeed.place')} <input type="text" value={editForm.commune} onChange={setEditField('commune')} />
+              </label>
+              <label>
+                {t('createNeed.description')}
+                <textarea value={editForm.location_description} onChange={setEditField('location_description')} />
+              </label>
+              <fieldset>
+                <legend>{t('createNeed.contactDetailsLegend')}</legend>
+                <label>
+                  {t('createNeed.name')} <input type="text" value={editForm.contact_name} onChange={setEditField('contact_name')} />
+                </label>
+                <label>
+                  {t('createNeed.phone')} <input type="tel" value={editForm.contact_phone} onChange={setEditField('contact_phone')} />
+                </label>
+                <label>
+                  {t('collectionPoints.otherPhones')}
+                  <textarea value={editForm.other_phones} onChange={setEditField('other_phones')} />
+                </label>
+                <label>
+                  {t('createNeed.email')} <input type="email" value={editForm.contact_email} onChange={setEditField('contact_email')} />
+                </label>
+                <label>
+                  {t('createNeed.orgOrPerson')} <input type="text" value={editForm.organization_or_person_name} onChange={setEditField('organization_or_person_name')} />
+                </label>
+              </fieldset>
+              <button type="submit" className="btn btn-primary">
+                {t('common.save')}
+              </button>
+              <button type="button" className="btn" onClick={() => setEditingNeed(false)}>
+                {t('common.cancel')}
+              </button>
+            </form>
+          ) : (
+            <button className="btn" onClick={startEdit}>
+              {t('common.edit')}
+            </button>
+          )}
           <button className="btn" onClick={cancelNeed}>
             {t('needDetail.cancelThisNeed')}
           </button>
@@ -451,12 +561,19 @@ export default function NeedDetail() {
           <button className="btn btn-danger" onClick={anonymizeNeed} disabled={anonymizingNeed}>
             {t('needDetail.anonymizeMyInfo')}
           </button>
+          <button className="btn btn-danger" onClick={deleteNeedOwned} disabled={deleting}>
+            {t('needDetail.deleteThisNeed')}
+          </button>
         </div>
       ) : (
         <div>
           <Link className="link" to="/recover" state={{ type: 'need', id: need.id }}>
             {t('needDetail.isThisYourNeed')}
           </Link>
+          <br />
+          <button className="link" onClick={deleteNeedByCode}>
+            {t('needDetail.deleteByCodeLink')}
+          </button>
         </div>
       )}
       <button className="link" onClick={reportDuplicate}>
