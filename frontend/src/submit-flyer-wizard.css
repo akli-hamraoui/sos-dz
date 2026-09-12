@@ -8,9 +8,131 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.submit-flyer-wizard .photo-thumbs { margin: 4px 0 16px; }
+/* Deliberately its own classes, not the shared .photo-thumbs/.photo-thumb
+   (index.css defines that pair twice, for two unrelated components with
+   conflicting sizing -- a fixed 56px/overflow:hidden gallery thumb, and a
+   position:relative 84px form-preview thumb. Reusing it here meant the
+   delete button ended up laid out past the clipped 56px box and
+   overlapping the "Continuer" button beneath it, invisible and
+   unclickable). This block owns its full layout instead. */
+.submit-flyer-wizard .flyer-photo-thumbs {
+  display: flex;
+  margin: 4px 0 16px;
+}
+.submit-flyer-wizard .flyer-photo-thumb {
+  position: relative;
+  width: 96px;
+  height: 96px;
+}
+.submit-flyer-wizard .flyer-photo-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 12px;
+  border: 1px solid var(--brand-green-border);
+}
+.submit-flyer-wizard .flyer-remove-photo {
+  position: absolute;
+  top: -8px;
+  inset-inline-end: -8px;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--brand-green-border);
+  border-radius: 50%;
+  background: #fff;
+  color: var(--brand-green);
+  box-shadow: 0 2px 8px rgba(21, 33, 58, 0.15);
+  cursor: pointer;
+  padding: 0;
+}
+.submit-flyer-wizard .flyer-remove-photo:hover {
+  background: var(--brand-green-soft);
+  border-color: var(--brand-green);
+  color: var(--brand-green-hover);
+}
+
+/* Every button on this page follows the wizard's green charter -- the
+   shared .btn class defaults to a neutral grey, which reads as off-brand
+   next to the green primary/secondary buttons everywhere else on this
+   page. */
+.submit-flyer-wizard .flyer-add-photo {
+  border-color: var(--brand-green-border);
+  background: var(--brand-green-soft);
+  color: var(--brand-green);
+  font-weight: 800;
+  min-height: 48px;
+  gap: 8px;
+}
+.submit-flyer-wizard .flyer-add-photo:hover {
+  border-color: var(--brand-green);
+  box-shadow: 0 4px 12px rgba(44, 143, 103, 0.12);
+}
+.submit-flyer-wizard .urgent-sos-secondary {
+  border-color: var(--brand-green-border);
+  color: var(--brand-green);
+}
+.submit-flyer-wizard .urgent-sos-secondary:hover {
+  background: var(--brand-green-soft);
+  border-color: var(--brand-green);
+}
 
 .submit-flyer-wizard .urgent-sos-final-badge.is-error { background: #fff1f2; color: #a61d2d; }
+
+/* Visible feedback while a submission is in flight -- greyed out (instead
+   of looking identical to enabled, which is all the shared .urgent-sos-*
+   button styles give a plain :disabled button) plus a small inline
+   spinner, so a double-tap doesn't look like nothing happened. */
+.submit-flyer-wizard .urgent-sos-primary:disabled,
+.submit-flyer-wizard .urgent-sos-secondary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+.submit-flyer-wizard .flyer-btn-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.45);
+  border-top-color: #fff;
+  border-radius: 50%;
+  display: inline-block;
+  animation: urgent-sos-spin 0.8s linear infinite;
+}
+
+/* Error-result screen: one clear primary action (retry) instead of two
+   equal-weight buttons, with a low-emphasis text link underneath for the
+   fallback path -- reads as "do this" rather than "pick one of these". */
+.submit-flyer-wizard .flyer-error-actions {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+}
+.submit-flyer-wizard .flyer-error-actions .urgent-sos-primary {
+  width: 100%;
+}
+.submit-flyer-wizard .flyer-ghost-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--brand-green);
+  font-weight: 700;
+  font-size: 14px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-align: center;
+}
+.submit-flyer-wizard .flyer-ghost-link:hover,
+.submit-flyer-wizard .flyer-ghost-link:focus-visible {
+  background: var(--brand-green-soft);
+  text-decoration: none;
+}
 
 @media (max-width: 699px) {
   .submit-flyer-wizard .urgent-sos-stepper,

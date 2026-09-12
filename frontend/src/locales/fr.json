@@ -379,6 +379,7 @@
   },
   "submitFlyer": {
     "title": "Ajouter un point de collecte à partir d'un flyer",
+    "createdTitle": "Point de collecte créé",
     "intro": "Envoyez la photo d'un flyer/affiche annonçant un ou plusieurs points de collecte : nos outils lisent l'image et créent automatiquement les points correspondants sur la carte.",
     "flyerLabel": "Photo du flyer",
     "flyerHint": "Une photo nette, avec le texte lisible, donne de meilleurs résultats.",
@@ -408,7 +409,7 @@
     "stepInfo": "Infos",
     "infoStepTitle": "Vos coordonnées (optionnel)",
     "doneTitle": "Envoi terminé",
-    "notDoneTitle": "Envoi non retenu"
+    "notDoneTitle": "Erreur d'envoi"
   },
   "internationalCollectionPoints": {
     "navButton": "🌍 Collecte internationale",
