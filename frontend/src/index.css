@@ -797,38 +797,42 @@ main {
   width: clamp(26px, 8vw, 44px);
   height: clamp(26px, 8vw, 44px);
 }
-/* The red half's icon sits inside a wrapper (rather than being the icon
-   itself) so a small mic badge can be pinned to its corner -- the SOS
-   bubble on its own reads identically to the orange half, and this is
-   what marks it as specifically the *voice* SOS. The wrapper also carries
-   the top clearance that keeps the icon from sitting under the "Nouveau"
-   badge pinned to the card's own top-right corner (see .home-badge-new). */
+/* The red half's icon sits in a row next to the mic badge (rather than
+   the badge overlapping its corner) -- a corner badge that stayed clear
+   of the SOS bubble's own visible pixels at every breakpoint would have
+   needed to sit almost entirely outside the icon's box anyway (the mask
+   image nearly fills it, especially at the smallest breakpoints), which
+   ate into the vertical space this row has to stay within. Side by side
+   with a fixed gap guarantees they never touch regardless of screen
+   size, with no extra vertical room needed since the badge is shorter
+   than the icon at every breakpoint. */
 .home-sos-icon-wrap {
-  position: relative;
   display: inline-flex;
+  align-items: center;
+  gap: 8px;
   margin-top: clamp(16px, 5vw, 22px);
-  /* The mic badge overhangs the icon box's own bottom-right corner (see
-     .home-sos-mic-badge) so it doesn't touch the SOS bubble itself --
-     this reserves room for that overhang so it lands in the gap above
-     the title instead of overlapping it. */
-  margin-bottom: 10px;
 }
 .home-sos-icon-wrap .home-sos-icon {
   margin-top: 0;
 }
+/* A fixed size at every breakpoint (rather than scaling with the icon)
+   so it reads as one consistent badge -- like the "Nouveau" badge next
+   to it -- instead of changing weight depending on screen size. */
 .home-sos-mic-badge {
-  position: absolute;
-  bottom: -9px;
-  inset-inline-end: -13px;
-  width: 26px;
-  height: 26px;
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
   display: grid;
   place-items: center;
   border-radius: 50%;
   background: linear-gradient(180deg, #22d3ee, #2563eb);
   color: #fff;
-  border: 2.5px solid rgba(255, 255, 255, .9);
+  border: 2px solid rgba(255, 255, 255, .9);
   box-shadow: 0 2px 6px rgba(0, 0, 0, .3);
+}
+.home-sos-mic-badge svg {
+  width: 55%;
+  height: 55%;
 }
 .home-sos-half .home-sos-copy {
   align-items: center;
