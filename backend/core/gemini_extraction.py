@@ -72,9 +72,30 @@ _RESPONSE_SCHEMA = {
                     "contact_name": {"type": "string"},
                     "contact_phone": {"type": "string"},
                     "other_phones": {"type": "string"},
-                    "facebook_url": {"type": "string"},
-                    "tiktok_url": {"type": "string"},
-                    "instagram_url": {"type": "string"},
+                    "facebook_url": {
+                        "type": "string",
+                        "description": (
+                            "URL complète de la page/du groupe Facebook (ex: 'https://facebook.com/nom.page'), "
+                            "reconstituée à partir du logo Facebook, d'un lien déjà écrit, ou d'un simple nom/identifiant "
+                            "de page mentionné sur le flyer. Vide si aucun indice Facebook n'est présent."
+                        ),
+                    },
+                    "tiktok_url": {
+                        "type": "string",
+                        "description": (
+                            "URL complète du compte TikTok (ex: 'https://www.tiktok.com/@nom.compte'), "
+                            "reconstituée à partir du logo TikTok, d'un lien déjà écrit, ou d'un simple nom/identifiant "
+                            "mentionné sur le flyer. Vide si aucun indice TikTok n'est présent."
+                        ),
+                    },
+                    "instagram_url": {
+                        "type": "string",
+                        "description": (
+                            "URL complète du compte Instagram (ex: 'https://www.instagram.com/nom.compte'), "
+                            "reconstituée à partir du logo Instagram, d'un lien déjà écrit, ou d'un simple nom/identifiant "
+                            "mentionné sur le flyer. Vide si aucun indice Instagram n'est présent."
+                        ),
+                    },
                 },
                 "required": ["country_code"],
             },
@@ -105,6 +126,15 @@ Règles impératives :
 7. "has_money_collection" (très important, exclusion stricte et totale) : mets true si le flyer mentionne, N'IMPORTE OÙ (y compris dans "raw_text"), un CCP, une cagnotte, Cotizup, un IBAN, PayPal, un RIP, un numéro de compte bancaire/postal, ou tout autre moyen de collecte d'ARGENT en ligne. Cette règle s'applique même si le reste des informations (adresse, contact) est par ailleurs valide et utile — signale-le quand même via ce champ, ne l'omets pas.
 
 8. "raw_text" : recopie le texte brut intégral visible sur le flyer, traduit en français si le texte original est dans une autre langue (arabe, anglais, etc.), pour toute information non capturée dans les champs structurés ci-dessus.
+
+9. Réseaux sociaux ("facebook_url", "tiktok_url", "instagram_url") : cherche activement toute trace de présence sur Facebook, TikTok ou Instagram, sous N'IMPORTE LAQUELLE de ces formes :
+   - le logo/icône du réseau (même sans texte à côté) ;
+   - un lien déjà écrit en toutes lettres (ex: "facebook.com/...", "instagram.com/...", "tiktok.com/@...", "fb.com/...", "www.instagram.com/...") ;
+   - un simple nom de page/groupe/compte mentionné à côté du logo ou du nom du réseau (ex: "Facebook : Association Al Khir", "IG : @asso_khir", "TikTok : asso.khir"), même sans URL explicite ni logo visible.
+   Dans tous les cas, remplis le champ correspondant avec une URL COMPLÈTE et valide (commençant par "https://"), jamais juste un nom ou un @identifiant brut :
+   - si un lien complet est déjà visible, normalise-le en URL complète (ajoute "https://" si absent) ;
+   - si seul un nom de page/groupe ou un identifiant (avec ou sans "@") est visible, reconstruis toi-même l'URL standard du réseau à partir de ce nom (ex: nom de page Facebook "Association Al Khir" -> "https://facebook.com/Association.Al.Khir" en remplaçant les espaces par des points ou tirets comme Facebook le fait ; identifiant Instagram "@asso_khir" -> "https://www.instagram.com/asso_khir"; identifiant TikTok "asso.khir" -> "https://www.tiktok.com/@asso.khir").
+   Ne laisse le champ vide QUE si tu ne trouves absolument aucune trace (logo, texte, lien) de ce réseau sur le flyer. Ne confonds jamais les réseaux entre eux (un identifiant à côté du logo Instagram va dans "instagram_url", pas "facebook_url").
 
 Réponds uniquement avec les données structurées demandées, sans texte additionnel."""
 

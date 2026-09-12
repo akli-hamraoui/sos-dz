@@ -908,8 +908,8 @@ class ExtractedCollectionPointSerializer(serializers.ModelSerializer):
         fields = [
             "id", "point_name", "organization", "wilaya", "wilaya_name", "country_code", "country_name",
             "city", "location_description", "precision_level", "hours", "description", "accepted_donations",
-            "contact_name", "contact_phone", "other_phones", "duplicate_of", "duplicate_of_name",
-            "published_point", "is_published",
+            "contact_name", "contact_phone", "other_phones", "facebook_url", "tiktok_url", "instagram_url",
+            "duplicate_of", "duplicate_of_name", "published_point", "is_published",
         ]
 
 
