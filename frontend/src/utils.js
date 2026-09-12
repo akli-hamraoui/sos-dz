@@ -173,6 +173,53 @@ export async function searchPlaces(query, lang, signal, countryCode = 'dz', excl
   return results.filter((r) => r.address?.country_code?.toLowerCase() !== excludeCountryCode.toLowerCase())
 }
 
+const PHOTON_BASE = 'https://photon.komoot.io/api'
+
+// City/country-only, prefix-friendly search for CountryOrPlaceSearch.jsx's
+// "type a city or a country" field. Nominatim (searchPlaces above) geocodes
+// full postal addresses and isn't built for incremental typing: a word
+// that's part of many compound place names (e.g. "Jouy", part of a dozen
+// French communes including "Jouy-le-Moutier") hits Nominatim's
+// word-frequency indexing cap and comes back as an incomplete,
+// near-arbitrary subset -- confirmed live, typing "Jouy" skipped
+// Jouy-le-Moutier entirely, and the unhyphenated "Jouy le Moutier" matched
+// nothing at all. Photon (komoot's OSM-based geocoder) is built
+// specifically for this: prefix/n-gram matching that treats hyphens as
+// word breaks, so both spellings find it. Its `layer` filter also keeps
+// results to city/town/village/state/country entries, so this field never
+// suggests a street or a shop the way a plain Nominatim search would.
+//
+// Best-effort like searchPlaces -- the caller falls back to Nominatim on
+// any failure or empty response instead of leaving the field with no
+// suggestions at all.
+export async function searchPlacesTypeahead(query, lang, signal) {
+  const supportedLang = ['en', 'de', 'fr'].includes(lang) ? lang : 'en'
+  const layers = ['city', 'town', 'village', 'state', 'country'].map((l) => `&layer=${l}`).join('')
+  const url = `${PHOTON_BASE}/?q=${encodeURIComponent(query)}&lang=${supportedLang}&limit=10${layers}`
+  const resp = await fetch(url, { signal })
+  if (!resp.ok) throw new Error('Typeahead search failed')
+  const geojson = await resp.json()
+  return (geojson.features || [])
+    .filter((f) => f.properties?.name && f.geometry?.coordinates)
+    .map((f) => {
+      const p = f.properties
+      const [lon, lat] = f.geometry.coordinates
+      // A country-level result's own name IS the country -- there's no
+      // separate city to show alongside it.
+      const isCountry = p.osm_value === 'country' || !p.country
+      return {
+        place_id: `photon-${p.osm_type || 'p'}${p.osm_id ?? `${lat}_${lon}`}`,
+        lat,
+        lon,
+        address: {
+          city: isCountry ? null : p.name,
+          country: isCountry ? p.name : p.country,
+          country_code: p.countrycode,
+        },
+      }
+    })
+}
+
 // Geocodes a whole country (by its ISO code) to a bounding box, so
 // InternationalCollectionPoints.jsx can zoom its map to roughly the right
 // place as soon as a country is picked from the filter, before any
