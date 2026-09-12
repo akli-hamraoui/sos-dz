@@ -177,11 +177,17 @@ def extract_flyer_data(image_bytes, mime_type="image/jpeg"):
         try:
             response = call_model(model_name)
             break
-        except ServerError as exc:
-            last_exc = exc
         except Exception as exc:
-            logger.warning("Gemini extraction call failed", exc_info=True)
-            raise ExtractionError(str(exc)) from exc
+            # ANY failure on this one model -- a ServerError that exhausted
+            # its own retries above, or an immediate ClientError (bad
+            # request, quota exhausted, or a model deprecated for this
+            # account: confirmed live, "gemini-2.5-flash-lite is no longer
+            # available to new users") -- moves on to the next model in the
+            # list rather than aborting the whole extraction. A single bad
+            # model in GEMINI_FALLBACK_MODELS must never break the ones
+            # after it. Only once every model has failed do we give up.
+            logger.warning("Gemini extraction failed on model %s", model_name, exc_info=True)
+            last_exc = exc
     if response is None:
         raise ExtractionError(str(last_exc)) from last_exc
 
