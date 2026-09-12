@@ -402,7 +402,13 @@
     "trackingCode": "رمز المتابعة",
     "submitAnother": "إرسال منشور آخر",
     "useManualForm": "استخدام النموذج اليدوي",
-    "navButton": "من منشور"
+    "navButton": "من منشور",
+    "kicker": "إرسال عبر صورة",
+    "stepPhoto": "الصورة",
+    "stepInfo": "المعلومات",
+    "infoStepTitle": "بياناتك (اختياري)",
+    "doneTitle": "تم الإرسال",
+    "notDoneTitle": "لم يُحتفظ بالإرسال"
   },
   "internationalCollectionPoints": {
     "navButton": "🌍 التجميع الدولي",

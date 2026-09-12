@@ -402,7 +402,13 @@
     "trackingCode": "Tracking code",
     "submitAnother": "Submit another flyer",
     "useManualForm": "Use the manual form",
-    "navButton": "From a flyer"
+    "navButton": "From a flyer",
+    "kicker": "Photo submission",
+    "stepPhoto": "Photo",
+    "stepInfo": "Info",
+    "infoStepTitle": "Your contact details (optional)",
+    "doneTitle": "Submission complete",
+    "notDoneTitle": "Submission not kept"
   },
   "internationalCollectionPoints": {
     "navButton": "🌍 International collection",

@@ -402,7 +402,13 @@
     "trackingCode": "Code de suivi",
     "submitAnother": "Envoyer un autre flyer",
     "useManualForm": "Utiliser le formulaire manuel",
-    "navButton": "Depuis un flyer"
+    "navButton": "Depuis un flyer",
+    "kicker": "Ajout par photo",
+    "stepPhoto": "Photo",
+    "stepInfo": "Infos",
+    "infoStepTitle": "Vos coordonnées (optionnel)",
+    "doneTitle": "Envoi terminé",
+    "notDoneTitle": "Envoi non retenu"
   },
   "internationalCollectionPoints": {
     "navButton": "🌍 Collecte internationale",

@@ -4,24 +4,38 @@ import { useTranslation } from 'react-i18next'
 import { apiUpload } from '../api'
 import { translateApiError } from '../apiErrors'
 import { IconCamera, IconCopy, IconTrash } from '../icons'
+import '../urgent-sos-wizard-fixes.css'
+import '../submit-flyer-wizard.css'
 
 // Upload a flyer photo and let the backend's Gemini-vision pipeline
 // (core.gemini_extraction) propose one or more collection points from it
-// -- see core.models.FlyerSubmission. Nothing here is published directly:
-// every result is either a hard rejection (no country found on the flyer,
-// or it mentions an online money-collection method) or a "needs_review"
-// submission waiting on a human volunteer, same as the manual form's own
-// flyer moderation queue.
+// -- see core.models.FlyerSubmission. Every candidate point is
+// auto-published as soon as extraction succeeds (core.views.
+// FlyerSubmissionViewSet.create) -- no manual review step, so there's
+// nothing for the submitter to confirm either: the wizard goes straight
+// from the info step to the result.
+//
+// Presented as a 2-step wizard (photo / info) styled after the urgent-sos
+// voice wizard (same .urgent-sos-* classes) but without any audio guide --
+// see submit-flyer-wizard.css for the few scoped overrides (brand color
+// instead of red, 2 columns instead of 4/5).
+const S = { INTRO: 0, PHOTO: 1, INFO: 2 }
+
 export default function SubmitFlyer() {
   const { t } = useTranslation()
+  const [step, setStep] = useState(S.INTRO)
   const [flyer, setFlyer] = useState(null) // { file, previewUrl } | null
   const [submitterName, setSubmitterName] = useState('')
   const [submitterPhone, setSubmitterPhone] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState(null)
-
   const [copied, setCopied] = useState(false)
+
+  const go = (n) => {
+    setError('')
+    setStep(n)
+  }
 
   const copyTrackingCode = async (code) => {
     if (!code) return
@@ -45,8 +59,7 @@ export default function SubmitFlyer() {
     setFlyer(null)
   }
 
-  const submit = async (e) => {
-    e.preventDefault()
+  const submit = async () => {
     if (!flyer) return
     setError('')
     setSubmitting(true)
@@ -62,6 +75,16 @@ export default function SubmitFlyer() {
     } finally {
       setSubmitting(false)
     }
+  }
+
+  const reset = () => {
+    if (flyer) URL.revokeObjectURL(flyer.previewUrl)
+    setFlyer(null)
+    setSubmitterName('')
+    setSubmitterPhone('')
+    setError('')
+    setResult(null)
+    setStep(S.INTRO)
   }
 
   const rejectionMessageKey = {
@@ -93,98 +116,159 @@ export default function SubmitFlyer() {
     </div>
   )
 
-  if (result) {
-    return (
-      <section className="form-page">
-        <h2>{t('submitFlyer.title')}</h2>
-        {(result.status === 'published' || (result.status === 'rejected' && result.rejection_reason === 'duplicate')) && (
-          <>
-            {result.status === 'published' ? (
-              <p className="success">{t('submitFlyer.resultPublished', { count: result.extracted_points.filter((p) => p.is_published).length })}</p>
-            ) : (
-              <p className="error">{t('submitFlyer.rejectedDuplicate')}</p>
-            )}
-            {pointsList(result.extracted_points)}
-            {result.status === 'published' && (
-              <div className="urgent-sos-token-box">
-                <div className="urgent-sos-token-title">{t('submitFlyer.trackingCode')}</div>
-                <div className="urgent-sos-token-row">
-                  <strong className="urgent-sos-token">{result.access_token}</strong>
-                  <button
-                    type="button"
-                    className="urgent-sos-copy-token"
-                    onClick={() => copyTrackingCode(result.access_token)}
-                    aria-label={copied ? t('common.copied') : t('common.copy')}
-                    title={copied ? t('common.copied') : t('common.copy')}
-                  >
-                    {copied ? '✓' : <IconCopy width={17} height={17} />}
-                    <span className="urgent-sos-copy-label">{copied ? t('common.copied') : t('common.copy')}</span>
+  const stepLabels = [t('submitFlyer.stepPhoto'), t('submitFlyer.stepInfo')]
+  const pi = result ? 1 : Math.max(0, step - 1)
+  const isDuplicateOnly = result?.status === 'rejected' && result.rejection_reason === 'duplicate'
+  const isDone = result && (result.status === 'published' || isDuplicateOnly)
+  const isRejectedNonDuplicate = result?.status === 'rejected' && !isDuplicateOnly
+
+  return (
+    <section className="urgent-sos-page submit-flyer-wizard">
+      <div className="urgent-sos-shell">
+        <div className="urgent-sos-kicker">
+          📸 {t('submitFlyer.kicker')}
+        </div>
+        <div className="urgent-sos-hero">
+          <div className="urgent-sos-icon">
+            <IconCamera width={30} height={30} />
+          </div>
+          <div>
+            <h1>{t('submitFlyer.title')}</h1>
+            <p>{t('submitFlyer.intro')}</p>
+          </div>
+        </div>
+        <div className="urgent-sos-stepper">
+          {stepLabels.map((x, i) => (
+            <div key={x} className={i <= pi ? 'done' : ''} data-current={i === pi}>
+              <span>{i + 1}</span>
+              <small>{x}</small>
+            </div>
+          ))}
+        </div>
+        <div className="urgent-sos-progress">
+          {[0, 1].map((i) => (
+            <span key={i} className={i <= pi ? 'active' : ''} />
+          ))}
+        </div>
+
+        {step === S.INTRO && !result && (
+          <div className="urgent-sos-card">
+            <h2>{t('submitFlyer.title')}</h2>
+            <p>{t('submitFlyer.intro')}</p>
+            <div className="urgent-sos-actions">
+              <button type="button" className="urgent-sos-primary" onClick={() => go(S.PHOTO)}>
+                {t('urgentSos.continue')}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {step === S.PHOTO && !result && (
+          <div className="urgent-sos-card">
+            <h2>{t('submitFlyer.flyerLabel')}</h2>
+            <p>{t('submitFlyer.flyerHint')}</p>
+            {flyer ? (
+              <div className="photo-thumbs">
+                <div className="photo-thumb">
+                  <img src={flyer.previewUrl} alt="" />
+                  <button type="button" className="link" onClick={removeFlyer} aria-label={t('common.delete')}>
+                    <IconTrash width={14} height={14} strokeWidth={2} />
                   </button>
                 </div>
               </div>
+            ) : (
+              <label className="btn photo-add-btn">
+                <IconCamera width={18} height={18} strokeWidth={1.6} /> {t('submitFlyer.flyerAdd')}
+                <input type="file" accept="image/*" onChange={addFlyer} hidden />
+              </label>
             )}
-          </>
-        )}
-        {result.status === 'rejected' && result.rejection_reason !== 'duplicate' && (
-          <p className="error">{t(rejectionMessageKey[result.rejection_reason] || 'submitFlyer.rejectedGeneric')}</p>
-        )}
-        {result.status === 'failed' && <p className="error">{t('submitFlyer.resultFailed')}</p>}
-        {result.status === 'processing' && <p>{t('submitFlyer.resultProcessing')}</p>}
-        <div className="gps-controls">
-          <button
-            type="button"
-            className="btn"
-            onClick={() => {
-              removeFlyer()
-              setResult(null)
-            }}
-          >
-            {t('submitFlyer.submitAnother')}
-          </button>
-          <Link className="link" to="/collection-points/create">
-            {t('submitFlyer.useManualForm')}
-          </Link>
-        </div>
-      </section>
-    )
-  }
-
-  return (
-    <section className="form-page">
-      <h2>{t('submitFlyer.title')}</h2>
-      <p className="hint">{t('submitFlyer.intro')}</p>
-      <form onSubmit={submit}>
-        <div>
-          {t('submitFlyer.flyerLabel')} *
-          <p className="hint">{t('submitFlyer.flyerHint')}</p>
-          {flyer ? (
-            <div className="photo-thumbs">
-              <div className="photo-thumb">
-                <img src={flyer.previewUrl} alt="" />
-                <button type="button" className="link" onClick={removeFlyer}>
-                  <IconTrash width={14} height={14} strokeWidth={2} />
-                </button>
-              </div>
+            <div className="urgent-sos-actions">
+              <button type="button" className="urgent-sos-secondary" onClick={() => go(S.INTRO)}>
+                {t('urgentSos.previous')}
+              </button>
+              <button type="button" className="urgent-sos-primary" disabled={!flyer} onClick={() => go(S.INFO)}>
+                {t('urgentSos.continue')}
+              </button>
             </div>
-          ) : (
-            <label className="btn photo-add-btn">
-              <IconCamera width={18} height={18} strokeWidth={1.6} /> {t('submitFlyer.flyerAdd')}
-              <input type="file" accept="image/*" onChange={addFlyer} required hidden />
-            </label>
-          )}
-        </div>
-        <p className="hint">{t('submitFlyer.submitterHint')}</p>
-        <label>
-          {t('submitFlyer.submitterName')} <input type="text" value={submitterName} onChange={(e) => setSubmitterName(e.target.value)} />
-        </label>
-        <label>
-          {t('submitFlyer.submitterPhone')} <input type="tel" value={submitterPhone} onChange={(e) => setSubmitterPhone(e.target.value)} />
-        </label>
-        {error && <p className="error">{error}</p>}
-        <button type="submit" className="btn btn-primary" disabled={!flyer || submitting}>
-          {submitting ? t('submitFlyer.submitting') : t('submitFlyer.submit')}
-        </button>
-      </form>
+          </div>
+        )}
+
+        {step === S.INFO && !result && (
+          <div className="urgent-sos-card">
+            <h2>{t('submitFlyer.infoStepTitle')}</h2>
+            <p>{t('submitFlyer.submitterHint')}</p>
+            <div className="urgent-sos-fields">
+              <label>
+                {t('submitFlyer.submitterName')}
+                <input type="text" value={submitterName} onChange={(e) => setSubmitterName(e.target.value)} />
+              </label>
+              <label>
+                {t('submitFlyer.submitterPhone')}
+                <input type="tel" value={submitterPhone} onChange={(e) => setSubmitterPhone(e.target.value)} />
+              </label>
+            </div>
+            {error && <p className="urgent-sos-error">{error}</p>}
+            <div className="urgent-sos-actions">
+              <button type="button" className="urgent-sos-secondary" onClick={() => go(S.PHOTO)} disabled={submitting}>
+                {t('urgentSos.previous')}
+              </button>
+              <button type="button" className="urgent-sos-primary" onClick={submit} disabled={submitting}>
+                {submitting ? t('submitFlyer.submitting') : t('submitFlyer.submit')}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {result && (
+          <div className="urgent-sos-card urgent-sos-done-card">
+            <div className={`urgent-sos-final-badge${isDone ? '' : ' is-error'}`}>
+              {isDone ? `✓ ${t('submitFlyer.doneTitle')}` : `⚠ ${t('submitFlyer.notDoneTitle')}`}
+            </div>
+            <h2>{t('submitFlyer.title')}</h2>
+            {(result.status === 'published' || isDuplicateOnly) && (
+              <>
+                {result.status === 'published' ? (
+                  <p className="success">
+                    {t('submitFlyer.resultPublished', { count: result.extracted_points.filter((p) => p.is_published).length })}
+                  </p>
+                ) : (
+                  <p className="error">{t('submitFlyer.rejectedDuplicate')}</p>
+                )}
+                {pointsList(result.extracted_points)}
+                {result.status === 'published' && (
+                  <div className="urgent-sos-token-box">
+                    <div className="urgent-sos-token-title">{t('submitFlyer.trackingCode')}</div>
+                    <div className="urgent-sos-token-row">
+                      <strong className="urgent-sos-token">{result.access_token}</strong>
+                      <button
+                        type="button"
+                        className="urgent-sos-copy-token"
+                        onClick={() => copyTrackingCode(result.access_token)}
+                        aria-label={copied ? t('common.copied') : t('common.copy')}
+                        title={copied ? t('common.copied') : t('common.copy')}
+                      >
+                        {copied ? '✓' : <IconCopy width={17} height={17} />}
+                        <span className="urgent-sos-copy-label">{copied ? t('common.copied') : t('common.copy')}</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+            {isRejectedNonDuplicate && <p className="error">{t(rejectionMessageKey[result.rejection_reason] || 'submitFlyer.rejectedGeneric')}</p>}
+            {result.status === 'failed' && <p className="error">{t('submitFlyer.resultFailed')}</p>}
+            {result.status === 'processing' && <p>{t('submitFlyer.resultProcessing')}</p>}
+            <div className="urgent-sos-actions">
+              <button type="button" className="urgent-sos-secondary" onClick={reset}>
+                {t('submitFlyer.submitAnother')}
+              </button>
+              <Link className="urgent-sos-secondary" to="/collection-points/create">
+                {t('submitFlyer.useManualForm')}
+              </Link>
+            </div>
+          </div>
+        )}
+      </div>
     </section>
   )
 }
