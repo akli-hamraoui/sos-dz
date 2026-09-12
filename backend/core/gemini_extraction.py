@@ -130,37 +130,62 @@ def extract_flyer_data(image_bytes, mime_type="image/jpeg"):
         raise ExtractionUnavailable("google-genai is not installed.") from exc
 
     client = genai.Client(api_key=settings.GEMINI_API_KEY)
-    for attempt in range(1, EXTRACTION_MAX_ATTEMPTS + 1):
+
+    def call_model(model_name):
+        """Up to EXTRACTION_MAX_ATTEMPTS attempts against this one model,
+        EXTRACTION_RETRY_DELAY_SECONDS apart. Re-raises the last
+        ServerError once every attempt for this model has failed -- the
+        caller below decides whether to fall back to another model. Any
+        other exception (4xx: bad request, invalid key, quota exhausted)
+        propagates immediately without retrying, same as before this
+        existed -- it would fail identically on every attempt/model."""
+        for attempt in range(1, EXTRACTION_MAX_ATTEMPTS + 1):
+            try:
+                return client.models.generate_content(
+                    model=model_name,
+                    contents=[
+                        types.Part.from_bytes(data=image_bytes, mime_type=mime_type),
+                        PROMPT,
+                    ],
+                    config=types.GenerateContentConfig(
+                        response_mime_type="application/json",
+                        response_schema=_RESPONSE_SCHEMA,
+                        temperature=0.1,
+                    ),
+                )
+            except ServerError as exc:
+                logger.warning(
+                    "Gemini extraction attempt %s/%s failed on model %s (server error), %s",
+                    attempt, EXTRACTION_MAX_ATTEMPTS, model_name,
+                    "retrying" if attempt < EXTRACTION_MAX_ATTEMPTS else "giving up on this model",
+                    exc_info=True,
+                )
+                if attempt == EXTRACTION_MAX_ATTEMPTS:
+                    raise
+                time.sleep(EXTRACTION_RETRY_DELAY_SECONDS)
+
+    # GEMINI_FALLBACK_MODEL is tried only once GEMINI_MODEL has exhausted
+    # its own retries -- a separate model has its own free-tier capacity,
+    # so a sustained "high demand" 503 on one doesn't necessarily mean the
+    # other is congested too (confirmed live: three manual retries against
+    # the same model all failed identically).
+    models_to_try = [settings.GEMINI_MODEL]
+    if settings.GEMINI_FALLBACK_MODEL:
+        models_to_try.append(settings.GEMINI_FALLBACK_MODEL)
+
+    response = None
+    last_exc = None
+    for model_name in models_to_try:
         try:
-            response = client.models.generate_content(
-                model=settings.GEMINI_MODEL,
-                contents=[
-                    types.Part.from_bytes(data=image_bytes, mime_type=mime_type),
-                    PROMPT,
-                ],
-                config=types.GenerateContentConfig(
-                    response_mime_type="application/json",
-                    response_schema=_RESPONSE_SCHEMA,
-                    temperature=0.1,
-                ),
-            )
+            response = call_model(model_name)
             break
         except ServerError as exc:
-            logger.warning(
-                "Gemini extraction attempt %s/%s failed (server error), %s",
-                attempt, EXTRACTION_MAX_ATTEMPTS,
-                "retrying" if attempt < EXTRACTION_MAX_ATTEMPTS else "giving up",
-                exc_info=True,
-            )
-            if attempt == EXTRACTION_MAX_ATTEMPTS:
-                raise ExtractionError(str(exc)) from exc
-            time.sleep(EXTRACTION_RETRY_DELAY_SECONDS)
+            last_exc = exc
         except Exception as exc:
-            # A 4xx (bad request, invalid key, quota exhausted) or any
-            # other failure won't be fixed by retrying identically, unlike
-            # ServerError above -- fail immediately, same as before.
             logger.warning("Gemini extraction call failed", exc_info=True)
             raise ExtractionError(str(exc)) from exc
+    if response is None:
+        raise ExtractionError(str(last_exc)) from last_exc
 
     raw_response_text = response.text or ""
     try:

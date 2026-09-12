@@ -4152,6 +4152,48 @@ class GeminiExtractionRetryTests(TestCase):
             self.assertEqual(mock_client.models.generate_content.call_count, 1)
             mock_sleep.assert_not_called()
 
+    @override_settings(GEMINI_API_KEY="fake-key", GEMINI_FALLBACK_MODEL="gemini-fallback")
+    def test_falls_back_to_second_model_after_first_exhausts_retries(self):
+        """Three manual retries against the same model all failing
+        identically (confirmed live) means the model itself is the
+        bottleneck -- GEMINI_FALLBACK_MODEL gets its own full retry
+        attempt on a model with separate free-tier capacity."""
+        from unittest.mock import patch
+        from google.genai.errors import ServerError
+        from core.gemini_extraction import extract_flyer_data, EXTRACTION_MAX_ATTEMPTS
+
+        calls = []
+
+        def fake_generate_content(*, model, **kwargs):
+            calls.append(model)
+            if model == settings.GEMINI_MODEL:
+                raise ServerError(503, {"error": {"message": "high demand"}})
+            return self._fake_response()
+
+        with patch("google.genai.Client") as mock_client_cls, patch("time.sleep") as mock_sleep:
+            mock_client = mock_client_cls.return_value
+            mock_client.models.generate_content.side_effect = fake_generate_content
+            data, raw = extract_flyer_data(b"fake-image-bytes")
+            self.assertEqual(data["points"], [])
+            self.assertEqual(calls, [settings.GEMINI_MODEL] * EXTRACTION_MAX_ATTEMPTS + ["gemini-fallback"])
+            # Retries within the primary model's own attempts only --
+            # switching to the fallback model itself is immediate.
+            self.assertEqual(mock_sleep.call_count, EXTRACTION_MAX_ATTEMPTS - 1)
+
+    @override_settings(GEMINI_API_KEY="fake-key", GEMINI_FALLBACK_MODEL="gemini-fallback")
+    def test_raises_once_both_models_exhaust_retries(self):
+        from unittest.mock import patch
+        from google.genai.errors import ServerError
+        from core.gemini_extraction import extract_flyer_data, ExtractionError, EXTRACTION_MAX_ATTEMPTS
+
+        with patch("google.genai.Client") as mock_client_cls, patch("time.sleep") as mock_sleep:
+            mock_client = mock_client_cls.return_value
+            mock_client.models.generate_content.side_effect = ServerError(503, {"error": {"message": "high demand"}})
+            with self.assertRaises(ExtractionError):
+                extract_flyer_data(b"fake-image-bytes")
+            self.assertEqual(mock_client.models.generate_content.call_count, EXTRACTION_MAX_ATTEMPTS * 2)
+            self.assertEqual(mock_sleep.call_count, (EXTRACTION_MAX_ATTEMPTS - 1) * 2)
+
 
 class FundraisingKeywordTests(TestCase):
     """core.collection_point_geocoding.contains_fundraising_keyword: the

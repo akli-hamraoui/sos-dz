@@ -294,6 +294,12 @@ GEMINI_API_KEY = env("GEMINI_API_KEY", default="")
 # model rather than a version that will eventually be retired -- override
 # in .env if you need to pin an exact version.
 GEMINI_MODEL = env("GEMINI_MODEL", default="gemini-flash-latest")
+# Optional: tried only after GEMINI_MODEL exhausts its own retries with a
+# transient "high demand" 503 (see core.gemini_extraction) -- a different
+# model has its own separate free-tier capacity, so it isn't necessarily
+# under the same load. Left blank, a sustained 503 on GEMINI_MODEL just
+# fails the submission, same as before this existed.
+GEMINI_FALLBACK_MODEL = env("GEMINI_FALLBACK_MODEL", default="")
 
 # --- Logging --------------------------------------------------------------
 
