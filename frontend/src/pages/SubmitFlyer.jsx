@@ -131,7 +131,14 @@ export default function SubmitFlyer() {
         {result.status === 'failed' && <p className="error">{t('submitFlyer.resultFailed')}</p>}
         {result.status === 'processing' && <p>{t('submitFlyer.resultProcessing')}</p>}
         <div className="gps-controls">
-          <button type="button" className="btn" onClick={() => setResult(null)}>
+          <button
+            type="button"
+            className="btn"
+            onClick={() => {
+              removeFlyer()
+              setResult(null)
+            }}
+          >
             {t('submitFlyer.submitAnother')}
           </button>
           <Link className="link" to="/collection-points/create">
