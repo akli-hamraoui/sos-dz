@@ -288,14 +288,9 @@ export default function NeedsList() {
         const located = needsWithPos.filter((p) => !p.has_no_location)
         const unlocated = needsWithPos.filter((p) => p.has_no_location)
 
-        located.forEach((p) => {
+        const addNeedMarker = (p) => {
           const icon = needIcon(L, urgencyColor, p.urgency)
           const marker = L.marker([p.display_latitude, p.display_longitude], { icon }).addTo(map)
-          // Several needs with no exact GPS commonly fall back to the same
-          // wilaya centroid (see NeedCreateSerializer/process_voice_need)
-          // and would otherwise stack exactly on top of each other -- only
-          // the topmost pin would ever be clickable. spreadNeedMarkers
-          // below nudges them apart on screen once all are placed.
           marker._sosdzNeedMarker = true
           const gpsNote = p.has_exact_position ? '' : `<br><em>${t('common.noExactGpsPosition')}</em>`
           const urgencyPrefix = p.urgency !== 'medium' ? `${t(`urgency.${p.urgency}`)} — ` : ''
@@ -305,6 +300,61 @@ export default function NeedsList() {
               `<br>${statusLabel(t, p.overall_status)}${gpsNote}` +
               `<div class="popup-actions">${photoBtn}<a href="/needs/${p.id}">${t('common.open')}</a></div>`
           )
+          markers.push(marker)
+        }
+
+        // Needs with a real GPS fix each get their own pin -- these sit at
+        // genuinely distinct (if occasionally close) positions, so nudging
+        // them apart on screen below (spreadNeedMarkers) is enough to keep
+        // every one tappable.
+        const exactPositioned = located.filter((p) => p.has_exact_position)
+        // Needs with no exact GPS all fall back to the same wilaya centroid
+        // (see NeedMapPinSerializer.get_display_latitude/longitude), so
+        // every one of them in a given wilaya shares the exact same display
+        // position. Spreading N of those apart on screen used to be the
+        // only mitigation, but past a handful they still overlap and most
+        // stay untappable -- they don't represent genuinely distinct points
+        // anyway, so they're grouped by wilaya into one bubble with a count
+        // instead, same "one badge, not N indistinguishable pins" idea as
+        // the has_no_location bubble below (and CollectionPoints.jsx's own
+        // .cp-bubble). Clicking it switches to the "Liste" view filtered to
+        // that wilaya, same click behavior as that bubble.
+        const approxByWilaya = new Map()
+        located
+          .filter((p) => !p.has_exact_position)
+          .forEach((p) => {
+            const key = p.wilaya
+            if (!approxByWilaya.has(key)) approxByWilaya.set(key, [])
+            approxByWilaya.get(key).push(p)
+          })
+
+        exactPositioned.forEach(addNeedMarker)
+        approxByWilaya.forEach((group) => {
+          if (group.length === 1) {
+            addNeedMarker(group[0])
+            return
+          }
+          const p = group[0]
+          const icon = L.divIcon({
+            className: 'need-marker-icon',
+            html:
+              `<span class="need-marker-pin need-marker-pin-unlocated">${NEED_SOS_ICON}` +
+              `<span class="need-marker-count-badge">${group.length}</span></span>`,
+            iconSize: [44, 44],
+            iconAnchor: [22, 22],
+          })
+          const marker = L.marker([p.display_latitude, p.display_longitude], { icon, zIndexOffset: 500 }).addTo(map)
+          // Lets spreadNeedMarkers below separate this bubble from another
+          // marker landing at the exact same wilaya centroid -- most
+          // notably the has_no_location bubble just below, which can fall
+          // back to this very same point (see its own comment).
+          marker._sosdzNeedMarker = true
+          marker.bindTooltip(`${t('common.approxLocationLabel')}<br>${t('common.approxLocationPopup', { count: group.length })}`)
+          marker.on('click', () => {
+            setFilterWilaya(String(p.wilaya))
+            setFilterNoLocation(false)
+            setViewMode('list')
+          })
           markers.push(marker)
         })
 
@@ -327,6 +377,11 @@ export default function NeedsList() {
           const bubbleLat = algerWilaya?.centroid_latitude ?? unlocated[0].display_latitude
           const bubbleLon = algerWilaya?.centroid_longitude ?? unlocated[0].display_longitude
           const marker = L.marker([bubbleLat, bubbleLon], { icon, zIndexOffset: 1000 }).addTo(map)
+          // See the approx-position wilaya bubble above -- same reason:
+          // this bubble can land on the exact same centroid as that one
+          // (whenever that centroid's own wilaya is Alger), so it needs to
+          // take part in the same spread-apart pass to stay distinguishable.
+          marker._sosdzNeedMarker = true
           marker.bindTooltip(`${t('needsList.noLocationBubbleLabel')} (${unlocated.length})`)
           marker.on('click', () => {
             setFilterWilaya('')

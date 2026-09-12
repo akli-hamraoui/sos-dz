@@ -89,8 +89,17 @@ function spreadMarkersApart(map, eligibleMarkers, pinSelector, minDistance) {
         if (distance >= minDistance) continue
         const safeDistance = distance || 1
         const push = (minDistance - safeDistance) / 2 + 1
-        const ux = dx / safeDistance
-        const uy = dy / safeDistance
+        // dx/dy give no direction to push along when two markers sit at the
+        // exact same point (e.g. two different "one bubble, not N pins"
+        // summary markers -- a wilaya's grouped-needs bubble and the
+        // separate "sans localisation" bubble -- both falling back to the
+        // very same wilaya centroid), so ux/uy would otherwise resolve to
+        // 0 and leave both pinned on top of each other forever. Falls back
+        // to a deterministic angle from the pair's own indices instead --
+        // stable across re-renders, unlike Math.random(), so it doesn't
+        // visibly jitter every time this pass reruns (e.g. on zoomend).
+        const ux = distance ? dx / safeDistance : Math.cos(i * 97 + j * 53)
+        const uy = distance ? dy / safeDistance : Math.sin(i * 97 + j * 53)
         offsets[i].x -= ux * push
         offsets[i].y -= uy * push
         offsets[j].x += ux * push
