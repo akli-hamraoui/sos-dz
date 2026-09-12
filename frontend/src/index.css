@@ -647,15 +647,30 @@ main {
   line-height: 1.25;
   transition: background .16s ease, border-color .16s ease, transform .16s ease;
 }
-.home-btn-create-menu a:first-child {
+/* Three entries now (Algérie / à l'étranger / flyer) -- nth-child rather
+   than :first-child/:last-child so each keeps its own color instead of
+   the flyer entry inheriting the "à l'étranger" one's blue now that it's
+   no longer last. */
+.home-btn-create-menu a:nth-child(1) {
   border-color: #b9dfcb;
   background: var(--sos-green-soft);
   color: #20583f;
 }
-.home-btn-create-menu a:last-child {
+.home-btn-create-menu a:nth-child(2) {
   border-color: #c8dcfb;
   background: var(--sos-blue-soft);
   color: #1f55a4;
+}
+.home-btn-create-menu a:nth-child(3) {
+  border-color: #ddd0f7;
+  background: #f2edfb;
+  color: #5b3894;
+  flex-wrap: wrap;
+  row-gap: 3px;
+}
+.home-btn-create-menu-label {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 .home-btn-create-menu a:hover {
   transform: translateY(-1px);
@@ -667,11 +682,14 @@ main {
 .home-btn-create-menu svg {
   flex: 0 0 auto;
 }
-.home-btn-create-menu a:first-child svg {
+.home-btn-create-menu a:nth-child(1) svg {
   color: var(--sos-green);
 }
-.home-btn-create-menu a:last-child svg {
+.home-btn-create-menu a:nth-child(2) svg {
   color: var(--sos-blue);
+}
+.home-btn-create-menu a:nth-child(3) svg {
+  color: #7c4dbb;
 }
 .home-about-card {
   display: grid;
@@ -883,22 +901,38 @@ main {
   letter-spacing: .04em;
   text-transform: uppercase;
   box-shadow: 0 2px 7px rgba(14, 116, 144, .45);
-  animation: home-badge-new-blink 2.4s ease-in-out infinite;
+  animation: home-badge-new-blink 1.3s ease-in-out infinite;
 }
 .home-badge-new-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
   background: #fff;
+  animation: home-badge-new-dot-pulse 1.3s ease-in-out infinite;
 }
 @keyframes home-badge-new-blink {
-  0%, 55%, 100% { opacity: 1; }
-  27% { opacity: .78; }
+  0%, 100% { opacity: 1; }
+  50% { opacity: .4; }
+}
+@keyframes home-badge-new-dot-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.35); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .home-badge-new {
+  .home-badge-new,
+  .home-badge-new-dot {
     animation: none;
   }
+}
+/* Reused inline in the dropdown menu (rather than pinned to a card
+   corner) so it sits at the end of that row instead of floating
+   relative to the whole dropdown -- placed after .home-badge-new here
+   so this override actually wins the position/margin properties at
+   equal specificity. */
+.home-badge-new-inline {
+  position: static;
+  margin-inline-start: auto;
+  flex: 0 0 auto;
 }
 /* The same circle-plus treatment as the "Créer un point de collecte"
    button's own icon -- a small filled circle behind IconPlus -- reused
@@ -922,8 +956,8 @@ main {
   color: #d91f31;
 }
 .home-secondary-card-flyer .home-plus-badge {
-  background: #e6d9fa;
-  color: #7c4dbb;
+  background: rgba(255, 255, 255, .95);
+  color: #7c3aed;
 }
 .home-secondary-grid {
   display: grid;
@@ -962,13 +996,20 @@ main {
   outline-offset: 2px;
 }
 .home-secondary-card-create[aria-expanded="true"] {
-  box-shadow: 0 0 0 2px var(--brand-green-border, #b9decd);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, .7);
 }
+/* Bolder, saturated fills (like the SOS cards below them) instead of the
+   original pale yellow/lavender tints -- flat pastel read as much less
+   inviting to tap next to the vivid orange/red pair. */
 .home-secondary-card-create {
-  background: #fff8e9;
+  background: linear-gradient(135deg, #ffcf6e, #ee9d0d);
+  color: #fff;
+  box-shadow: 0 5px 14px rgba(238, 157, 13, .25);
 }
 .home-secondary-card-flyer {
-  background: #f2edfb;
+  background: linear-gradient(135deg, #b48af5, #7c3aed);
+  color: #fff;
+  box-shadow: 0 5px 14px rgba(124, 58, 237, .3);
 }
 .home-secondary-icon {
   display: inline-flex;
@@ -980,12 +1021,12 @@ main {
   border-radius: 50%;
 }
 .home-secondary-card-create .home-secondary-icon {
-  background: #fff0c9;
-  color: #df9100;
+  background: rgba(255, 255, 255, .3);
+  color: #fff;
 }
 .home-secondary-card-flyer .home-secondary-icon {
-  background: #e6d9fa;
-  color: #7c4dbb;
+  background: rgba(255, 255, 255, .28);
+  color: #fff;
 }
 .home-secondary-copy {
   display: flex;
@@ -1018,7 +1059,7 @@ main {
 }
 .home-secondary-copy > span {
   margin-top: 3px;
-  color: #5c6878;
+  color: rgba(255, 255, 255, .92);
   font-size: clamp(10.5px, 2.6vw, 12.5px);
   line-height: 1.32;
   overflow-wrap: anywhere;
@@ -1029,27 +1070,18 @@ main {
   font-size: clamp(10.5px, 2.6vw, 12.5px);
   font-style: normal;
   font-weight: 800;
-}
-.home-secondary-card-create .home-secondary-copy em {
-  color: #d88500;
-}
-.home-secondary-card-flyer .home-secondary-copy em {
-  color: #7c4dbb;
+  color: #fff;
 }
 .home-secondary-copy em b {
   margin-inline-start: 6px;
   font-size: 16px;
   line-height: 0;
 }
-/* A single stacked column (rather than the two-up grid the general
-   dropdown -- shared with QuickActions/TopNavLinks elsewhere -- still
-   uses) reads better for this narrower, half-width card. Also always
-   opens downward: the mobile "open upward" rule elsewhere in this file
-   dates from when this card sat directly above the fixed bottom nav with
-   no room below it -- it now sits mid-stack with the about-link and
-   footer still below it, so downward is unobstructed and matches the
-   desktop behavior instead of unnecessarily covering the
-   collection-points row above it. */
+/* A single stacked column (rather than the two-up grid) reads better for
+   this narrower, half-width card. Opens downward: this row now sits at
+   the very top of the page (moved up per a later request), so upward
+   would push the menu above the tagline and under the fixed topbar --
+   there's ample room below it instead. */
 .home-create-card .home-btn-create-menu {
   grid-template-columns: 1fr;
   top: calc(100% + 8px);

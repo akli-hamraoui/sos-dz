@@ -10,10 +10,10 @@ import { IconAlgeriaFlag, IconCamera, IconGlobeColor, IconHelp, IconMic, IconPlu
 // would make it meaningless. Rendered as a normal flow child (not an
 // absolutely-positioned overlay) so it never ends up sitting on top of --
 // and partly hiding -- the card's own icon underneath it.
-function NewBadge() {
+function NewBadge({ inline }) {
   const { t } = useTranslation()
   return (
-    <span className="home-badge-new">
+    <span className={`home-badge-new${inline ? ' home-badge-new-inline' : ''}`}>
       <span className="home-badge-new-dot" aria-hidden="true" />
       {t('common.newBadge')}
     </span>
@@ -55,52 +55,9 @@ export default function Home() {
       <h1 className="sr-only">{t('seo.home.title')}</h1>
       <p className="home-tagline">{t('home.tagline')}</p>
 
-      {/* The single red "Lancer un SOS" card used to cover both cases at
-          once (a form-based need report and, buried three clicks away, the
-          voice-guided /urgent-sos wizard). Splitting it into two
-          always-visible halves surfaces the voice SOS directly from Home
-          instead of leaving it unlinked, and lets each half carry its own
-          urgency color instead of one red card for both. */}
-      <div className="home-sos-card home-sos-split">
-        <Link to="/create" className="home-sos-half home-sos-half-orange">
-          <span className="home-sos-icon icon-sos" aria-hidden="true" />
-          <span className="home-sos-copy">
-            <strong><PlusBadge /> {t('home.sosNonUrgentTitle')}</strong>
-            <span>{t('home.sosDetail')}</span>
-          </span>
-        </Link>
-        {voiceSosAvailable && (
-          <Link to="/urgent-sos" className="home-sos-half home-sos-half-red">
-            <NewBadge />
-            <span className="home-sos-icon-wrap">
-              <span className="home-sos-icon icon-sos" aria-hidden="true" />
-              <span className="home-sos-mic-badge" aria-hidden="true">
-                <IconMic strokeWidth={2.4} />
-              </span>
-            </span>
-            <span className="home-sos-copy">
-              <strong><PlusBadge /> {t('home.sosUrgentTitle')}</strong>
-              <span>{t('home.sosUrgentSubtitle')}</span>
-            </span>
-          </Link>
-        )}
-      </div>
-
-      <div className="home-collection-grid">
-        <Link to="/collection-points" className="home-collection-card home-collection-card-algeria">
-          <span className="home-card-icon"><IconAlgeriaFlag width={30} height={20} /></span>
-          <strong>{t('home.collectionPointsAlgeria')}</strong>
-          <span>{t('home.collectionPointsAlgeriaDescription')}</span>
-          <em>{t('home.viewPoints')} <b aria-hidden="true">→</b></em>
-        </Link>
-        <Link to="/international-collection-points" className="home-collection-card home-collection-card-international">
-          <span className="home-card-icon"><IconGlobeColor width={30} height={30} /></span>
-          <strong>{t('home.collectionPointsInternational')}</strong>
-          <span>{t('home.collectionPointsInternationalDescription')}</span>
-          <em>{t('home.viewPoints')} <b aria-hidden="true">→</b></em>
-        </Link>
-      </div>
-
+      {/* Sits above the SOS row now (moved up per request) -- these two
+          creation entry points, not the emergency ones, are what most
+          visitors are here for day-to-day. */}
       <div className="home-secondary-grid">
         <div className="home-create-card">
           <button
@@ -124,8 +81,10 @@ export default function Home() {
               <Link to="/international-collection-points/create" onClick={() => setCreateMenuOpen(false)}>
                 <IconGlobeColor width={18} height={18} /> {t('home.createCollectionPointInternational')}
               </Link>
-              <Link to="/collection-points/submit-flyer" onClick={() => setCreateMenuOpen(false)}>
-                <IconCamera width={18} height={18} /> {t('home.createCollectionPointFlyerMenuLabel')}
+              <Link to="/collection-points/submit-flyer" onClick={() => setCreateMenuOpen(false)} className="home-btn-create-menu-flyer">
+                <IconCamera width={18} height={18} />
+                <span className="home-btn-create-menu-label">{t('home.createCollectionPointFlyerMenuLabel')}</span>
+                <NewBadge inline />
               </Link>
             </div>
           )}
@@ -138,6 +97,53 @@ export default function Home() {
             <em>{t('home.createPointFlyer')} <b aria-hidden="true">→</b></em>
           </span>
         </Link>
+      </div>
+
+      <div className="home-collection-grid">
+        <Link to="/collection-points" className="home-collection-card home-collection-card-algeria">
+          <span className="home-card-icon"><IconAlgeriaFlag width={30} height={20} /></span>
+          <strong>{t('home.collectionPointsAlgeria')}</strong>
+          <span>{t('home.collectionPointsAlgeriaDescription')}</span>
+          <em>{t('home.viewPoints')} <b aria-hidden="true">→</b></em>
+        </Link>
+        <Link to="/international-collection-points" className="home-collection-card home-collection-card-international">
+          <span className="home-card-icon"><IconGlobeColor width={30} height={30} /></span>
+          <strong>{t('home.collectionPointsInternational')}</strong>
+          <span>{t('home.collectionPointsInternationalDescription')}</span>
+          <em>{t('home.viewPoints')} <b aria-hidden="true">→</b></em>
+        </Link>
+      </div>
+
+      {/* The single red "Lancer un SOS" card used to cover both cases at
+          once (a form-based need report and, buried three clicks away, the
+          voice-guided /urgent-sos wizard). Splitting it into two
+          always-visible halves surfaces the voice SOS directly from Home
+          instead of leaving it unlinked, and lets each half carry its own
+          urgency color instead of one red card for both. Moved down (per
+          request) below the creation entry points above. */}
+      <div className="home-sos-card home-sos-split">
+        <Link to="/create" className="home-sos-half home-sos-half-orange">
+          <span className="home-sos-icon icon-sos" aria-hidden="true" />
+          <span className="home-sos-copy">
+            <strong><PlusBadge /> {t('home.sosNonUrgentTitle')}</strong>
+            <span>{t('home.sosDetail')}</span>
+          </span>
+        </Link>
+        {voiceSosAvailable && (
+          <Link to="/urgent-sos" className="home-sos-half home-sos-half-red">
+            <NewBadge />
+            <span className="home-sos-icon-wrap">
+              <span className="home-sos-icon icon-sos" aria-hidden="true" />
+              <span className="home-sos-mic-badge" aria-hidden="true">
+                <IconMic strokeWidth={2.4} />
+              </span>
+            </span>
+            <span className="home-sos-copy">
+              <strong><PlusBadge /> {t('home.sosUrgentTitle')}</strong>
+              <span>{t('home.sosUrgentSubtitle')}</span>
+            </span>
+          </Link>
+        )}
       </div>
 
       <Link to="/about" className="home-about-button">
