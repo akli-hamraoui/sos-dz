@@ -16,10 +16,20 @@ does for the manual creation forms.
 
 import json
 import logging
+import time
 
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
+
+# Gemini's own "high demand" 503s (google.genai.errors.ServerError,
+# confirmed live on the real deploy: "This model is currently experiencing
+# high demand... Please try again later.") are transient -- worth a same-
+# request retry rather than failing the submission outright and making the
+# reporter re-upload the same photo by hand a few seconds later, which is
+# all a retry on our end would have needed anyway.
+EXTRACTION_MAX_ATTEMPTS = 3
+EXTRACTION_RETRY_DELAY_SECONDS = 2
 
 
 class ExtractionError(Exception):
@@ -115,26 +125,42 @@ def extract_flyer_data(image_bytes, mime_type="image/jpeg"):
     try:
         from google import genai
         from google.genai import types
+        from google.genai.errors import ServerError
     except ImportError as exc:
         raise ExtractionUnavailable("google-genai is not installed.") from exc
 
     client = genai.Client(api_key=settings.GEMINI_API_KEY)
-    try:
-        response = client.models.generate_content(
-            model=settings.GEMINI_MODEL,
-            contents=[
-                types.Part.from_bytes(data=image_bytes, mime_type=mime_type),
-                PROMPT,
-            ],
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=_RESPONSE_SCHEMA,
-                temperature=0.1,
-            ),
-        )
-    except Exception as exc:
-        logger.warning("Gemini extraction call failed", exc_info=True)
-        raise ExtractionError(str(exc)) from exc
+    for attempt in range(1, EXTRACTION_MAX_ATTEMPTS + 1):
+        try:
+            response = client.models.generate_content(
+                model=settings.GEMINI_MODEL,
+                contents=[
+                    types.Part.from_bytes(data=image_bytes, mime_type=mime_type),
+                    PROMPT,
+                ],
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    response_schema=_RESPONSE_SCHEMA,
+                    temperature=0.1,
+                ),
+            )
+            break
+        except ServerError as exc:
+            logger.warning(
+                "Gemini extraction attempt %s/%s failed (server error), %s",
+                attempt, EXTRACTION_MAX_ATTEMPTS,
+                "retrying" if attempt < EXTRACTION_MAX_ATTEMPTS else "giving up",
+                exc_info=True,
+            )
+            if attempt == EXTRACTION_MAX_ATTEMPTS:
+                raise ExtractionError(str(exc)) from exc
+            time.sleep(EXTRACTION_RETRY_DELAY_SECONDS)
+        except Exception as exc:
+            # A 4xx (bad request, invalid key, quota exhausted) or any
+            # other failure won't be fixed by retrying identically, unlike
+            # ServerError above -- fail immediately, same as before.
+            logger.warning("Gemini extraction call failed", exc_info=True)
+            raise ExtractionError(str(exc)) from exc
 
     raw_response_text = response.text or ""
     try:
