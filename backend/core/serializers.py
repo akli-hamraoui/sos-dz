@@ -890,6 +890,7 @@ class FlyerSubmissionCreateSerializer(serializers.ModelSerializer):
 class ExtractedCollectionPointSerializer(serializers.ModelSerializer):
     wilaya_name = serializers.CharField(source="wilaya.name", read_only=True)
     duplicate_of_name = serializers.CharField(source="duplicate_of.point_name", read_only=True)
+    is_published = serializers.BooleanField(source="published_point_id", read_only=True)
 
     class Meta:
         model = ExtractedCollectionPoint
@@ -897,6 +898,7 @@ class ExtractedCollectionPointSerializer(serializers.ModelSerializer):
             "id", "point_name", "organization", "wilaya", "wilaya_name", "country_code", "country_name",
             "city", "location_description", "precision_level", "hours", "description", "accepted_donations",
             "contact_name", "contact_phone", "other_phones", "duplicate_of", "duplicate_of_name",
+            "published_point", "is_published",
         ]
 
 

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { IconAlgeriaFlag, IconGlobeColor, IconHelp, IconPlus } from '../icons'
+import { IconAlgeriaFlag, IconCamera, IconGlobeColor, IconHelp, IconPlus } from '../icons'
 
 export default function Home() {
   const { t } = useTranslation()
@@ -67,6 +67,9 @@ export default function Home() {
             </Link>
             <Link to="/international-collection-points/create" onClick={() => setCreateMenuOpen(false)}>
               <IconGlobeColor width={18} height={18} /> {t('home.createCollectionPointInternational')}
+            </Link>
+            <Link to="/collection-points/submit-flyer" onClick={() => setCreateMenuOpen(false)}>
+              <IconCamera width={18} height={18} /> {t('home.createCollectionPointFlyer')}
             </Link>
           </div>
         )}
