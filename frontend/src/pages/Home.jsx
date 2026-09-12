@@ -75,7 +75,7 @@ export default function Home() {
             <span className="home-sos-icon-wrap">
               <span className="home-sos-icon icon-sos" aria-hidden="true" />
               <span className="home-sos-mic-badge" aria-hidden="true">
-                <IconMic width={11} height={11} strokeWidth={2.6} />
+                <IconMic width={14} height={14} strokeWidth={2.4} />
               </span>
             </span>
             <span className="home-sos-copy">

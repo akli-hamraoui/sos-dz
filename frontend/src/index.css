@@ -807,23 +807,28 @@ main {
   position: relative;
   display: inline-flex;
   margin-top: clamp(16px, 5vw, 22px);
+  /* The mic badge overhangs the icon box's own bottom-right corner (see
+     .home-sos-mic-badge) so it doesn't touch the SOS bubble itself --
+     this reserves room for that overhang so it lands in the gap above
+     the title instead of overlapping it. */
+  margin-bottom: 10px;
 }
 .home-sos-icon-wrap .home-sos-icon {
   margin-top: 0;
 }
 .home-sos-mic-badge {
   position: absolute;
-  bottom: -3px;
-  inset-inline-end: -5px;
-  width: 20px;
-  height: 20px;
+  bottom: -9px;
+  inset-inline-end: -13px;
+  width: 26px;
+  height: 26px;
   display: grid;
   place-items: center;
   border-radius: 50%;
   background: linear-gradient(180deg, #22d3ee, #2563eb);
   color: #fff;
-  border: 2px solid rgba(255, 255, 255, .9);
-  box-shadow: 0 2px 5px rgba(0, 0, 0, .3);
+  border: 2.5px solid rgba(255, 255, 255, .9);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .3);
 }
 .home-sos-half .home-sos-copy {
   align-items: center;
