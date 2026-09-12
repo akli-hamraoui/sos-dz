@@ -4155,6 +4155,34 @@ class GeminiExtractionRetryTests(TestCase):
             self.assertEqual(mock_client.models.generate_content.call_count, 1)
             mock_sleep.assert_not_called()
 
+    @override_settings(GEMINI_API_KEY="fake-key", GEMINI_FALLBACK_MODELS=["gemini-broken", "gemini-good"])
+    def test_client_error_on_one_model_falls_back_to_the_next(self):
+        """Confirmed live: gemini-2.5-flash-lite (our own original pick)
+        got deprecated for new accounts within a day, returning a
+        ClientError ("no longer available to new users") -- that must
+        skip to the next model in GEMINI_FALLBACK_MODELS, not abort the
+        whole extraction the way it used to."""
+        from unittest.mock import patch
+        from google.genai.errors import ClientError
+        from core.gemini_extraction import extract_flyer_data
+
+        calls = []
+
+        def fake_generate_content(*, model, **kwargs):
+            calls.append(model)
+            if model == "gemini-good":
+                return self._fake_response()
+            raise ClientError(404, {"error": {"message": "no longer available to new users"}})
+
+        with patch("google.genai.Client") as mock_client_cls, patch("time.sleep") as mock_sleep:
+            mock_client = mock_client_cls.return_value
+            mock_client.models.generate_content.side_effect = fake_generate_content
+            data, raw = extract_flyer_data(b"fake-image-bytes")
+            self.assertEqual(data["points"], [])
+            self.assertEqual(calls, [settings.GEMINI_MODEL, "gemini-broken", "gemini-good"])
+            # A ClientError is never retried on any one model.
+            mock_sleep.assert_not_called()
+
     @override_settings(GEMINI_API_KEY="fake-key", GEMINI_FALLBACK_MODELS=["gemini-fallback-1", "gemini-fallback-2"])
     def test_falls_back_through_the_model_list_in_order(self):
         """Three manual retries against the same model all failing
