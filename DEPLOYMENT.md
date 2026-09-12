@@ -282,21 +282,38 @@ If the VPS doesn't actually have a working IPv6 address (`ip -6 addr show` on it
 ### 6. Redeploying on a new push
 
 ```bash
+set -euo pipefail
 cd /opt/sos-dz
 git pull
 source backend-venv/bin/activate
 pip install -r backend/requirements.txt
+
 cd backend
 python manage.py migrate
 python manage.py collectstatic --noinput
-cd ../frontend
+cd ..
+
+cd frontend
 npm install
 npm run build   # re-generates frontend/dist/ -- Nginx picks it up immediately, no restart needed
 cd ..
+
+cd moderation-sidecar
+npm install --production
+cd ..
+
+# Test then reload nginx -- picks up any manual config edits (e.g. the IPv6
+# gotcha above) without dropping connections; a bad config is left running
+# on the old one instead of taking the site down.
+sudo nginx -t
+sudo systemctl reload nginx
+
 sudo systemctl restart sos-dz-gunicorn
+sudo systemctl restart sos-dz-nsfwjs
+sudo systemctl restart sos-dz-voice-worker
 ```
 
-(`moderation-sidecar/` only needs its own `npm install` again if `moderation-sidecar/package.json` changed -- see step 7.)
+`set -euo pipefail` stops the script at the first failure (a failed migration, a broken build) instead of going on to restart services against a half-updated deploy. Re-running `moderation-sidecar`'s `npm install` on every deploy even when `moderation-sidecar/package.json` didn't change is harmless (it's a fast no-op then) and simpler than remembering to skip it -- see step 7 for what that service does.
 
 ### 6b. Cloudflare R2 (media storage, Wave 2)
 
