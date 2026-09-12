@@ -4151,3 +4151,22 @@ class GeminiExtractionRetryTests(TestCase):
                 extract_flyer_data(b"fake-image-bytes")
             self.assertEqual(mock_client.models.generate_content.call_count, 1)
             mock_sleep.assert_not_called()
+
+
+class FundraisingKeywordTests(TestCase):
+    """core.collection_point_geocoding.contains_fundraising_keyword: the
+    flyer pipeline's hard-reject list for online money-collection methods
+    (core.gemini_extraction) was missing "iban", even though the prompt
+    itself tells Gemini to flag one -- a flyer whose raw_text mentioned an
+    IBAN untranslated would have slipped past this filter."""
+
+    def test_detects_iban_case_insensitively(self):
+        from core.collection_point_geocoding import contains_fundraising_keyword
+
+        self.assertTrue(contains_fundraising_keyword("Faites un don via IBAN: FR76 1234 5678"))
+        self.assertTrue(contains_fundraising_keyword("iban disponible sur demande"))
+
+    def test_does_not_flag_unrelated_text(self):
+        from core.collection_point_geocoding import contains_fundraising_keyword
+
+        self.assertFalse(contains_fundraising_keyword("Point de collecte ouvert de 9h a 18h"))

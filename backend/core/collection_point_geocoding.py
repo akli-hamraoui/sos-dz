@@ -36,7 +36,7 @@ FUNDRAISING_KEYWORDS = [
     "ccp", "paypal", "cotizup", "cagnotte", "leetchi", "gofundme", "helloasso",
     "lydia", "ulule", "kisskissbankbank", "tipeee", "patreon", "cotisation en ligne",
     "collecte de fonds en ligne", "don en ligne", "dons en ligne", "virement bancaire",
-    "compte postal", "rib ",
+    "compte postal", "rib ", "iban",
 ]
 
 
