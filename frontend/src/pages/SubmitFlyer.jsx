@@ -99,22 +99,29 @@ export default function SubmitFlyer() {
 
   const pointsList = (points) => (
     <div className="needs-list">
-      {points.map((p) => (
-        <div key={p.id} className="need-card">
-          <strong>{p.point_name}</strong> — {p.city || p.wilaya_name || p.country_name}
-          {p.duplicate_of ? (
-            <p className="hint">
-              {t('submitFlyer.duplicateSkipped')}{' '}
-              <Link to={`/collection-points/${p.duplicate_of}`}>{p.duplicate_of_name}</Link>
-            </p>
-          ) : (
-            <p className="hint">
-              {t('submitFlyer.publishedNow')}{' '}
-              {p.is_published && <Link to={`/collection-points/${p.published_point}`}>{t('common.open')}</Link>}
-            </p>
-          )}
-        </div>
-      ))}
+      {points.map((p) => {
+        const targetId = p.duplicate_of || (p.is_published ? p.published_point : null)
+        const body = (
+          <>
+            <strong>{p.point_name}</strong> — {p.city || p.wilaya_name || p.country_name}
+            <p className="hint">{p.duplicate_of ? `${t('submitFlyer.duplicateSkipped')} ${p.duplicate_of_name}` : t('submitFlyer.publishedNow')}</p>
+            {targetId != null && (
+              <span className="flyer-point-view-link">
+                {t('common.open')} <span aria-hidden="true">→</span>
+              </span>
+            )}
+          </>
+        )
+        return targetId != null ? (
+          <Link key={p.id} to={`/collection-points/${targetId}`} className="need-card flyer-point-card">
+            {body}
+          </Link>
+        ) : (
+          <div key={p.id} className="need-card">
+            {body}
+          </div>
+        )
+      })}
     </div>
   )
 
@@ -212,7 +219,13 @@ export default function SubmitFlyer() {
             <div className={`urgent-sos-final-badge${isDone ? '' : ' is-error'}`}>
               {isDone ? `✓ ${t('submitFlyer.doneTitle')}` : `⚠ ${t('submitFlyer.notDoneTitle')}`}
             </div>
-            <h2>{result.status === 'published' ? t('submitFlyer.createdTitle') : t('submitFlyer.title')}</h2>
+            <h2>
+              {result.status === 'published'
+                ? t('submitFlyer.createdTitle')
+                : isDuplicateOnly
+                  ? t('submitFlyer.alreadyAddedTitle')
+                  : t('submitFlyer.title')}
+            </h2>
             {(result.status === 'published' || isDuplicateOnly) && (
               <>
                 {result.status === 'published' ? (
@@ -246,7 +259,7 @@ export default function SubmitFlyer() {
             {isRejectedNonDuplicate && <p className="error">{t(rejectionMessageKey[result.rejection_reason] || 'submitFlyer.rejectedGeneric')}</p>}
             {result.status === 'failed' && <p className="error">{t('submitFlyer.resultFailed')}</p>}
             {result.status === 'processing' && <p>{t('submitFlyer.resultProcessing')}</p>}
-            {isDone ? (
+            {result.status === 'published' ? (
               <div className="urgent-sos-actions">
                 <button type="button" className="urgent-sos-primary" onClick={reset}>
                   {t('submitFlyer.submitAnother')}

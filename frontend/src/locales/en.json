@@ -386,6 +386,7 @@
   "submitFlyer": {
     "title": "Add a collection point from a flyer",
     "createdTitle": "Collection point created",
+    "alreadyAddedTitle": "Collection point already added",
     "intro": "Send a photo of a flyer/poster announcing one or more collection points: our tools read the image and automatically create the matching points on the map.",
     "flyerLabel": "Flyer photo",
     "flyerHint": "A sharp photo with readable text gives the best results.",

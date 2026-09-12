@@ -134,6 +134,25 @@
   text-decoration: none;
 }
 
+/* Extracted-point cards: .need-card is styled elsewhere as a whole
+   clickable card (hover border/shadow, no underline) but was only ever
+   rendered here as a plain div with a small text link buried inside --
+   looked hoverable, wasn't actually clickable as a whole. Make the whole
+   card a real link when it has a target, with an explicit "Ouvrir →" cue
+   so it doesn't rely on the hover effect alone to read as clickable. */
+.submit-flyer-wizard .flyer-point-card {
+  cursor: pointer;
+}
+.submit-flyer-wizard .flyer-point-view-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  color: var(--brand-green);
+  font-weight: 800;
+  font-size: 13px;
+}
+
 @media (max-width: 699px) {
   .submit-flyer-wizard .urgent-sos-stepper,
   .submit-flyer-wizard .urgent-sos-progress {
