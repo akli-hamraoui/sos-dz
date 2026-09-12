@@ -4086,3 +4086,68 @@ class FlyerSubmissionAutoPublishTests(BaseAPITestCase):
         self.assertEqual(second.data["status"], "rejected")
         self.assertEqual(second.data["rejection_reason"], "duplicate")
         self.assertEqual(CollectionPoint.objects.filter(organization="Croissant Rouge").count(), 1)
+
+
+class GeminiExtractionRetryTests(TestCase):
+    """core.gemini_extraction.extract_flyer_data: Gemini's own transient
+    503s (google.genai.errors.ServerError, e.g. "This model is currently
+    experiencing high demand... try again later") are retried instead of
+    failing the submission outright -- confirmed live: a real flyer upload
+    failed once, then succeeded seconds later on manual retry, which a
+    same-request retry would have covered without the user noticing."""
+
+    def _fake_response(self):
+        from unittest.mock import MagicMock
+
+        response = MagicMock()
+        response.text = '{"country_found": true, "has_money_collection": false, "points": []}'
+        return response
+
+    @override_settings(GEMINI_API_KEY="fake-key")
+    def test_retries_on_server_error_then_succeeds(self):
+        from unittest.mock import patch
+        from google.genai.errors import ServerError
+        from core.gemini_extraction import extract_flyer_data
+
+        with patch("google.genai.Client") as mock_client_cls, patch("time.sleep") as mock_sleep:
+            mock_client = mock_client_cls.return_value
+            mock_client.models.generate_content.side_effect = [
+                ServerError(503, {"error": {"message": "high demand"}}),
+                ServerError(503, {"error": {"message": "high demand"}}),
+                self._fake_response(),
+            ]
+            data, raw = extract_flyer_data(b"fake-image-bytes")
+            self.assertEqual(data["points"], [])
+            self.assertEqual(mock_client.models.generate_content.call_count, 3)
+            self.assertEqual(mock_sleep.call_count, 2)
+
+    @override_settings(GEMINI_API_KEY="fake-key")
+    def test_gives_up_after_max_attempts(self):
+        from unittest.mock import patch
+        from google.genai.errors import ServerError
+        from core.gemini_extraction import extract_flyer_data, ExtractionError, EXTRACTION_MAX_ATTEMPTS
+
+        with patch("google.genai.Client") as mock_client_cls, patch("time.sleep") as mock_sleep:
+            mock_client = mock_client_cls.return_value
+            mock_client.models.generate_content.side_effect = ServerError(503, {"error": {"message": "high demand"}})
+            with self.assertRaises(ExtractionError):
+                extract_flyer_data(b"fake-image-bytes")
+            self.assertEqual(mock_client.models.generate_content.call_count, EXTRACTION_MAX_ATTEMPTS)
+            self.assertEqual(mock_sleep.call_count, EXTRACTION_MAX_ATTEMPTS - 1)
+
+    @override_settings(GEMINI_API_KEY="fake-key")
+    def test_client_error_is_not_retried(self):
+        """A 4xx (bad request, invalid key, quota exhausted) fails
+        identically on every attempt -- retrying it would only add latency
+        for nothing, unlike a transient ServerError above."""
+        from unittest.mock import patch
+        from google.genai.errors import ClientError
+        from core.gemini_extraction import extract_flyer_data, ExtractionError
+
+        with patch("google.genai.Client") as mock_client_cls, patch("time.sleep") as mock_sleep:
+            mock_client = mock_client_cls.return_value
+            mock_client.models.generate_content.side_effect = ClientError(400, {"error": {"message": "bad request"}})
+            with self.assertRaises(ExtractionError):
+                extract_flyer_data(b"fake-image-bytes")
+            self.assertEqual(mock_client.models.generate_content.call_count, 1)
+            mock_sleep.assert_not_called()
