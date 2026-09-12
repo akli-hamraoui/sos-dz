@@ -406,11 +406,7 @@
     "kicker": "Ajout par photo",
     "stepPhoto": "Photo",
     "stepInfo": "Infos",
-    "stepReview": "Vérification",
     "infoStepTitle": "Vos coordonnées (optionnel)",
-    "reviewStepTitle": "Vérifiez avant l'envoi",
-    "reviewStepText": "Relisez la photo et vos informations, puis validez l'envoi.",
-    "changePhoto": "Changer la photo",
     "doneTitle": "Envoi terminé",
     "notDoneTitle": "Envoi non retenu"
   },
