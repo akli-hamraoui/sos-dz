@@ -86,7 +86,7 @@ _RESPONSE_SCHEMA = {
 
 PROMPT = """Tu es un assistant qui lit des flyers/affiches d'associations annonçant des points de collecte de dons humanitaires (Algérie et diaspora), postés sur les réseaux sociaux (Facebook/TikTok/Instagram).
 
-Lis entièrement l'image fournie, y compris tout texte en arabe (traduis les informations utiles dans les champs demandés, mais garde les noms propres — noms d'association, de lieux, de personnes — tels quels sans les traduire).
+Lis entièrement l'image fournie, quelle que soit la langue du texte (français, arabe, anglais, ou toute autre langue) : traduis en français les informations utiles pour les champs demandés, mais garde les noms propres — noms d'association, de lieux, de personnes — tels quels sans les traduire.
 
 Règles impératives :
 
@@ -104,7 +104,7 @@ Règles impératives :
 
 7. "has_money_collection" (très important, exclusion stricte et totale) : mets true si le flyer mentionne, N'IMPORTE OÙ (y compris dans "raw_text"), un CCP, une cagnotte, Cotizup, un IBAN, PayPal, un RIP, un numéro de compte bancaire/postal, ou tout autre moyen de collecte d'ARGENT en ligne. Cette règle s'applique même si le reste des informations (adresse, contact) est par ailleurs valide et utile — signale-le quand même via ce champ, ne l'omets pas.
 
-8. "raw_text" : recopie le texte brut intégral visible sur le flyer (traduit en français si en arabe), pour toute information non capturée dans les champs structurés ci-dessus.
+8. "raw_text" : recopie le texte brut intégral visible sur le flyer, traduit en français si le texte original est dans une autre langue (arabe, anglais, etc.), pour toute information non capturée dans les champs structurés ci-dessus.
 
 Réponds uniquement avec les données structurées demandées, sans texte additionnel."""
 
