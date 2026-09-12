@@ -28,6 +28,10 @@ export function IconMapPin(props) { return (<svg {...base} {...props}><path d="M
 export function IconLocate(props) { return (<svg {...base} {...props}><circle cx="12" cy="12" r="2.6" fill="currentColor" stroke="none" /><circle cx="12" cy="12" r="7" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3" /></svg>) }
 export function IconExpand(props) { return (<svg {...base} {...props}><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5" /></svg>) }
 export function IconMic(props) { return (<svg {...base} {...props}><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5v3M9 20.5h6" /></svg>) }
+// A voice-message bubble (chat bubble + waveform bars) rather than a plain
+// mic -- used where the UI needs to read as "a spoken/voice message" (the
+// Home voice-SOS entry point) rather than "recording audio" in general.
+export function IconVoiceWave(props) { return (<svg {...base} {...props}><path d="M4 6.7A2.7 2.7 0 0 1 6.7 4h10.6A2.7 2.7 0 0 1 20 6.7v6.6a2.7 2.7 0 0 1-2.7 2.7H10l-4 3.6v-3.6h-.3A2.7 2.7 0 0 1 3 13.3V6.7Z" /><path d="M8 8.7v4.6M11.3 7.2v7.6M14.7 8.2v5.6M18 9.7v2.6" /></svg>) }
 export function IconVolumeOff(props) { return (<svg {...base} {...props}><path d="M10.5 6 6.5 9H3v6h3.5l4 3V6Z" /><path d="m15.5 9-5 6M10.5 9l5 6" /></svg>) }
 export function IconVolume(props) { return (<svg {...base} {...props}><path d="M10.5 6 6.5 9H3v6h3.5l4 3V6Z" /><path d="M14.5 8.5a5 5 0 0 1 0 7M17.3 5.8a9 9 0 0 1 0 12.4" /></svg>) }
 export function IconCopy(props) { return (<svg {...base} {...props}><rect x="8" y="8" width="11" height="12" rx="2" /><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h2" /></svg>) }

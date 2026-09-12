@@ -2,18 +2,31 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useApp } from '../context/AppContext'
-import { IconAlgeriaFlag, IconCamera, IconGlobeColor, IconHelp, IconMic, IconPlus } from '../icons'
+import { IconAlgeriaFlag, IconCamera, IconGlobeColor, IconHelp, IconPlus, IconVoiceWave } from '../icons'
 
 // A small pulsing pill used to flag brand-new entry points (the voice SOS
 // and the flyer submission card) that a returning visitor wouldn't
 // otherwise notice were added. Not shown on anything else -- overusing it
-// would make it meaningless.
+// would make it meaningless. Rendered as a normal flow child (not an
+// absolutely-positioned overlay) so it never ends up sitting on top of --
+// and partly hiding -- the card's own icon underneath it.
 function NewBadge() {
   const { t } = useTranslation()
   return (
     <span className="home-badge-new">
       <span className="home-badge-new-dot" aria-hidden="true" />
       {t('common.newBadge')}
+    </span>
+  )
+}
+
+// The same circle-plus treatment as the "Créer un point de collecte"
+// button's own icon (a filled circle behind IconPlus), just sized to sit
+// inline in front of a card title instead of standing alone.
+function PlusBadge() {
+  return (
+    <span className="home-plus-badge" aria-hidden="true">
+      <IconPlus width={11} height={11} strokeWidth={3} />
     </span>
   )
 }
@@ -52,18 +65,18 @@ export default function Home() {
         <Link to="/create" className="home-sos-half home-sos-half-orange">
           <span className="home-sos-icon icon-sos" aria-hidden="true" />
           <span className="home-sos-copy">
-            <strong><IconPlus width={13} height={13} strokeWidth={3} /> {t('home.sosNonUrgentTitle')}</strong>
+            <strong><PlusBadge /> {t('home.sosNonUrgentTitle')}</strong>
             <span>{t('home.sosDetail')}</span>
           </span>
         </Link>
         {voiceSosAvailable && (
           <Link to="/urgent-sos" className="home-sos-half home-sos-half-red">
             <NewBadge />
-            <span className="home-sos-icon home-sos-icon-mic" aria-hidden="true">
-              <IconMic width={26} height={26} />
+            <span className="home-sos-icon home-sos-icon-voice" aria-hidden="true">
+              <IconVoiceWave width={24} height={24} />
             </span>
             <span className="home-sos-copy">
-              <strong><IconPlus width={13} height={13} strokeWidth={3} /> {t('home.sosUrgentTitle')}</strong>
+              <strong><PlusBadge /> {t('home.sosUrgentTitle')}</strong>
               <span>{t('home.sosUrgentSubtitle')}</span>
             </span>
           </Link>
@@ -118,13 +131,13 @@ export default function Home() {
           <NewBadge />
           <span className="home-secondary-icon"><IconCamera width={22} height={22} /></span>
           <span className="home-secondary-copy">
-            <strong><IconPlus width={12} height={12} strokeWidth={3} /> {t('home.insertFlyerTitle')}</strong>
+            <strong><PlusBadge /> {t('home.insertFlyerTitle')}</strong>
             <em>{t('home.createPointFlyer')} <b aria-hidden="true">→</b></em>
           </span>
         </Link>
       </div>
 
-      <Link to="/about" className="home-about-link">
+      <Link to="/about" className="home-about-button">
         <IconHelp width={18} height={18} />
         <span>{t('nav.about')}</span>
         <b aria-hidden="true">→</b>
