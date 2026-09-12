@@ -162,6 +162,7 @@ Unlike a split IONOS-Deploy-Now-plus-VPS setup, everything is one server here, s
 ```nginx
 server {
     listen 80;
+    listen [::]:80;
     server_name sosdz.org www.sosdz.org;
 
     # Nginx's own default (1MB) rejects a create-need submission with a
@@ -260,24 +261,59 @@ server {
 
 Then `sudo nginx -t && sudo systemctl reload nginx`, and confirm with `curl -I http://sosdz.org` (expect `301` + `Location: https://sosdz.org/`).
 
+**Known IPv6 gotcha (confirmed on the live deploy):** if the domain's registrar has an AAAA record for the bare domain (`dig +short AAAA sosdz.org` -- Contabo VPSes get a routable IPv6 by default, and some registrars add the AAAA automatically), but no AAAA for `www`, then `sosdz.org` becomes reachable over IPv6 while `www.sosdz.org` stays IPv4-only. Nginx's `listen 443 ssl;` and `listen 80;` (including the ones Certbot generates for the SSL block) are IPv4-only -- they do **not** also bind the IPv6 socket. Any visitor whose network prefers IPv6 (most modern ISPs/routers, via Happy Eyeballs) then hits `sosdz.org`, finds nothing listening on that VPS's IPv6 address, and sees a blank page, `ERR_CONNECTION_RESET`, or `ERR_NETWORK_CHANGED` depending on the browser -- while `www.sosdz.org` and anyone forced onto IPv4 loads fine, and everything looks healthy from the server side (`curl` over IPv4/loopback, `systemctl status`, disk, RAM all fine). This makes it look intermittent/network-related rather than a config gap.
+
+Fix by adding an IPv6 `listen` line next to every IPv4 one, in **both** the port-80 block above and the port-443 block Certbot added (`sudo nginx -T` to see the live config if unsure which files/blocks exist):
+
+```nginx
+listen 443 ssl;
+listen [::]:443 ssl;
+```
+
+```nginx
+listen 80;
+listen [::]:80;
+```
+
+Then `sudo nginx -t && sudo systemctl reload nginx`, and confirm both families are bound: `sudo ss -tlnp | grep -E ':80|:443'` should list both `0.0.0.0:443` and `[::]:443` (same for `:80`). Verify over IPv6 specifically with `curl -vI -6 https://sosdz.org`.
+
+If the VPS doesn't actually have a working IPv6 address (`ip -6 addr show` on it comes back empty for the public interface), the simpler fix is to remove the AAAA record for the bare domain at the DNS provider instead, so it matches `www`'s IPv4-only setup.
+
 ### 6. Redeploying on a new push
 
 ```bash
+set -euo pipefail
 cd /opt/sos-dz
 git pull
 source backend-venv/bin/activate
 pip install -r backend/requirements.txt
+
 cd backend
 python manage.py migrate
 python manage.py collectstatic --noinput
-cd ../frontend
+cd ..
+
+cd frontend
 npm install
 npm run build   # re-generates frontend/dist/ -- Nginx picks it up immediately, no restart needed
 cd ..
+
+cd moderation-sidecar
+npm install --production
+cd ..
+
+# Test then reload nginx -- picks up any manual config edits (e.g. the IPv6
+# gotcha above) without dropping connections; a bad config is left running
+# on the old one instead of taking the site down.
+sudo nginx -t
+sudo systemctl reload nginx
+
 sudo systemctl restart sos-dz-gunicorn
+sudo systemctl restart sos-dz-nsfwjs
+sudo systemctl restart sos-dz-voice-worker
 ```
 
-(`moderation-sidecar/` only needs its own `npm install` again if `moderation-sidecar/package.json` changed -- see step 7.)
+`set -euo pipefail` stops the script at the first failure (a failed migration, a broken build) instead of going on to restart services against a half-updated deploy. Re-running `moderation-sidecar`'s `npm install` on every deploy even when `moderation-sidecar/package.json` didn't change is harmless (it's a fast no-op then) and simpler than remembering to skip it -- see step 7 for what that service does.
 
 ### 6b. Cloudflare R2 (media storage, Wave 2)
 
