@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useApp } from '../context/AppContext'
-import { IconAlgeriaFlag, IconCamera, IconGlobeColor, IconHelp, IconPlus, IconVoiceWave } from '../icons'
+import { IconAlgeriaFlag, IconCamera, IconGlobeColor, IconHelp, IconMic, IconPlus } from '../icons'
 
 // A small pulsing pill used to flag brand-new entry points (the voice SOS
 // and the flyer submission card) that a returning visitor wouldn't
@@ -72,8 +72,11 @@ export default function Home() {
         {voiceSosAvailable && (
           <Link to="/urgent-sos" className="home-sos-half home-sos-half-red">
             <NewBadge />
-            <span className="home-sos-icon home-sos-icon-voice" aria-hidden="true">
-              <IconVoiceWave width={26} height={26} strokeWidth={2.2} />
+            <span className="home-sos-icon-wrap">
+              <span className="home-sos-icon icon-sos" aria-hidden="true" />
+              <span className="home-sos-mic-badge" aria-hidden="true">
+                <IconMic width={11} height={11} strokeWidth={2.6} />
+              </span>
             </span>
             <span className="home-sos-copy">
               <strong><PlusBadge /> {t('home.sosUrgentTitle')}</strong>

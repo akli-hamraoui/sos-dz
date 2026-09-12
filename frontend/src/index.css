@@ -797,17 +797,33 @@ main {
   width: clamp(26px, 8vw, 44px);
   height: clamp(26px, 8vw, 44px);
 }
-/* The voice icon sits below the "Nouveau" badge (itself pinned to the
-   card's top-right corner, see .home-badge-new below) with enough
-   clearance that the two never overlap -- unlike the plain bubble mask
-   icon on the orange half, this one isn't centered by a fixed 72px mask
-   box, so it needs its own top offset to stay clear of the badge. */
-.home-sos-half-red .home-sos-icon {
+/* The red half's icon sits inside a wrapper (rather than being the icon
+   itself) so a small mic badge can be pinned to its corner -- the SOS
+   bubble on its own reads identically to the orange half, and this is
+   what marks it as specifically the *voice* SOS. The wrapper also carries
+   the top clearance that keeps the icon from sitting under the "Nouveau"
+   badge pinned to the card's own top-right corner (see .home-badge-new). */
+.home-sos-icon-wrap {
+  position: relative;
+  display: inline-flex;
   margin-top: clamp(16px, 5vw, 22px);
 }
-.home-sos-half .home-sos-icon-voice {
+.home-sos-icon-wrap .home-sos-icon {
+  margin-top: 0;
+}
+.home-sos-mic-badge {
+  position: absolute;
+  bottom: -3px;
+  inset-inline-end: -5px;
+  width: 20px;
+  height: 20px;
   display: grid;
   place-items: center;
+  border-radius: 50%;
+  background: linear-gradient(180deg, #22d3ee, #2563eb);
+  color: #fff;
+  border: 2px solid rgba(255, 255, 255, .9);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, .3);
 }
 .home-sos-half .home-sos-copy {
   align-items: center;
