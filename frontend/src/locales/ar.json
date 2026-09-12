@@ -408,7 +408,7 @@
     "stepInfo": "المعلومات",
     "infoStepTitle": "بياناتك (اختياري)",
     "doneTitle": "تم الإرسال",
-    "notDoneTitle": "لم يُحتفظ بالإرسال"
+    "notDoneTitle": "خطأ في الإرسال"
   },
   "internationalCollectionPoints": {
     "navButton": "🌍 التجميع الدولي",

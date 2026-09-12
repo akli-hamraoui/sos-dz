@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { apiUpload } from '../api'
 import { translateApiError } from '../apiErrors'
-import { IconCamera, IconCopy, IconTrash } from '../icons'
+import { IconCamera, IconCopy, IconReplay, IconTrash } from '../icons'
 import '../urgent-sos-wizard-fixes.css'
 import '../submit-flyer-wizard.css'
 
@@ -246,14 +246,25 @@ export default function SubmitFlyer() {
             {isRejectedNonDuplicate && <p className="error">{t(rejectionMessageKey[result.rejection_reason] || 'submitFlyer.rejectedGeneric')}</p>}
             {result.status === 'failed' && <p className="error">{t('submitFlyer.resultFailed')}</p>}
             {result.status === 'processing' && <p>{t('submitFlyer.resultProcessing')}</p>}
-            <div className="urgent-sos-actions">
-              <button type="button" className="urgent-sos-secondary" onClick={reset}>
-                {t('submitFlyer.submitAnother')}
-              </button>
-              <Link className="urgent-sos-secondary" to="/collection-points/create">
-                {t('submitFlyer.useManualForm')}
-              </Link>
-            </div>
+            {isDone ? (
+              <div className="urgent-sos-actions">
+                <button type="button" className="urgent-sos-secondary" onClick={reset}>
+                  {t('submitFlyer.submitAnother')}
+                </button>
+                <Link className="urgent-sos-secondary" to="/collection-points/create">
+                  {t('submitFlyer.useManualForm')}
+                </Link>
+              </div>
+            ) : (
+              <div className="urgent-sos-actions flyer-error-actions">
+                <button type="button" className="urgent-sos-primary" onClick={reset}>
+                  <IconReplay width={18} height={18} /> {t('submitFlyer.submitAnother')}
+                </button>
+                <Link className="flyer-ghost-link" to="/collection-points/create">
+                  {t('submitFlyer.useManualForm')}
+                </Link>
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -408,7 +408,7 @@
     "stepInfo": "Infos",
     "infoStepTitle": "Vos coordonnées (optionnel)",
     "doneTitle": "Envoi terminé",
-    "notDoneTitle": "Envoi non retenu"
+    "notDoneTitle": "Erreur d'envoi"
   },
   "internationalCollectionPoints": {
     "navButton": "🌍 Collecte internationale",

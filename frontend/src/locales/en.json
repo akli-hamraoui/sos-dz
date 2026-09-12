@@ -408,7 +408,7 @@
     "stepInfo": "Info",
     "infoStepTitle": "Your contact details (optional)",
     "doneTitle": "Submission complete",
-    "notDoneTitle": "Submission not kept"
+    "notDoneTitle": "Submission error"
   },
   "internationalCollectionPoints": {
     "navButton": "🌍 International collection",
