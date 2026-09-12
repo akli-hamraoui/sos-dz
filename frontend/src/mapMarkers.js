@@ -72,7 +72,7 @@ export function countryBubbleIcon(L, count) {
 // CSS transform, the marker's actual L.LatLng never changes) via a few
 // passes of simple pairwise repulsion, capped so a pin never drifts more
 // than 24px from its true position.
-function spreadMarkersApart(map, eligibleMarkers, pinSelector, minDistance) {
+function spreadMarkersApart(map, eligibleMarkers, pinSelector, minDistance, maxOffset) {
   if (!eligibleMarkers.length) return
   const positions = eligibleMarkers.map((marker) => map.latLngToContainerPoint(marker.getLatLng()))
   const offsets = eligibleMarkers.map(() => ({ x: 0, y: 0 }))
@@ -101,32 +101,36 @@ function spreadMarkersApart(map, eligibleMarkers, pinSelector, minDistance) {
   eligibleMarkers.forEach((marker, index) => {
     const pin = marker._icon?.querySelector(pinSelector)
     if (!pin) return
-    const x = Math.max(-24, Math.min(24, offsets[index].x))
-    const y = Math.max(-24, Math.min(24, offsets[index].y))
+    const x = Math.max(-maxOffset, Math.min(maxOffset, offsets[index].x))
+    const y = Math.max(-maxOffset, Math.min(maxOffset, offsets[index].y))
     pin.style.transform = `translate3d(${x}px, ${y}px, 0)`
   })
 }
 
-export function spreadCollectionPointMarkers(map, markers, minDistance = 46) {
+export function spreadCollectionPointMarkers(map, markers, minDistance = 46, maxOffset = 24) {
   if (!map || !Array.isArray(markers)) return
   map._sosdzCollectionMarkers = markers
   if (!map._sosdzCollectionSpreadZoomWired) {
     map._sosdzCollectionSpreadZoomWired = true
-    map.on('zoomend', () => spreadCollectionPointMarkers(map, map._sosdzCollectionMarkers || [], minDistance))
+    map.on('zoomend', () => spreadCollectionPointMarkers(map, map._sosdzCollectionMarkers || [], minDistance, maxOffset))
   }
   const cpMarkers = markers.filter((marker) => marker?._sosdzCollectionPoint && marker._icon)
-  spreadMarkersApart(map, cpMarkers, '.cp-marker-pin', minDistance)
+  spreadMarkersApart(map, cpMarkers, '.cp-marker-pin', minDistance, maxOffset)
 }
 
-export function spreadNeedMarkers(map, markers, minDistance = 46) {
+// minDistance/maxOffset are bigger than the collection-point defaults above:
+// a blinking critical pin's visible pulse (.need-marker-critical::after,
+// see sos-map-marker.css) extends well past its 42px hit box, so two
+// critical pins placed only ~46px apart still visually overlapped.
+export function spreadNeedMarkers(map, markers, minDistance = 64, maxOffset = 34) {
   if (!map || !Array.isArray(markers)) return
   map._sosdzNeedMarkers = markers
   if (!map._sosdzNeedSpreadZoomWired) {
     map._sosdzNeedSpreadZoomWired = true
-    map.on('zoomend', () => spreadNeedMarkers(map, map._sosdzNeedMarkers || [], minDistance))
+    map.on('zoomend', () => spreadNeedMarkers(map, map._sosdzNeedMarkers || [], minDistance, maxOffset))
   }
   const needMarkers = markers.filter((marker) => marker?._sosdzNeedMarker && marker._icon)
-  spreadMarkersApart(map, needMarkers, '.need-marker-pin', minDistance)
+  spreadMarkersApart(map, needMarkers, '.need-marker-pin', minDistance, maxOffset)
 }
 
 export function countryFlagEmoji(countryCode) {

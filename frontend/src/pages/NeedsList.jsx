@@ -309,10 +309,16 @@ export default function NeedsList() {
         })
 
         if (unlocated.length) {
+          // Same blinking treatment as an individual critical pin (see
+          // needIcon/.need-marker-critical) as soon as the bubble groups at
+          // least one critical need -- a report being unlocatable doesn't
+          // make it less urgent, so it must not read as calmer than an
+          // ordinary located critical pin.
+          const bubbleHasCritical = unlocated.some((p) => p.urgency === 'critical')
           const icon = L.divIcon({
             className: 'need-marker-icon',
             html:
-              `<span class="need-marker-pin need-marker-pin-unlocated">${NEED_SOS_ICON}` +
+              `<span class="need-marker-pin need-marker-pin-unlocated${bubbleHasCritical ? ' need-marker-critical' : ''}">${NEED_SOS_ICON}` +
               `<span class="need-marker-count-badge">${unlocated.length}</span></span>`,
             iconSize: [44, 44],
             iconAnchor: [22, 22],
@@ -327,6 +333,7 @@ export default function NeedsList() {
           const bubbleLat = algerWilaya?.centroid_latitude ?? unlocated[0].display_latitude
           const bubbleLon = algerWilaya?.centroid_longitude ?? unlocated[0].display_longitude
           const marker = L.marker([bubbleLat, bubbleLon], { icon, zIndexOffset: 1000 }).addTo(map)
+          marker._sosdzNeedMarker = true
           marker.bindTooltip(`${t('needsList.noLocationBubbleLabel')} (${unlocated.length})`)
           marker.on('click', () => {
             setFilterWilaya('')

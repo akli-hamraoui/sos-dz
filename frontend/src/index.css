@@ -1536,6 +1536,9 @@ fieldset {
   font-weight: 700;
   line-height: 14px;
   text-align: center;
+  /* Above the critical bubble's own ::after animated overlay (z-index 3,
+     see sos-map-marker.css) so the count stays readable while it blinks. */
+  z-index: 4;
 }
 /* Declared departure position, not an actual live GPS ping -- dashed
    (instead of the live marker's solid border) so it still reads as
