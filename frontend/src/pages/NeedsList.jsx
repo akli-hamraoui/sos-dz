@@ -335,10 +335,16 @@ export default function NeedsList() {
             return
           }
           const p = group[0]
+          // A bubble stands in for several needs at once, possibly of
+          // mixed urgency -- it pulses (same animated mark as an
+          // individual critical pin, see .need-marker-critical) as soon as
+          // any one of them is critical, rather than never pulsing just
+          // because it's a bubble rather than a plain pin.
+          const criticalClass = group.some((n) => n.urgency === 'critical') ? ' need-marker-critical' : ''
           const icon = L.divIcon({
             className: 'need-marker-icon',
             html:
-              `<span class="need-marker-pin need-marker-pin-unlocated">${NEED_SOS_ICON}` +
+              `<span class="need-marker-pin need-marker-pin-unlocated${criticalClass}">${NEED_SOS_ICON}` +
               `<span class="need-marker-count-badge">${group.length}</span></span>`,
             iconSize: [44, 44],
             iconAnchor: [22, 22],
@@ -359,10 +365,14 @@ export default function NeedsList() {
         })
 
         if (unlocated.length) {
+          // Same reasoning as the approx-position wilaya bubble above --
+          // this bubble also stands in for several (possibly mixed-urgency)
+          // needs, so it pulses too as soon as any one of them is critical.
+          const unlocatedCriticalClass = unlocated.some((n) => n.urgency === 'critical') ? ' need-marker-critical' : ''
           const icon = L.divIcon({
             className: 'need-marker-icon',
             html:
-              `<span class="need-marker-pin need-marker-pin-unlocated">${NEED_SOS_ICON}` +
+              `<span class="need-marker-pin need-marker-pin-unlocated${unlocatedCriticalClass}">${NEED_SOS_ICON}` +
               `<span class="need-marker-count-badge">${unlocated.length}</span></span>`,
             iconSize: [44, 44],
             iconAnchor: [22, 22],
