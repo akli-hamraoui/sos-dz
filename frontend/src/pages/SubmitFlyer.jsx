@@ -248,10 +248,10 @@ export default function SubmitFlyer() {
             {result.status === 'processing' && <p>{t('submitFlyer.resultProcessing')}</p>}
             {isDone ? (
               <div className="urgent-sos-actions">
-                <button type="button" className="urgent-sos-secondary" onClick={reset}>
+                <button type="button" className="urgent-sos-primary" onClick={reset}>
                   {t('submitFlyer.submitAnother')}
                 </button>
-                <Link className="urgent-sos-secondary" to="/collection-points/create">
+                <Link className="urgent-sos-primary" to="/collection-points/create">
                   {t('submitFlyer.useManualForm')}
                 </Link>
               </div>
