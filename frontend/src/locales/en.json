@@ -385,6 +385,7 @@
   },
   "submitFlyer": {
     "title": "Add a collection point from a flyer",
+    "createdTitle": "Collection point created",
     "intro": "Send a photo of a flyer/poster announcing one or more collection points: our tools read the image and automatically create the matching points on the map.",
     "flyerLabel": "Flyer photo",
     "flyerHint": "A sharp photo with readable text gives the best results.",
@@ -414,7 +415,7 @@
     "stepInfo": "Info",
     "infoStepTitle": "Your contact details (optional)",
     "doneTitle": "Submission complete",
-    "notDoneTitle": "Submission not kept"
+    "notDoneTitle": "Submission error"
   },
   "internationalCollectionPoints": {
     "navButton": "🌍 International collection",

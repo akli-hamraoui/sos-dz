@@ -305,11 +305,16 @@ GEMINI_MODEL = env("GEMINI_MODEL", default="gemini-flash-latest")
 # API key's billing tier, not the model) and would just as readily surface
 # an image/audio/video-generation or embeddings model as a usable
 # vision+JSON-extraction one. All three defaults below are pinned (non-
-# "-latest") general-purpose vision models confirmed to support the
-# response_schema structured-output mode this pipeline relies on. Left
-# blank, a sustained 503 on GEMINI_MODEL just fails the submission.
+# "-latest") general-purpose vision models expected to support the
+# response_schema structured-output mode this pipeline relies on -- Google
+# still deprecates/retires individual model IDs over time regardless (one
+# of the original three, gemini-2.5-flash-lite, was already retired for
+# new accounts within a day of being picked), which is exactly why
+# extract_flyer_data() treats a broken entry here as "skip to the next
+# model in the list", not "abort the whole extraction". Left blank, a
+# sustained 503 on GEMINI_MODEL just fails the submission.
 GEMINI_FALLBACK_MODELS = [
-    m.strip() for m in env("GEMINI_FALLBACK_MODELS", default="gemini-2.5-flash-lite,gemini-2.5-flash,gemini-2.5-pro").split(",") if m.strip()
+    m.strip() for m in env("GEMINI_FALLBACK_MODELS", default="gemini-3.5-flash-lite,gemini-2.5-flash,gemini-2.5-pro").split(",") if m.strip()
 ]
 
 # --- Logging --------------------------------------------------------------

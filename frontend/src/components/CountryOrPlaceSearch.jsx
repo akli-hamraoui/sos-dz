@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { searchPlaces } from '../utils'
+import { searchPlaces, searchPlacesTypeahead } from '../utils'
 import { countryOptions } from '../countries'
 
 // Nominatim's own display_name is a full postal-style address (street,
@@ -7,8 +7,9 @@ import { countryOptions } from '../countries'
 // this), which is unreadable clutter in a "type a city or country"
 // field. Reduce each result to just the city (or the country alone when
 // there's no city, e.g. the query itself matched a country) using the
-// addressdetails=1 breakdown searchPlaces already requests for this
-// page (excludeCountryCode is always set here, see utils.js).
+// { address: { city, country, country_code } } shape both
+// searchPlacesTypeahead and searchPlaces (utils.js) normalize their
+// results to.
 function placeLabel(p) {
   const addr = p.address || {}
   const city = addr.city || addr.town || addr.village || addr.municipality
@@ -72,13 +73,32 @@ export default function CountryOrPlaceSearch({ lang, placeholder, onSelectCountr
       if (abortRef.current) abortRef.current.abort()
       const controller = new AbortController()
       abortRef.current = controller
+      // Photon (searchPlacesTypeahead) is the primary source -- it
+      // handles partial/hyphenated place names correctly, unlike
+      // Nominatim (see utils.js). Fall back to Nominatim whenever Photon
+      // comes back empty OR fails outright (network error, outage), so
+      // neither a genuine no-match nor a Photon-specific failure leaves
+      // the field worse off than before this switch.
+      let results = []
       try {
-        const results = await searchPlaces(trimmed, lang, controller.signal, 'any', excludeCountryCode)
-        setPlaceResults(results)
+        results = await searchPlacesTypeahead(trimmed, lang, controller.signal)
+        if (excludeCountryCode) {
+          results = results.filter((r) => r.address.country_code?.toLowerCase() !== excludeCountryCode.toLowerCase())
+        }
       } catch {
-        // Network/CORS failure or a superseded request -- country
-        // matches (computed locally, below) still show regardless.
+        // Superseded request or Photon failure -- try Nominatim below.
       }
+      if (results.length === 0) {
+        try {
+          results = await searchPlaces(trimmed, lang, controller.signal, 'any', excludeCountryCode)
+        } catch {
+          // Both providers failed, or this request was superseded --
+          // country matches (computed locally, below) still show
+          // regardless, and previous place results are left as-is.
+          return
+        }
+      }
+      setPlaceResults(results)
     }, 400)
   }
 
