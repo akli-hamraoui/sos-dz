@@ -2,6 +2,21 @@ import { useState, useRef, useEffect } from 'react'
 import { searchPlaces } from '../utils'
 import { countryOptions } from '../countries'
 
+// Nominatim's own display_name is a full postal-style address (street,
+// suburb, county, region, country -- see the screenshot that prompted
+// this), which is unreadable clutter in a "type a city or country"
+// field. Reduce each result to just the city (or the country alone when
+// there's no city, e.g. the query itself matched a country) using the
+// addressdetails=1 breakdown searchPlaces already requests for this
+// page (excludeCountryCode is always set here, see utils.js).
+function placeLabel(p) {
+  const addr = p.address || {}
+  const city = addr.city || addr.town || addr.village || addr.municipality
+  const country = addr.country
+  if (city && country) return `${city}, ${country}`
+  return city || country || p.display_name
+}
+
 // A single field for InternationalCollectionPoints.jsx's toolbar that
 // merges what used to be two separate controls -- "go to a place" (a
 // PlaceAutocomplete over Nominatim) and "filter by country" (a
@@ -75,13 +90,24 @@ export default function CountryOrPlaceSearch({ lang, placeholder, onSelectCountr
   }
 
   const pickPlace = (p) => {
-    setQuery(p.display_name)
+    setQuery(placeLabel(p))
     setOpen(false)
     setPlaceResults([])
     onSelectPlace({ lat: parseFloat(p.lat), lon: parseFloat(p.lon) })
   }
 
   const countries = countryMatches(query)
+  // Different Nominatim entries (e.g. a relation and a node for the same
+  // city) often collapse to the same simplified label once addresses are
+  // reduced to city/country -- dedupe so the list doesn't show the same
+  // text twice.
+  const seenLabels = new Set()
+  const places = placeResults.filter((p) => {
+    const label = placeLabel(p)
+    if (seenLabels.has(label)) return false
+    seenLabels.add(label)
+    return true
+  })
 
   return (
     <div className="place-autocomplete">
@@ -89,7 +115,7 @@ export default function CountryOrPlaceSearch({ lang, placeholder, onSelectCountr
         type="text"
         value={query}
         onChange={handleChange}
-        onFocus={() => setOpen(countries.length > 0 || placeResults.length > 0)}
+        onFocus={() => setOpen(countries.length > 0 || places.length > 0)}
         onBlur={() => {
           // Same delay-before-close as PlaceAutocomplete/CountrySelect --
           // gives a suggestion's onMouseDown a moment to land first.
@@ -98,16 +124,16 @@ export default function CountryOrPlaceSearch({ lang, placeholder, onSelectCountr
         placeholder={placeholder}
         autoComplete="off"
       />
-      {open && (countries.length > 0 || placeResults.length > 0) && (
+      {open && (countries.length > 0 || places.length > 0) && (
         <ul className="place-suggestions" role="listbox">
           {countries.map((c) => (
             <li key={'country-' + c.code} role="option" onMouseDown={() => pickCountry(c)}>
               🌐 {c.name}
             </li>
           ))}
-          {placeResults.map((p) => (
+          {places.map((p) => (
             <li key={'place-' + p.place_id} role="option" onMouseDown={() => pickPlace(p)}>
-              📍 {p.display_name}
+              📍 {placeLabel(p)}
             </li>
           ))}
         </ul>

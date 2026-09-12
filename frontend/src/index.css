@@ -945,7 +945,11 @@ textarea {
 }
 .place-suggestions {
   position: absolute;
-  z-index: 20;
+  /* Above Leaflet's own panes/controls (z-index: 1000) -- this field's
+     dropdown sits directly above a map (InternationalCollectionPoints.jsx's
+     "Carte" view) and was getting rendered underneath it at the old
+     z-index: 20. */
+  z-index: 1200;
   inset-inline: 0;
   top: calc(100% + 4px);
   margin: 0;
