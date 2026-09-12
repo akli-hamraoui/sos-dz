@@ -735,6 +735,362 @@ main {
   }
 }
 
+/* --- Home: split SOS card, direct flyer entry, slim "about" link --------
+   Three changes, all scoped so the existing card system above (min-heights
+   tuned across several breakpoints so the whole action stack fits above
+   the fixed bottom nav without scrolling) keeps working unmodified:
+   1. The one red "Lancer un SOS" card becomes two halves sharing its slot
+      (same outer .home-sos-card sizing, just split in two) -- orange for
+      the existing need-report form, red for the voice-guided /urgent-sos
+      wizard, previously reachable from nowhere in the UI.
+   2. "Depuis un flyer" moves out of the "Créer un point de collecte"
+      dropdown into its own directly-tappable card next to it, so creating
+      a point from a photo no longer needs an extra click to discover.
+   3. "Qui sommes-nous ?" drops from a full card to a single-line link,
+      freeing back the vertical space the flyer card above needs. */
+/* Doubled up as ".home-sos-card.home-sos-split" (not just ".home-sos-split")
+   so these resets always beat the plain ".home-sos-card" background/padding
+   rules above regardless of which stylesheet pass they came from -- several
+   older breakpoints re-declare padding on ".home-sos-card" alone, and at
+   equal specificity source order would otherwise let a mobile-only pass
+   further down the file win back the padding this is trying to zero out. */
+.home-sos-card.home-sos-split {
+  display: flex;
+  align-items: stretch;
+  gap: clamp(8px, 2.6vw, 14px);
+  background: none;
+  box-shadow: none;
+  padding: 0;
+}
+.home-sos-half {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: clamp(6px, 2.2vw, 14px) clamp(6px, 2vw, 12px);
+  border-radius: 13px;
+  color: #fff;
+  text-align: center;
+  text-decoration: none;
+  position: relative;
+  transition: transform .16s ease, box-shadow .16s ease;
+}
+.home-sos-half:hover {
+  transform: translateY(-2px);
+}
+.home-sos-half:focus-visible {
+  outline: 3px solid #1c7ed6;
+  outline-offset: 2px;
+}
+.home-sos-half-orange {
+  background: linear-gradient(135deg, #ffb648, #f08a1c);
+  box-shadow: 0 5px 14px rgba(240, 138, 28, .25);
+}
+.home-sos-half-red {
+  background: linear-gradient(135deg, #f9434c, #d91f31);
+  box-shadow: 0 5px 14px rgba(217, 31, 49, .25);
+}
+.home-sos-half .home-sos-icon {
+  width: clamp(26px, 8vw, 44px);
+  height: clamp(26px, 8vw, 44px);
+}
+/* The red half's icon sits in a row next to the mic badge (rather than
+   the badge overlapping its corner) -- a corner badge that stayed clear
+   of the SOS bubble's own visible pixels at every breakpoint would have
+   needed to sit almost entirely outside the icon's box anyway (the mask
+   image nearly fills it, especially at the smallest breakpoints), which
+   ate into the vertical space this row has to stay within. Side by side
+   with a fixed gap guarantees they never touch regardless of screen
+   size, with no extra vertical room needed since the badge is shorter
+   than the icon at every breakpoint. */
+.home-sos-icon-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: clamp(16px, 5vw, 22px);
+}
+.home-sos-icon-wrap .home-sos-icon {
+  margin-top: 0;
+}
+/* A fixed size at every breakpoint (rather than scaling with the icon)
+   so it reads as one consistent badge -- like the "Nouveau" badge next
+   to it -- instead of changing weight depending on screen size. */
+.home-sos-mic-badge {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: linear-gradient(180deg, #22d3ee, #2563eb);
+  color: #fff;
+  border: 2px solid rgba(255, 255, 255, .9);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .3);
+}
+.home-sos-mic-badge svg {
+  width: 58%;
+  height: 58%;
+}
+.home-sos-half .home-sos-copy {
+  align-items: center;
+  gap: 1px;
+}
+.home-sos-half .home-sos-copy strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: clamp(12.5px, 3.6vw, 16px);
+  line-height: 1.16;
+}
+.home-sos-half .home-sos-copy strong svg {
+  flex: 0 0 auto;
+}
+.home-sos-half .home-sos-copy span {
+  font-size: clamp(10px, 2.6vw, 12px);
+  line-height: 1.25;
+  opacity: .96;
+}
+/* A modern "new feature" flag for the two entry points that didn't exist
+   before this pass (voice SOS, flyer submission) -- a plain color badge
+   like the old "urgent"/"non urgent" text tags would just read as more
+   status noise, so this one blinks to actually draw the eye once, the
+   first time someone sees it. Pinned to the same top-right corner on
+   both cards it appears on (each card is already `position: relative`)
+   so it reads as one consistent element rather than landing in a
+   different spot depending on that card's own text alignment. The
+   icons underneath (.home-sos-icon, .home-secondary-icon) each get
+   enough top clearance that this never overlaps them. Uses a teal/cyan
+   gradient found nowhere else on this page (red, orange, green, blue
+   and purple are all already spoken for by other cards), so "new"
+   reads as its own distinct signal. */
+.home-badge-new {
+  position: absolute;
+  top: 6px;
+  inset-inline-end: 7px;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px 2px 6px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #22d3ee, #0e7490);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  box-shadow: 0 2px 7px rgba(14, 116, 144, .45);
+  animation: home-badge-new-blink 2.4s ease-in-out infinite;
+}
+.home-badge-new-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #fff;
+}
+@keyframes home-badge-new-blink {
+  0%, 55%, 100% { opacity: 1; }
+  27% { opacity: .78; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-badge-new {
+    animation: none;
+  }
+}
+/* The same circle-plus treatment as the "Créer un point de collecte"
+   button's own icon -- a small filled circle behind IconPlus -- reused
+   inline in front of a title instead of standing alone as that card's
+   whole icon. Color is set per parent below to match each card's accent. */
+.home-plus-badge {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+}
+.home-sos-half-orange .home-plus-badge {
+  background: rgba(255, 255, 255, .95);
+  color: #f08a1c;
+}
+.home-sos-half-red .home-plus-badge {
+  background: rgba(255, 255, 255, .95);
+  color: #d91f31;
+}
+.home-secondary-card-flyer .home-plus-badge {
+  background: #e6d9fa;
+  color: #7c4dbb;
+}
+.home-secondary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(8px, 2.6vw, 14px);
+  margin-bottom: clamp(7px, 2vw, 18px);
+}
+.home-create-card {
+  position: relative;
+  margin-bottom: 0;
+}
+.home-secondary-card {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: clamp(76px, 15vh, 118px);
+  width: 100%;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: clamp(9px, 2.6vw, 16px) clamp(9px, 2.4vw, 14px);
+  border: 0;
+  border-radius: 13px;
+  color: #15213a;
+  cursor: pointer;
+  font: inherit;
+  text-align: start;
+  text-decoration: none;
+  transition: transform .16s ease, box-shadow .16s ease;
+}
+.home-secondary-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(28, 48, 72, .12);
+}
+.home-secondary-card:focus-visible {
+  outline: 3px solid #1c7ed6;
+  outline-offset: 2px;
+}
+.home-secondary-card-create[aria-expanded="true"] {
+  box-shadow: 0 0 0 2px var(--brand-green-border, #b9decd);
+}
+.home-secondary-card-create {
+  background: #fff8e9;
+}
+.home-secondary-card-flyer {
+  background: #f2edfb;
+}
+.home-secondary-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: clamp(30px, 7vw, 42px);
+  height: clamp(30px, 7vw, 42px);
+  margin-bottom: clamp(4px, 1.6vw, 9px);
+  border-radius: 50%;
+}
+.home-secondary-card-create .home-secondary-icon {
+  background: #fff0c9;
+  color: #df9100;
+}
+.home-secondary-card-flyer .home-secondary-icon {
+  background: #e6d9fa;
+  color: #7c4dbb;
+}
+.home-secondary-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.home-secondary-copy strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: clamp(12.5px, 3.4vw, 16px);
+  line-height: 1.16;
+}
+.home-secondary-copy strong svg {
+  flex: 0 0 auto;
+}
+/* The flyer card's title got noticeably longer ("Insérer le flyer de
+   votre point de collecte" vs. the old two-word "Depuis une image") and
+   dropped its description line entirely to make room -- a slightly
+   smaller, tighter clamp keeps two wrapped lines from pushing the card
+   taller than its sibling. */
+.home-secondary-card-flyer .home-secondary-copy strong {
+  align-items: flex-start;
+  font-size: clamp(11.5px, 3vw, 14px);
+  line-height: 1.22;
+}
+.home-secondary-card-flyer .home-secondary-copy strong .home-plus-badge {
+  margin-top: 1px;
+}
+.home-secondary-copy > span {
+  margin-top: 3px;
+  color: #5c6878;
+  font-size: clamp(10.5px, 2.6vw, 12.5px);
+  line-height: 1.32;
+  overflow-wrap: anywhere;
+}
+.home-secondary-copy em {
+  margin-top: auto;
+  padding-top: 6px;
+  font-size: clamp(10.5px, 2.6vw, 12.5px);
+  font-style: normal;
+  font-weight: 800;
+}
+.home-secondary-card-create .home-secondary-copy em {
+  color: #d88500;
+}
+.home-secondary-card-flyer .home-secondary-copy em {
+  color: #7c4dbb;
+}
+.home-secondary-copy em b {
+  margin-inline-start: 6px;
+  font-size: 16px;
+  line-height: 0;
+}
+/* A single stacked column (rather than the two-up grid the general
+   dropdown -- shared with QuickActions/TopNavLinks elsewhere -- still
+   uses) reads better for this narrower, half-width card. Also always
+   opens downward: the mobile "open upward" rule elsewhere in this file
+   dates from when this card sat directly above the fixed bottom nav with
+   no room below it -- it now sits mid-stack with the about-link and
+   footer still below it, so downward is unobstructed and matches the
+   desktop behavior instead of unnecessarily covering the
+   collection-points row above it. */
+.home-create-card .home-btn-create-menu {
+  grid-template-columns: 1fr;
+  top: calc(100% + 8px);
+  bottom: auto;
+}
+/* A real (if compact) button rather than a bare text link -- still a
+   single line tall so it doesn't reopen the vertical-space problem that
+   turning "Qui sommes-nous ?" from a full card into a link was meant to
+   solve, but with its own filled pill background so it reads as
+   something to tap, consistent with every other action on this page. */
+.home-about-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--brand-green-soft, #eef8f3);
+  color: #147b4b;
+  font-size: clamp(12.5px, 3.2vw, 14px);
+  font-weight: 700;
+  text-decoration: none;
+  transition: background .16s ease, transform .16s ease;
+}
+.home-about-button svg {
+  flex: 0 0 auto;
+}
+.home-about-button b {
+  margin-inline-start: auto;
+  font-size: 17px;
+  font-weight: 400;
+}
+.home-about-button:hover {
+  background: var(--brand-green-border, #b9decd);
+  transform: translateY(-1px);
+}
+.home-about-button:focus-visible {
+  outline: 3px solid #1c7ed6;
+  outline-offset: 2px;
+}
+
 /* --- Buttons --- */
 
 .btn {
