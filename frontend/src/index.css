@@ -1956,11 +1956,12 @@ fieldset {
   cursor: pointer;
 }
 /* Same "one bubble, not N stacked pins" idea as .cp-bubble above, for SOS
-   reports with no location fix at all (has_no_location, backend) -- bigger
-   and always the urgent red (these are, by definition, reports a responder
-   can't place on the map on their own) with a small count badge, so it
-   reads as visually distinct from an ordinary single-need pin rather than
-   just a slightly bigger one. See NeedsList.jsx for the popup this opens. */
+   reports with no location fix at all (has_no_location, backend), and
+   reused for the "several needs fell back to the same wilaya centroid"
+   bubble too (see NeedsList.jsx) -- bigger and always the urgent red, with
+   a small count badge, so it reads as visually distinct from an ordinary
+   single-need pin rather than just a slightly bigger one. See NeedsList.jsx
+   for the popup/tooltip each of those opens. */
 .need-marker-pin-unlocated {
   width: 44px;
   height: 44px;
