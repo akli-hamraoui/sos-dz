@@ -901,36 +901,58 @@ main {
   letter-spacing: .04em;
   text-transform: uppercase;
   box-shadow: 0 2px 7px rgba(14, 116, 144, .45);
-  animation: home-badge-new-blink 1.3s ease-in-out infinite;
+  animation: home-badge-new-blink 1.1s ease-in-out infinite;
+}
+/* An expanding, fading ring behind the badge -- the classic "ping"
+   notification effect -- layered on top of the blink/scale so the badge
+   doesn't just dim, it visibly radiates attention outward. */
+.home-badge-new::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: inherit;
+  opacity: .65;
+  animation: home-badge-new-ring 1.65s cubic-bezier(0, 0, .3, 1) infinite;
 }
 .home-badge-new-dot {
+  position: relative;
   width: 6px;
   height: 6px;
   border-radius: 50%;
   background: #fff;
-  animation: home-badge-new-dot-pulse 1.3s ease-in-out infinite;
+  animation: home-badge-new-dot-pulse 1.1s ease-in-out infinite;
 }
 @keyframes home-badge-new-blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: .4; }
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: .35; transform: scale(1.08); }
 }
 @keyframes home-badge-new-dot-pulse {
   0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.35); }
+  50% { transform: scale(1.5); }
+}
+@keyframes home-badge-new-ring {
+  0% { transform: scale(1); opacity: .55; }
+  100% { transform: scale(1.6); opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
   .home-badge-new,
   .home-badge-new-dot {
     animation: none;
   }
+  .home-badge-new::before {
+    display: none;
+  }
 }
 /* Reused inline in the dropdown menu (rather than pinned to a card
    corner) so it sits at the end of that row instead of floating
    relative to the whole dropdown -- placed after .home-badge-new here
    so this override actually wins the position/margin properties at
-   equal specificity. */
+   equal specificity. Kept `relative` (not `static`) so the ::before
+   ping ring still anchors to the badge itself instead of escaping to
+   the dropdown's own positioned ancestor. */
 .home-badge-new-inline {
-  position: static;
+  position: relative;
   margin-inline-start: auto;
   flex: 0 0 auto;
 }
