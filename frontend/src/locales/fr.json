@@ -396,6 +396,13 @@
     "submitterPhone": "Votre téléphone",
     "submit": "Créer le point de collecte",
     "submitting": "Analyse en cours...",
+    "processingMessages": [
+      "🔍 On scanne votre flyer...",
+      "🧠 L'IA décode chaque détail...",
+      "🗺️ Repérage de l'adresse...",
+      "✨ Ça sent la nouvelle collecte...",
+      "⏳ Encore quelques secondes..."
+    ],
     "resultPublished": "{{count}} point(s) de collecte publié(s) et visible(s) sur la carte.",
     "publishedNow": "✓ Publié",
     "duplicateSkipped": "Déjà existant, non publié en double :",

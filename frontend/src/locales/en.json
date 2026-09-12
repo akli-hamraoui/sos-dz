@@ -396,6 +396,13 @@
     "submitterPhone": "Your phone",
     "submit": "Create the collection point",
     "submitting": "Analyzing...",
+    "processingMessages": [
+      "🔍 Scanning your flyer...",
+      "🧠 Our AI is reading every detail...",
+      "🗺️ Pinpointing the address...",
+      "✨ Smells like a new collection point...",
+      "⏳ Just a few more seconds..."
+    ],
     "resultPublished": "{{count}} collection point(s) published and visible on the map.",
     "publishedNow": "✓ Published",
     "duplicateSkipped": "Already exists, not published again:",

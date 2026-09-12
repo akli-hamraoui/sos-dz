@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { apiUpload } from '../api'
@@ -33,6 +33,16 @@ export default function SubmitFlyer() {
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState(null)
   const [copied, setCopied] = useState(false)
+  const [processingMsgIndex, setProcessingMsgIndex] = useState(0)
+
+  // Gemini vision extraction can take several seconds -- cycles through a
+  // handful of playful status lines instead of leaving the submit button's
+  // plain "Analyse en cours..." as the only sign of life the whole time.
+  useEffect(() => {
+    if (!submitting) return
+    const id = setInterval(() => setProcessingMsgIndex((i) => i + 1), 2200)
+    return () => clearInterval(id)
+  }, [submitting])
 
   const go = (n) => {
     setError('')
@@ -65,6 +75,7 @@ export default function SubmitFlyer() {
     if (!flyer) return
     setError('')
     setSubmitting(true)
+    setProcessingMsgIndex(0)
     try {
       const formData = new FormData()
       formData.append('flyer_image', flyer.file, flyer.file.name || 'flyer.jpg')
@@ -125,6 +136,7 @@ export default function SubmitFlyer() {
     </div>
   )
 
+  const processingMessages = t('submitFlyer.processingMessages', { returnObjects: true })
   const stepLabels = [t('submitFlyer.stepPhoto'), t('submitFlyer.stepInfo')]
   const pi = result ? 1 : step
   const isDuplicateOnly = result?.status === 'rejected' && result.rejection_reason === 'duplicate'
@@ -188,19 +200,31 @@ export default function SubmitFlyer() {
         )}
 
         {step === S.INFO && !result && (
-          <div className="urgent-sos-card">
+          <div className={`urgent-sos-card${submitting ? ' flyer-processing-active' : ''}`}>
             <h2>{t('submitFlyer.infoStepTitle')}</h2>
             <p>{t('submitFlyer.submitterHint')}</p>
             <div className="urgent-sos-fields">
               <label>
                 {t('submitFlyer.submitterName')}
-                <input type="text" value={submitterName} onChange={(e) => setSubmitterName(e.target.value)} />
+                <input type="text" value={submitterName} onChange={(e) => setSubmitterName(e.target.value)} disabled={submitting} />
               </label>
               <label>
                 {t('submitFlyer.submitterPhone')}
-                <input type="tel" value={submitterPhone} onChange={(e) => setSubmitterPhone(e.target.value)} />
+                <input type="tel" value={submitterPhone} onChange={(e) => setSubmitterPhone(e.target.value)} disabled={submitting} />
               </label>
             </div>
+            {submitting && (
+              <div className="flyer-processing" role="status" aria-live="polite">
+                <span className="flyer-processing-text" key={processingMsgIndex % processingMessages.length}>
+                  {processingMessages[processingMsgIndex % processingMessages.length]}
+                </span>
+                <span className="flyer-processing-dots" aria-hidden="true">
+                  <span />
+                  <span />
+                  <span />
+                </span>
+              </div>
+            )}
             {error && <p className="urgent-sos-error">{error}</p>}
             <div className="urgent-sos-actions">
               <button type="button" className="urgent-sos-secondary" onClick={() => go(S.PHOTO)} disabled={submitting}>
