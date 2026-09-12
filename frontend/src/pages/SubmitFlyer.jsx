@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { api, apiUpload } from '../api'
+import { apiUpload } from '../api'
 import { translateApiError } from '../apiErrors'
 import { IconCamera, IconCopy, IconTrash } from '../icons'
 
@@ -21,9 +21,6 @@ export default function SubmitFlyer() {
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState(null)
 
-  const [checkToken, setCheckToken] = useState('')
-  const [checking, setChecking] = useState(false)
-  const [checkError, setCheckError] = useState('')
   const [copied, setCopied] = useState(false)
 
   const copyTrackingCode = async (code) => {
@@ -64,21 +61,6 @@ export default function SubmitFlyer() {
       setError(translateApiError(err, t))
     } finally {
       setSubmitting(false)
-    }
-  }
-
-  const checkStatus = async (e) => {
-    e.preventDefault()
-    if (!checkToken.trim()) return
-    setCheckError('')
-    setChecking(true)
-    try {
-      const data = await api(`/flyer-submissions/${encodeURIComponent(checkToken.trim())}/`)
-      setResult(data)
-    } catch (err) {
-      setCheckError(translateApiError(err, t))
-    } finally {
-      setChecking(false)
     }
   }
 
@@ -191,19 +173,6 @@ export default function SubmitFlyer() {
         {error && <p className="error">{error}</p>}
         <button type="submit" className="btn btn-primary" disabled={!flyer || submitting}>
           {submitting ? t('submitFlyer.submitting') : t('submitFlyer.submit')}
-        </button>
-      </form>
-
-      <hr />
-      <h3>{t('submitFlyer.checkStatusTitle')}</h3>
-      <form onSubmit={checkStatus}>
-        <label>
-          {t('submitFlyer.trackingCode')}
-          <input type="text" value={checkToken} onChange={(e) => setCheckToken(e.target.value)} />
-        </label>
-        {checkError && <p className="error">{checkError}</p>}
-        <button type="submit" className="btn" disabled={checking}>
-          {t('submitFlyer.checkStatusButton')}
         </button>
       </form>
     </section>
