@@ -294,6 +294,23 @@ GEMINI_API_KEY = env("GEMINI_API_KEY", default="")
 # model rather than a version that will eventually be retired -- override
 # in .env if you need to pin an exact version.
 GEMINI_MODEL = env("GEMINI_MODEL", default="gemini-flash-latest")
+# Comma-separated, tried in order only after GEMINI_MODEL exhausts its own
+# retries with a transient "high demand" 503 (see core.gemini_extraction)
+# -- each is a genuinely separate model with its own free-tier capacity, so
+# a sustained 503 on GEMINI_MODEL doesn't necessarily mean these are
+# congested too (confirmed live: three manual retries against the same
+# model all failed identically). Deliberately a curated, human-picked list
+# rather than auto-discovered from the API's own model listing -- that
+# listing has no "is this free" field (free vs. paid is a property of the
+# API key's billing tier, not the model) and would just as readily surface
+# an image/audio/video-generation or embeddings model as a usable
+# vision+JSON-extraction one. All three defaults below are pinned (non-
+# "-latest") general-purpose vision models confirmed to support the
+# response_schema structured-output mode this pipeline relies on. Left
+# blank, a sustained 503 on GEMINI_MODEL just fails the submission.
+GEMINI_FALLBACK_MODELS = [
+    m.strip() for m in env("GEMINI_FALLBACK_MODELS", default="gemini-2.5-flash-lite,gemini-2.5-flash,gemini-2.5-pro").split(",") if m.strip()
+]
 
 # --- Logging --------------------------------------------------------------
 

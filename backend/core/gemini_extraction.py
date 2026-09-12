@@ -16,10 +16,20 @@ does for the manual creation forms.
 
 import json
 import logging
+import time
 
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
+
+# Gemini's own "high demand" 503s (google.genai.errors.ServerError,
+# confirmed live on the real deploy: "This model is currently experiencing
+# high demand... Please try again later.") are transient -- worth a same-
+# request retry rather than failing the submission outright and making the
+# reporter re-upload the same photo by hand a few seconds later, which is
+# all a retry on our end would have needed anyway.
+EXTRACTION_MAX_ATTEMPTS = 3
+EXTRACTION_RETRY_DELAY_SECONDS = 2
 
 
 class ExtractionError(Exception):
@@ -76,7 +86,7 @@ _RESPONSE_SCHEMA = {
 
 PROMPT = """Tu es un assistant qui lit des flyers/affiches d'associations annonçant des points de collecte de dons humanitaires (Algérie et diaspora), postés sur les réseaux sociaux (Facebook/TikTok/Instagram).
 
-Lis entièrement l'image fournie, y compris tout texte en arabe (traduis les informations utiles dans les champs demandés, mais garde les noms propres — noms d'association, de lieux, de personnes — tels quels sans les traduire).
+Lis entièrement l'image fournie, quelle que soit la langue du texte (français, arabe, anglais, ou toute autre langue) : traduis en français les informations utiles pour les champs demandés, mais garde les noms propres — noms d'association, de lieux, de personnes — tels quels sans les traduire.
 
 Règles impératives :
 
@@ -94,7 +104,7 @@ Règles impératives :
 
 7. "has_money_collection" (très important, exclusion stricte et totale) : mets true si le flyer mentionne, N'IMPORTE OÙ (y compris dans "raw_text"), un CCP, une cagnotte, Cotizup, un IBAN, PayPal, un RIP, un numéro de compte bancaire/postal, ou tout autre moyen de collecte d'ARGENT en ligne. Cette règle s'applique même si le reste des informations (adresse, contact) est par ailleurs valide et utile — signale-le quand même via ce champ, ne l'omets pas.
 
-8. "raw_text" : recopie le texte brut intégral visible sur le flyer (traduit en français si en arabe), pour toute information non capturée dans les champs structurés ci-dessus.
+8. "raw_text" : recopie le texte brut intégral visible sur le flyer, traduit en français si le texte original est dans une autre langue (arabe, anglais, etc.), pour toute information non capturée dans les champs structurés ci-dessus.
 
 Réponds uniquement avec les données structurées demandées, sans texte additionnel."""
 
@@ -115,26 +125,65 @@ def extract_flyer_data(image_bytes, mime_type="image/jpeg"):
     try:
         from google import genai
         from google.genai import types
+        from google.genai.errors import ServerError
     except ImportError as exc:
         raise ExtractionUnavailable("google-genai is not installed.") from exc
 
     client = genai.Client(api_key=settings.GEMINI_API_KEY)
-    try:
-        response = client.models.generate_content(
-            model=settings.GEMINI_MODEL,
-            contents=[
-                types.Part.from_bytes(data=image_bytes, mime_type=mime_type),
-                PROMPT,
-            ],
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=_RESPONSE_SCHEMA,
-                temperature=0.1,
-            ),
-        )
-    except Exception as exc:
-        logger.warning("Gemini extraction call failed", exc_info=True)
-        raise ExtractionError(str(exc)) from exc
+
+    def call_model(model_name):
+        """Up to EXTRACTION_MAX_ATTEMPTS attempts against this one model,
+        EXTRACTION_RETRY_DELAY_SECONDS apart. Re-raises the last
+        ServerError once every attempt for this model has failed -- the
+        caller below decides whether to fall back to another model. Any
+        other exception (4xx: bad request, invalid key, quota exhausted)
+        propagates immediately without retrying, same as before this
+        existed -- it would fail identically on every attempt/model."""
+        for attempt in range(1, EXTRACTION_MAX_ATTEMPTS + 1):
+            try:
+                return client.models.generate_content(
+                    model=model_name,
+                    contents=[
+                        types.Part.from_bytes(data=image_bytes, mime_type=mime_type),
+                        PROMPT,
+                    ],
+                    config=types.GenerateContentConfig(
+                        response_mime_type="application/json",
+                        response_schema=_RESPONSE_SCHEMA,
+                        temperature=0.1,
+                    ),
+                )
+            except ServerError as exc:
+                logger.warning(
+                    "Gemini extraction attempt %s/%s failed on model %s (server error), %s",
+                    attempt, EXTRACTION_MAX_ATTEMPTS, model_name,
+                    "retrying" if attempt < EXTRACTION_MAX_ATTEMPTS else "giving up on this model",
+                    exc_info=True,
+                )
+                if attempt == EXTRACTION_MAX_ATTEMPTS:
+                    raise
+                time.sleep(EXTRACTION_RETRY_DELAY_SECONDS)
+
+    # GEMINI_FALLBACK_MODELS are tried in order only once GEMINI_MODEL has
+    # exhausted its own retries -- each is a separate model with its own
+    # free-tier capacity, so a sustained "high demand" 503 on one doesn't
+    # necessarily mean the others are congested too (confirmed live: three
+    # manual retries against the same model all failed identically).
+    models_to_try = [settings.GEMINI_MODEL, *settings.GEMINI_FALLBACK_MODELS]
+
+    response = None
+    last_exc = None
+    for model_name in models_to_try:
+        try:
+            response = call_model(model_name)
+            break
+        except ServerError as exc:
+            last_exc = exc
+        except Exception as exc:
+            logger.warning("Gemini extraction call failed", exc_info=True)
+            raise ExtractionError(str(exc)) from exc
+    if response is None:
+        raise ExtractionError(str(last_exc)) from last_exc
 
     raw_response_text = response.text or ""
     try:
