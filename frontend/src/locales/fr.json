@@ -331,6 +331,7 @@
   },
   "collectionPoints": {
     "title": "Points de collecte",
+    "createdFromFlyer": "Ce point a été créé automatiquement à partir d'un flyer.",
     "shortIntro": "Point de collecte en Algérie",
     "addButton": "+ Ajouter un point de collecte en Algérie",
     "searchPlaceholder": "association, dons, téléphone, ville, nom, etc.",

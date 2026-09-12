@@ -225,6 +225,17 @@ class AdminContactPhoneInline(admin.TabularInline):
 class AppConfigurationAdmin(admin.ModelAdmin):
     list_display = ["mode", "media_moderation_active", "geo_restrict_writes_to_algeria", "enforce_video_duration_check"]
     inlines = [AdminContactPhoneInline]
+    readonly_fields = ["gemini_api_key_status"]
+
+    def gemini_api_key_status(self, obj):
+        """flyer_extraction_active alone doesn't tell an admin whether the
+        flyer-from-photo feature actually works -- GEMINI_API_KEY also has
+        to be set in .env (see DEPLOYMENT.md), and a missing key fails
+        every /api/flyer-submissions/ request with a 503 that's otherwise
+        only visible in the server logs."""
+        return "Configured" if settings.GEMINI_API_KEY else "Not set -- flyer-from-photo submissions will fail (see DEPLOYMENT.md)"
+
+    gemini_api_key_status.short_description = "GEMINI_API_KEY"
 
     def has_add_permission(self, request):
         return not AppConfiguration.objects.exists()

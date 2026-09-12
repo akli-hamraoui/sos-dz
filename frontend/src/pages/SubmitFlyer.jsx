@@ -83,7 +83,10 @@ export default function SubmitFlyer() {
               <Link to={`/collection-points/${p.duplicate_of}`}>{p.duplicate_of_name}</Link>
             </p>
           ) : (
-            <p className="hint">{t('submitFlyer.publishedNow')}</p>
+            <p className="hint">
+              {t('submitFlyer.publishedNow')}{' '}
+              {p.is_published && <Link to={`/collection-points/${p.published_point}`}>{t('common.open')}</Link>}
+            </p>
           )}
         </div>
       ))}

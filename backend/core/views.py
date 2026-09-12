@@ -1324,7 +1324,18 @@ class FlyerSubmissionViewSet(viewsets.GenericViewSet, mixins.RetrieveModelMixin)
             submission.flyer_image.seek(0)
             image_bytes = submission.flyer_image.read()
             data, raw_response = extract_flyer_data(image_bytes, flyer_image.content_type or "image/jpeg")
-        except ExtractionUnavailable:
+        except ExtractionUnavailable as exc:
+            # Unlike ExtractionError below, this is a misconfiguration
+            # (missing GEMINI_API_KEY, flyer_extraction_active toggled off,
+            # or google-genai not installed) rather than a transient API
+            # failure -- every request fails identically until an admin
+            # fixes it. Log the specific reason at error level so it shows
+            # up next to the generic "Service Unavailable: /api/flyer-
+            # submissions/" line the request logger already emits, instead
+            # of that line being the only clue (see DEPLOYMENT.md's
+            # GEMINI_API_KEY entry -- confirmed the hard way, this used to
+            # be undiagnosable from server logs alone).
+            logger.error("Flyer extraction unavailable for submission #%s: %s", submission.pk, exc)
             submission.status = FlyerSubmission.STATUS_FAILED
             submission.save(update_fields=["status"])
             return Response(

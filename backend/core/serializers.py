@@ -693,6 +693,7 @@ class CollectionPointSerializer(serializers.ModelSerializer):
     wilaya_name = serializers.SerializerMethodField()
     comments = serializers.SerializerMethodField()
     flyer_image = serializers.SerializerMethodField()
+    created_from_flyer = serializers.SerializerMethodField()
     is_international = serializers.BooleanField(read_only=True)
     # Same "a listing carries its own pickups" convention as
     # NeedPublicSerializer -- lets a courier's take-charge/delivery from
@@ -710,7 +711,7 @@ class CollectionPointSerializer(serializers.ModelSerializer):
             "other_phones", "organization", "location_description", "latitude", "longitude", "hours",
             "description", "accepted_donations", "status", "created_at", "comments", "pickups",
             "facebook_url", "tiktok_url", "instagram_url",
-            "flyer_image", "flyer_moderation_status", "flyer_moderated_by",
+            "flyer_image", "flyer_moderation_status", "flyer_moderated_by", "created_from_flyer",
         ]
 
     def get_wilaya_name(self, obj):
@@ -719,6 +720,16 @@ class CollectionPointSerializer(serializers.ModelSerializer):
     def get_comments(self, obj):
         roots = obj.comments.filter(parent_comment__isnull=True)
         return CommentSerializer(roots, many=True, context=self.context).data
+
+    def get_created_from_flyer(self, obj):
+        # published_point uses related_name="+" (see models.py), so there's
+        # no reverse accessor -- this point was auto-published from the
+        # flyer pipeline (core.flyer_publish.publish_extracted_point) iff
+        # some ExtractedCollectionPoint row points back to it. Distinct
+        # from flyer_image being set: a manually-created point can also
+        # carry its own attached flyer photo (CollectionPointCreateSerializer),
+        # so that alone wouldn't tell them apart.
+        return ExtractedCollectionPoint.objects.filter(published_point_id=obj.id).exists()
 
     def get_flyer_image(self, obj):
         # Same "hidden until approved" gate as Need.video_file (see

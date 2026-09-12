@@ -121,6 +121,7 @@ export default function CollectionPointDetail() {
         )}
       </div>
       <span className="status">{t(`status.${cp.status}`)}</span>
+      {cp.created_from_flyer && <p className="hint">{t('collectionPoints.createdFromFlyer')}</p>}
       <p>{cp.is_international ? cp.country_name : cp.wilaya_name}</p>
       <p>{cp.location_description}</p>
       {cp.latitude != null && cp.longitude != null ? (
