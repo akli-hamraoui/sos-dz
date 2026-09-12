@@ -386,6 +386,7 @@
   "submitFlyer": {
     "title": "Add a collection point from a flyer",
     "createdTitle": "Collection point created",
+    "alreadyAddedTitle": "Collection point already added",
     "intro": "Send a photo of a flyer/poster announcing one or more collection points: our tools read the image and automatically create the matching points on the map.",
     "flyerLabel": "Flyer photo",
     "flyerHint": "A sharp photo with readable text gives the best results.",
@@ -395,6 +396,13 @@
     "submitterPhone": "Your phone",
     "submit": "Create the collection point",
     "submitting": "Analyzing...",
+    "processingMessages": [
+      "🔍 Scanning your flyer...",
+      "🧠 Our AI is reading every detail...",
+      "🗺️ Pinpointing the address...",
+      "✨ Smells like a new collection point...",
+      "⏳ Just a few more seconds..."
+    ],
     "resultPublished": "{{count}} collection point(s) published and visible on the map.",
     "publishedNow": "✓ Published",
     "duplicateSkipped": "Already exists, not published again:",

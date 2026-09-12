@@ -386,6 +386,7 @@
   "submitFlyer": {
     "title": "Ajouter un point de collecte à partir d'un flyer",
     "createdTitle": "Point de collecte créé",
+    "alreadyAddedTitle": "Point de collecte déjà ajouté",
     "intro": "Envoyez la photo d'un flyer/affiche annonçant un ou plusieurs points de collecte : nos outils lisent l'image et créent automatiquement les points correspondants sur la carte.",
     "flyerLabel": "Photo du flyer",
     "flyerHint": "Une photo nette, avec le texte lisible, donne de meilleurs résultats.",
@@ -395,6 +396,13 @@
     "submitterPhone": "Votre téléphone",
     "submit": "Créer le point de collecte",
     "submitting": "Analyse en cours...",
+    "processingMessages": [
+      "🔍 On scanne votre flyer...",
+      "🧠 L'IA décode chaque détail...",
+      "🗺️ Repérage de l'adresse...",
+      "✨ Ça sent la nouvelle collecte...",
+      "⏳ Encore quelques secondes..."
+    ],
     "resultPublished": "{{count}} point(s) de collecte publié(s) et visible(s) sur la carte.",
     "publishedNow": "✓ Publié",
     "duplicateSkipped": "Déjà existant, non publié en double :",

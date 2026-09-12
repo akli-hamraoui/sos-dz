@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { apiUpload } from '../api'
@@ -33,6 +33,16 @@ export default function SubmitFlyer() {
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState(null)
   const [copied, setCopied] = useState(false)
+  const [processingMsgIndex, setProcessingMsgIndex] = useState(0)
+
+  // Gemini vision extraction can take several seconds -- cycles through a
+  // handful of playful status lines instead of leaving the submit button's
+  // plain "Analyse en cours..." as the only sign of life the whole time.
+  useEffect(() => {
+    if (!submitting) return
+    const id = setInterval(() => setProcessingMsgIndex((i) => i + 1), 2200)
+    return () => clearInterval(id)
+  }, [submitting])
 
   const go = (n) => {
     setError('')
@@ -65,6 +75,7 @@ export default function SubmitFlyer() {
     if (!flyer) return
     setError('')
     setSubmitting(true)
+    setProcessingMsgIndex(0)
     try {
       const formData = new FormData()
       formData.append('flyer_image', flyer.file, flyer.file.name || 'flyer.jpg')
@@ -99,25 +110,33 @@ export default function SubmitFlyer() {
 
   const pointsList = (points) => (
     <div className="needs-list">
-      {points.map((p) => (
-        <div key={p.id} className="need-card">
-          <strong>{p.point_name}</strong> — {p.city || p.wilaya_name || p.country_name}
-          {p.duplicate_of ? (
-            <p className="hint">
-              {t('submitFlyer.duplicateSkipped')}{' '}
-              <Link to={`/collection-points/${p.duplicate_of}`}>{p.duplicate_of_name}</Link>
-            </p>
-          ) : (
-            <p className="hint">
-              {t('submitFlyer.publishedNow')}{' '}
-              {p.is_published && <Link to={`/collection-points/${p.published_point}`}>{t('common.open')}</Link>}
-            </p>
-          )}
-        </div>
-      ))}
+      {points.map((p) => {
+        const targetId = p.duplicate_of || (p.is_published ? p.published_point : null)
+        const body = (
+          <>
+            <strong>{p.point_name}</strong> — {p.city || p.wilaya_name || p.country_name}
+            <p className="hint">{p.duplicate_of ? `${t('submitFlyer.duplicateSkipped')} ${p.duplicate_of_name}` : t('submitFlyer.publishedNow')}</p>
+            {targetId != null && (
+              <span className="flyer-point-view-link">
+                {t('common.open')} <span aria-hidden="true">→</span>
+              </span>
+            )}
+          </>
+        )
+        return targetId != null ? (
+          <Link key={p.id} to={`/collection-points/${targetId}`} className="need-card flyer-point-card">
+            {body}
+          </Link>
+        ) : (
+          <div key={p.id} className="need-card">
+            {body}
+          </div>
+        )
+      })}
     </div>
   )
 
+  const processingMessages = t('submitFlyer.processingMessages', { returnObjects: true })
   const stepLabels = [t('submitFlyer.stepPhoto'), t('submitFlyer.stepInfo')]
   const pi = result ? 1 : step
   const isDuplicateOnly = result?.status === 'rejected' && result.rejection_reason === 'duplicate'
@@ -181,19 +200,31 @@ export default function SubmitFlyer() {
         )}
 
         {step === S.INFO && !result && (
-          <div className="urgent-sos-card">
+          <div className={`urgent-sos-card${submitting ? ' flyer-processing-active' : ''}`}>
             <h2>{t('submitFlyer.infoStepTitle')}</h2>
             <p>{t('submitFlyer.submitterHint')}</p>
             <div className="urgent-sos-fields">
               <label>
                 {t('submitFlyer.submitterName')}
-                <input type="text" value={submitterName} onChange={(e) => setSubmitterName(e.target.value)} />
+                <input type="text" value={submitterName} onChange={(e) => setSubmitterName(e.target.value)} disabled={submitting} />
               </label>
               <label>
                 {t('submitFlyer.submitterPhone')}
-                <input type="tel" value={submitterPhone} onChange={(e) => setSubmitterPhone(e.target.value)} />
+                <input type="tel" value={submitterPhone} onChange={(e) => setSubmitterPhone(e.target.value)} disabled={submitting} />
               </label>
             </div>
+            {submitting && (
+              <div className="flyer-processing" role="status" aria-live="polite">
+                <span className="flyer-processing-text" key={processingMsgIndex % processingMessages.length}>
+                  {processingMessages[processingMsgIndex % processingMessages.length]}
+                </span>
+                <span className="flyer-processing-dots" aria-hidden="true">
+                  <span />
+                  <span />
+                  <span />
+                </span>
+              </div>
+            )}
             {error && <p className="urgent-sos-error">{error}</p>}
             <div className="urgent-sos-actions">
               <button type="button" className="urgent-sos-secondary" onClick={() => go(S.PHOTO)} disabled={submitting}>
@@ -212,7 +243,13 @@ export default function SubmitFlyer() {
             <div className={`urgent-sos-final-badge${isDone ? '' : ' is-error'}`}>
               {isDone ? `✓ ${t('submitFlyer.doneTitle')}` : `⚠ ${t('submitFlyer.notDoneTitle')}`}
             </div>
-            <h2>{result.status === 'published' ? t('submitFlyer.createdTitle') : t('submitFlyer.title')}</h2>
+            <h2>
+              {result.status === 'published'
+                ? t('submitFlyer.createdTitle')
+                : isDuplicateOnly
+                  ? t('submitFlyer.alreadyAddedTitle')
+                  : t('submitFlyer.title')}
+            </h2>
             {(result.status === 'published' || isDuplicateOnly) && (
               <>
                 {result.status === 'published' ? (
@@ -246,7 +283,7 @@ export default function SubmitFlyer() {
             {isRejectedNonDuplicate && <p className="error">{t(rejectionMessageKey[result.rejection_reason] || 'submitFlyer.rejectedGeneric')}</p>}
             {result.status === 'failed' && <p className="error">{t('submitFlyer.resultFailed')}</p>}
             {result.status === 'processing' && <p>{t('submitFlyer.resultProcessing')}</p>}
-            {isDone ? (
+            {result.status === 'published' ? (
               <div className="urgent-sos-actions">
                 <button type="button" className="urgent-sos-primary" onClick={reset}>
                   {t('submitFlyer.submitAnother')}

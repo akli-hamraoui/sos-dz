@@ -134,6 +134,81 @@
   text-decoration: none;
 }
 
+/* Extracted-point cards: .need-card is styled elsewhere as a whole
+   clickable card (hover border/shadow, no underline) but was only ever
+   rendered here as a plain div with a small text link buried inside --
+   looked hoverable, wasn't actually clickable as a whole. Make the whole
+   card a real link when it has a target, with an explicit "Ouvrir →" cue
+   so it doesn't rely on the hover effect alone to read as clickable. */
+.submit-flyer-wizard .flyer-point-card {
+  cursor: pointer;
+}
+.submit-flyer-wizard .flyer-point-view-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  color: var(--brand-green);
+  font-weight: 800;
+  font-size: 13px;
+}
+
+/* Analysis can take several seconds (Gemini vision extraction) -- a
+   panel with a rotating, slightly playful status line plus a typing-style
+   dot bounce, so the wait reads as "working on it" rather than "frozen".
+   The form fields dim underneath it instead of disappearing, so the
+   layout doesn't jump when submission finishes. */
+.submit-flyer-wizard .flyer-processing-active .urgent-sos-fields {
+  opacity: 0.4;
+  filter: saturate(0.6);
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+.submit-flyer-wizard .flyer-processing {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin: 14px 0 4px;
+  padding: 16px 14px;
+  border-radius: 14px;
+  background: var(--brand-green-soft);
+  border: 1px solid var(--brand-green-border);
+  text-align: center;
+}
+.submit-flyer-wizard .flyer-processing-text {
+  display: block;
+  font-weight: 800;
+  font-size: 14px;
+  color: var(--brand-green);
+  animation: flyer-msg-in 0.35s ease;
+}
+@keyframes flyer-msg-in {
+  from { opacity: 0; transform: translateY(5px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.submit-flyer-wizard .flyer-processing-dots {
+  display: flex;
+  gap: 5px;
+}
+.submit-flyer-wizard .flyer-processing-dots span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--brand-green);
+  animation: flyer-dot-bounce 1.1s ease-in-out infinite;
+}
+.submit-flyer-wizard .flyer-processing-dots span:nth-child(2) { animation-delay: 0.15s; }
+.submit-flyer-wizard .flyer-processing-dots span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes flyer-dot-bounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+  30% { transform: translateY(-6px); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .submit-flyer-wizard .flyer-processing-text { animation: none; }
+  .submit-flyer-wizard .flyer-processing-dots span { animation: none; opacity: 0.8; }
+}
+
 @media (max-width: 699px) {
   .submit-flyer-wizard .urgent-sos-stepper,
   .submit-flyer-wizard .urgent-sos-progress {
