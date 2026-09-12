@@ -164,14 +164,12 @@ def extract_flyer_data(image_bytes, mime_type="image/jpeg"):
                     raise
                 time.sleep(EXTRACTION_RETRY_DELAY_SECONDS)
 
-    # GEMINI_FALLBACK_MODEL is tried only once GEMINI_MODEL has exhausted
-    # its own retries -- a separate model has its own free-tier capacity,
-    # so a sustained "high demand" 503 on one doesn't necessarily mean the
-    # other is congested too (confirmed live: three manual retries against
-    # the same model all failed identically).
-    models_to_try = [settings.GEMINI_MODEL]
-    if settings.GEMINI_FALLBACK_MODEL:
-        models_to_try.append(settings.GEMINI_FALLBACK_MODEL)
+    # GEMINI_FALLBACK_MODELS are tried in order only once GEMINI_MODEL has
+    # exhausted its own retries -- each is a separate model with its own
+    # free-tier capacity, so a sustained "high demand" 503 on one doesn't
+    # necessarily mean the others are congested too (confirmed live: three
+    # manual retries against the same model all failed identically).
+    models_to_try = [settings.GEMINI_MODEL, *settings.GEMINI_FALLBACK_MODELS]
 
     response = None
     last_exc = None

@@ -85,7 +85,7 @@ nano .env   # fill in real values -- see "Required .env values" below
 | `NSFWJS_SIDECAR_URL` | `http://127.0.0.1:8801` | fixed, set up in step 7 |
 | `GEMINI_API_KEY` | (yours) | free tier, get a key at https://aistudio.google.com/apikey -- required for the "add a collection point from a flyer photo" feature (`core.gemini_extraction`); leave blank and every `/api/flyer-submissions/` request fails with a 503 "This feature isn't available right now" (manual collection-point creation is unaffected either way) |
 | `GEMINI_MODEL` | `gemini-flash-latest` | fixed, unless you want a different Gemini model |
-| `GEMINI_FALLBACK_MODEL` | (yours, optional) | tried only after `GEMINI_MODEL` exhausts its own retries on a transient "high demand" 503 -- a different model has its own separate free-tier capacity, so it isn't necessarily under the same load; leave blank to just fail the submission in that case, same as before this existed |
+| `GEMINI_FALLBACK_MODELS` | `gemini-2.5-flash-lite,gemini-2.5-flash,gemini-2.5-pro` | comma-separated, tried in order only after `GEMINI_MODEL` exhausts its own retries on a transient "high demand" 503 -- each is a separate model with its own free-tier capacity, so it isn't necessarily under the same load; leave blank to just fail the submission in that case, same as before this existed |
 
 Then run migrations, seed the reference data, and create your own admin login:
 

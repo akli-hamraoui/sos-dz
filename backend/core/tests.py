@@ -4121,8 +4121,10 @@ class GeminiExtractionRetryTests(TestCase):
             self.assertEqual(mock_client.models.generate_content.call_count, 3)
             self.assertEqual(mock_sleep.call_count, 2)
 
-    @override_settings(GEMINI_API_KEY="fake-key")
+    @override_settings(GEMINI_API_KEY="fake-key", GEMINI_FALLBACK_MODELS=[])
     def test_gives_up_after_max_attempts(self):
+        """No fallback models configured -- isolates single-model retry
+        exhaustion from the multi-model fallback behavior tested below."""
         from unittest.mock import patch
         from google.genai.errors import ServerError
         from core.gemini_extraction import extract_flyer_data, ExtractionError, EXTRACTION_MAX_ATTEMPTS
@@ -4135,11 +4137,12 @@ class GeminiExtractionRetryTests(TestCase):
             self.assertEqual(mock_client.models.generate_content.call_count, EXTRACTION_MAX_ATTEMPTS)
             self.assertEqual(mock_sleep.call_count, EXTRACTION_MAX_ATTEMPTS - 1)
 
-    @override_settings(GEMINI_API_KEY="fake-key")
+    @override_settings(GEMINI_API_KEY="fake-key", GEMINI_FALLBACK_MODELS=[])
     def test_client_error_is_not_retried(self):
         """A 4xx (bad request, invalid key, quota exhausted) fails
-        identically on every attempt -- retrying it would only add latency
-        for nothing, unlike a transient ServerError above."""
+        identically on every attempt -- retrying it, or falling back to
+        another model, would only add latency for nothing, unlike a
+        transient ServerError above."""
         from unittest.mock import patch
         from google.genai.errors import ClientError
         from core.gemini_extraction import extract_flyer_data, ExtractionError
@@ -4152,12 +4155,14 @@ class GeminiExtractionRetryTests(TestCase):
             self.assertEqual(mock_client.models.generate_content.call_count, 1)
             mock_sleep.assert_not_called()
 
-    @override_settings(GEMINI_API_KEY="fake-key", GEMINI_FALLBACK_MODEL="gemini-fallback")
-    def test_falls_back_to_second_model_after_first_exhausts_retries(self):
+    @override_settings(GEMINI_API_KEY="fake-key", GEMINI_FALLBACK_MODELS=["gemini-fallback-1", "gemini-fallback-2"])
+    def test_falls_back_through_the_model_list_in_order(self):
         """Three manual retries against the same model all failing
         identically (confirmed live) means the model itself is the
-        bottleneck -- GEMINI_FALLBACK_MODEL gets its own full retry
-        attempt on a model with separate free-tier capacity."""
+        bottleneck -- each of GEMINI_FALLBACK_MODELS gets its own full
+        retry attempt, in order, on a model with separate free-tier
+        capacity. Here the primary and the first fallback both stay down,
+        so it should reach the second fallback."""
         from unittest.mock import patch
         from google.genai.errors import ServerError
         from core.gemini_extraction import extract_flyer_data, EXTRACTION_MAX_ATTEMPTS
@@ -4166,22 +4171,27 @@ class GeminiExtractionRetryTests(TestCase):
 
         def fake_generate_content(*, model, **kwargs):
             calls.append(model)
-            if model == settings.GEMINI_MODEL:
-                raise ServerError(503, {"error": {"message": "high demand"}})
-            return self._fake_response()
+            if model == "gemini-fallback-2":
+                return self._fake_response()
+            raise ServerError(503, {"error": {"message": "high demand"}})
 
         with patch("google.genai.Client") as mock_client_cls, patch("time.sleep") as mock_sleep:
             mock_client = mock_client_cls.return_value
             mock_client.models.generate_content.side_effect = fake_generate_content
             data, raw = extract_flyer_data(b"fake-image-bytes")
             self.assertEqual(data["points"], [])
-            self.assertEqual(calls, [settings.GEMINI_MODEL] * EXTRACTION_MAX_ATTEMPTS + ["gemini-fallback"])
-            # Retries within the primary model's own attempts only --
-            # switching to the fallback model itself is immediate.
-            self.assertEqual(mock_sleep.call_count, EXTRACTION_MAX_ATTEMPTS - 1)
+            self.assertEqual(
+                calls,
+                [settings.GEMINI_MODEL] * EXTRACTION_MAX_ATTEMPTS
+                + ["gemini-fallback-1"] * EXTRACTION_MAX_ATTEMPTS
+                + ["gemini-fallback-2"],
+            )
+            # Retries within each model's own attempts only -- switching
+            # to the next model in the list is immediate.
+            self.assertEqual(mock_sleep.call_count, (EXTRACTION_MAX_ATTEMPTS - 1) * 2)
 
-    @override_settings(GEMINI_API_KEY="fake-key", GEMINI_FALLBACK_MODEL="gemini-fallback")
-    def test_raises_once_both_models_exhaust_retries(self):
+    @override_settings(GEMINI_API_KEY="fake-key", GEMINI_FALLBACK_MODELS=["gemini-fallback-1", "gemini-fallback-2"])
+    def test_raises_once_every_model_in_the_list_exhausts_retries(self):
         from unittest.mock import patch
         from google.genai.errors import ServerError
         from core.gemini_extraction import extract_flyer_data, ExtractionError, EXTRACTION_MAX_ATTEMPTS
@@ -4191,8 +4201,8 @@ class GeminiExtractionRetryTests(TestCase):
             mock_client.models.generate_content.side_effect = ServerError(503, {"error": {"message": "high demand"}})
             with self.assertRaises(ExtractionError):
                 extract_flyer_data(b"fake-image-bytes")
-            self.assertEqual(mock_client.models.generate_content.call_count, EXTRACTION_MAX_ATTEMPTS * 2)
-            self.assertEqual(mock_sleep.call_count, (EXTRACTION_MAX_ATTEMPTS - 1) * 2)
+            self.assertEqual(mock_client.models.generate_content.call_count, EXTRACTION_MAX_ATTEMPTS * 3)
+            self.assertEqual(mock_sleep.call_count, (EXTRACTION_MAX_ATTEMPTS - 1) * 3)
 
 
 class FundraisingKeywordTests(TestCase):
