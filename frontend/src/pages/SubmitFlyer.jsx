@@ -158,16 +158,16 @@ export default function SubmitFlyer() {
             <h2>{t('submitFlyer.flyerLabel')}</h2>
             <p>{t('submitFlyer.flyerHint')}</p>
             {flyer ? (
-              <div className="photo-thumbs">
-                <div className="photo-thumb">
+              <div className="flyer-photo-thumbs">
+                <div className="flyer-photo-thumb">
                   <img src={flyer.previewUrl} alt="" />
-                  <button type="button" className="link" onClick={removeFlyer} aria-label={t('common.delete')}>
+                  <button type="button" className="flyer-remove-photo" onClick={removeFlyer} aria-label={t('common.delete')}>
                     <IconTrash width={14} height={14} strokeWidth={2} />
                   </button>
                 </div>
               </div>
             ) : (
-              <label className="btn photo-add-btn">
+              <label className="btn photo-add-btn flyer-add-photo">
                 <IconCamera width={18} height={18} strokeWidth={1.6} /> {t('submitFlyer.flyerAdd')}
                 <input type="file" accept="image/*" onChange={addFlyer} hidden />
               </label>
@@ -212,7 +212,7 @@ export default function SubmitFlyer() {
             <div className={`urgent-sos-final-badge${isDone ? '' : ' is-error'}`}>
               {isDone ? `✓ ${t('submitFlyer.doneTitle')}` : `⚠ ${t('submitFlyer.notDoneTitle')}`}
             </div>
-            <h2>{t('submitFlyer.title')}</h2>
+            <h2>{result.status === 'published' ? t('submitFlyer.createdTitle') : t('submitFlyer.title')}</h2>
             {(result.status === 'published' || isDuplicateOnly) && (
               <>
                 {result.status === 'published' ? (
