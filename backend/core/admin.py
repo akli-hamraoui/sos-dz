@@ -481,6 +481,7 @@ class ExtractedCollectionPointInline(admin.TabularInline):
     fields = [
         "include_in_publish", "point_name", "organization", "wilaya", "country_code", "country_name", "city",
         "precision_level", "contact_name", "contact_phone", "other_phones", "hours",
+        "facebook_url", "tiktok_url", "instagram_url",
         "duplicate_of_link", "published_point_link",
     ]
     readonly_fields = ["duplicate_of_link", "published_point_link"]

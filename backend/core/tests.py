@@ -4087,6 +4087,30 @@ class FlyerSubmissionAutoPublishTests(BaseAPITestCase):
         self.assertEqual(second.data["rejection_reason"], "duplicate")
         self.assertEqual(CollectionPoint.objects.filter(organization="Croissant Rouge").count(), 1)
 
+    def test_social_links_kept_as_full_urls(self):
+        """The extraction prompt asks Gemini for a full https:// URL even
+        when the flyer only shows a bare page name, but core.views._safe_url
+        is the actual gate on what reaches the DB -- verify it keeps a
+        well-formed URL, normalizes a bare known-domain link missing its
+        scheme, and drops anything that isn't a URL at all (a raw page name
+        Gemini failed to turn into a link)."""
+        points = [
+            {
+                "point_name": "Point A", "organization": "Croissant Rouge",
+                "country_code": "DZ", "country_name": "Algerie", "city": "Alger",
+                "address": "", "contact_phone": "0555111111",
+                "facebook_url": "https://facebook.com/asso.khir",
+                "tiktok_url": "www.tiktok.com/@asso.khir",
+                "instagram_url": "Association Al Khir",
+            },
+        ]
+        resp = self._submit(points)
+        self.assertEqual(resp.status_code, 201, resp.content)
+        extracted = resp.data["extracted_points"][0]
+        self.assertEqual(extracted["facebook_url"], "https://facebook.com/asso.khir")
+        self.assertEqual(extracted["tiktok_url"], "https://www.tiktok.com/@asso.khir")
+        self.assertEqual(extracted["instagram_url"], "")
+
 
 class GeminiExtractionRetryTests(TestCase):
     """core.gemini_extraction.extract_flyer_data: Gemini's own transient

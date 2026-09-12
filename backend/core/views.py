@@ -1183,14 +1183,32 @@ class CollectionPointViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mix
         return Response({"access_token": token})
 
 
+_SOCIAL_DOMAINS = ("facebook.com", "fb.com", "instagram.com", "tiktok.com")
+
+
 def _safe_url(value):
     """Only keeps LLM-extracted social links that are actually well-formed
     http(s) URLs -- ExtractedCollectionPoint rows are created directly via
     .objects.create(), bypassing CollectionPointCreateSerializer's own
     validate_social_url, so nothing else would catch e.g. a bare "@handle"
-    read straight off a flyer."""
+    read straight off a flyer.
+
+    The extraction prompt asks Gemini to always return a full "https://"
+    URL (including reconstructing one from a bare page name/handle when
+    that's all the flyer shows), but the LLM is not perfectly reliable, so
+    this also tolerates the most likely near-misses -- a known social
+    domain missing only its scheme (e.g. "facebook.com/asso",
+    "www.instagram.com/asso") -- rather than silently dropping data that
+    still says exactly which page it points to. Anything else without a
+    recognized http(s) scheme (a bare name/handle with no domain at all)
+    is still discarded rather than guessed into a domain here."""
     value = (value or "").strip()
-    return value if value.startswith("http://") or value.startswith("https://") else ""
+    if value.startswith("http://") or value.startswith("https://"):
+        return value
+    bare = value[4:] if value.lower().startswith("www.") else value
+    if bare.lower().startswith(_SOCIAL_DOMAINS):
+        return f"https://{value}"
+    return ""
 
 
 def _resolve_extracted_point_location(point_data, geocoder):
