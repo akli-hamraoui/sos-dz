@@ -735,6 +735,237 @@ main {
   }
 }
 
+/* --- Home: split SOS card, direct flyer entry, slim "about" link --------
+   Three changes, all scoped so the existing card system above (min-heights
+   tuned across several breakpoints so the whole action stack fits above
+   the fixed bottom nav without scrolling) keeps working unmodified:
+   1. The one red "Lancer un SOS" card becomes two halves sharing its slot
+      (same outer .home-sos-card sizing, just split in two) -- orange for
+      the existing need-report form, red for the voice-guided /urgent-sos
+      wizard, previously reachable from nowhere in the UI.
+   2. "Depuis un flyer" moves out of the "Créer un point de collecte"
+      dropdown into its own directly-tappable card next to it, so creating
+      a point from a photo no longer needs an extra click to discover.
+   3. "Qui sommes-nous ?" drops from a full card to a single-line link,
+      freeing back the vertical space the flyer card above needs. */
+/* Doubled up as ".home-sos-card.home-sos-split" (not just ".home-sos-split")
+   so these resets always beat the plain ".home-sos-card" background/padding
+   rules above regardless of which stylesheet pass they came from -- several
+   older breakpoints re-declare padding on ".home-sos-card" alone, and at
+   equal specificity source order would otherwise let a mobile-only pass
+   further down the file win back the padding this is trying to zero out. */
+.home-sos-card.home-sos-split {
+  display: flex;
+  align-items: stretch;
+  gap: clamp(8px, 2.6vw, 14px);
+  background: none;
+  box-shadow: none;
+  padding: 0;
+}
+.home-sos-half {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: clamp(8px, 2.6vw, 16px) clamp(6px, 2vw, 12px);
+  border-radius: 13px;
+  color: #fff;
+  text-align: center;
+  text-decoration: none;
+  position: relative;
+  transition: transform .16s ease, box-shadow .16s ease;
+}
+.home-sos-half:hover {
+  transform: translateY(-2px);
+}
+.home-sos-half:focus-visible {
+  outline: 3px solid #1c7ed6;
+  outline-offset: 2px;
+}
+.home-sos-half-orange {
+  background: linear-gradient(135deg, #ffb648, #f08a1c);
+  box-shadow: 0 5px 14px rgba(240, 138, 28, .25);
+}
+.home-sos-half-red {
+  background: linear-gradient(135deg, #f9434c, #d91f31);
+  box-shadow: 0 5px 14px rgba(217, 31, 49, .25);
+}
+.home-sos-half-badge {
+  position: absolute;
+  top: 7px;
+  inset-inline-end: 8px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .25);
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.home-sos-half .home-sos-icon {
+  width: clamp(30px, 9vw, 48px);
+  height: clamp(30px, 9vw, 48px);
+  margin-top: 6px;
+}
+.home-sos-half .home-sos-icon-mic {
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, .25);
+  border-radius: 50%;
+}
+.home-sos-half .home-sos-copy {
+  align-items: center;
+  gap: 1px;
+}
+.home-sos-half .home-sos-copy strong {
+  font-size: clamp(12.5px, 3.6vw, 16px);
+  line-height: 1.16;
+}
+.home-sos-half .home-sos-copy span {
+  font-size: clamp(10px, 2.6vw, 12px);
+  line-height: 1.25;
+  opacity: .96;
+}
+.home-secondary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(8px, 2.6vw, 14px);
+  margin-bottom: clamp(7px, 2vw, 18px);
+}
+.home-create-card {
+  position: relative;
+  margin-bottom: 0;
+}
+.home-secondary-card {
+  display: flex;
+  min-width: 0;
+  min-height: clamp(76px, 15vh, 118px);
+  width: 100%;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: clamp(9px, 2.6vw, 16px) clamp(9px, 2.4vw, 14px);
+  border: 0;
+  border-radius: 13px;
+  color: #15213a;
+  cursor: pointer;
+  font: inherit;
+  text-align: start;
+  text-decoration: none;
+  transition: transform .16s ease, box-shadow .16s ease;
+}
+.home-secondary-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(28, 48, 72, .12);
+}
+.home-secondary-card:focus-visible {
+  outline: 3px solid #1c7ed6;
+  outline-offset: 2px;
+}
+.home-secondary-card-create[aria-expanded="true"] {
+  box-shadow: 0 0 0 2px var(--brand-green-border, #b9decd);
+}
+.home-secondary-card-create {
+  background: #fff8e9;
+}
+.home-secondary-card-flyer {
+  background: #f2edfb;
+}
+.home-secondary-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: clamp(30px, 7vw, 42px);
+  height: clamp(30px, 7vw, 42px);
+  margin-bottom: clamp(4px, 1.6vw, 9px);
+  border-radius: 50%;
+}
+.home-secondary-card-create .home-secondary-icon {
+  background: #fff0c9;
+  color: #df9100;
+}
+.home-secondary-card-flyer .home-secondary-icon {
+  background: #e6d9fa;
+  color: #7c4dbb;
+}
+.home-secondary-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.home-secondary-copy strong {
+  font-size: clamp(12.5px, 3.4vw, 16px);
+  line-height: 1.16;
+}
+.home-secondary-copy > span {
+  margin-top: 3px;
+  color: #5c6878;
+  font-size: clamp(10.5px, 2.6vw, 12.5px);
+  line-height: 1.32;
+  overflow-wrap: anywhere;
+}
+.home-secondary-copy em {
+  margin-top: auto;
+  padding-top: 6px;
+  font-size: clamp(10.5px, 2.6vw, 12.5px);
+  font-style: normal;
+  font-weight: 800;
+}
+.home-secondary-card-create .home-secondary-copy em {
+  color: #d88500;
+}
+.home-secondary-card-flyer .home-secondary-copy em {
+  color: #7c4dbb;
+}
+.home-secondary-copy em b {
+  margin-inline-start: 6px;
+  font-size: 16px;
+  line-height: 0;
+}
+/* Only two choices now (flyer got its own card above), so a single stacked
+   column reads better than the two-up grid the general dropdown -- shared
+   with QuickActions/TopNavLinks elsewhere -- still uses. Also always opens
+   downward: the mobile "open upward" rule elsewhere in this file dates
+   from when this card sat directly above the fixed bottom nav with no
+   room below it -- it now sits mid-stack with the about-link and footer
+   still below it, so downward is unobstructed and matches the desktop
+   behavior instead of unnecessarily covering the collection-points row
+   above it. */
+.home-create-card .home-btn-create-menu {
+  grid-template-columns: 1fr;
+  top: calc(100% + 8px);
+  bottom: auto;
+}
+.home-about-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 4px;
+  color: #147b4b;
+  font-size: clamp(12.5px, 3.2vw, 14px);
+  font-weight: 700;
+  text-decoration: none;
+}
+.home-about-link svg {
+  flex: 0 0 auto;
+}
+.home-about-link b {
+  margin-inline-start: auto;
+  font-size: 17px;
+  font-weight: 400;
+}
+.home-about-link:hover {
+  text-decoration: underline;
+}
+.home-about-link:focus-visible {
+  outline: 3px solid #1c7ed6;
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
 /* --- Buttons --- */
 
 .btn {

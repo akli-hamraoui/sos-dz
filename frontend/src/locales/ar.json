@@ -103,11 +103,17 @@
     "sosTitle": "أطلق نداء استغاثة",
     "sosSubtitle": "هل تحتاج إلى مساعدة عاجلة؟",
     "sosDetail": "بلّغ عن احتياج الآن.",
+    "sosNonUrgentBadge": "غير عاجل",
+    "sosUrgentBadge": "عاجل",
+    "sosUrgentTitle": "نداء استغاثة صوتي عاجل",
+    "sosUrgentSubtitle": "رسالة صوتية فورية",
     "collectionPointsAlgeriaDescription": "اعثر على نقاط التجميع القريبة منك.",
     "collectionPointsInternationalDescription": "اكتشف نقاط التجميع الدولية.",
     "viewPoints": "عرض النقاط",
     "createCollectionPointDescription": "أضف نقطة تجميع جديدة في منطقتك.",
+    "createCollectionPointFlyerDescription": "أرسل صورة الملصق وسيتم إنشاء النقطة تلقائيًا.",
     "createPoint": "إنشاء نقطة",
+    "createPointFlyer": "إرسال صورة",
     "learnMore": "اعرف المزيد"
   },
   "status": {

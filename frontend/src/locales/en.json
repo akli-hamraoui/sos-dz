@@ -103,11 +103,17 @@
     "sosTitle": "Send an SOS",
     "sosSubtitle": "Need urgent help?",
     "sosDetail": "Report a need now.",
+    "sosNonUrgentBadge": "Not urgent",
+    "sosUrgentBadge": "Urgent",
+    "sosUrgentTitle": "Urgent voice SOS",
+    "sosUrgentSubtitle": "Immediate voice message",
     "collectionPointsAlgeriaDescription": "Find collection points near you.",
     "collectionPointsInternationalDescription": "Discover international collection points.",
     "viewPoints": "View points",
     "createCollectionPointDescription": "Add a new collection point in your area.",
+    "createCollectionPointFlyerDescription": "Send a photo of a flyer, the point is created automatically.",
     "createPoint": "Create a point",
+    "createPointFlyer": "Send a photo",
     "learnMore": "Learn more"
   },
   "status": {
