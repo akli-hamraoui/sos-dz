@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useApp } from '../context/AppContext'
-import { IconAlgeriaFlag, IconCamera, IconGlobeColor, IconHelp, IconMic, IconPlus } from '../icons'
+import { IconAlgeriaFlag, IconCamera, IconGlobeColor, IconHelp, IconMic, IconPlus, IconSparkle } from '../icons'
 
 // A small pulsing pill used to flag brand-new entry points (the voice SOS
 // and the flyer submission card) that a returning visitor wouldn't
@@ -91,7 +91,12 @@ export default function Home() {
         </div>
         <Link to="/collection-points/submit-flyer" className="home-secondary-card home-secondary-card-flyer">
           <NewBadge />
-          <span className="home-secondary-icon"><IconCamera width={22} height={22} /></span>
+          <span className="home-secondary-icon-row">
+            <span className="home-secondary-icon"><IconCamera width={22} height={22} /></span>
+            <span className="home-ai-badge" aria-hidden="true" title="Analysé par IA">
+              <IconSparkle width={11} height={11} />
+            </span>
+          </span>
           <span className="home-secondary-copy">
             <strong><PlusBadge /> {t('home.insertFlyerTitle')}</strong>
             <em>{t('home.createPointFlyer')} <b aria-hidden="true">→</b></em>

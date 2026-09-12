@@ -1001,15 +1001,21 @@ main {
 /* Bolder, saturated fills (like the SOS cards below them) instead of the
    original pale yellow/lavender tints -- flat pastel read as much less
    inviting to tap next to the vivid orange/red pair. */
+/* The brand's own light green, not an arbitrary amber -- consistent
+   with the green already used for "active" states and Algérie's
+   collection card elsewhere on this page. */
 .home-secondary-card-create {
-  background: linear-gradient(135deg, #ffcf6e, #ee9d0d);
+  background: linear-gradient(135deg, #5fc48d, var(--brand-green, #2c8f67));
   color: #fff;
-  box-shadow: 0 5px 14px rgba(238, 157, 13, .25);
+  box-shadow: 0 5px 14px rgba(44, 143, 103, .3);
 }
+/* A gradient in the indigo/violet/pink family many AI product surfaces
+   use (Gemini, Copilot, Notion AI...) so this card reads as "AI-assisted"
+   at a glance, reinforced by the sparkle badge on its icon below. */
 .home-secondary-card-flyer {
-  background: linear-gradient(135deg, #b48af5, #7c3aed);
+  background: linear-gradient(135deg, #6366f1, #a855f7 55%, #ec4899);
   color: #fff;
-  box-shadow: 0 5px 14px rgba(124, 58, 237, .3);
+  box-shadow: 0 5px 14px rgba(147, 51, 234, .35);
 }
 .home-secondary-icon {
   display: inline-flex;
@@ -1027,6 +1033,34 @@ main {
 .home-secondary-card-flyer .home-secondary-icon {
   background: rgba(255, 255, 255, .28);
   color: #fff;
+}
+/* Camera icon + a small sparkle badge side by side (not overlapping its
+   corner) -- the flyer photo is still what you're submitting, the
+   sparkle just flags that AI reads it automatically. Side by side avoids
+   the same touching problem a corner badge caused on the SOS icon
+   earlier. */
+.home-secondary-icon-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: clamp(4px, 1.6vw, 9px);
+}
+.home-secondary-icon-row .home-secondary-icon {
+  margin-bottom: 0;
+}
+.home-ai-badge {
+  flex: 0 0 auto;
+  width: clamp(16px, 4.5vw, 20px);
+  height: clamp(16px, 4.5vw, 20px);
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .92);
+  color: #9333ea;
+}
+.home-ai-badge svg {
+  width: 62%;
+  height: 62%;
 }
 .home-secondary-copy {
   display: flex;
