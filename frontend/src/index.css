@@ -820,8 +820,8 @@ main {
    to it -- instead of changing weight depending on screen size. */
 .home-sos-mic-badge {
   flex: 0 0 auto;
-  width: 22px;
-  height: 22px;
+  width: 34px;
+  height: 34px;
   display: grid;
   place-items: center;
   border-radius: 50%;
@@ -831,8 +831,8 @@ main {
   box-shadow: 0 2px 6px rgba(0, 0, 0, .3);
 }
 .home-sos-mic-badge svg {
-  width: 55%;
-  height: 55%;
+  width: 58%;
+  height: 58%;
 }
 .home-sos-half .home-sos-copy {
   align-items: center;
