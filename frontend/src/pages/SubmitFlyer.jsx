@@ -18,12 +18,14 @@ import '../submit-flyer-wizard.css'
 // Presented as a 2-step wizard (photo / info) styled after the urgent-sos
 // voice wizard (same .urgent-sos-* classes) but without any audio guide --
 // see submit-flyer-wizard.css for the few scoped overrides (brand color
-// instead of red, 2 columns instead of 4/5).
-const S = { INTRO: 0, PHOTO: 1, INFO: 2 }
+// instead of red, 2 columns instead of 4/5). No separate intro step -- the
+// page title/kicker above already say what this does, so the wizard opens
+// directly on the photo upload.
+const S = { PHOTO: 0, INFO: 1 }
 
 export default function SubmitFlyer() {
   const { t } = useTranslation()
-  const [step, setStep] = useState(S.INTRO)
+  const [step, setStep] = useState(S.PHOTO)
   const [flyer, setFlyer] = useState(null) // { file, previewUrl } | null
   const [submitterName, setSubmitterName] = useState('')
   const [submitterPhone, setSubmitterPhone] = useState('')
@@ -84,7 +86,7 @@ export default function SubmitFlyer() {
     setSubmitterPhone('')
     setError('')
     setResult(null)
-    setStep(S.INTRO)
+    setStep(S.PHOTO)
   }
 
   const rejectionMessageKey = {
@@ -117,7 +119,7 @@ export default function SubmitFlyer() {
   )
 
   const stepLabels = [t('submitFlyer.stepPhoto'), t('submitFlyer.stepInfo')]
-  const pi = result ? 1 : Math.max(0, step - 1)
+  const pi = result ? 1 : step
   const isDuplicateOnly = result?.status === 'rejected' && result.rejection_reason === 'duplicate'
   const isDone = result && (result.status === 'published' || isDuplicateOnly)
   const isRejectedNonDuplicate = result?.status === 'rejected' && !isDuplicateOnly
@@ -151,18 +153,6 @@ export default function SubmitFlyer() {
           ))}
         </div>
 
-        {step === S.INTRO && !result && (
-          <div className="urgent-sos-card">
-            <h2>{t('submitFlyer.title')}</h2>
-            <p>{t('submitFlyer.intro')}</p>
-            <div className="urgent-sos-actions">
-              <button type="button" className="urgent-sos-primary" onClick={() => go(S.PHOTO)}>
-                {t('urgentSos.continue')}
-              </button>
-            </div>
-          </div>
-        )}
-
         {step === S.PHOTO && !result && (
           <div className="urgent-sos-card">
             <h2>{t('submitFlyer.flyerLabel')}</h2>
@@ -183,9 +173,6 @@ export default function SubmitFlyer() {
               </label>
             )}
             <div className="urgent-sos-actions">
-              <button type="button" className="urgent-sos-secondary" onClick={() => go(S.INTRO)}>
-                {t('urgentSos.previous')}
-              </button>
               <button type="button" className="urgent-sos-primary" disabled={!flyer} onClick={() => go(S.INFO)}>
                 {t('urgentSos.continue')}
               </button>
@@ -212,7 +199,8 @@ export default function SubmitFlyer() {
               <button type="button" className="urgent-sos-secondary" onClick={() => go(S.PHOTO)} disabled={submitting}>
                 {t('urgentSos.previous')}
               </button>
-              <button type="button" className="urgent-sos-primary" onClick={submit} disabled={submitting}>
+              <button type="button" className="urgent-sos-primary" onClick={submit} disabled={submitting} aria-busy={submitting}>
+                {submitting && <span className="flyer-btn-spinner" aria-hidden="true" />}
                 {submitting ? t('submitFlyer.submitting') : t('submitFlyer.submit')}
               </button>
             </div>

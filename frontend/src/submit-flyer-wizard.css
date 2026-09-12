@@ -12,6 +12,26 @@
 
 .submit-flyer-wizard .urgent-sos-final-badge.is-error { background: #fff1f2; color: #a61d2d; }
 
+/* Visible feedback while a submission is in flight -- greyed out (instead
+   of looking identical to enabled, which is all the shared .urgent-sos-*
+   button styles give a plain :disabled button) plus a small inline
+   spinner, so a double-tap doesn't look like nothing happened. */
+.submit-flyer-wizard .urgent-sos-primary:disabled,
+.submit-flyer-wizard .urgent-sos-secondary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+.submit-flyer-wizard .flyer-btn-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.45);
+  border-top-color: #fff;
+  border-radius: 50%;
+  display: inline-block;
+  animation: urgent-sos-spin 0.8s linear infinite;
+}
+
 @media (max-width: 699px) {
   .submit-flyer-wizard .urgent-sos-stepper,
   .submit-flyer-wizard .urgent-sos-progress {

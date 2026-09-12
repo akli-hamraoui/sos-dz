@@ -3899,7 +3899,7 @@ body { overflow-x: hidden; }
   .urgent-sos-card .urgent-sos-actions{
     flex-wrap:nowrap;
   }
-  .urgent-sos-card .urgent-sos-actions > button{
+  .urgent-sos-card .urgent-sos-actions > *{
     min-width:0;
     flex:1 1 0;
     padding-inline:8px;
