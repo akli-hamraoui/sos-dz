@@ -134,13 +134,20 @@ def transcribe_audio(upload, language=None):
     return text
 
 
+def _wilaya_names():
+    from core.models import Wilaya
+    return list(Wilaya.objects.order_by("name").values_list("name", flat=True))
+
+
 def _correction_prompt():
     path = Path(__file__).resolve().parent / "prompts" / "voice_transcription_correction.md"
     try:
-        return path.read_text(encoding="utf-8")
+        template = path.read_text(encoding="utf-8")
     except OSError:
         logger.exception("SOS transcription correction prompt could not be loaded: path=%s", path)
         return "Correct only obvious speech-to-text errors. Never invent information. GPS may only resolve an already spoken phonetic place/name; it must never create a location that was not spoken. If uncertain, preserve the original wording. Return only the corrected transcription."
+    wilaya_list = ", ".join(_wilaya_names())
+    return template.replace("{{WILAYA_LIST}}", wilaya_list)
 
 
 def correct_transcription(transcript, latitude=None, longitude=None):
