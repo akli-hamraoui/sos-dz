@@ -1,0 +1,42 @@
+/* Photo-flyer wizard: reuses the urgent-sos wizard's layout/styles
+   (.urgent-sos-*), scoped overrides only -- no audio, 3 steps instead of 4. */
+.submit-flyer-wizard .urgent-sos-kicker { color: var(--brand-green); }
+.submit-flyer-wizard .urgent-sos-icon { background: var(--brand-green); box-shadow: 0 10px 26px rgba(44, 143, 103, 0.2); }
+
+.submit-flyer-wizard .urgent-sos-stepper,
+.submit-flyer-wizard .urgent-sos-progress {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.submit-flyer-wizard .photo-thumbs { margin: 4px 0 16px; }
+.submit-flyer-wizard .flyer-change-photo { margin: 0 0 16px; }
+
+.submit-flyer-wizard .flyer-review-summary {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 4px 0 4px;
+}
+.submit-flyer-wizard .flyer-review-summary > div { min-width: 0; display: grid; gap: 4px; }
+.submit-flyer-wizard .flyer-review-summary strong {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.submit-flyer-wizard .flyer-review-summary span {
+  font-weight: 700;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.submit-flyer-wizard .urgent-sos-final-badge.is-error { background: #fff1f2; color: #a61d2d; }
+
+@media (max-width: 699px) {
+  .submit-flyer-wizard .urgent-sos-stepper,
+  .submit-flyer-wizard .urgent-sos-progress {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .submit-flyer-wizard .flyer-review-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+}

@@ -402,7 +402,17 @@
     "trackingCode": "Tracking code",
     "submitAnother": "Submit another flyer",
     "useManualForm": "Use the manual form",
-    "navButton": "From a flyer"
+    "navButton": "From a flyer",
+    "kicker": "Photo submission",
+    "stepPhoto": "Photo",
+    "stepInfo": "Info",
+    "stepReview": "Review",
+    "infoStepTitle": "Your contact details (optional)",
+    "reviewStepTitle": "Review before sending",
+    "reviewStepText": "Check the photo and your details, then confirm the submission.",
+    "changePhoto": "Change photo",
+    "doneTitle": "Submission complete",
+    "notDoneTitle": "Submission not kept"
   },
   "internationalCollectionPoints": {
     "navButton": "🌍 International collection",
