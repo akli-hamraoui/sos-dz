@@ -793,18 +793,6 @@ main {
   background: linear-gradient(135deg, #f9434c, #d91f31);
   box-shadow: 0 5px 14px rgba(217, 31, 49, .25);
 }
-.home-sos-half-badge {
-  position: absolute;
-  top: 7px;
-  inset-inline-end: 8px;
-  padding: 2px 7px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, .25);
-  font-size: 9.5px;
-  font-weight: 800;
-  letter-spacing: .04em;
-  text-transform: uppercase;
-}
 .home-sos-half .home-sos-icon {
   width: clamp(30px, 9vw, 48px);
   height: clamp(30px, 9vw, 48px);
@@ -821,13 +809,58 @@ main {
   gap: 1px;
 }
 .home-sos-half .home-sos-copy strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: clamp(12.5px, 3.6vw, 16px);
   line-height: 1.16;
+}
+.home-sos-half .home-sos-copy strong svg {
+  flex: 0 0 auto;
 }
 .home-sos-half .home-sos-copy span {
   font-size: clamp(10px, 2.6vw, 12px);
   line-height: 1.25;
   opacity: .96;
+}
+/* A modern "new feature" flag for the two entry points that didn't exist
+   before this pass (voice SOS, flyer submission) -- a plain color badge
+   like the old "urgent"/"non urgent" text tags would just read as more
+   status noise, so this one gets its own pulsing dot to actually draw the
+   eye once, the first time someone sees it. */
+.home-badge-new {
+  position: absolute;
+  top: 7px;
+  inset-inline-end: 8px;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px 2px 6px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #8b5cf6, #4f46e5);
+  color: #fff;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  box-shadow: 0 2px 7px rgba(79, 70, 229, .4);
+}
+.home-badge-new-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #fff;
+  animation: home-badge-new-pulse 1.6s ease-in-out infinite;
+}
+@keyframes home-badge-new-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: .35; transform: scale(.65); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-badge-new-dot {
+    animation: none;
+  }
 }
 .home-secondary-grid {
   display: grid;
@@ -840,6 +873,7 @@ main {
   margin-bottom: 0;
 }
 .home-secondary-card {
+  position: relative;
   display: flex;
   min-width: 0;
   min-height: clamp(76px, 15vh, 118px);
@@ -897,8 +931,27 @@ main {
   align-items: flex-start;
 }
 .home-secondary-copy strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: clamp(12.5px, 3.4vw, 16px);
   line-height: 1.16;
+}
+.home-secondary-copy strong svg {
+  flex: 0 0 auto;
+}
+/* The flyer card's title got noticeably longer ("Insérer le flyer de
+   votre point de collecte" vs. the old two-word "Depuis une image") and
+   dropped its description line entirely to make room -- a slightly
+   smaller, tighter clamp keeps two wrapped lines from pushing the card
+   taller than its sibling. */
+.home-secondary-card-flyer .home-secondary-copy strong {
+  align-items: flex-start;
+  font-size: clamp(11.5px, 3vw, 14px);
+  line-height: 1.22;
+}
+.home-secondary-card-flyer .home-secondary-copy strong svg {
+  margin-top: 2px;
 }
 .home-secondary-copy > span {
   margin-top: 3px;
@@ -925,15 +978,15 @@ main {
   font-size: 16px;
   line-height: 0;
 }
-/* Only two choices now (flyer got its own card above), so a single stacked
-   column reads better than the two-up grid the general dropdown -- shared
-   with QuickActions/TopNavLinks elsewhere -- still uses. Also always opens
-   downward: the mobile "open upward" rule elsewhere in this file dates
-   from when this card sat directly above the fixed bottom nav with no
-   room below it -- it now sits mid-stack with the about-link and footer
-   still below it, so downward is unobstructed and matches the desktop
-   behavior instead of unnecessarily covering the collection-points row
-   above it. */
+/* A single stacked column (rather than the two-up grid the general
+   dropdown -- shared with QuickActions/TopNavLinks elsewhere -- still
+   uses) reads better for this narrower, half-width card. Also always
+   opens downward: the mobile "open upward" rule elsewhere in this file
+   dates from when this card sat directly above the fixed bottom nav with
+   no room below it -- it now sits mid-stack with the about-link and
+   footer still below it, so downward is unobstructed and matches the
+   desktop behavior instead of unnecessarily covering the
+   collection-points row above it. */
 .home-create-card .home-btn-create-menu {
   grid-template-columns: 1fr;
   top: calc(100% + 8px);

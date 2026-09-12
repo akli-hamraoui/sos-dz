@@ -4,6 +4,20 @@ import { useTranslation } from 'react-i18next'
 import { useApp } from '../context/AppContext'
 import { IconAlgeriaFlag, IconCamera, IconGlobeColor, IconHelp, IconMic, IconPlus } from '../icons'
 
+// A small pulsing pill used to flag brand-new entry points (the voice SOS
+// and the flyer submission card) that a returning visitor wouldn't
+// otherwise notice were added. Not shown on anything else -- overusing it
+// would make it meaningless.
+function NewBadge() {
+  const { t } = useTranslation()
+  return (
+    <span className="home-badge-new">
+      <span className="home-badge-new-dot" aria-hidden="true" />
+      {t('common.newBadge')}
+    </span>
+  )
+}
+
 export default function Home() {
   const { t } = useTranslation()
   const { config } = useApp()
@@ -36,21 +50,20 @@ export default function Home() {
           urgency color instead of one red card for both. */}
       <div className="home-sos-card home-sos-split">
         <Link to="/create" className="home-sos-half home-sos-half-orange">
-          <span className="home-sos-half-badge">{t('home.sosNonUrgentBadge')}</span>
           <span className="home-sos-icon icon-sos" aria-hidden="true" />
           <span className="home-sos-copy">
-            <strong>{t('home.sosTitle')}</strong>
+            <strong><IconPlus width={13} height={13} strokeWidth={3} /> {t('home.sosNonUrgentTitle')}</strong>
             <span>{t('home.sosDetail')}</span>
           </span>
         </Link>
         {voiceSosAvailable && (
           <Link to="/urgent-sos" className="home-sos-half home-sos-half-red">
-            <span className="home-sos-half-badge">{t('home.sosUrgentBadge')}</span>
+            <NewBadge />
             <span className="home-sos-icon home-sos-icon-mic" aria-hidden="true">
               <IconMic width={26} height={26} />
             </span>
             <span className="home-sos-copy">
-              <strong>{t('home.sosUrgentTitle')}</strong>
+              <strong><IconPlus width={13} height={13} strokeWidth={3} /> {t('home.sosUrgentTitle')}</strong>
               <span>{t('home.sosUrgentSubtitle')}</span>
             </span>
           </Link>
@@ -72,10 +85,6 @@ export default function Home() {
         </Link>
       </div>
 
-      {/* "Depuis un flyer" used to be a third option buried inside this
-          menu -- a card you had to open before you could even see it. It
-          now gets its own directly-tappable card next to "Créer un point
-          de collecte", which keeps just the Algérie/international choice. */}
       <div className="home-secondary-grid">
         <div className="home-create-card">
           <button
@@ -99,14 +108,17 @@ export default function Home() {
               <Link to="/international-collection-points/create" onClick={() => setCreateMenuOpen(false)}>
                 <IconGlobeColor width={18} height={18} /> {t('home.createCollectionPointInternational')}
               </Link>
+              <Link to="/collection-points/submit-flyer" onClick={() => setCreateMenuOpen(false)}>
+                <IconCamera width={18} height={18} /> {t('home.createCollectionPointFlyerMenuLabel')}
+              </Link>
             </div>
           )}
         </div>
         <Link to="/collection-points/submit-flyer" className="home-secondary-card home-secondary-card-flyer">
+          <NewBadge />
           <span className="home-secondary-icon"><IconCamera width={22} height={22} /></span>
           <span className="home-secondary-copy">
-            <strong>{t('home.createCollectionPointFlyer')}</strong>
-            <span>{t('home.createCollectionPointFlyerDescription')}</span>
+            <strong><IconPlus width={12} height={12} strokeWidth={3} /> {t('home.insertFlyerTitle')}</strong>
             <em>{t('home.createPointFlyer')} <b aria-hidden="true">→</b></em>
           </span>
         </Link>
