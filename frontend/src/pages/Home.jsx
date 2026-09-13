@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useApp } from '../context/AppContext'
-import { IconAlgeriaFlag, IconCamera, IconGlobeColor, IconHelp, IconMic, IconPlus, IconSparkle } from '../icons'
+import { IconAlgeriaFlag, IconCamera, IconClose, IconGlobeColor, IconHelp, IconMic, IconPlus, IconSparkle } from '../icons'
 
 // A small pulsing pill used to flag brand-new entry points (the voice SOS
 // and the flyer submission card) that a returning visitor wouldn't
@@ -75,6 +75,14 @@ export default function Home() {
           </button>
           {createMenuOpen && (
             <div className="home-btn-create-menu">
+              <button
+                type="button"
+                className="home-btn-create-menu-close"
+                aria-label={t('common.close')}
+                onClick={() => setCreateMenuOpen(false)}
+              >
+                <IconClose width={14} height={14} strokeWidth={2.6} />
+              </button>
               <Link to="/collection-points/create" onClick={() => setCreateMenuOpen(false)}>
                 <IconAlgeriaFlag width={18} height={18} /> {t('home.createCollectionPointAlgeria')}
               </Link>

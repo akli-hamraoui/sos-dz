@@ -647,6 +647,30 @@ main {
   line-height: 1.25;
   transition: background .16s ease, border-color .16s ease, transform .16s ease;
 }
+.home-btn-create-menu-close {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--card);
+  color: var(--text);
+  box-shadow: 0 4px 10px rgba(21, 33, 58, .18);
+  cursor: pointer;
+}
+.home-btn-create-menu-close:hover {
+  background: #f2f4f7;
+}
+.home-btn-create-menu-close:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
 /* Three entries now (Algérie / à l'étranger / flyer) -- nth-child rather
    than :first-child/:last-child so each keeps its own color instead of
    the flyer entry inheriting the "à l'étranger" one's blue now that it's
@@ -776,6 +800,8 @@ main {
   display: flex;
   align-items: stretch;
   gap: clamp(8px, 2.6vw, 14px);
+  width: 90%;
+  margin-inline: auto;
   background: none;
   box-shadow: none;
   padding: 0;
@@ -804,12 +830,12 @@ main {
   outline-offset: 2px;
 }
 .home-sos-half-orange {
-  background: linear-gradient(135deg, #ffb648, #f08a1c);
-  box-shadow: 0 5px 14px rgba(240, 138, 28, .25);
+  background: linear-gradient(135deg, #f0a83c, #d97910);
+  box-shadow: 0 5px 14px rgba(217, 121, 16, .3);
 }
 .home-sos-half-red {
-  background: linear-gradient(135deg, #f9434c, #d91f31);
-  box-shadow: 0 5px 14px rgba(217, 31, 49, .25);
+  background: linear-gradient(135deg, #e83b43, #b81829);
+  box-shadow: 0 5px 14px rgba(184, 24, 41, .3);
 }
 .home-sos-half .home-sos-icon {
   width: clamp(26px, 8vw, 44px);
