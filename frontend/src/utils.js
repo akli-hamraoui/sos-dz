@@ -186,15 +186,22 @@ const PHOTON_BASE = 'https://photon.komoot.io/api'
 // nothing at all. Photon (komoot's OSM-based geocoder) is built
 // specifically for this: prefix/n-gram matching that treats hyphens as
 // word breaks, so both spellings find it. Its `layer` filter also keeps
-// results to city/town/village/state/country entries, so this field never
+// results to city/locality/state/country entries, so this field never
 // suggests a street or a shop the way a plain Nominatim search would.
+// Photon's own layer taxonomy has no separate "town"/"village" value --
+// those OSM place types land under "locality", not "city" -- so filtering
+// on the plain English names (as this did until caught live in
+// production, still broken *after* switching to Photon) silently matched
+// nothing for exactly the small/medium communes this switch was meant to
+// fix, including Jouy-le-Moutier itself, so every query fell through to
+// the Nominatim fallback below and its original bug, on every keystroke.
 //
 // Best-effort like searchPlaces -- the caller falls back to Nominatim on
 // any failure or empty response instead of leaving the field with no
 // suggestions at all.
 export async function searchPlacesTypeahead(query, lang, signal) {
   const supportedLang = ['en', 'de', 'fr'].includes(lang) ? lang : 'en'
-  const layers = ['city', 'town', 'village', 'state', 'country'].map((l) => `&layer=${l}`).join('')
+  const layers = ['city', 'locality', 'state', 'country'].map((l) => `&layer=${l}`).join('')
   const url = `${PHOTON_BASE}/?q=${encodeURIComponent(query)}&lang=${supportedLang}&limit=10${layers}`
   const resp = await fetch(url, { signal })
   if (!resp.ok) throw new Error('Typeahead search failed')
