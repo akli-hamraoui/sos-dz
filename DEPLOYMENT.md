@@ -485,6 +485,110 @@ same S3-compatible storage already used for media in step 6b, so no new
 provider relationship needed) added as its own systemd timer. Not set up
 here -- flagging it as the natural next step, not claiming it's done.
 
+## Hosting another app (e.g. a Kotlin service) on the same VPS
+
+The Contabo VPS above isn't dedicated to sos-dz at the OS level -- Nginx just
+happens to be the only thing bound to ports 80/443 so far. A second,
+unrelated app (a Kotlin/Spring Boot or Ktor service, say) can live on the
+same box as long as it stays out of sos-dz's process, port, and file space.
+Nothing below requires touching sos-dz's own files or services.
+
+**1. Separate code, separate directory.** Clone/build the Kotlin project
+under its own path, e.g. `/opt/<kotlin-app>` -- never inside `/opt/sos-dz`
+(that tree's ownership/permissions in step 2 above are already tuned for
+`git pull` + `www-data`, and mixing an unrelated app into it only invites
+a future `git clean`/deploy script to touch files it shouldn't).
+
+**2. Install a JVM.** `sudo apt install -y openjdk-21-jre-headless` (or
+whatever version the project targets) -- this doesn't conflict with the
+Python 3 / Node.js 20.x already installed for sos-dz's backend and
+moderation sidecar; apt manages them independently.
+
+**3. Run it as its own systemd service, bound to localhost only,** on a
+port that isn't already taken. `sos-dz-gunicorn` uses a Unix socket
+(`/run/sos-dz/sos-dz.sock`), and `sos-dz-nsfwjs` uses `127.0.0.1:8801` --
+neither is a TCP port a new app could collide with, but check what's
+actually listening before picking one: `sudo ss -tlnp`. A minimal unit,
+`/etc/systemd/system/<kotlin-app>.service`:
+
+```ini
+[Unit]
+Description=<Kotlin app>
+After=network.target
+
+[Service]
+WorkingDirectory=/opt/<kotlin-app>
+ExecStart=/usr/bin/java -jar /opt/<kotlin-app>/app.jar --server.port=8802
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Bind it to `127.0.0.1:8802` (or whichever free port) in the app's own
+config -- never `0.0.0.0` -- so it's reachable only through Nginx, the same
+pattern sos-dz's own backend and sidecar already follow. Pick a dedicated
+Linux user for it (or run it as `www-data` if it needs to share files with
+something else), but don't run it as the account that owns `/opt/sos-dz`
+unless it actually needs that access.
+
+**4. Give it its own Nginx server block -- don't edit sos-dz's.** Add a new
+file, `/etc/nginx/sites-available/<kotlin-app>`, with its own
+`server_name` (a subdomain like `kotlin.sosdz.org`, or an entirely
+different domain if the app is unrelated to sos-dz) and `proxy_pass` to
+the port from step 3:
+
+```nginx
+server {
+    listen 80;
+    listen [::]:80;
+    server_name kotlin.sosdz.org;
+
+    location / {
+        proxy_pass http://127.0.0.1:8802;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+```bash
+sudo ln -s /etc/nginx/sites-available/<kotlin-app> /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+`/etc/nginx/sites-available/sos-dz` (and its `sosdz.org`/`www.sosdz.org`
+`server_name`) stays untouched -- Nginx picks the server block by
+`server_name`/SNI, so two blocks on the same VPS don't interfere as long
+as their `server_name`s don't overlap. `nginx -t` validates the whole
+config (both files) before `reload` applies it, and `reload` re-reads the
+config without dropping in-flight connections -- so a mistake in the new
+file is caught before it can affect the already-running sos-dz site, and
+even a successful reload never restarts the sos-dz Gunicorn/NSFWJS
+processes behind it.
+
+**5. Separate TLS certificate.** `sudo certbot --nginx -d kotlin.sosdz.org`
+issues and wires up its own cert for the new server block; it doesn't
+touch or renew the existing `sosdz.org` certificate. Requires a DNS A (or
+CNAME) record for the new subdomain pointed at this same VPS IP first,
+same as step 5 above for the main domain.
+
+**6. Watch shared resources.** Both apps share the VPS's RAM, CPU, and
+disk even though their processes are isolated. A JVM defaults to a
+sizable heap unless capped (`-Xmx512m` or similar in `ExecStart`) -- check
+`free -h` after starting it, alongside `df -h` for the disk headroom a
+JDK + Gradle/Maven build needs. If the box is small, size the new
+service's memory limit so it can't starve Gunicorn's 3 workers or the
+NSFWJS/tfjs process, which are already running.
+
+**In short: different directory, different systemd unit, different port
+(bound to localhost), different Nginx server block/subdomain, different
+TLS cert.** None of sos-dz's existing units, sockets, or Nginx config need
+to change, so there's no step here that risks breaking the live
+sosdz.org deploy.
+
 ## Option B — temporary fallback (Railway/Render)
 
 If VPS setup is ever blocking progress, either Railway or Render can host the Django backend directly from the GitHub repo with minimal config (the frontend would then need its own separate static host too, e.g. Cloudflare Pages/Netlify/Vercel, since this fallback is backend-only):
