@@ -647,6 +647,30 @@ main {
   line-height: 1.25;
   transition: background .16s ease, border-color .16s ease, transform .16s ease;
 }
+.home-btn-create-menu-close {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--card);
+  color: var(--text);
+  box-shadow: 0 4px 10px rgba(21, 33, 58, .18);
+  cursor: pointer;
+}
+.home-btn-create-menu-close:hover {
+  background: #f2f4f7;
+}
+.home-btn-create-menu-close:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
 /* Three entries now (Algérie / à l'étranger / flyer) -- nth-child rather
    than :first-child/:last-child so each keeps its own color instead of
    the flyer entry inheriting the "à l'étranger" one's blue now that it's
@@ -1152,11 +1176,14 @@ main {
   display: flex;
   align-items: center;
   gap: 8px;
+  width: calc(50% - clamp(4px, 1.3vw, 7px));
+  margin-inline: auto;
+  margin-top: 16px;
   min-height: 38px;
   padding: 8px 14px;
   border-radius: 999px;
-  background: var(--brand-green-soft, #eef8f3);
-  color: #147b4b;
+  background: var(--brand-green-border, #b9decd);
+  color: #0f5c38;
   font-size: clamp(12.5px, 3.2vw, 14px);
   font-weight: 700;
   text-decoration: none;
@@ -1171,7 +1198,7 @@ main {
   font-weight: 400;
 }
 .home-about-button:hover {
-  background: var(--brand-green-border, #b9decd);
+  background: #a3d0bb;
   transform: translateY(-1px);
 }
 .home-about-button:focus-visible {
