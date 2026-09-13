@@ -1403,8 +1403,17 @@ textarea {
   border: 1px solid var(--border);
   border-radius: 10px;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
-  max-height: 220px;
+  max-height: 320px;
   overflow-y: auto;
+  /* Raising the result caps (utils.js searchPlaces/searchPlacesTypeahead)
+     means this list now actually overflows its own box often enough for
+     scrolling to matter, not just in theory -- without these, a touch
+     drag that runs out of room here on Android/iOS silently hands the
+     gesture off to the page underneath (or bounces/rubber-bands) instead
+     of scrolling this list, which reads as "the dropdown doesn't
+     scroll" even though overflow-y: auto is set. */
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 .place-suggestions li {
   padding: 8px 10px;
