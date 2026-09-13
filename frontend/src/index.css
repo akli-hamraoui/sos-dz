@@ -1403,8 +1403,17 @@ textarea {
   border: 1px solid var(--border);
   border-radius: 10px;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
-  max-height: 220px;
+  max-height: 320px;
   overflow-y: auto;
+  /* Raising the result caps (utils.js searchPlaces/searchPlacesTypeahead)
+     means this list now actually overflows its own box often enough for
+     scrolling to matter, not just in theory -- without these, a touch
+     drag that runs out of room here on Android/iOS silently hands the
+     gesture off to the page underneath (or bounces/rubber-bands) instead
+     of scrolling this list, which reads as "the dropdown doesn't
+     scroll" even though overflow-y: auto is set. */
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 .place-suggestions li {
   padding: 8px 10px;
@@ -2246,8 +2255,7 @@ fieldset {
   padding-block-start: 9px;
   border-block-start: 1px solid var(--border);
 }
-.sosdz-map-popup .popup-actions a,
-.sosdz-map-popup .popup-actions .popup-photo-btn {
+.sosdz-map-popup .popup-actions a {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2263,12 +2271,11 @@ fieldset {
   text-decoration: none;
   line-height: 1.2;
 }
-.sosdz-map-popup .popup-actions a:hover,
-.sosdz-map-popup .popup-actions .popup-photo-btn:hover {
+.sosdz-map-popup .popup-actions a:hover {
   background: #e1f3ea;
 }
-.sosdz-map-popup .popup-photo-btn {
-  cursor: pointer;
+.sosdz-map-popup .popup-photo-btn:hover {
+  border-color: var(--sos-green);
 }
 .leaflet-popup-content {
   overflow-wrap: break-word;
@@ -2279,23 +2286,40 @@ fieldset {
   margin-block-start: 4px;
 }
 /* "View flyer" shortcut inside a marker's own popup (flyer/damage/delivery
-   photo, when the pin has one) -- opens the shared PhotoLightbox (see each
-   map page's own popupopen handler) without closing this popup, so the
-   point's own info stays visible once the photo is dismissed. Styled as a
-   plain link, not a boxed button, to sit naturally among the popup's other
-   <br>-separated lines/links. */
+   photo, when the pin has one) -- a small clickable thumbnail of the photo
+   itself, opening the shared PhotoLightbox (see each map page's own
+   popupopen handler) without closing this popup, so the point's own info
+   stays visible once the photo is dismissed. */
 .popup-photo-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  margin-block-start: 4px;
-  background: none;
-  border: none;
+  position: relative;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  margin: 0;
   padding: 0;
-  color: inherit;
-  font: inherit;
-  text-decoration: underline;
+  overflow: hidden;
+  border: 1px solid #cfe4d9;
+  border-radius: 10px;
+  background: var(--sos-green-soft);
   cursor: pointer;
+}
+.popup-photo-btn img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.popup-photo-btn-badge {
+  position: absolute;
+  inset-block-end: 2px;
+  inset-inline-end: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: rgba(21, 33, 58, 0.65);
 }
 /* Row pairing the "view flyer" button with the popup's own "Ouvrir" link
    (CollectionPoints/InternationalCollectionPoints/NeedsList) -- pushed to

@@ -73,7 +73,16 @@ export default function CountrySelect({ value, onChange, lang, placeholder, id, 
         autoComplete="off"
       />
       {open && (
-        <ul className="place-suggestions" role="listbox">
+        <ul
+          className="place-suggestions"
+          role="listbox"
+          // See PlaceAutocomplete.jsx's own identical guard -- a touch
+          // scroll inside this list can trigger the field's blur, whose
+          // 150ms timer would otherwise close the list mid-scroll.
+          onTouchStart={() => {
+            if (blurTimeoutRef.current) clearTimeout(blurTimeoutRef.current)
+          }}
+        >
           {allLabel && (
             <li role="option" onMouseDown={() => pick('', '')}>
               {allLabel}

@@ -55,7 +55,7 @@ export default function CountryOrPlaceSearch({ lang, placeholder, onSelectCountr
     if (!q) return []
     return countryOptions(lang)
       .filter((c) => c.name.toLowerCase().includes(q))
-      .slice(0, 5)
+      .slice(0, 8)
   }
 
   const handleChange = (e) => {
@@ -145,7 +145,19 @@ export default function CountryOrPlaceSearch({ lang, placeholder, onSelectCountr
         autoComplete="off"
       />
       {open && (countries.length > 0 || places.length > 0) && (
-        <ul className="place-suggestions" role="listbox">
+        <ul
+          className="place-suggestions"
+          role="listbox"
+          // A touch-drag to scroll this (now often taller than the
+          // screen fits) list can itself trigger the input's blur -- the
+          // 150ms timer above would then close the list mid-scroll.
+          // Cancel it as soon as a touch lands here so scrolling always
+          // has time to finish; selecting an option still closes the
+          // list itself via pickCountry/pickPlace regardless.
+          onTouchStart={() => {
+            if (blurTimeoutRef.current) clearTimeout(blurTimeoutRef.current)
+          }}
+        >
           {countries.map((c) => (
             <li key={'country-' + c.code} role="option" onMouseDown={() => pickCountry(c)}>
               🌐 {c.name}
