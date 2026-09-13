@@ -165,7 +165,7 @@ const NOMINATIM_BASE = 'https://nominatim.openstreetmap.org'
 export async function searchPlaces(query, lang, signal, countryCode = 'dz', excludeCountryCode = null) {
   const countryParam = countryCode === 'any' ? '' : `&countrycodes=${countryCode.toLowerCase()}`
   const addressParam = excludeCountryCode ? '&addressdetails=1' : '&addressdetails=0'
-  const url = `${NOMINATIM_BASE}/search?format=json${addressParam}&limit=6&accept-language=${lang}${countryParam}&q=${encodeURIComponent(query)}`
+  const url = `${NOMINATIM_BASE}/search?format=json${addressParam}&limit=10&accept-language=${lang}${countryParam}&q=${encodeURIComponent(query)}`
   const resp = await fetch(url, { signal })
   if (!resp.ok) throw new Error('Place search failed')
   const results = await resp.json()
@@ -202,7 +202,7 @@ const PHOTON_BASE = 'https://photon.komoot.io/api'
 export async function searchPlacesTypeahead(query, lang, signal) {
   const supportedLang = ['en', 'de', 'fr'].includes(lang) ? lang : 'en'
   const layers = ['city', 'locality', 'state', 'country'].map((l) => `&layer=${l}`).join('')
-  const url = `${PHOTON_BASE}/?q=${encodeURIComponent(query)}&lang=${supportedLang}&limit=10${layers}`
+  const url = `${PHOTON_BASE}/?q=${encodeURIComponent(query)}&lang=${supportedLang}&limit=20${layers}`
   const resp = await fetch(url, { signal })
   if (!resp.ok) throw new Error('Typeahead search failed')
   const geojson = await resp.json()

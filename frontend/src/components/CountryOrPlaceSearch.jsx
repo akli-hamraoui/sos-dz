@@ -55,7 +55,7 @@ export default function CountryOrPlaceSearch({ lang, placeholder, onSelectCountr
     if (!q) return []
     return countryOptions(lang)
       .filter((c) => c.name.toLowerCase().includes(q))
-      .slice(0, 5)
+      .slice(0, 8)
   }
 
   const handleChange = (e) => {
