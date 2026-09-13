@@ -150,13 +150,23 @@ export function formatApproxKm(km) {
 }
 
 const FLYER_ICON_SVG =
-  '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ' +
-  'stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><rect x="3" y="3" width="18" height="18" rx="2.5"/>' +
-  '<circle cx="9" cy="9" r="1.8"/><path d="m21 15-4.5-4.5a2 2 0 0 0-2.8 0L6 18"/></svg>'
+  '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" ' +
+  'stroke-linecap="round" stroke-linejoin="round"><path d="M21 21 15.8 15.8M18 10.5A7.5 7.5 0 1 1 3 10.5a7.5 7.5 0 0 1 15 0Z"/></svg>'
 
+// Small clickable thumbnail of the flyer/photo itself (rather than a text
+// button) -- gives an at-a-glance preview right inside the popup, same tap
+// target it always was (still opens the shared PhotoLightbox via the
+// popup-photo-btn class/data-photo-url attribute, see
+// attachMapPopupBehavior below). The magnifier badge in the corner is the
+// only remaining hint that it's tappable, now that there's no "Voir le
+// flyer" label to convey that.
 export function flyerPopupButtonHtml(t, photoUrl) {
   if (!photoUrl) return ''
-  return `<button type="button" class="popup-photo-btn" data-photo-url="${photoUrl}">${FLYER_ICON_SVG} ${t('common.viewFlyer')}</button>`
+  return (
+    `<button type="button" class="popup-photo-btn" data-photo-url="${photoUrl}" aria-label="${t('common.viewFlyer')}" title="${t('common.viewFlyer')}">` +
+    `<img src="${photoUrl}" alt="" loading="lazy" /><span class="popup-photo-btn-badge">${FLYER_ICON_SVG}</span>` +
+    `</button>`
+  )
 }
 
 export function attachMapTapToActivate(map, onActivate) {
