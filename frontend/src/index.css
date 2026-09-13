@@ -1178,6 +1178,7 @@ main {
   gap: 8px;
   width: calc(50% - clamp(4px, 1.3vw, 7px));
   margin-inline: auto;
+  margin-top: 16px;
   min-height: 38px;
   padding: 8px 14px;
   border-radius: 999px;
