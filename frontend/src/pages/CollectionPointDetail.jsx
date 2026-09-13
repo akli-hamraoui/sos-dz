@@ -28,7 +28,7 @@ export default function CollectionPointDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { showAlert, showPrompt, showConfirm } = useDialog()
-  const { refreshConfig, pickupTokens, cpTokens, removeCpToken } = useApp()
+  const { refreshConfig, pickupTokens, cpTokens, saveCpToken, removeCpToken } = useApp()
   const [cp, setCp] = useState(null)
   const [showPhone, setShowPhone] = useState(false)
   const [lightbox, setLightbox] = useState(null) // { src } for a full-size flyer preview
@@ -155,6 +155,35 @@ export default function CollectionPointDetail() {
       showAlert(translateApiError(e, t))
     } finally {
       setDeleting(false)
+    }
+  }
+
+  // Lets a non-owner (no token held locally for this browser -- a
+  // different device, or this one after clearing storage) edit inline
+  // right away instead of being routed through the separate /recover page
+  // and back: same code-first, name+phone-fallback prompt as
+  // close/deletePointByIdentity above, but on a match it stores the fresh
+  // token here (recover-access always regenerates it, invalidating any
+  // older one) and opens the edit form immediately -- isOwner then reads
+  // true on the very next render, same UI an owner already sees.
+  const editByIdentity = async () => {
+    const code = await showPrompt(t('collectionPoints.closePromptCode'))
+    if (code === null) return
+    let payload
+    if (code.trim()) {
+      payload = { code: code.trim() }
+    } else {
+      const name = await showPrompt(t('collectionPoints.closePromptName'))
+      if (!name) return
+      const phone = await showPrompt(t('collectionPoints.closePromptPhone'))
+      payload = { name, phone }
+    }
+    try {
+      const { access_token } = await api(`/collection-points/${id}/recover-access/`, { method: 'POST', body: JSON.stringify(payload) })
+      saveCpToken(id, access_token)
+      startEdit()
+    } catch (e) {
+      showAlert(translateApiError(e, t))
     }
   }
 
@@ -361,6 +390,9 @@ export default function CollectionPointDetail() {
         </div>
       ) : (
         <div>
+          <button className="btn" onClick={editByIdentity}>
+            {t('common.edit')}
+          </button>
           {cp.status === 'active' && (
             <button className="btn" onClick={closePointByIdentity}>
               {t('collectionPoints.markAsClosed')}

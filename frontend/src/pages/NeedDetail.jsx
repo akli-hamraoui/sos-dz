@@ -250,6 +250,24 @@ export default function NeedDetail() {
     }
   }
 
+  // Lets a non-owner (no token held locally for this browser) edit inline
+  // right away instead of being routed through the separate /recover page
+  // and back -- same single-code prompt as deleteNeedByCode below, but on
+  // a match it stores the fresh token here (recover-access always
+  // regenerates it, invalidating any older one) and opens the edit form
+  // immediately, since isNeedOwner then reads true on the very next render.
+  const editNeedByCode = async () => {
+    const code = await showPrompt(t('needDetail.deleteByCodePrompt'))
+    if (!code) return
+    try {
+      const { access_token } = await api(`/needs/${id}/recover-access/`, { method: 'POST', body: JSON.stringify({ code }) })
+      saveNeedToken(id, { access_token })
+      startEdit()
+    } catch (err) {
+      showAlert(translateApiError(err, t))
+    }
+  }
+
   const deleteNeedByCode = async () => {
     const code = await showPrompt(t('needDetail.deleteByCodePrompt'))
     if (!code) return
@@ -567,6 +585,10 @@ export default function NeedDetail() {
         </div>
       ) : (
         <div>
+          <button className="btn" onClick={editNeedByCode}>
+            {t('common.edit')}
+          </button>
+          <br />
           <Link className="link" to="/recover" state={{ type: 'need', id: need.id }}>
             {t('needDetail.isThisYourNeed')}
           </Link>
