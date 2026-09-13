@@ -800,7 +800,6 @@ main {
   display: flex;
   align-items: stretch;
   gap: clamp(8px, 2.6vw, 14px);
-  min-height: 0;
   background: none;
   box-shadow: none;
   padding: 0;
@@ -813,7 +812,7 @@ main {
   align-items: center;
   justify-content: center;
   gap: 2px;
-  padding: clamp(4px, 1.6vw, 10px) clamp(6px, 2vw, 12px);
+  padding: clamp(6px, 2.2vw, 14px) clamp(6px, 2vw, 12px);
   border-radius: 13px;
   color: #fff;
   text-align: center;
@@ -829,16 +828,16 @@ main {
   outline-offset: 2px;
 }
 .home-sos-half-orange {
-  background: linear-gradient(135deg, #f0a83c, #d97910);
-  box-shadow: 0 5px 14px rgba(217, 121, 16, .3);
+  background: linear-gradient(135deg, #ffb648, #f08a1c);
+  box-shadow: 0 5px 14px rgba(240, 138, 28, .25);
 }
 .home-sos-half-red {
-  background: linear-gradient(135deg, #e83b43, #b81829);
-  box-shadow: 0 5px 14px rgba(184, 24, 41, .3);
+  background: linear-gradient(135deg, #f9434c, #d91f31);
+  box-shadow: 0 5px 14px rgba(217, 31, 49, .25);
 }
 .home-sos-half .home-sos-icon {
-  width: clamp(22px, 6.5vw, 36px);
-  height: clamp(22px, 6.5vw, 36px);
+  width: clamp(26px, 8vw, 44px);
+  height: clamp(26px, 8vw, 44px);
 }
 /* The red half's icon sits in a row next to the mic badge (rather than
    the badge overlapping its corner) -- a corner badge that stayed clear
@@ -853,7 +852,7 @@ main {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  margin-top: clamp(14px, 4vw, 18px);
+  margin-top: clamp(16px, 5vw, 22px);
 }
 .home-sos-icon-wrap .home-sos-icon {
   margin-top: 0;
@@ -1177,11 +1176,13 @@ main {
   display: flex;
   align-items: center;
   gap: 8px;
+  width: calc(50% - clamp(4px, 1.3vw, 7px));
+  margin-inline: auto;
   min-height: 38px;
   padding: 8px 14px;
   border-radius: 999px;
-  background: var(--brand-green-soft, #eef8f3);
-  color: #147b4b;
+  background: var(--brand-green-border, #b9decd);
+  color: #0f5c38;
   font-size: clamp(12.5px, 3.2vw, 14px);
   font-weight: 700;
   text-decoration: none;
@@ -1196,7 +1197,7 @@ main {
   font-weight: 400;
 }
 .home-about-button:hover {
-  background: var(--brand-green-border, #b9decd);
+  background: #a3d0bb;
   transform: translateY(-1px);
 }
 .home-about-button:focus-visible {
