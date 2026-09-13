@@ -24,7 +24,7 @@ function statusLabel(t, s) {
 // just linked to collection_point instead of need.
 export default function PickupManager({ pickup, pickupToken, onChange, onLocationUpdate }) {
   const { t, i18n } = useTranslation()
-  const { refreshConfig, removePickupToken } = useApp()
+  const { refreshConfig, removePickupToken, savePickupToken } = useApp()
   const { showConfirm, showPrompt, showAlert } = useDialog()
   const owned = !!pickupToken
 
@@ -207,6 +207,24 @@ export default function PickupManager({ pickup, pickupToken, onChange, onLocatio
       showAlert(translateApiError(err, t))
     } finally {
       setDeleting(false)
+    }
+  }
+
+  // Lets a non-owner (no token held locally for this browser) edit inline
+  // right away instead of being routed through the separate /recover page
+  // and back -- same single-code prompt as deletePickupByCode below, but on
+  // a match it stores the fresh token here (recover-access always
+  // regenerates it, invalidating any older one) and opens the edit form
+  // immediately, since owned then reads true on the very next render.
+  const editPickupByCode = async () => {
+    const code = await showPrompt(t('needDetail.deleteByCodePrompt'))
+    if (!code) return
+    try {
+      const { access_token } = await api(`/pickups/${pickup.id}/recover-access/`, { method: 'POST', body: JSON.stringify({ code }) })
+      savePickupToken(pickup.id, access_token)
+      startEditPickup()
+    } catch (err) {
+      showAlert(translateApiError(err, t))
     }
   }
 
@@ -431,6 +449,10 @@ export default function PickupManager({ pickup, pickupToken, onChange, onLocatio
       )}
       {!owned && (
         <div>
+          <button className="btn" onClick={editPickupByCode}>
+            {t('common.edit')}
+          </button>
+          <br />
           <Link className="link" to="/recover" state={{ type: 'pickup', id: pickup.id }}>
             {t('needDetail.isThisYourPickup')}
           </Link>
