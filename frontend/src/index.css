@@ -674,23 +674,58 @@ main {
 /* Three entries now (Algérie / à l'étranger / flyer) -- nth-child rather
    than :first-child/:last-child so each keeps its own color instead of
    the flyer entry inheriting the "à l'étranger" one's blue now that it's
-   no longer last. */
-.home-btn-create-menu a:nth-child(1) {
+   no longer last. Indices start at 2, not 1: the close button
+   (.home-btn-create-menu-close) is this row's actual first DOM child,
+   so the Algérie link is nth-child(2), à l'étranger is nth-child(3),
+   and the flyer link (styled by its own .home-btn-create-menu-flyer
+   class below, not by position) is nth-child(4). */
+.home-btn-create-menu a:nth-child(2) {
   border-color: #b9dfcb;
   background: var(--sos-green-soft);
   color: #20583f;
 }
-.home-btn-create-menu a:nth-child(2) {
+.home-btn-create-menu a:nth-child(3) {
   border-color: #c8dcfb;
   background: var(--sos-blue-soft);
   color: #1f55a4;
 }
-.home-btn-create-menu a:nth-child(3) {
+/* This entry alone carries the "NOUVEAU" badge, and the dropdown is
+   narrow (it's sized to a single secondary-grid column), so its label
+   text alone can wrap across several lines. A plain flex row can't
+   guarantee the badge lands *below* that wrapped text instead of on
+   top of it (flex-wrap only breaks onto a new line when an item's
+   own hypothetical size doesn't fit, which a shrinkable, already-
+   wrapping label never triggers) -- so this entry gets its own 2-row
+   grid instead: icon spans both rows in column 1, label is row 1 of
+   column 2, and the badge is explicitly pinned to row 2 of column 2
+   underneath it, however tall the wrapped label gets. Targeted by its
+   own class rather than nth-child so it can't silently drift onto the
+   wrong entry again if the menu's children are reordered. Selectors
+   below are doubled up as `.home-btn-create-menu .home-btn-create-menu-flyer`
+   (two classes) rather than the class alone, so `display: grid` has
+   more specificity than -- and actually overrides -- the plain
+   `.home-btn-create-menu a { display: flex }` rule above. */
+.home-btn-create-menu .home-btn-create-menu-flyer {
   border-color: #ddd0f7;
   background: #f2edfb;
   color: #5b3894;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
   row-gap: 3px;
+  column-gap: 9px;
+}
+.home-btn-create-menu .home-btn-create-menu-flyer svg {
+  grid-row: 1 / span 2;
+  align-self: center;
+  color: #7c4dbb;
+}
+.home-btn-create-menu .home-btn-create-menu-flyer .home-btn-create-menu-label {
+  grid-row: 1;
+  grid-column: 2;
+}
+.home-btn-create-menu .home-btn-create-menu-flyer .home-badge-new-inline {
+  grid-row: 2;
+  grid-column: 2;
 }
 .home-btn-create-menu-label {
   flex: 1 1 auto;
@@ -706,14 +741,11 @@ main {
 .home-btn-create-menu svg {
   flex: 0 0 auto;
 }
-.home-btn-create-menu a:nth-child(1) svg {
+.home-btn-create-menu a:nth-child(2) svg {
   color: var(--sos-green);
 }
-.home-btn-create-menu a:nth-child(2) svg {
-  color: var(--sos-blue);
-}
 .home-btn-create-menu a:nth-child(3) svg {
-  color: #7c4dbb;
+  color: var(--sos-blue);
 }
 .home-about-card {
   display: grid;
@@ -969,16 +1001,22 @@ main {
   }
 }
 /* Reused inline in the dropdown menu (rather than pinned to a card
-   corner) so it sits at the end of that row instead of floating
-   relative to the whole dropdown -- placed after .home-badge-new here
-   so this override actually wins the position/margin properties at
-   equal specificity. Kept `relative` (not `static`) so the ::before
-   ping ring still anchors to the badge itself instead of escaping to
-   the dropdown's own positioned ancestor. */
+   corner) so it sits below the label in its own grid row instead of
+   floating relative to the whole dropdown -- placed after
+   .home-badge-new here so this override actually wins the
+   position/margin properties at equal specificity. Kept `relative`
+   (not `static`) so the ::before ping ring still anchors to the
+   badge itself instead of escaping to the dropdown's own positioned
+   ancestor. `justify-self: end` keeps the pill sized to its own
+   content and right-aligned in its grid cell -- see the
+   `.home-btn-create-menu-flyer` grid rules below for why it's on its own row: the
+   dropdown is narrow (sized to a single secondary-grid column), so
+   the label text alone can wrap to several lines, and a flex layout
+   here would center-align the badge across all of them, landing it
+   on top of the middle line instead of clearing it. */
 .home-badge-new-inline {
   position: relative;
-  margin-inline-start: auto;
-  flex: 0 0 auto;
+  justify-self: end;
 }
 /* The same circle-plus treatment as the "Créer un point de collecte"
    button's own icon -- a small filled circle behind IconPlus -- reused
