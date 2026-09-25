@@ -7,8 +7,8 @@ from django.conf import settings
 from django.core.management.base import BaseCommand
 
 from core.models import Need, Signalement
-from core.moderation import moderation_active
-from core.signalements import process_signalement, public_signalements
+from core.moderation import ffmpeg_available, moderation_active
+from core.signalements import process_signalement, public_signalements, retry_unanswered_moderation
 from core.voice_ai import process_voice_need
 
 logger = logging.getLogger("core.worker")
@@ -16,6 +16,9 @@ logger = logging.getLogger("core.worker")
 # While idle, log a short "still alive" line this often so journalctl shows
 # the worker is running even when there's nothing to process.
 HEARTBEAT_SECONDS = 300
+# While idle, re-check Signali photos/videos the moderation sidecar
+# couldn't answer for (it was down) this often.
+MODERATION_RETRY_SECONDS = 120
 
 
 def _sidecar_status():
@@ -56,20 +59,27 @@ class Command(BaseCommand):
         counts = _queue_counts()
         self.stdout.write(f"Pending voice SOS: {counts['voice_sos_pending']}")
         self.stdout.write(f"Pending Signali reports: {counts['signali_pending']}")
-        self.stdout.write(f"Media moderation active: {moderation_active()} | sidecar {settings.NSFWJS_SIDECAR_URL}: {_sidecar_status()}")
+        self.stdout.write(
+            f"Media moderation active: {moderation_active()} | sidecar {settings.NSFWJS_SIDECAR_URL}: {_sidecar_status()}"
+            f" | ffmpeg (video frames): {'yes' if ffmpeg_available() else 'NOT INSTALLED'}"
+        )
         public_ids = set(public_signalements().values_list("pk", flat=True))
         self.stdout.write("Latest Signali reports:")
         for s in Signalement.objects.order_by("-pk").prefetch_related("photos")[:10]:
             photos = [p.moderation_status for p in s.photos.all()]
             video = s.video_moderation_status if s.video_file else "-"
-            if s.pk in public_ids and s.status != Signalement.STATUS_CANCELLED:
-                why = "ON THE MAP"
-            elif s.processing_status == Signalement.PROCESSING_PENDING:
-                why = "hidden: not processed yet (is the worker running?)"
-            elif s.status == Signalement.STATUS_CANCELLED:
+            if s.status == Signalement.STATUS_CANCELLED:
                 why = "hidden: cancelled"
+            elif s.pk not in public_ids:
+                why = "hidden: all its media rejected, or flagged as abusive"
             else:
-                why = "hidden: no approved photo/video (moderation pending/rejected -- approve it in Django Admin)"
+                why = "ON THE MAP"
+                unchecked = [p for p in s.photos.all() if p.moderation_status == "pending" and not p.moderated_by]
+                doubt = [p for p in s.photos.all() if p.moderation_status == "pending" and p.moderated_by]
+                if unchecked or (s.video_file and s.video_moderation_status == "pending" and not s.video_moderated_by):
+                    why += " (some media not checked yet: sidecar/ffmpeg unavailable, the worker retries)"
+                elif doubt or (s.video_file and s.video_moderation_status == "pending"):
+                    why += " (some media in doubt: approve/reject it in Django Admin)"
             self.stdout.write(
                 f"  #{s.pk} {s.created_at:%Y-%m-%d %H:%M} {s.wilaya} processing={s.processing_status} "
                 f"photos={photos} video={video} gps={'yes' if s.latitude is not None else 'no'} -> {why}"
@@ -88,6 +98,7 @@ class Command(BaseCommand):
             getattr(settings, "VOICE_WHISPER_MODEL", "small"), getattr(settings, "VOICE_LLM_MODEL", "?"), counts,
         )
         last_beat = time.monotonic()
+        last_retry = 0.0
         while True:
             need = (
                 Need.objects
@@ -114,6 +125,13 @@ class Command(BaseCommand):
                 self._run(f"Signali report #{signalement.pk}", process_signalement, signalement.pk)
                 last_beat = time.monotonic()
                 continue
+
+            if time.monotonic() - last_retry >= MODERATION_RETRY_SECONDS or options["once"]:
+                last_retry = time.monotonic()
+                try:
+                    retry_unanswered_moderation()
+                except Exception:
+                    logger.exception("Worker: moderation retry crashed")
 
             if options["once"]:
                 self._log("Worker: queue empty, exiting (--once).")

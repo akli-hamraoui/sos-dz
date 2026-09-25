@@ -857,7 +857,7 @@
       "cancelled": "Cancelled"
     },
     "noExactPosition": "No exact GPS position: shown in the \"no location\" bubble.",
-    "mediaUnderReview": "Photo/video awaiting review.",
+    "mediaUnderReview": "Photo or video being checked automatically: it will show once approved.",
     "descriptionHeading": "Description",
     "itinerary": "Google Maps directions",
     "openReport": "Open the report",
@@ -868,7 +868,7 @@
     "countNoLocation_one": "{{count}} without location",
     "countNoLocation_other": "{{count}} without location",
     "aiTitle": "AI analysis in progress",
-    "aiText": "It will appear on the map once checked.",
+    "aiText": "It's already on the map; photos and videos show as soon as they're checked.",
     "aiWorking": "AI analysis in progress…",
     "aiSentTitle": "Report sent, AI analysis in progress",
     "reviewShortNote": "Anonymous. Checked by AI before it appears on the map.",

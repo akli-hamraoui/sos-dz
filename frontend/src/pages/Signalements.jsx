@@ -23,16 +23,15 @@ import '../signali.css'
 // report -- also fetched on its own, since a report still being checked
 // isn't in the public list yet. Same map chrome as the other maps
 // (NeedsList.jsx): hidden filters panel, "tap to interact" overlay,
-// fullscreen, "center on me", and a map that fills the screen. Reports
-// still being checked show as grey pins to their own reporter (this
-// device's tokens) and to admins.
+// fullscreen, "center on me", and a map that fills the screen. A report
+// is public as soon as it's sent; only its photos/video wait for their
+// check.
 
 function pinIcon(s, selected) {
   const open = s.status === 'new' || s.status === 'in_review'
   const cls = [
     'signali-marker',
     open ? 'is-open' : 'is-resolved',
-    s.processing_status === 'pending' ? 'is-pending' : '',
     selected ? 'is-selected' : '',
   ].join(' ')
   return L.divIcon({ className: 'signali-marker-icon', html: `<span class="${cls}">${categoryEmoji(s.category)}</span>`, iconSize: [34, 34], iconAnchor: [17, 17] })

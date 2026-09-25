@@ -202,8 +202,8 @@ export default function SignalementDetail() {
             <h1>{t(`signali.categories.${s.category}`)}</h1>
             <small>{[s.address, s.commune, s.wilaya_name].filter(Boolean).join(', ')}</small>
             {/* Under the title, never over it. */}
-            <span className={`signali-status is-${pending ? 'pending' : s.status}`}>
-              {pending ? t('signali.statusPending') : t(`signali.status.${s.status}`)}
+            <span className={`signali-status is-${s.status}`}>
+              {t(`signali.status.${s.status}`)}
             </span>
           </div>
         </header>
@@ -219,7 +219,8 @@ export default function SignalementDetail() {
             {s.video_file && <video src={s.video_file} controls playsInline preload="metadata" />}
           </div>
         )}
-        {!pending && !photos.length && !s.video_file && <p className="signali-pending-note">{t('signali.mediaUnderReview')}</p>}
+        {/* A photo/the video still waits for its check: hidden for now. */}
+        {s.media_under_review && <p className="signali-pending-note">🛡️ {t('signali.mediaUnderReview')}</p>}
 
         {s.description && (
           <>
@@ -256,7 +257,7 @@ export default function SignalementDetail() {
             type="button"
             className={`btn signali-agree${agreed ? ' is-done' : ''}`}
             onClick={() => vote('confirm', t('signali.thanksConfirm')).then(() => setAgreed(true))}
-            disabled={busy || agreed || !open || pending}
+            disabled={busy || agreed || !open}
           >
             👍 {t('signali.agree')} <b>{s.confirmations_count + 1}</b>
           </button>
@@ -270,12 +271,12 @@ export default function SignalementDetail() {
               await vote('report-abuse', t('signali.thanksAbuse'))
               setFlagged(true)
             }}
-            disabled={busy || flagged || pending}
+            disabled={busy || flagged}
           >
             <IconAbuse width={18} height={18} aria-hidden="true" /> {t('signali.abuse')} <b>{s.abuse_reports_count || 0}</b>
           </button>
         </div>
-        {open && !pending && (
+        {open && (
           <div className="signali-detail-actions">
             {!token && (
               <button type="button" className="btn" onClick={() => vote('report-fixed', t('signali.thanksFixed'))} disabled={busy}>🔧 {t('signali.itsFixed')}</button>

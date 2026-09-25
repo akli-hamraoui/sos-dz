@@ -876,7 +876,7 @@
       "cancelled": "Annulé"
     },
     "noExactPosition": "Pas de position GPS exacte : affiché dans la bulle « sans localisation ».",
-    "mediaUnderReview": "Photo/vidéo en attente de vérification.",
+    "mediaUnderReview": "Photo ou vidéo en cours de vérification automatique : elle s'affichera dès qu'elle sera validée.",
     "descriptionHeading": "Description",
     "itinerary": "Itinéraire Google Maps",
     "openReport": "Voir le signalement",
@@ -887,7 +887,7 @@
     "countNoLocation_one": "{{count}} sans localisation",
     "countNoLocation_other": "{{count}} sans localisation",
     "aiTitle": "Analyse IA en cours",
-    "aiText": "Il sera affiché sur la carte après vérification.",
+    "aiText": "Il est déjà sur la carte ; les photos et vidéos s'affichent dès qu'elles sont vérifiées.",
     "aiWorking": "Analyse IA en cours…",
     "aiSentTitle": "Signal envoyé, analyse IA en cours",
     "reviewShortNote": "Anonyme. Vérifié par l'IA avant d'apparaître sur la carte.",

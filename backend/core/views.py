@@ -32,7 +32,7 @@ from core.flyer_publish import publish_extracted_point
 from core.geo import get_country_centroid
 from core.geoip import is_algeria_ip
 from core.media_validation import MAX_PHOTOS as MAX_SIGNALEMENT_PHOTOS, validate_photo_count, validate_photo_size, validate_video_duration, validate_video_size
-from core.moderation import moderate_image_field, moderate_video_field, moderation_active
+from core.moderation import moderate_image_field, moderate_video_field, moderation_active, sidecar_reachable
 from core.models import (
     AppConfiguration,
     AuditLog,
@@ -57,7 +57,7 @@ from core.models import (
     Wilaya,
 )
 from core.permissions import VOICE_SOS_GEO_MESSAGE, read_only_block, write_guard
-from core.signalements import find_nearby_signalements, public_signalements
+from core.signalements import find_nearby_signalements, moderate_signalement_media, public_signalements
 from core.validators import is_within_algeria_bounds, normalize_place_name, validate_social_url
 from core.serializers import (
     AnonymizeSerializer,
@@ -1681,15 +1681,30 @@ class SignalementViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.
             logger.warning("Signalement %s created with media problems: %s", signalement.pk, " | ".join(warnings))
         else:
             logger.info("Signalement %s created: photos=%s video=%s voice=%s", signalement.pk, len(photos), bool(video), bool(voice))
+        self._moderate_now(signalement)
         out = SignalementDetailSerializer(signalement, context={"request": request, "signali_viewer": "owner"}).data
         out["access_token"] = signalement.access_token
         out["media_warnings"] = warnings
         return Response(out, status=status.HTTP_201_CREATED)
 
+    @staticmethod
+    def _moderate_now(signalement):
+        """NSFW check right away, like the SOS photos, so the report shows
+        with its approved media at once. Skipped when the sidecar doesn't
+        answer its health check (never makes the reporter wait on a dead
+        service): the worker retries it. Never fails the submission."""
+        try:
+            if not moderation_active() or sidecar_reachable():
+                moderate_signalement_media(signalement)
+            else:
+                logger.warning("Signalement %s: moderation sidecar unreachable, the worker will retry", signalement.pk)
+        except Exception:
+            logger.exception("Signalement %s: moderation at submission failed, the worker will retry", signalement.pk)
+
     def _attach_media(self, signalement, photos, video, voice):
         """Stores each file on its own; a file that's too large, unreadable
-        or fails to save is skipped and reported, never fatal. Moderation
-        and transcription happen later in the worker (core.signalements)."""
+        or fails to save is skipped and reported, never fatal. Transcription
+        happens later in the worker (core.signalements)."""
         warnings = []
         for index, photo in enumerate(photos[:MAX_SIGNALEMENT_PHOTOS], start=1):
             try:

@@ -1,13 +1,15 @@
 """Background processing for Signali reports (core.models.Signalement).
 
-A report is saved as soon as it's submitted (PROCESSING_PENDING, hidden
-from public lists) and finished here by the voice worker
-(management/commands/process_voice_sos.py), which already keeps the
-Whisper model loaded:
+A report is public as soon as it's submitted; its photos/video are
+checked right away, inside the request, like the SOS ones
+(moderate_signalement_media), and each one is only shown once approved.
+The voice worker (management/commands/process_voice_sos.py), which
+already keeps the Whisper model loaded, then finishes it:
 
-1. NSFW moderation of every photo and of the video (core.moderation) --
-   done here rather than inside the request so a slow sidecar or a long
-   ffmpeg frame extraction never delays the reporter's confirmation.
+1. NSFW moderation of any photo/video the sidecar couldn't answer for
+   at submission time -- and, while idle, it keeps retrying those
+   (retry_unanswered_moderation) until the sidecar is back. Only a real
+   doubt from the model ("pending") waits for an admin.
 2. Whisper transcription of the voice note and of the video's own
    soundtrack (faster-whisper decodes the audio track of a webm/mp4
    directly). A rejected video is never transcribed.
@@ -29,13 +31,13 @@ from datetime import timedelta
 
 import requests
 from django.conf import settings
-from django.db.models import Q
+from django.db.models import Exists, OuterRef, Q
 from django.utils import timezone
 
 from core.collection_point_geocoding import NominatimClient
-from core.models import Need, Signalement, Wilaya
+from core.models import Need, Signalement, SignalementPhoto, Wilaya
 from core.validators import is_within_algeria_bounds
-from core.moderation import moderate_image_field, moderate_video_field, moderation_active
+from core.moderation import check_image_field, check_video_field, ffmpeg_available, moderation_active, sidecar_reachable
 from core.voice_ai import VoiceAIError, transcribe_audio
 
 logger = logging.getLogger(__name__)
@@ -56,17 +58,21 @@ NEARBY_MAX_AGE_DAYS = 90
 
 
 def public_signalements(qs=None):
-    """Reports the worker is done with that still show at least one
-    approved photo/video, and not flagged as abusive by too many people --
-    the only ones any public list may return."""
+    """Reports any public list may return: not flagged as abusive by too
+    many people, and not made only of rejected media (a report whose
+    every photo/video was rejected by moderation stays hidden). Photos
+    and a video still awaiting a check don't hide the report: the
+    serializers hide just those files until they're approved."""
     qs = Signalement.objects.all() if qs is None else qs
-    approved = Need.MODERATION_APPROVED
-    return qs.filter(
-        processing_status=Signalement.PROCESSING_READY,
-        abuse_reports_count__lt=Signalement.ABUSE_REPORTS_TO_HIDE,
-    ).filter(
-        (Q(video_moderation_status=approved) & ~Q(video_file="")) | Q(photos__moderation_status=approved)
-    ).distinct()
+    rejected = Need.MODERATION_REJECTED
+    photos = SignalementPhoto.objects.filter(signalement=OuterRef("pk"))
+    has_video = ~Q(video_file="") & Q(video_file__isnull=False)
+    shown_video = has_video & ~Q(video_moderation_status=rejected)
+    return qs.filter(abuse_reports_count__lt=Signalement.ABUSE_REPORTS_TO_HIDE).filter(
+        Q(Exists(photos.exclude(moderation_status=rejected)))
+        | shown_video
+        | (~Q(Exists(photos)) & ~has_video)
+    )
 
 
 def _distance_meters(lat1, lon1, lat2, lon2):
@@ -154,6 +160,76 @@ def _moderated_by():
     return Need.MODERATED_BY_SYSTEM if moderation_active() else ""
 
 
+def moderate_signalement_media(signalement):
+    """Runs the NSFW check on every photo/video not checked yet. An answer
+    (approved / rejected / pending = the model has a doubt, an admin
+    decides) is stored for good. No answer (sidecar down, ffmpeg
+    missing) leaves the file unchecked (moderated_by empty) so the
+    worker retries it later. Returns how many files are still unchecked."""
+    sid = signalement.pk
+    unanswered = 0
+    for photo in signalement.photos.filter(moderation_status=Need.MODERATION_PENDING, moderated_by=""):
+        status = check_image_field(photo.image)
+        if status is None:
+            unanswered += 1
+            logger.warning("Signalement %s: photo %s moderation unavailable, will retry", sid, photo.pk)
+            continue
+        photo.moderation_status = status
+        photo.moderated_by = _moderated_by()
+        photo.save(update_fields=["moderation_status", "moderated_by"])
+        logger.info("Signalement %s: photo %s moderation -> %s", sid, photo.pk, status)
+
+    if (
+        signalement.video_file
+        and not signalement.video_moderated_by
+        and signalement.video_moderation_status == Need.MODERATION_PENDING
+    ):
+        status = check_video_field(signalement.video_file)
+        if status is None:
+            unanswered += 1
+            logger.warning("Signalement %s: video moderation unavailable, will retry", sid)
+        else:
+            signalement.video_moderation_status = status
+            signalement.video_moderated_by = _moderated_by()
+            Signalement.objects.filter(pk=sid).update(
+                video_moderation_status=status, video_moderated_by=signalement.video_moderated_by
+            )
+            logger.info("Signalement %s: video moderation -> %s", sid, status)
+    return unanswered
+
+
+# Retry window for media the sidecar couldn't answer for: past it, the
+# file just stays "pending" for an admin (Django Admin approve action).
+MODERATION_RETRY_MAX_AGE = timedelta(days=7)
+
+
+def retry_unanswered_moderation():
+    """Called by the idle worker: re-checks photos/videos the sidecar
+    couldn't answer for (moderated_by still empty). Does nothing while the
+    sidecar is down. Returns (checked reports, files still unchecked)."""
+    if not moderation_active() or not sidecar_reachable():
+        return 0, 0
+    since = timezone.now() - MODERATION_RETRY_MAX_AGE
+    photo_ids = SignalementPhoto.objects.filter(
+        moderation_status=Need.MODERATION_PENDING, moderated_by="", signalement__created_at__gte=since,
+    ).values_list("signalement_id", flat=True)
+    q = Q(pk__in=photo_ids)
+    if ffmpeg_available():
+        q |= Q(video_moderation_status=Need.MODERATION_PENDING, video_moderated_by="") & ~Q(video_file="") & Q(video_file__isnull=False)
+    reports = Signalement.objects.filter(q, created_at__gte=since).exclude(status=Signalement.STATUS_CANCELLED)
+    checked = left = 0
+    for signalement in reports.order_by("created_at")[:20]:
+        try:
+            left += moderate_signalement_media(signalement)
+        except Exception:
+            logger.exception("Signalement %s: moderation retry failed", signalement.pk)
+            left += 1
+        checked += 1
+    if checked:
+        logger.info("Moderation retry: %s report(s) re-checked, %s file(s) still unchecked", checked, left)
+    return checked, left
+
+
 def _transcribe(field, label, signalement_id, errors):
     try:
         return transcribe_audio(field)
@@ -187,16 +263,9 @@ def process_signalement(signalement_id):
             else:
                 logger.info("Signalement %s: no position found for the address, shown at its wilaya centre", sid)
 
-        for photo in signalement.photos.filter(moderation_status=Need.MODERATION_PENDING, moderated_by=""):
-            photo.moderation_status = moderate_image_field(photo.image)
-            photo.moderated_by = _moderated_by()
-            photo.save(update_fields=["moderation_status", "moderated_by"])
-            logger.info("Signalement %s: photo %s moderation -> %s", sid, photo.pk, photo.moderation_status)
-
-        if signalement.video_file and not signalement.video_moderated_by:
-            signalement.video_moderation_status = moderate_video_field(signalement.video_file)
-            signalement.video_moderated_by = _moderated_by()
-            logger.info("Signalement %s: video moderation -> %s", sid, signalement.video_moderation_status)
+        # Normally already done at submission; this catches what the
+        # sidecar couldn't answer for then.
+        moderate_signalement_media(signalement)
 
         if signalement.voice_file:
             signalement.voice_transcript = _transcribe(signalement.voice_file, "voice", sid, errors)
@@ -223,7 +292,7 @@ def process_signalement(signalement_id):
     logger.info(
         "Signalement %s: done -> %s (video=%s photos=%s errors=%s)",
         sid,
-        "ON THE MAP" if public else "HIDDEN (no approved photo/video: approve it in Django Admin)",
+        "ON THE MAP" if public else "HIDDEN (all its media rejected, or flagged as abusive)",
         signalement.video_moderation_status if signalement.video_file else "-",
         list(signalement.photos.values_list("moderation_status", flat=True)),
         signalement.processing_error or "-",

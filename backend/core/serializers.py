@@ -1008,8 +1008,18 @@ class SignalementPublicSerializer(serializers.ModelSerializer):
 class SignalementDetailSerializer(SignalementPublicSerializer):
     comments = serializers.SerializerMethodField()
 
+    media_under_review = serializers.SerializerMethodField()
+
     class Meta(SignalementPublicSerializer.Meta):
-        fields = SignalementPublicSerializer.Meta.fields + ["comments"]
+        fields = SignalementPublicSerializer.Meta.fields + ["comments", "media_under_review"]
+
+    def get_media_under_review(self, obj):
+        """A photo or the video is still waiting for its check (so hidden
+        from the public for now) -- the page says so."""
+        pending = Need.MODERATION_PENDING
+        return any(p.moderation_status == pending for p in obj.photos.all()) or bool(
+            obj.video_file and obj.video_moderation_status == pending
+        )
 
     def get_comments(self, obj):
         roots = obj.comments.filter(parent_comment__isnull=True).prefetch_related("replies")
