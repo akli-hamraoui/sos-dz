@@ -805,3 +805,5 @@ body.sx-explore-page main { max-width: none; padding: 0; }
 body.sx-explore-page main > .back-btn,
 body.sx-explore-page > #root footer,
 body.sx-explore-page footer { display: none; }
+/* Room under the last card for the floating "Carte" button. */
+.sx-sheet.is-full .sx-sheet-body { padding-bottom: 84px; }

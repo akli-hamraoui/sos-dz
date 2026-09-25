@@ -659,45 +659,107 @@ export default function Signalements() {
     </>
   )
 
-  // --- phone bottom sheet: drag on its handle ---
+  // --- phone bottom sheet: dragged by its handle, or by the list itself
+  // (like Airbnb): at half height, sliding the list up opens it full and
+  // down folds it; at full height, scrolled back to the top, sliding down
+  // brings the map back instead of doing nothing. ---
   const sheetRef = useRef(null)
+  const bodyRef = useRef(null)
   const dragRef = useRef(null)
+  const moveSheet = (startTop, dy) => {
+    const el = sheetRef.current
+    if (!el) return
+    el.style.transition = 'none'
+    el.style.top = `${Math.min(snaps.peek, Math.max(snaps.full, startTop + dy))}px`
+  }
+  // Where the sheet would coast to with the finger's speed, then the
+  // nearest snap height to that.
+  const settleSheet = (startTop, dy, ms) => {
+    const el = sheetRef.current
+    if (!el) return
+    const speed = dy / Math.max(1, ms) // px/ms, + = down
+    const projected = startTop + dy + speed * 180
+    const target = ['full', 'half', 'peek'].reduce((a, b) => (Math.abs(snaps[b] - projected) < Math.abs(snaps[a] - projected) ? b : a))
+    el.style.transition = ''
+    el.style.top = `${snaps[target]}px`
+    setSheet(target)
+  }
+  const sheetFns = useRef({})
+  useEffect(() => {
+    sheetFns.current = { moveSheet, settleSheet, top: sheetTop, mode: sheet }
+  })
+
   const onSheetDown = (e) => {
     dragRef.current = { y: e.clientY, top: sheetTop, t: performance.now(), moved: false }
     e.currentTarget.setPointerCapture?.(e.pointerId)
   }
   const onSheetMove = (e) => {
     const d = dragRef.current
-    const el = sheetRef.current
-    if (!d || !el) return
+    if (!d) return
     const dy = e.clientY - d.y
     if (Math.abs(dy) > 4) d.moved = true
-    if (!d.moved) return
-    el.style.transition = 'none'
-    el.style.top = `${Math.min(snaps.peek, Math.max(snaps.full, d.top + dy))}px`
+    if (d.moved) moveSheet(d.top, dy)
   }
   const onSheetUp = (e) => {
     const d = dragRef.current
-    const el = sheetRef.current
     dragRef.current = null
-    if (!d || !el) return
-    const order = ['full', 'half', 'peek']
-    let target
-    if (!d.moved) {
-      // A tap on the handle: peek -> half -> full -> half.
-      target = sheet === 'peek' ? 'half' : sheet === 'half' ? 'full' : 'half'
-    } else {
-      // Where the sheet would coast to with the finger's speed, then the
-      // nearest snap height to that.
-      const dy = e.clientY - d.y
-      const speed = dy / Math.max(1, performance.now() - d.t) // px/ms, + = down
-      const projected = d.top + dy + speed * 180
-      target = order.reduce((a, b) => (Math.abs(snaps[b] - projected) < Math.abs(snaps[a] - projected) ? b : a))
-    }
-    el.style.transition = ''
-    el.style.top = `${snaps[target]}px`
+    if (!d) return
+    if (d.moved) return settleSheet(d.top, e.clientY - d.y, performance.now() - d.t)
+    // A tap on the handle: peek -> half -> full -> half.
+    const target = sheet === 'peek' ? 'half' : sheet === 'half' ? 'full' : 'half'
+    const el = sheetRef.current
+    if (el) el.style.top = `${snaps[target]}px`
     setSheet(target)
   }
+
+  // The list's own touches: a native, non-passive listener, so a slide
+  // that moves the sheet can stop the list from scrolling at the same time.
+  useEffect(() => {
+    const body = bodyRef.current
+    if (!body) return
+    let g = null
+    const start = (e) => {
+      const t = e.touches[0]
+      g = { y: t.clientY, x: t.clientX, t: performance.now(), top: sheetFns.current.top, mode: sheetFns.current.mode, dragging: false, decided: false }
+    }
+    const move = (e) => {
+      if (!g) return
+      const t = e.touches[0]
+      const dy = t.clientY - g.y
+      if (!g.decided) {
+        if (Math.abs(dy) < 6 && Math.abs(t.clientX - g.x) < 6) return
+        g.decided = true
+        const atTop = body.scrollTop <= 0
+        // Half: any vertical slide moves the sheet (up = open, down = fold,
+        // once the list is at its top). Full: only a pull down from the top.
+        g.dragging = Math.abs(dy) > Math.abs(t.clientX - g.x) && ((g.mode === 'half' && (dy < 0 || atTop)) || (g.mode === 'full' && dy > 0 && atTop))
+        if (g.dragging) {
+          g.y = t.clientY
+          g.t = performance.now()
+        }
+      }
+      if (!g.dragging) return
+      e.preventDefault()
+      sheetFns.current.moveSheet(g.top, t.clientY - g.y)
+    }
+    const end = (e) => {
+      if (g?.dragging) {
+        const t = e.changedTouches[0]
+        sheetFns.current.settleSheet(g.top, t.clientY - g.y, performance.now() - g.t)
+      }
+      g = null
+    }
+    body.addEventListener('touchstart', start, { passive: true })
+    body.addEventListener('touchmove', move, { passive: false })
+    body.addEventListener('touchend', end)
+    body.addEventListener('touchcancel', end)
+    return () => {
+      body.removeEventListener('touchstart', start)
+      body.removeEventListener('touchmove', move)
+      body.removeEventListener('touchend', end)
+      body.removeEventListener('touchcancel', end)
+    }
+  }, [wide])
 
   return (
     <section className="signalements-page is-explore">
@@ -791,7 +853,7 @@ export default function Signalements() {
                   <span className="sx-sheet-handle" aria-hidden="true" />
                   {listHead}
                 </div>
-                <div className="sx-sheet-body">{listBody}</div>
+                <div className="sx-sheet-body" ref={bodyRef}>{listBody}</div>
                 {sheet === 'full' && (
                   <button type="button" className="sx-pill is-dark sx-map-toggle" onClick={() => setSheet('peek')}>
                     🗺️ {t('needsList.map')}
