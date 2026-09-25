@@ -295,7 +295,7 @@
   height: 64px;
   border: 3px solid #fff;
   border-radius: 50%;
-  background: rgba(77, 171, 247, .92);
+  background: rgba(224, 104, 96, .9);
   box-shadow: 0 3px 10px rgba(0, 0, 0, .35);
   color: #fff;
   line-height: 1;
@@ -369,7 +369,7 @@
 .signali-detail .signali-detail-actions .btn { flex: 1 1 140px; }
 
 .signalements-counts { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px; margin: 0 0 8px; color: #5c6878; font-size: 13px; }
-.signali-link.is-active { color: #1c7ed6; }
+.signali-link.is-active { color: #c8514a; }
 
 .signalements-preview {
   display: grid;
@@ -561,3 +561,44 @@
 /* WilayaCombobox: its own × clears it, hide the browser's search one. */
 .signali-wilaya-combobox input::-webkit-search-cancel-button { display: none; -webkit-appearance: none; }
 .signali-wilaya-combobox input { width: 100%; box-sizing: border-box; }
+
+/* List / preview thumbnails (Signalements.jsx Thumb). */
+.signali-thumb-box {
+  position: relative;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 10px;
+  background: #eaf2ff;
+  flex: none;
+}
+.signali-thumb-sm { width: 52px; height: 52px; }
+.signali-thumb-lg { width: 72px; height: 72px; }
+.signali-thumb-box img,
+.signali-thumb-box video { width: 100%; height: 100%; object-fit: cover; background: #1f2937; }
+.signali-thumb-icon { font-size: 26px; line-height: 1; }
+.signali-thumb-lg .signali-thumb-icon { font-size: 34px; }
+.signali-thumb-play {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, .55);
+  color: #fff;
+  font-size: 10px;
+}
+.signali-thumb-badge {
+  position: absolute;
+  inset-inline-end: 2px;
+  bottom: 2px;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .92);
+  font-size: 12px;
+  line-height: 1;
+}

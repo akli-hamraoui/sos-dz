@@ -94,12 +94,34 @@ function bubbleIcon(count) {
   })
 }
 
+// A report's thumbnail: its first photo, else a frame of its video (with
+// a ▶ badge), else its category's icon -- always with the category icon
+// as a small corner badge so the type reads at a glance.
+function Thumb({ s, size }) {
+  const photo = s.photos.find((p) => p.image)?.image
+  const cls = `signali-thumb-box signali-thumb-${size}`
+  return (
+    <span className={cls}>
+      {photo ? (
+        <img src={photo} alt="" loading="lazy" />
+      ) : s.video_file ? (
+        <>
+          <video src={`${s.video_file}#t=0.5`} muted playsInline preload="metadata" />
+          <span className="signali-thumb-play" aria-hidden="true">▶</span>
+        </>
+      ) : (
+        <span className="signali-thumb-icon" aria-hidden="true">{categoryEmoji(s.category)}</span>
+      )}
+      {(photo || s.video_file) && <span className="signali-thumb-badge" aria-hidden="true">{categoryEmoji(s.category)}</span>}
+    </span>
+  )
+}
+
 function Preview({ s }) {
   const { t, i18n } = useTranslation()
-  const photo = s.photos.find((p) => p.image)?.image
   return (
     <Link to={`/signalements/${s.id}`} className="signalements-preview">
-      {photo ? <img src={photo} alt="" /> : <span className="signalements-list-emoji">{categoryEmoji(s.category)}</span>}
+      <Thumb s={s} size="lg" />
       <span>
         <b>{t(`signali.categories.${s.category}`)}</b>
         <small>{[s.address || s.commune, s.wilaya_name].filter(Boolean).join(' · ')}</small>
@@ -432,11 +454,10 @@ export default function Signalements() {
         <ul className="signalements-list">
           {noLocationOnly && <li className="signalements-list-title">📍 {t('signali.noLocationBubble')}</li>}
           {listed.map((s) => {
-            const photo = s.photos.find((p) => p.image)?.image
             return (
               <li key={s.id}>
                 <Link to={`/signalements/${s.id}`}>
-                  {photo ? <img src={photo} alt="" loading="lazy" /> : <span className="signalements-list-emoji">{categoryEmoji(s.category)}</span>}
+                  <Thumb s={s} size="sm" />
                   <span>
                     <b>{t(`signali.categories.${s.category}`)}</b>
                     <small>{[s.address || s.commune, s.wilaya_name].filter(Boolean).join(' · ')}</small>
