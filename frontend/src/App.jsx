@@ -485,7 +485,9 @@ export default function App() {
       </main>
 
       <footer>
-        <p className="footer-disclaimer">{t('common.nonOfficialFooterNote')}</p>
+        {/* Not on Home (per request): Home fills the screen with its own
+            buttons, this note stays on every other page. */}
+        {location.pathname !== '/' && <p className="footer-disclaimer">{t('common.nonOfficialFooterNote')}</p>}
         {(config.contact_phones.length > 0 || config.admin_contact_email) && (
           <p>
             {t('common.adminContact')}:{' '}

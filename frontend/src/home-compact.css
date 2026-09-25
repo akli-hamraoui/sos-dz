@@ -330,3 +330,76 @@
 .home.home-compact .home-about-button {
   margin-top: clamp(18px, 3vh, 28px);
 }
+
+/* The home fills the screen between the top bar and the bottom nav
+   (heights measured in Home.jsx), rows spread evenly over it and "Qui
+   sommes-nous" sits right above the nav -- no big empty gap below it.
+   main's own 20px top / 90px bottom padding (the latter clears the nav)
+   is taken back out of that height. Capped on tall screens so the rows
+   never drift absurdly far apart. */
+.home.home-compact {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-sizing: border-box;
+  min-height: min(calc(100svh - var(--home-topbar-h, 56px) - var(--home-nav-h, 90px) - 20px - 12px), 760px);
+  padding-top: 4px;
+  padding-bottom: 0;
+}
+.home.home-compact > * {
+  flex: none;
+}
+.home.home-compact .home-signali-card,
+.home.home-compact .home-secondary-grid,
+.home.home-compact .home-sos-card.home-sos-split,
+.home.home-compact .home-collection-grid,
+.home.home-compact .home-about-button {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+/* The create-point dropdown is positioned against its card, not the flex
+   column, so it keeps opening right under the card. */
+.home.home-compact .home-create-card {
+  position: relative;
+}
+
+/* Fill the height with the buttons themselves rather than empty gaps:
+   fixed spacing between rows, and the Signali / create / SOS rows grow
+   (up to a cap) to take the free height. */
+.home.home-compact {
+  justify-content: flex-start;
+  gap: clamp(12px, 2vh, 18px);
+}
+.home.home-compact .home-signali-card {
+  flex: 1 1 auto;
+  max-height: 130px;
+}
+.home.home-compact .home-secondary-grid,
+.home.home-compact .home-sos-card.home-sos-split {
+  flex: 1 1 auto;
+  max-height: 170px;
+}
+.home.home-compact .home-secondary-grid {
+  align-items: stretch;
+}
+.home.home-compact .home-create-card,
+.home.home-compact .home-create-card > .home-secondary-card,
+.home.home-compact .home-secondary-card-flyer {
+  height: 100%;
+}
+.home.home-compact .home-secondary-card {
+  box-sizing: border-box;
+}
+.home.home-compact .home-collection-grid {
+  flex: none;
+}
+.home.home-compact .home-about-button {
+  margin-top: auto;
+}
+.home.home-compact .home-signali-card {
+  max-height: 150px;
+}
+.home.home-compact .home-secondary-grid,
+.home.home-compact .home-sos-card.home-sos-split {
+  max-height: 200px;
+}
