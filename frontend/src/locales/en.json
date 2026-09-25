@@ -871,6 +871,7 @@
     "coordsEmpty": "Tap the map or type GPS coordinates.",
     "coordsPlaceholder": "e.g. 36.7525, 3.0420",
     "pinOnMap": "Spot placed on the map",
-    "videoFromGallery": "or pick a video from the gallery ({{size}} MB max)"
+    "videoFromGallery": "or pick a video from the gallery ({{size}} MB max)",
+    "addressPlaceholderIn": "Address in {{wilaya}} (street, area, landmark)"
   }
 }

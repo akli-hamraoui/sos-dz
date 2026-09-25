@@ -7,7 +7,9 @@ import { searchPlaces } from '../utils'
 // Never blocks on a match: whatever the visitor typed is always what
 // gets saved, suggestions are purely a convenience for finding the exact
 // spelling/spot faster.
-export default function PlaceAutocomplete({ value, onChange, onSelectPlace, placeholder, as = 'input', required = false, id, onInvalid, countryCode, excludeCountryCode }) {
+// `viewbox` / `filterResult` (optional): keep suggestions inside an area,
+// e.g. Signali's selected wilaya.
+export default function PlaceAutocomplete({ value, onChange, onSelectPlace, placeholder, as = 'input', required = false, id, onInvalid, countryCode, excludeCountryCode, viewbox, filterResult }) {
   const { i18n } = useTranslation()
   const [suggestions, setSuggestions] = useState([])
   const [open, setOpen] = useState(false)
@@ -39,7 +41,8 @@ export default function PlaceAutocomplete({ value, onChange, onSelectPlace, plac
       const controller = new AbortController()
       abortRef.current = controller
       try {
-        const results = await searchPlaces(next.trim(), i18n.language, controller.signal, countryCode, excludeCountryCode)
+        const found = await searchPlaces(next.trim(), i18n.language, controller.signal, countryCode, excludeCountryCode, viewbox)
+        const results = filterResult ? found.filter(filterResult) : found
         setSuggestions(results)
         setOpen(results.length > 0)
       } catch {

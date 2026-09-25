@@ -44,6 +44,46 @@ const SIGNAL_ICON_SVG =
   '<path d="M3.5 10.2v3.6a1 1 0 0 0 1 1H7l7.5 4.2V5L7 9.2H4.5a1 1 0 0 0-1 1Z"/><path d="M7.5 14.8 9 20h2.3"/>' +
   '<path d="M18 9.2a4 4 0 0 1 0 5.6M20.3 7a7.2 7.2 0 0 1 0 10"/></svg>'
 
+// Pins and bubbles that land (almost) on the same spot are nudged apart
+// on screen so each stays visible and tappable -- same idea as
+// mapMarkers.spreadNeedMarkers, with a wider spread since several
+// reports often share one wilaya centre. Re-run on every zoom.
+const SPREAD_MIN_PX = 44
+const SPREAD_MAX_PX = 60
+function spreadSignaliMarkers(map) {
+  const markers = []
+  map.eachLayer((layer) => layer instanceof L.Marker && layer._icon && markers.push(layer))
+  const pos = markers.map((m) => map.latLngToContainerPoint(m.getLatLng()))
+  const off = markers.map(() => ({ x: 0, y: 0 }))
+  for (let pass = 0; pass < 8; pass += 1) {
+    for (let i = 0; i < pos.length; i += 1) {
+      for (let j = i + 1; j < pos.length; j += 1) {
+        const dx = pos[j].x + off[j].x - (pos[i].x + off[i].x)
+        const dy = pos[j].y + off[j].y - (pos[i].y + off[i].y)
+        const d = Math.hypot(dx, dy)
+        if (d >= SPREAD_MIN_PX) continue
+        const push = (SPREAD_MIN_PX - (d || 1)) / 2 + 1
+        const ux = d ? dx / d : Math.cos(i * 97 + j * 53)
+        const uy = d ? dy / d : Math.sin(i * 97 + j * 53)
+        off[i].x -= ux * push
+        off[i].y -= uy * push
+        off[j].x += ux * push
+        off[j].y += uy * push
+      }
+    }
+  }
+  markers.forEach((m, i) => {
+    const el = m._icon.firstElementChild
+    if (!el) return
+    const clamp = (v) => Math.max(-SPREAD_MAX_PX, Math.min(SPREAD_MAX_PX, v))
+    el.style.translate = `${clamp(off[i].x)}px ${clamp(off[i].y)}px`
+  })
+  if (!map._signaliSpreadWired) {
+    map._signaliSpreadWired = true
+    map.on('zoomend', () => spreadSignaliMarkers(map))
+  }
+}
+
 function bubbleIcon(count) {
   return L.divIcon({
     className: 'signali-marker-icon',
@@ -151,7 +191,11 @@ export default function Signalements() {
   const located = useMemo(() => all.filter((s) => s.has_exact_position), [all])
   const unlocated = useMemo(() => all.filter((s) => !s.has_exact_position), [all])
   const selected = all.find((x) => x.id === selectedId) || null
-  const listed = noLocationOnly ? unlocated : all
+  // true = every report without an exact position; a wilaya id = only
+  // that wilaya's (from its bubble on the map).
+  const listed = noLocationOnly
+    ? unlocated.filter((s) => noLocationOnly === true || String(s.wilaya) === noLocationOnly)
+    : all
 
   // --- map ---
   const mapEl = useRef(null)
@@ -252,22 +296,25 @@ export default function Signalements() {
         })
         .addTo(layer)
     })
-    if (unlocated.length) {
-      // Anchored on the selected wilaya's centroid, or Alger's -- somewhere
-      // stable, not wherever the first unlocated report happens to be.
-      const w = wilayas.find((x) => String(x.id) === wilaya) || wilayas.find((x) => x.code === '16')
-      const ll = w?.centroid_latitude ? [w.centroid_latitude, w.centroid_longitude] : [36.75, 3.06]
-      // A plain title, not bindTooltip: the markers are rebuilt on every
-      // selection, and an open Leaflet tooltip on a removed marker throws.
-      L.marker(ll, { icon: bubbleIcon(unlocated.length), zIndexOffset: 2000, title: `${t('signali.noLocationBubble')} (${unlocated.length})` })
+    // Reports with no exact position: one bubble per wilaya, on that
+    // wilaya's own centre (a Tizi Ouzou report sits on Tizi Ouzou, not on
+    // Alger). Tapping it lists that wilaya's reports. A plain title, not
+    // bindTooltip: markers are rebuilt on every selection, and an open
+    // Leaflet tooltip on a removed marker throws.
+    const byWilaya = new Map()
+    unlocated.forEach((s) => byWilaya.set(s.wilaya, [...(byWilaya.get(s.wilaya) || []), s]))
+    byWilaya.forEach((group, wilayaId) => {
+      const ll = [group[0].display_latitude, group[0].display_longitude]
+      L.marker(ll, { icon: bubbleIcon(group.length), zIndexOffset: 2000, title: `${t('signali.noLocationBubble')} · ${group[0].wilaya_name} (${group.length})` })
         .on('click', () => {
-          setNoLocationOnly(true)
+          setNoLocationOnly(String(wilayaId))
           setSelectedId(null)
-          document.querySelector('.signalements-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          setViewMode('list')
         })
         .addTo(layer)
       points.push(ll)
-    }
+    })
+    spreadSignaliMarkers(map)
     // Refit only when the filters (or the focused report) change, not on
     // every selection/vote -- the view shouldn't jump under the finger.
     const key = `${wilaya}|${category}|${status}|${focused?.id || ''}|${loading}`
@@ -299,6 +346,7 @@ export default function Signalements() {
         {noLocationOnly && (
           <div className="filters-badge-chip">
             {t('signali.noLocationBubble')}
+            {noLocationOnly !== true && ` · ${unlocated.find((u) => String(u.wilaya) === noLocationOnly)?.wilaya_name || ''}`}
             <button type="button" onClick={() => setNoLocationOnly(false)} aria-label={t('common.close')}>×</button>
           </div>
         )}

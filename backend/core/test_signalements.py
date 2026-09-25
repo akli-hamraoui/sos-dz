@@ -270,3 +270,32 @@ class SignalementAdminPendingTests(BaseAPITestCase):
         listed = self.client.get("/api/signalements/?include_pending=1").data
         self.assertEqual([x["id"] for x in listed], [sid])
         self.assertEqual(listed[0]["processing_status"], "pending")
+
+
+@override_settings(MEDIA_ROOT=MEDIA_ROOT)
+class SignalementGeocodingTests(BaseAPITestCase):
+    def _manual(self, wilaya_code):
+        wilaya = Wilaya.objects.get(code=wilaya_code)
+        with patch("core.views.is_algeria_ip", return_value=True):
+            sid = self.client.post(
+                "/api/signalements/",
+                dict(category="road", address="Rue Abane Ramdane", wilaya=wilaya.pk, photos=[make_test_image()]),
+                format="multipart",
+            ).data["id"]
+        return sid
+
+    def test_typed_address_is_geocoded_inside_its_wilaya(self):
+        sid = self._manual("15")  # Tizi Ouzou
+        with patch("core.signalements.moderate_image_field", return_value=Need.MODERATION_APPROVED), patch(
+            "core.signalements.NominatimClient.search", return_value=(36.71, 4.05, "Tizi Ouzou")
+        ):
+            s = process_signalement(sid)
+        self.assertEqual((s.latitude, s.longitude), (36.71, 4.05))
+
+    def test_geocoded_point_in_another_wilaya_is_ignored(self):
+        sid = self._manual("15")  # Tizi Ouzou, but the geocoder answers Oran
+        with patch("core.signalements.moderate_image_field", return_value=Need.MODERATION_APPROVED), patch(
+            "core.signalements.NominatimClient.search", return_value=(35.70, -0.63, "Oran")
+        ):
+            s = process_signalement(sid)
+        self.assertIsNone(s.latitude)

@@ -13,6 +13,10 @@ Whisper model loaded:
    directly). A rejected video is never transcribed.
 3. When the reporter left the category on "Autre", the local LLM
    (same Ollama as the voice SOS) picks one from the text, if it can.
+4. A typed address with no map pin is geocoded (Nominatim), and kept
+   only if it lands in the wilaya the reporter picked -- otherwise the
+   report stays "no exact position" and the map shows it around its
+   wilaya's centre.
 
 Transcription failures (no speech, Whisper unavailable) never block the
 report: the photo/video is the report, the words are a bonus.
@@ -28,7 +32,9 @@ from django.conf import settings
 from django.db.models import Q
 from django.utils import timezone
 
+from core.collection_point_geocoding import NominatimClient
 from core.models import Need, Signalement, Wilaya
+from core.validators import is_within_algeria_bounds
 from core.moderation import moderate_image_field, moderate_video_field, moderation_active
 from core.voice_ai import VoiceAIError, transcribe_audio
 
@@ -117,6 +123,29 @@ def classify_category(text):
     return category if category in dict(Signalement.CATEGORY_CHOICES) else None
 
 
+def geocode_address(signalement):
+    """(lat, lon) for a typed address inside the report's own wilaya, or
+    None. Never raises."""
+    address = (signalement.address or "").strip()
+    if not address:
+        return None
+    query = ", ".join(p for p in (address, (signalement.commune or "").strip(), signalement.wilaya.name, "Algérie") if p)
+    try:
+        hit = NominatimClient().search(query, country_code="dz")
+    except Exception:
+        logger.exception("Signalement %s geocoding failed", signalement.pk)
+        return None
+    if not hit:
+        return None
+    lat, lon = hit[0], hit[1]
+    if not is_within_algeria_bounds(lat, lon):
+        return None
+    nearest = nearest_wilaya(lat, lon)
+    if not nearest or nearest.pk != signalement.wilaya_id:
+        return None
+    return lat, lon
+
+
 def _moderated_by():
     return Need.MODERATED_BY_SYSTEM if moderation_active() else ""
 
@@ -140,6 +169,11 @@ def process_signalement(signalement_id):
 
     errors = []
     try:
+        if signalement.latitude is None:
+            coords = geocode_address(signalement)
+            if coords:
+                signalement.latitude, signalement.longitude = coords
+
         for photo in signalement.photos.filter(moderation_status=Need.MODERATION_PENDING, moderated_by=""):
             photo.moderation_status = moderate_image_field(photo.image)
             photo.moderated_by = _moderated_by()

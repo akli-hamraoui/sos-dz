@@ -890,6 +890,7 @@
     "coordsEmpty": "المس الخريطة أو اكتب إحداثيات GPS.",
     "coordsPlaceholder": "مثال: 36.7525, 3.0420",
     "pinOnMap": "نقطة محددة على الخريطة",
-    "videoFromGallery": "أو اختر فيديو من المعرض ({{size}} ميغا كحد أقصى)"
+    "videoFromGallery": "أو اختر فيديو من المعرض ({{size}} ميغا كحد أقصى)",
+    "addressPlaceholderIn": "عنوان في {{wilaya}} (شارع، حي، معلم)"
   }
 }

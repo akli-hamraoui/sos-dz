@@ -317,6 +317,27 @@ export default function Signali() {
   }
 
   const selectedWilaya = wilayas.find((w) => String(w.id) === String(wilaya))
+  // Address suggestions stay inside the chosen wilaya: a search box around
+  // its centroid (much wider in the Sahara, where wilayas are huge), then
+  // only the results whose nearest wilaya centroid is that wilaya.
+  const nearestWilayaId = (lat, lon) => {
+    let best = null
+    let bestDist = Infinity
+    wilayas.forEach((w) => {
+      if (w.centroid_latitude == null) return
+      const d = (w.centroid_latitude - lat) ** 2 + (w.centroid_longitude - lon) ** 2
+      if (d < bestDist) (best = w.id), (bestDist = d)
+    })
+    return best
+  }
+  const wilayaViewbox = selectedWilaya?.centroid_latitude != null
+    ? (() => {
+        const span = selectedWilaya.centroid_latitude < 32 ? 4 : 0.9
+        const { centroid_latitude: la, centroid_longitude: lo } = selectedWilaya
+        return [lo - span, la + span, lo + span, la - span]
+      })()
+    : null
+  const inSelectedWilaya = (r) => !selectedWilaya || String(nearestWilayaId(parseFloat(r.lat), parseFloat(r.lon))) === String(selectedWilaya.id)
   const manualCenter = selectedWilaya?.centroid_latitude
     ? { latitude: selectedWilaya.centroid_latitude, longitude: selectedWilaya.centroid_longitude, zoom: 11 }
     : { latitude: 34.5, longitude: 3, zoom: 5 }
@@ -612,8 +633,10 @@ export default function Signali() {
                   value={address}
                   onChange={setAddress}
                   onSelectPlace={onSelectPlace}
-                  placeholder={t('signali.addressPlaceholder')}
+                  placeholder={selectedWilaya ? t('signali.addressPlaceholderIn', { wilaya: selectedWilaya.name }) : t('signali.addressPlaceholder')}
                   countryCode="dz"
+                  viewbox={wilayaViewbox}
+                  filterResult={inSelectedWilaya}
                 />
                 <label htmlFor="signali-commune">{t('signali.communeLabel')} <small>({t('common.optional')})</small></label>
                 <input id="signali-commune" type="text" value={commune} onChange={(e) => setCommune(e.target.value)} />

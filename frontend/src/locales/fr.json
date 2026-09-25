@@ -890,6 +890,7 @@
     "coordsEmpty": "Touchez la carte ou tapez des coordonnées GPS.",
     "coordsPlaceholder": "ex. 36.7525, 3.0420",
     "pinOnMap": "Point placé sur la carte",
-    "videoFromGallery": "ou choisir une vidéo dans la galerie ({{size}} Mo max)"
+    "videoFromGallery": "ou choisir une vidéo dans la galerie ({{size}} Mo max)",
+    "addressPlaceholderIn": "Adresse à {{wilaya}} (rue, quartier, repère)"
   }
 }
