@@ -12,7 +12,7 @@ const EMOJI = {
   road: '🛣️',
   waste: '🗑️',
   // No sewer emoji exists (🚽 is a toilet): text-only spots (<option>)
-  // get this, everything else draws a manhole cover (categoryIconHtml).
+  // get this, everything else draws a pipe pouring into water (categoryIconHtml).
   sewer: '🌊',
   water: '💧',
   electricity: '⚡',
@@ -26,17 +26,22 @@ export function categoryEmoji(category) {
   return EMOJI[category] || EMOJI.other
 }
 
-// A manhole cover, sized like the text around it (1em).
-const MANHOLE_SVG =
+// Sewer: an elbow pipe pouring wastewater into waves, sized like the text
+// around it (1em).
+const SEWER_SVG =
   '<svg class="signali-cat-svg" width="1em" height="1em" viewBox="0 0 24 24" aria-hidden="true">' +
-  '<circle cx="12" cy="12" r="11" fill="#3f4650"/><circle cx="12" cy="12" r="9" fill="#7d8792"/>' +
-  '<path d="M3 12h18M4.2 8.2h15.6M4.2 15.8h15.6M12 3v18M8.2 4.2v15.6M15.8 4.2v15.6" stroke="#4a525c" stroke-width="1.2"/>' +
-  '<circle cx="12" cy="12" r="9" fill="none" stroke="#2f353d" stroke-width="1"/></svg>'
+  '<path d="M1 2.5h10.5a7 7 0 0 1 7 7V12h-5V9.5a2 2 0 0 0-2-2H1Z" fill="#9aa6b3"/>' +
+  '<path d="M1 3.6h10.5a5.9 5.9 0 0 1 5.9 5.9V12" fill="none" stroke="#c9d1da" stroke-width="1"/>' +
+  '<rect x="8.4" y="1.4" width="2.2" height="7.2" rx=".7" fill="#5b6673"/>' +
+  '<rect x="12.6" y="11.2" width="6.8" height="2.2" rx=".7" fill="#5b6673"/>' +
+  '<path d="M14 13.4h4.2l.6 5.2h-5.4Z" fill="#8a6a3a"/>' +
+  '<path d="M1 18.6c1.6-1.4 3.2-1.4 4.8 0s3.2 1.4 4.8 0 3.2-1.4 4.8 0 3.2 1.4 4.8 0 2.4-1 3.4-.6" fill="none" stroke="#7a8f3c" stroke-width="1.8" stroke-linecap="round"/>' +
+  '<path d="M1 22c1.6-1.4 3.2-1.4 4.8 0s3.2 1.4 4.8 0 3.2-1.4 4.8 0 3.2 1.4 4.8 0 2.4-1 3.4-.6" fill="none" stroke="#5a7d8c" stroke-width="1.8" stroke-linecap="round"/></svg>'
 
 // The category's icon as HTML: its emoji, or a drawing when no emoji fits.
 // For Leaflet divIcons/popups and (via CategoryIcon) React.
 export function categoryIconHtml(category) {
-  return category === 'sewer' ? MANHOLE_SVG : categoryEmoji(category)
+  return category === 'sewer' ? SEWER_SVG : categoryEmoji(category)
 }
 
 // A report's access token lets its (anonymous) reporter close it as
