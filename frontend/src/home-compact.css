@@ -403,3 +403,30 @@
 .home.home-compact .home-sos-card.home-sos-split {
   max-height: 200px;
 }
+
+/* Signali keeps growing to fill the height; the create and SOS rows stay
+   compact (per request) and the remaining space is shared evenly between
+   the rows instead of making those buttons huge. */
+.home.home-compact {
+  justify-content: space-between;
+  gap: 12px;
+}
+.home.home-compact .home-secondary-grid,
+.home.home-compact .home-sos-card.home-sos-split {
+  flex: none;
+  height: auto;
+  max-height: none;
+}
+.home.home-compact .home-secondary-card,
+.home.home-compact .home-sos-half {
+  min-height: 84px;
+}
+.home.home-compact .home-about-button {
+  margin-top: 0;
+}
+/* Rows keep a fixed, comfortable spacing (no huge gaps on tall screens);
+   the block sits centered in the free height. */
+.home.home-compact {
+  justify-content: center;
+  gap: clamp(14px, 2.8vh, 24px);
+}
