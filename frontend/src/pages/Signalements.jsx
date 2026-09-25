@@ -366,7 +366,7 @@ export default function Signalements() {
   useEffect(() => {
     const map = L.map(mapEl.current, { attributionControl: false, zoomControl: false, center: [28, 2.6], zoom: 5 })
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors', maxZoom: 19 }).addTo(map)
-    L.control.attribution({ prefix: false, position: 'topright' }).addTo(map)
+    L.control.attribution({ prefix: false, position: 'bottomright' }).addTo(map)
     L.control.zoom({ position: 'bottomright' }).addTo(map)
     layerRef.current = L.layerGroup().addTo(map)
     mapRef.current = map
@@ -478,6 +478,9 @@ export default function Signalements() {
   const sheetTop = sheet === 'card' ? height : snaps[sheet]
   // The map area the sheet hides (none in full: the map isn't seen then).
   const cover = wide || sheet === 'card' || sheet === 'full' ? 0 : height - sheetTop
+  // Bottom of the map still in view (above the sheet / the cards): where
+  // the OpenStreetMap credit sits.
+  const mapBottom = wide ? 0 : sheet === 'card' ? 144 : sheet === 'full' ? 0 : height - sheetTop
   useEffect(() => {
     if (coverRef.current === cover) return
     coverRef.current = cover
@@ -763,7 +766,7 @@ export default function Signalements() {
 
   return (
     <section className="signalements-page is-explore">
-      <div ref={rootRef} className={`sx${wide ? ' is-wide' : ''}`} style={{ height }}>
+      <div ref={rootRef} className={`sx${wide ? ' is-wide' : ''}`} style={{ height, '--sx-map-bottom': `${mapBottom}px` }}>
         {wide && (
           <aside className="sx-side" ref={listRef}>
             <div className="sx-list-inner">

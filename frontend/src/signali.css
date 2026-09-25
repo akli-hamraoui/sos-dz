@@ -698,9 +698,8 @@
 .sx-map:focus, .sx .leaflet-marker-icon:focus { outline: none; }
 .sx .leaflet-container { -webkit-tap-highlight-color: transparent; background: #eef1f4; }
 .sx:not(.is-wide) .leaflet-control-zoom { display: none; }
-.sx .leaflet-bottom.leaflet-right { margin-bottom: 8px; }
-.sx .leaflet-top.leaflet-right { top: auto; bottom: 0; }
-.sx:not(.is-wide) .leaflet-top.leaflet-right { bottom: 186px; }
+.sx .leaflet-bottom { bottom: var(--sx-map-bottom, 0px); transition: bottom .3s cubic-bezier(.2, .8, .2, 1); }
+.sx .leaflet-control-attribution { font-size: 10px; background: rgba(255, 255, 255, .75); }
 
 .sx-top { position: absolute; top: 10px; inset-inline: 10px; z-index: 1000; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
 .sx-top > * { pointer-events: auto; }
@@ -763,7 +762,7 @@
 }
 .sx-carousel::-webkit-scrollbar { display: none; }
 .sx-carousel .sx-card { flex: none; width: var(--card-w); scroll-snap-align: center; }
-.sx-list-toggle { position: absolute; left: 50%; bottom: 150px; z-index: 1000; transform: translateX(-50%); min-height: 36px; font-size: 13px; }
+.sx-list-toggle { position: absolute; left: 50%; bottom: 170px; z-index: 1000; transform: translateX(-50%); min-height: 36px; font-size: 13px; }
 .sx-empty { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 14px; border-radius: 18px; background: #fff; box-shadow: 0 6px 20px rgba(21, 33, 58, .18); text-align: center; font-size: 14px; color: #394556; }
 
 /* Phone: the list is a bottom sheet over the map, dragged by its handle
