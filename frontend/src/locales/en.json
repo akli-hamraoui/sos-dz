@@ -767,7 +767,7 @@
     "cameraDenied": "Camera access was denied.",
     "cameraUnavailable": "Camera unavailable.",
     "recordingError": "Recording failed, please try again.",
-    "videoTooLarge": "Video too large (10 MB max).",
+    "videoTooLarge": "Video too large ({{size}} MB max).",
     "videoTooLong": "Video too long ({{max}} s max).",
     "mediaRequired": "Add at least one photo or a video to continue.",
     "descriptionTitle": "Describe the problem",
@@ -870,6 +870,7 @@
     "reviewShortNote": "Anonymous. Checked by AI before it appears on the map.",
     "coordsEmpty": "Tap the map or type GPS coordinates.",
     "coordsPlaceholder": "e.g. 36.7525, 3.0420",
-    "pinOnMap": "Spot placed on the map"
+    "pinOnMap": "Spot placed on the map",
+    "videoFromGallery": "or pick a video from the gallery ({{size}} MB max)"
   }
 }

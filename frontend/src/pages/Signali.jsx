@@ -25,7 +25,8 @@ const S = { LOCATION: 0, MEDIA: 1, DESCRIPTION: 2, REVIEW: 3 }
 const MAX_PHOTOS = 3
 const MAX_VIDEO_SECONDS = 20
 const MAX_VOICE_SECONDS = 120
-const MAX_VIDEO_BYTES = 10 * 1024 * 1024
+const MAX_VIDEO_MB = 10 // = core.media_validation.MAX_VIDEO_SIZE_MB
+const MAX_VIDEO_BYTES = MAX_VIDEO_MB * 1024 * 1024
 
 const mmss = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 
@@ -394,7 +395,7 @@ export default function Signali() {
       if (discardRef.current) return
       const blob = new Blob(chunks, { type: r.mimeType || mime || 'video/webm' })
       if (!blob.size) return setError(t('signali.recordingError'))
-      if (blob.size > MAX_VIDEO_BYTES) return setError(t('signali.videoTooLarge'))
+      if (blob.size > MAX_VIDEO_BYTES) return setError(t('signali.videoTooLarge', { size: MAX_VIDEO_MB }))
       setVideo({ blob, url: track(URL.createObjectURL(blob)) })
     }
     recorderRef.current = r
@@ -409,13 +410,19 @@ export default function Signali() {
     }, 1000)
   }
 
-  // Fallback for browsers without MediaRecorder: the phone's own camera app.
-  const pickVideoFile = (e) => {
+  // A video file: from the phone's own camera app (fallback for browsers
+  // without MediaRecorder, still capped at MAX_VIDEO_SECONDS) or picked
+  // from the gallery (only the size is capped -- the server's own limit).
+  const pickVideoFile = (e, { fromGallery = false } = {}) => {
     const file = e.target.files?.[0]
     e.target.value = ''
     if (!file) return
-    if (file.size > MAX_VIDEO_BYTES) return setError(t('signali.videoTooLarge'))
+    if (file.size > MAX_VIDEO_BYTES) return setError(t('signali.videoTooLarge', { size: MAX_VIDEO_MB }))
     const url = track(URL.createObjectURL(file))
+    if (fromGallery) {
+      setError('')
+      return setVideo({ blob: file, url })
+    }
     const probe = document.createElement('video')
     probe.preload = 'metadata'
     probe.onloadedmetadata = () => {
@@ -717,10 +724,18 @@ export default function Signali() {
                   </button>
                   <input id="signali-video-file" type="file" accept="video/*" capture="environment" onChange={pickVideoFile} hidden />
                 </div>
-                <label className="signali-link signali-gallery-link">
-                  {t('signali.fromGallery')}
-                  <input type="file" accept="image/*" multiple onChange={addPhotos} hidden disabled={photos.length >= MAX_PHOTOS} />
-                </label>
+                <div className="signali-gallery-links">
+                  <label className="signali-link">
+                    {t('signali.fromGallery')}
+                    <input type="file" accept="image/*" multiple onChange={addPhotos} hidden disabled={photos.length >= MAX_PHOTOS} />
+                  </label>
+                  {!video && (
+                    <label className="signali-link">
+                      {t('signali.videoFromGallery', { size: MAX_VIDEO_MB })}
+                      <input type="file" accept="video/*" onChange={(e) => pickVideoFile(e, { fromGallery: true })} hidden />
+                    </label>
+                  )}
+                </div>
 
                 {(photos.length > 0 || video) && (
                   <div className="signali-thumbs">

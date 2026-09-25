@@ -786,7 +786,7 @@
     "cameraDenied": "L'accès à la caméra a été refusé.",
     "cameraUnavailable": "Caméra indisponible.",
     "recordingError": "L'enregistrement a échoué, réessayez.",
-    "videoTooLarge": "Vidéo trop lourde (10 Mo max).",
+    "videoTooLarge": "Vidéo trop lourde ({{size}} Mo max).",
     "videoTooLong": "Vidéo trop longue ({{max}} s max).",
     "mediaRequired": "Ajoutez au moins une photo ou une vidéo pour continuer.",
     "descriptionTitle": "Décrivez le problème",
@@ -889,6 +889,7 @@
     "reviewShortNote": "Anonyme. Vérifié par l'IA avant d'apparaître sur la carte.",
     "coordsEmpty": "Touchez la carte ou tapez des coordonnées GPS.",
     "coordsPlaceholder": "ex. 36.7525, 3.0420",
-    "pinOnMap": "Point placé sur la carte"
+    "pinOnMap": "Point placé sur la carte",
+    "videoFromGallery": "ou choisir une vidéo dans la galerie ({{size}} Mo max)"
   }
 }
