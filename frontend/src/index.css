@@ -3692,11 +3692,12 @@ body { overflow-x: hidden; }
 .bottom-nav a.active,
 .view-toggle button.active,
 .deliveries-page .view-toggle button.active {
-  /* Blue (per request), the same as the Signali/Signalements accent. */
-  background: linear-gradient(135deg, #3b8cff, #1f4fa8) !important;
-  border-color: #1f5fbf !important;
+  /* Dark navy (per request), the same as the dark pills/selected pin of
+     the Signalements map. */
+  background: linear-gradient(160deg, #26365e, #15213a) !important;
+  border-color: #15213a !important;
   color: #fff !important;
-  box-shadow: 0 4px 12px rgba(31, 79, 168, .28);
+  box-shadow: 0 4px 12px rgba(21, 33, 58, .3);
 }
 
 .quick-actions-btn[aria-expanded="true"] {
