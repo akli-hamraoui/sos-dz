@@ -162,10 +162,15 @@ const NOMINATIM_BASE = 'https://nominatim.openstreetmap.org'
 // backend already enforces on submit). Nominatim's own `countrycodes`
 // filter only supports an allow-list, not an exclude-list, so this asks
 // for `addressdetails` and filters client-side instead.
-export async function searchPlaces(query, lang, signal, countryCode = 'dz', excludeCountryCode = null) {
+//
+// `viewbox` ([minLon, minLat, maxLon, maxLat]) restricts results to that
+// box (Nominatim's bounded=1) -- Signali uses it to keep suggestions
+// inside the wilaya the reporter picked.
+export async function searchPlaces(query, lang, signal, countryCode = 'dz', excludeCountryCode = null, viewbox = null) {
   const countryParam = countryCode === 'any' ? '' : `&countrycodes=${countryCode.toLowerCase()}`
   const addressParam = excludeCountryCode ? '&addressdetails=1' : '&addressdetails=0'
-  const url = `${NOMINATIM_BASE}/search?format=json${addressParam}&limit=10&accept-language=${lang}${countryParam}&q=${encodeURIComponent(query)}`
+  const boxParam = viewbox ? `&viewbox=${viewbox.join(',')}&bounded=1` : ''
+  const url = `${NOMINATIM_BASE}/search?format=json${addressParam}&limit=10&accept-language=${lang}${countryParam}${boxParam}&q=${encodeURIComponent(query)}`
   const resp = await fetch(url, { signal })
   if (!resp.ok) throw new Error('Place search failed')
   const results = await resp.json()

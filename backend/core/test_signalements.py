@@ -251,3 +251,51 @@ class SignalementAccessAndManageTests(BaseAPITestCase):
         self.assertEqual(resp.status_code, 201, resp.data)
         detail = self.client.get(f"/api/signalements/{sid}/").data
         self.assertEqual([c["text"] for c in detail["comments"]], ["Toujours là ce matin"])
+
+
+@override_settings(MEDIA_ROOT=MEDIA_ROOT)
+class SignalementAdminPendingTests(BaseAPITestCase):
+    def test_admin_can_list_pending_reports_but_public_cannot(self):
+        from django.contrib.auth.models import User
+
+        with patch("core.views.is_algeria_ip", return_value=True):
+            sid = self.client.post(
+                "/api/signalements/",
+                dict(category="road", latitude=36.75, longitude=3.05, photos=[make_test_image()]),
+                format="multipart",
+            ).data["id"]
+        self.assertEqual(self.client.get("/api/signalements/?include_pending=1").data, [])
+        User.objects.create_superuser("root", "r@x.dz", "pw")
+        self.client.login(username="root", password="pw")
+        listed = self.client.get("/api/signalements/?include_pending=1").data
+        self.assertEqual([x["id"] for x in listed], [sid])
+        self.assertEqual(listed[0]["processing_status"], "pending")
+
+
+@override_settings(MEDIA_ROOT=MEDIA_ROOT)
+class SignalementGeocodingTests(BaseAPITestCase):
+    def _manual(self, wilaya_code):
+        wilaya = Wilaya.objects.get(code=wilaya_code)
+        with patch("core.views.is_algeria_ip", return_value=True):
+            sid = self.client.post(
+                "/api/signalements/",
+                dict(category="road", address="Rue Abane Ramdane", wilaya=wilaya.pk, photos=[make_test_image()]),
+                format="multipart",
+            ).data["id"]
+        return sid
+
+    def test_typed_address_is_geocoded_inside_its_wilaya(self):
+        sid = self._manual("15")  # Tizi Ouzou
+        with patch("core.signalements.moderate_image_field", return_value=Need.MODERATION_APPROVED), patch(
+            "core.signalements.NominatimClient.search", return_value=(36.71, 4.05, "Tizi Ouzou")
+        ):
+            s = process_signalement(sid)
+        self.assertEqual((s.latitude, s.longitude), (36.71, 4.05))
+
+    def test_geocoded_point_in_another_wilaya_is_ignored(self):
+        sid = self._manual("15")  # Tizi Ouzou, but the geocoder answers Oran
+        with patch("core.signalements.moderate_image_field", return_value=Need.MODERATION_APPROVED), patch(
+            "core.signalements.NominatimClient.search", return_value=(35.70, -0.63, "Oran")
+        ):
+            s = process_signalement(sid)
+        self.assertIsNone(s.latitude)

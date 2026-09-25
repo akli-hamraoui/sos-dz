@@ -13,6 +13,10 @@ Whisper model loaded:
    directly). A rejected video is never transcribed.
 3. When the reporter left the category on "Autre", the local LLM
    (same Ollama as the voice SOS) picks one from the text, if it can.
+4. A typed address with no map pin is geocoded (Nominatim), and kept
+   only if it lands in the wilaya the reporter picked -- otherwise the
+   report stays "no exact position" and the map shows it around its
+   wilaya's centre.
 
 Transcription failures (no speech, Whisper unavailable) never block the
 report: the photo/video is the report, the words are a bonus.
@@ -28,7 +32,9 @@ from django.conf import settings
 from django.db.models import Q
 from django.utils import timezone
 
+from core.collection_point_geocoding import NominatimClient
 from core.models import Need, Signalement, Wilaya
+from core.validators import is_within_algeria_bounds
 from core.moderation import moderate_image_field, moderate_video_field, moderation_active
 from core.voice_ai import VoiceAIError, transcribe_audio
 
@@ -117,6 +123,29 @@ def classify_category(text):
     return category if category in dict(Signalement.CATEGORY_CHOICES) else None
 
 
+def geocode_address(signalement):
+    """(lat, lon) for a typed address inside the report's own wilaya, or
+    None. Never raises."""
+    address = (signalement.address or "").strip()
+    if not address:
+        return None
+    query = ", ".join(p for p in (address, (signalement.commune or "").strip(), signalement.wilaya.name, "Algérie") if p)
+    try:
+        hit = NominatimClient().search(query, country_code="dz")
+    except Exception:
+        logger.exception("Signalement %s geocoding failed", signalement.pk)
+        return None
+    if not hit:
+        return None
+    lat, lon = hit[0], hit[1]
+    if not is_within_algeria_bounds(lat, lon):
+        return None
+    nearest = nearest_wilaya(lat, lon)
+    if not nearest or nearest.pk != signalement.wilaya_id:
+        return None
+    return lat, lon
+
+
 def _moderated_by():
     return Need.MODERATED_BY_SYSTEM if moderation_active() else ""
 
@@ -139,24 +168,43 @@ def process_signalement(signalement_id):
         return signalement
 
     errors = []
+    sid = signalement.pk
+    logger.info(
+        "Signalement %s: start (wilaya=%s category=%s gps=%s photos=%s video=%s voice=%s)",
+        sid, signalement.wilaya, signalement.category, signalement.latitude is not None,
+        signalement.photos.count(), bool(signalement.video_file), bool(signalement.voice_file),
+    )
     try:
+        if signalement.latitude is None:
+            coords = geocode_address(signalement)
+            if coords:
+                signalement.latitude, signalement.longitude = coords
+                logger.info("Signalement %s: address geocoded -> %.5f, %.5f", sid, *coords)
+            else:
+                logger.info("Signalement %s: no position found for the address, shown at its wilaya centre", sid)
+
         for photo in signalement.photos.filter(moderation_status=Need.MODERATION_PENDING, moderated_by=""):
             photo.moderation_status = moderate_image_field(photo.image)
             photo.moderated_by = _moderated_by()
             photo.save(update_fields=["moderation_status", "moderated_by"])
+            logger.info("Signalement %s: photo %s moderation -> %s", sid, photo.pk, photo.moderation_status)
 
         if signalement.video_file and not signalement.video_moderated_by:
             signalement.video_moderation_status = moderate_video_field(signalement.video_file)
             signalement.video_moderated_by = _moderated_by()
+            logger.info("Signalement %s: video moderation -> %s", sid, signalement.video_moderation_status)
 
         if signalement.voice_file:
-            signalement.voice_transcript = _transcribe(signalement.voice_file, "voice", signalement.pk, errors)
+            signalement.voice_transcript = _transcribe(signalement.voice_file, "voice", sid, errors)
+            logger.info("Signalement %s: voice transcript %s chars", sid, len(signalement.voice_transcript))
         if signalement.video_file and signalement.video_moderation_status != Need.MODERATION_REJECTED:
-            signalement.video_transcript = _transcribe(signalement.video_file, "video", signalement.pk, errors)
+            signalement.video_transcript = _transcribe(signalement.video_file, "video", sid, errors)
+            logger.info("Signalement %s: video transcript %s chars", sid, len(signalement.video_transcript))
 
         text = "\n".join(t for t in (signalement.description, signalement.voice_transcript, signalement.video_transcript) if t.strip())
         if signalement.category == Signalement.CATEGORY_OTHER and text:
             category = classify_category(text)
+            logger.info("Signalement %s: AI category -> %s", sid, category or "unavailable")
             if category and category != Signalement.CATEGORY_OTHER:
                 signalement.category = category
                 signalement.category_suggested_by_ai = True
@@ -167,9 +215,11 @@ def process_signalement(signalement_id):
     signalement.processing_status = Signalement.PROCESSING_READY
     signalement.processing_error = "; ".join(errors)[:500]
     signalement.save()
+    public = public_signalements(Signalement.objects.filter(pk=sid)).exists()
     logger.info(
-        "Signalement processed: id=%s video=%s photos=%s errors=%s",
-        signalement.pk,
+        "Signalement %s: done -> %s (video=%s photos=%s errors=%s)",
+        sid,
+        "ON THE MAP" if public else "HIDDEN (no approved photo/video: approve it in Django Admin)",
         signalement.video_moderation_status if signalement.video_file else "-",
         list(signalement.photos.values_list("moderation_status", flat=True)),
         signalement.processing_error or "-",

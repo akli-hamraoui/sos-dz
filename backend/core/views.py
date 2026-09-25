@@ -1621,8 +1621,14 @@ class SignalementViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.
         qs = super().get_queryset()
         if self.action != "list":
             return qs
-        qs = public_signalements(qs).exclude(status=Signalement.STATUS_CANCELLED)
         params = self.request.query_params
+        # An admin can ask to also see reports still being processed or
+        # whose media is awaiting review (grey pins on the map) --
+        # otherwise a fresh report is invisible until the worker is done.
+        if params.get("include_pending") and is_admin_request(self.request):
+            qs = qs.exclude(status=Signalement.STATUS_CANCELLED)
+        else:
+            qs = public_signalements(qs).exclude(status=Signalement.STATUS_CANCELLED)
         if params.get("wilaya"):
             qs = qs.filter(wilaya_id=params["wilaya"])
         if params.get("category"):

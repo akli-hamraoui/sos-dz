@@ -7,7 +7,7 @@ import { api, apiUpload } from '../api'
 import { translateApiError } from '../apiErrors'
 import { compressPhoto, formatDate, isInAlgeria } from '../utils'
 import PlaceAutocomplete from '../components/PlaceAutocomplete'
-import SignaliAiNotice from '../components/SignaliAiNotice'
+import WilayaCombobox from '../components/WilayaCombobox'
 import { IconCamera, IconLocate, IconMapPin, IconMic, IconSwitchCamera, IconTrash, IconVideoCam } from '../icons'
 import { SIGNALI_CATEGORIES, categoryEmoji, saveSignalementToken } from '../signali'
 import '../urgent-sos-wizard-fixes.css'
@@ -26,7 +26,8 @@ const S = { LOCATION: 0, MEDIA: 1, DESCRIPTION: 2, REVIEW: 3 }
 const MAX_PHOTOS = 3
 const MAX_VIDEO_SECONDS = 20
 const MAX_VOICE_SECONDS = 120
-const MAX_VIDEO_BYTES = 10 * 1024 * 1024
+const MAX_VIDEO_MB = 10 // = core.media_validation.MAX_VIDEO_SIZE_MB
+const MAX_VIDEO_BYTES = MAX_VIDEO_MB * 1024 * 1024
 
 const mmss = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 
@@ -118,9 +119,14 @@ function PinMap({ position, center, onMove }) {
   return <div ref={elRef} className="signali-pin-map" />
 }
 
-// "36.7525, 3.0420" (or with a space / semicolon) -> {latitude, longitude}
+// "36.7525, 3.0420" (or with a space / semicolon, or copied from a maps
+// app as "36.7525° N, 3.0420° E") -> {latitude, longitude}
+function formatCoords({ latitude, longitude }) {
+  return `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`
+}
+
 function parseCoords(text) {
-  const m = String(text).trim().match(/^(-?\d+(?:[.,]\d+)?)\s*[,;\s]\s*(-?\d+(?:[.,]\d+)?)$/)
+  const m = String(text).replace(/[°NnEe]/g, ' ').replace(/\s+/g, ' ').trim().match(/^(-?\d+(?:[.,]\d+)?)\s*[,;\s]\s*(-?\d+(?:[.,]\d+)?)$/)
   if (!m) return null
   const latitude = parseFloat(m[1].replace(',', '.'))
   const longitude = parseFloat(m[2].replace(',', '.'))
@@ -290,6 +296,7 @@ export default function Signali() {
     if (!isInAlgeria(lat, lon)) return
     const next = { latitude: lat, longitude: lon }
     setCoords(next)
+    setCoordsText(formatCoords(next))
     prefillWilaya(next)
   }
 
@@ -299,15 +306,39 @@ export default function Signali() {
   const locationOk = locMode === 'gps' ? !!coords : locMode === 'manual' ? !!coords || !!(address.trim() && wilaya) : false
 
   const applyTypedCoords = () => {
+    // Nothing typed: the pin already placed on the map is the answer.
+    if (!coordsText.trim()) return setError(coords ? '' : t('signali.coordsEmpty'))
     const c = parseCoords(coordsText)
     if (!c) return setError(t('signali.coordsInvalid'))
     if (!isInAlgeria(c.latitude, c.longitude)) return setError(t('signali.coordsOutsideAlgeria'))
     setError('')
     setCoords(c)
+    setCoordsText(formatCoords(c))
     prefillWilaya(c)
   }
 
   const selectedWilaya = wilayas.find((w) => String(w.id) === String(wilaya))
+  // Address suggestions stay inside the chosen wilaya: a search box around
+  // its centroid (much wider in the Sahara, where wilayas are huge), then
+  // only the results whose nearest wilaya centroid is that wilaya.
+  const nearestWilayaId = (lat, lon) => {
+    let best = null
+    let bestDist = Infinity
+    wilayas.forEach((w) => {
+      if (w.centroid_latitude == null) return
+      const d = (w.centroid_latitude - lat) ** 2 + (w.centroid_longitude - lon) ** 2
+      if (d < bestDist) (best = w.id), (bestDist = d)
+    })
+    return best
+  }
+  const wilayaViewbox = selectedWilaya?.centroid_latitude != null
+    ? (() => {
+        const span = selectedWilaya.centroid_latitude < 32 ? 4 : 0.9
+        const { centroid_latitude: la, centroid_longitude: lo } = selectedWilaya
+        return [lo - span, la + span, lo + span, la - span]
+      })()
+    : null
+  const inSelectedWilaya = (r) => !selectedWilaya || String(nearestWilayaId(parseFloat(r.lat), parseFloat(r.lon))) === String(selectedWilaya.id)
   const manualCenter = selectedWilaya?.centroid_latitude
     ? { latitude: selectedWilaya.centroid_latitude, longitude: selectedWilaya.centroid_longitude, zoom: 11 }
     : { latitude: 34.5, longitude: 3, zoom: 5 }
@@ -386,7 +417,7 @@ export default function Signali() {
       if (discardRef.current) return
       const blob = new Blob(chunks, { type: r.mimeType || mime || 'video/webm' })
       if (!blob.size) return setError(t('signali.recordingError'))
-      if (blob.size > MAX_VIDEO_BYTES) return setError(t('signali.videoTooLarge'))
+      if (blob.size > MAX_VIDEO_BYTES) return setError(t('signali.videoTooLarge', { size: MAX_VIDEO_MB }))
       setVideo({ blob, url: track(URL.createObjectURL(blob)) })
     }
     recorderRef.current = r
@@ -401,13 +432,19 @@ export default function Signali() {
     }, 1000)
   }
 
-  // Fallback for browsers without MediaRecorder: the phone's own camera app.
-  const pickVideoFile = (e) => {
+  // A video file: from the phone's own camera app (fallback for browsers
+  // without MediaRecorder, still capped at MAX_VIDEO_SECONDS) or picked
+  // from the gallery (only the size is capped -- the server's own limit).
+  const pickVideoFile = (e, { fromGallery = false } = {}) => {
     const file = e.target.files?.[0]
     e.target.value = ''
     if (!file) return
-    if (file.size > MAX_VIDEO_BYTES) return setError(t('signali.videoTooLarge'))
+    if (file.size > MAX_VIDEO_BYTES) return setError(t('signali.videoTooLarge', { size: MAX_VIDEO_MB }))
     const url = track(URL.createObjectURL(file))
+    if (fromGallery) {
+      setError('')
+      return setVideo({ blob: file, url })
+    }
     const probe = document.createElement('video')
     probe.preload = 'metadata'
     probe.onloadedmetadata = () => {
@@ -585,25 +622,22 @@ export default function Signali() {
             {locMode === 'manual' && (
               <div className="signali-fields">
                 <label htmlFor="signali-wilaya">{t('signali.wilayaLabel')}</label>
-                <select id="signali-wilaya" value={wilaya} onChange={(e) => setWilaya(e.target.value)}>
-                  <option value="">{t('signali.wilayaPlaceholder')}</option>
-                  {wilayas.map((w) => (
-                    <option key={w.id} value={w.id}>{w.code} - {w.name}</option>
-                  ))}
-                </select>
+                <WilayaCombobox id="signali-wilaya" wilayas={wilayas} value={wilaya} onChange={setWilaya} placeholder={t('signali.wilayaPlaceholder')} />
                 <label htmlFor="signali-address">{t('signali.addressLabel')}</label>
                 <PlaceAutocomplete
                   id="signali-address"
                   value={address}
                   onChange={setAddress}
                   onSelectPlace={onSelectPlace}
-                  placeholder={t('signali.addressPlaceholder')}
+                  placeholder={selectedWilaya ? t('signali.addressPlaceholderIn', { wilaya: selectedWilaya.name }) : t('signali.addressPlaceholder')}
                   countryCode="dz"
+                  viewbox={wilayaViewbox}
+                  filterResult={inSelectedWilaya}
                 />
                 <label htmlFor="signali-commune">{t('signali.communeLabel')} <small>({t('common.optional')})</small></label>
                 <input id="signali-commune" type="text" value={commune} onChange={(e) => setCommune(e.target.value)} />
                 <span className="signali-fields-title">{t('signali.pickOnMap')}</span>
-                <PinMap position={coords} center={manualCenter} onMove={(c) => (setCoords(c), prefillWilaya(c))} />
+                <PinMap position={coords} center={manualCenter} onMove={(c) => (setCoords(c), setCoordsText(formatCoords(c)), setError(''), prefillWilaya(c))} />
                 <small className="signali-hint">{coords ? t('signali.dragPinHint') : t('signali.tapMapHint')}</small>
                 <label htmlFor="signali-coords">{t('signali.coordsLabel')} <small>({t('common.optional')})</small></label>
                 <div className="signali-coords-row">
@@ -614,7 +648,7 @@ export default function Signali() {
                     value={coordsText}
                     onChange={(e) => setCoordsText(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), applyTypedCoords())}
-                    placeholder="36.7525, 3.0420"
+                    placeholder={t('signali.coordsPlaceholder')}
                   />
                   <button type="button" className="urgent-sos-secondary" onClick={applyTypedCoords}>{t('signali.placeCoords')}</button>
                 </div>
@@ -709,10 +743,18 @@ export default function Signali() {
                   </button>
                   <input id="signali-video-file" type="file" accept="video/*" capture="environment" onChange={pickVideoFile} hidden />
                 </div>
-                <label className="signali-link signali-gallery-link">
-                  {t('signali.fromGallery')}
-                  <input type="file" accept="image/*" multiple onChange={addPhotos} hidden disabled={photos.length >= MAX_PHOTOS} />
-                </label>
+                <div className="signali-gallery-links">
+                  <label className="signali-link">
+                    {t('signali.fromGallery')}
+                    <input type="file" accept="image/*" multiple onChange={addPhotos} hidden disabled={photos.length >= MAX_PHOTOS} />
+                  </label>
+                  {!video && (
+                    <label className="signali-link">
+                      {t('signali.videoFromGallery', { size: MAX_VIDEO_MB })}
+                      <input type="file" accept="video/*" onChange={(e) => pickVideoFile(e, { fromGallery: true })} hidden />
+                    </label>
+                  )}
+                </div>
 
                 {(photos.length > 0 || video) && (
                   <div className="signali-thumbs">
@@ -798,7 +840,7 @@ export default function Signali() {
               <li>
                 <span>📍</span>
                 <div>
-                  <b>{address.trim() || (locMode === 'gps' ? t('signali.gpsPosition') : '')}</b>
+                  <b>{address.trim() || (locMode === 'gps' ? t('signali.gpsPosition') : coords ? t('signali.pinOnMap') : '')}</b>
                   <small>{[commune.trim(), wilayaName].filter(Boolean).join(', ')}{accuracy && locMode === 'gps' ? ` · ±${accuracy} m` : ''}</small>
                 </div>
               </li>
@@ -822,11 +864,7 @@ export default function Signali() {
                 </li>
               )}
             </ul>
-            <SignaliAiNotice />
-            <div className="urgent-sos-location-confirmation confirmed" role="status">
-              <strong>🔒 {t('signali.anonymousTitle')}</strong>
-              <span>{t('signali.anonymousText')}</span>
-            </div>
+            <p className="signali-review-note">🔒 {t('signali.reviewShortNote')}</p>
             {config.turnstile_enabled && (
               <div
                 className="cf-turnstile urgent-sos-turnstile"

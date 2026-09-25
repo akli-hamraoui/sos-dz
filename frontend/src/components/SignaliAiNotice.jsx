@@ -1,14 +1,14 @@
 import { useTranslation } from 'react-i18next'
 import { IconMegaphone, IconSparkle } from '../icons'
 
-// "Your report will be analysed by AI and shown shortly" -- with the same
-// kind of looping animation as the SOS pins (pulsing rings), plus
-// twinkling sparkles and a scanning line for the AI check. Shown on the
-// wizard's last screen and on the report page right after sending.
-export default function SignaliAiNotice({ compact = false }) {
+// "Sent -- the AI is checking it, it'll be on the map shortly": one short
+// line with the same kind of looping animation as the SOS pins (pulsing
+// rings), twinkling sparkles and a scanning line. Shown on the report
+// page while it's being processed.
+export default function SignaliAiNotice({ sent = false }) {
   const { t } = useTranslation()
   return (
-    <div className={`signali-ai${compact ? ' is-compact' : ''}`} role="status">
+    <div className="signali-ai is-compact" role="status">
       <div className="signali-ai-anim" aria-hidden="true">
         <span className="signali-ai-ring" />
         <span className="signali-ai-ring signali-ai-ring-2" />
@@ -21,12 +21,11 @@ export default function SignaliAiNotice({ compact = false }) {
         <span className="signali-ai-spark signali-ai-spark-3"><IconSparkle width={12} height={12} /></span>
       </div>
       <div className="signali-ai-copy">
-        <strong>✨ {t('signali.aiTitle')}</strong>
-        <span>{t('signali.aiText')}</span>
-        <em>
-          {t('signali.aiWorking')}
+        <strong>
+          {sent ? `✓ ${t('signali.aiSentTitle')}` : `✨ ${t('signali.aiTitle')}`}
           <span className="signali-ai-dots" aria-hidden="true"><i /><i /><i /></span>
-        </em>
+        </strong>
+        <span>{t('signali.aiText')}</span>
       </div>
     </div>
   )

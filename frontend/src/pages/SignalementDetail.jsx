@@ -176,12 +176,16 @@ export default function SignalementDetail() {
 
   return (
     <section className="signalements-page signalement-detail-page">
-      {justCreated && (
-        <div className="signali-created" role="status">
-          <strong>✓ {t('signali.createdTitle')}</strong>
-        </div>
+      {/* One short notice (sent + AI check under way), not two. */}
+      {s.processing_status === 'pending' ? (
+        <SignaliAiNotice sent={justCreated} />
+      ) : (
+        justCreated && (
+          <div className="signali-created" role="status">
+            <strong>✓ {t('signali.createdTitle')}</strong>
+          </div>
+        )
       )}
-      {s.processing_status === 'pending' && <SignaliAiNotice compact={!justCreated} />}
       {token && justCreated && <ManagePanel s={s} token={token} justCreated onChange={setS} onForget={forget} />}
 
       <article className="signali-detail">
