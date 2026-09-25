@@ -1,16 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import L from 'leaflet'
 import { useApp } from '../context/AppContext'
 import { useDialog } from '../context/DialogContext'
 import { api } from '../api'
 import { translateApiError } from '../apiErrors'
-import { formatDate, getCurrentPosition, RECENTER_BOX_METERS } from '../utils'
+import { getCurrentPosition, haversineKm, RECENTER_BOX_METERS } from '../utils'
 import { attachMapTapToActivate } from '../mapMarkers'
 import { IconClose, IconExpand, IconLocate, IconPlus } from '../icons'
 import WilayaCombobox from '../components/WilayaCombobox'
-import { SIGNALI_CATEGORIES, categoryEmoji, getOwnSignalementIds } from '../signali'
+import { SIGNALI_CATEGORIES, SIGNAL_ICON_SVG, categoryEmoji, getOwnSignalementIds } from '../signali'
 import '../signali.css'
 
 // The Signali map: every public citizen report (see
@@ -38,19 +38,13 @@ function pinIcon(s, selected) {
   return L.divIcon({ className: 'signali-marker-icon', html: `<span class="${cls}">${categoryEmoji(s.category)}</span>`, iconSize: [34, 34], iconAnchor: [17, 17] })
 }
 
-// The "Signal" megaphone (same drawing as IconMegaphone in icons.jsx,
-// used for the bottom-nav tab), as a plain string for Leaflet's divIcon.
-const SIGNAL_ICON_SVG =
-  '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
-  '<path d="M3.5 10.2v3.6a1 1 0 0 0 1 1H7l7.5 4.2V5L7 9.2H4.5a1 1 0 0 0-1 1Z"/><path d="M7.5 14.8 9 20h2.3"/>' +
-  '<path d="M18 9.2a4 4 0 0 1 0 5.6M20.3 7a7.2 7.2 0 0 1 0 10"/></svg>'
 
 // Pins and bubbles that land (almost) on the same spot are nudged apart
 // on screen so each stays visible and tappable -- same idea as
 // mapMarkers.spreadNeedMarkers, with a wider spread since several
 // reports often share one wilaya centre. Re-run on every zoom.
-const SPREAD_MIN_PX = 44
-const SPREAD_MAX_PX = 60
+const SPREAD_MIN_PX = 58
+const SPREAD_MAX_PX = 90
 function spreadSignaliMarkers(map) {
   const markers = []
   map.eachLayer((layer) => layer instanceof L.Marker && layer._icon && markers.push(layer))
@@ -77,7 +71,8 @@ function spreadSignaliMarkers(map) {
     const el = m._icon.firstElementChild
     if (!el) return
     const clamp = (v) => Math.max(-SPREAD_MAX_PX, Math.min(SPREAD_MAX_PX, v))
-    el.style.translate = `${clamp(off[i].x)}px ${clamp(off[i].y)}px`
+    m._signaliOffset = [clamp(off[i].x), clamp(off[i].y)]
+    el.style.translate = `${m._signaliOffset[0]}px ${m._signaliOffset[1]}px`
   })
   if (!map._signaliSpreadWired) {
     map._signaliSpreadWired = true
@@ -117,19 +112,27 @@ function Thumb({ s, size }) {
   )
 }
 
-function Preview({ s }) {
-  const { t, i18n } = useTranslation()
+const escapeHtml = (v) =>
+  String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c])
+
+// Popup on a pin, like the other maps: the photo (or the video's first
+// frame), the type, a very short description, and a link to the full
+// report (photos, video, voice, comments...).
+function popupHtml(t, s) {
+  const photo = s.photos.find((p) => p.image)?.image
+  const media = photo
+    ? `<img class="signali-popup-media" src="${escapeHtml(photo)}" alt="" />`
+    : s.video_file
+      ? `<video class="signali-popup-media" src="${escapeHtml(s.video_file)}#t=0.5" muted playsinline preload="metadata"></video>`
+      : ''
+  const text = (s.description || s.voice_transcript || '').trim()
+  const short = text.length > 70 ? `${text.slice(0, 70)}…` : text
   return (
-    <Link to={`/signalements/${s.id}`} className="signalements-preview">
-      <Thumb s={s} size="lg" />
-      <span>
-        <b>{t(`signali.categories.${s.category}`)}</b>
-        <small>{[s.address || s.commune, s.wilaya_name].filter(Boolean).join(' · ')}</small>
-        <small>{formatDate(s.created_at, i18n.language)} · {t(`signali.status.${s.status}`)}</small>
-        {s.description && <small className="signalements-preview-text">{s.description}</small>}
-      </span>
-      <em>{t('signali.openReport')} →</em>
-    </Link>
+    `<div class="signali-popup">${media}` +
+    `<strong>${categoryEmoji(s.category)} ${escapeHtml(t(`signali.categories.${s.category}`))}</strong>` +
+    `<small>${escapeHtml([s.address || s.commune, s.wilaya_name].filter(Boolean).join(' · '))}</small>` +
+    (short ? `<p>${escapeHtml(short)}</p>` : '') +
+    `<a href="/signalements/${s.id}" data-signali-id="${s.id}">${escapeHtml(t('signali.openReport'))} →</a></div>`
   )
 }
 
@@ -137,6 +140,7 @@ export default function Signalements() {
   const { t } = useTranslation()
   const { wilayas, config } = useApp()
   const { showAlert } = useDialog()
+  const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
   const [filtersOpen, setFiltersOpen] = useState(false)
   // Same "Liste / Carte" toggle as NeedsList.jsx. The map stays mounted
@@ -153,7 +157,14 @@ export default function Signalements() {
   const category = params.get('category') || ''
   const status = params.get('status') || 'open'
   const focusId = Number(params.get('focus')) || null
-  const [selectedId, setSelectedId] = useState(focusId)
+  // "Géolocalisés / Sans géolocalisation / Tous".
+  const geo = params.get('geo') || 'all'
+  // ?near=1 (Home's "around me" button): only reports within NEAR_KM of
+  // the visitor's position.
+  const nearMode = params.get('near') === '1'
+  const NEAR_KM = 30
+  const [nearPos, setNearPos] = useState(null)
+  const [nearError, setNearError] = useState(false)
 
   const setFilter = (key, value) => {
     const next = new URLSearchParams(params)
@@ -163,6 +174,19 @@ export default function Signalements() {
     setParams(next, { replace: true })
     setNoLocationOnly(false)
   }
+
+  useEffect(() => {
+    if (!nearMode) return
+    let cancelled = false
+    getCurrentPosition({ maximumAge: 60000, timeout: 8000, enableHighAccuracy: false }).then((pos) => {
+      if (cancelled) return
+      if (pos) setNearPos(pos)
+      else setNearError(true)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [nearMode])
 
   useEffect(() => {
     let cancelled = false
@@ -209,11 +233,15 @@ export default function Signalements() {
 
   const all = useMemo(() => {
     const extra = [focused, ...ownPending].filter((x, i, arr) => x && !items.some((y) => y.id === x.id) && arr.findIndex((z) => z && z.id === x.id) === i)
-    return [...extra, ...items]
-  }, [focused, ownPending, items])
+    return [...extra, ...items].filter((s) => {
+      if (geo === 'with' && !s.has_exact_position) return false
+      if (geo === 'without' && s.has_exact_position) return false
+      if (nearMode && nearPos && haversineKm(nearPos, [s.display_latitude, s.display_longitude]) > NEAR_KM) return false
+      return true
+    })
+  }, [focused, ownPending, items, geo, nearMode, nearPos])
   const located = useMemo(() => all.filter((s) => s.has_exact_position), [all])
   const unlocated = useMemo(() => all.filter((s) => !s.has_exact_position), [all])
-  const selected = all.find((x) => x.id === selectedId) || null
   // true = every report without an exact position; a wilaya id = only
   // that wilaya's (from its bubble on the map).
   const listed = noLocationOnly
@@ -255,8 +283,17 @@ export default function Signalements() {
     layerRef.current = L.layerGroup().addTo(map)
     mapRef.current = map
     attachMapTapToActivate(map, () => setInteractive(true))
+    // Popup "open the report" links navigate inside the app.
+    map.on('popupopen', (e) => {
+      const link = e.popup.getElement()?.querySelector('[data-signali-id]')
+      if (link)
+        link.onclick = (ev) => {
+          ev.preventDefault()
+          navigate(`/signalements/${link.dataset.signaliId}`)
+        }
+    })
     return () => map.remove()
-  }, [setInteractive])
+  }, [setInteractive, navigate])
 
   const enterFullscreen = () => {
     setInteractive(true)
@@ -283,17 +320,30 @@ export default function Signalements() {
   }, [fullscreen, mapHeight, viewMode])
 
   // The map fills the screen down to the bottom nav, like the other maps.
+  // Measured against the page (not the current scroll) and only when the
+  // width changes: on phones, scrolling shows/hides the browser's address
+  // bar, which fires height-only resizes -- reacting to those made the
+  // map grow to the whole screen height while scrolling.
   useEffect(() => {
     if (fullscreen) return
+    let lastWidth = window.innerWidth
+    let screenHeight = window.innerHeight
     const recompute = () => {
       const el = mapFrameRef.current
       if (!el) return
-      setMapHeight(Math.max(260, Math.round(window.innerHeight - el.getBoundingClientRect().top - 100)))
+      const top = el.getBoundingClientRect().top + window.scrollY
+      setMapHeight(Math.min(760, Math.max(260, Math.round(screenHeight - top - 96))))
+    }
+    const onResize = () => {
+      if (window.innerWidth === lastWidth) return
+      lastWidth = window.innerWidth
+      screenHeight = window.innerHeight
+      recompute()
     }
     recompute()
-    window.addEventListener('resize', recompute)
-    return () => window.removeEventListener('resize', recompute)
-  }, [fullscreen, filtersOpen, selectedId, viewMode])
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [fullscreen, filtersOpen, viewMode, nearMode])
 
   const recenterOnMe = async () => {
     const map = mapRef.current
@@ -312,12 +362,19 @@ export default function Signalements() {
     located.forEach((s) => {
       const ll = [s.display_latitude, s.display_longitude]
       points.push(ll)
-      L.marker(ll, { icon: pinIcon(s, s.id === selectedId), zIndexOffset: s.id === selectedId ? 1000 : 0, title: t(`signali.categories.${s.category}`) })
-        .on('click', () => {
-          setSelectedId(s.id)
-          setNoLocationOnly(false)
+      const marker = L.marker(ll, { icon: pinIcon(s, s.id === focusId), zIndexOffset: s.id === focusId ? 1000 : 0, title: t(`signali.categories.${s.category}`) })
+        // autoPan on (the app-wide default is off): the map shifts so the
+        // popup is always fully visible, even for a pin near the edge.
+        .bindPopup(popupHtml(t, s), { autoPan: true, autoPanPadding: [16, 60], maxWidth: 240 })
+        .on('popupopen', (e) => {
+          // Open above where the pin is *drawn* (it may have been nudged
+          // aside by spreadSignaliMarkers), not its raw position.
+          const [dx, dy] = marker._signaliOffset || [0, 0]
+          e.popup.options.offset = L.point(dx, dy - 12)
+          e.popup.update()
         })
         .addTo(layer)
+      if (s.id === focusId && focused) requestAnimationFrame(() => marker.openPopup())
     })
     // Reports with no exact position: one bubble per wilaya, on that
     // wilaya's own centre (a Tizi Ouzou report sits on Tizi Ouzou, not on
@@ -331,7 +388,6 @@ export default function Signalements() {
       L.marker(ll, { icon: bubbleIcon(group.length), zIndexOffset: 2000, title: `${t('signali.noLocationBubble')} · ${group[0].wilaya_name} (${group.length})` })
         .on('click', () => {
           setNoLocationOnly(String(wilayaId))
-          setSelectedId(null)
           setViewMode('list')
         })
         .addTo(layer)
@@ -340,40 +396,29 @@ export default function Signalements() {
     spreadSignaliMarkers(map)
     // Refit only when the filters (or the focused report) change, not on
     // every selection/vote -- the view shouldn't jump under the finger.
-    const key = `${wilaya}|${category}|${status}|${focused?.id || ''}|${loading}`
+    const key = `${wilaya}|${category}|${status}|${geo}|${focused?.id || ''}|${nearPos || ''}|${loading}`
     if (fittedRef.current === key || loading) return
     fittedRef.current = key
-    if (focused?.has_exact_position) map.setView([focused.display_latitude, focused.display_longitude], 16)
+    if (nearMode && nearPos) map.fitBounds(L.latLng(nearPos[0], nearPos[1]).toBounds(NEAR_KM * 2000))
+    else if (focused?.has_exact_position) map.setView([focused.display_latitude, focused.display_longitude], 16)
     else if (points.length) map.fitBounds(L.latLngBounds(points).pad(0.25), { maxZoom: 15 })
     else {
       const w = wilayas.find((x) => String(x.id) === wilaya)
       if (w?.centroid_latitude) map.setView([w.centroid_latitude, w.centroid_longitude], 9)
       else map.setView([34.5, 3], 5)
     }
-  }, [located, unlocated, selectedId, focused, wilaya, category, status, loading, wilayas, t])
+  }, [located, unlocated, focusId, focused, wilaya, category, status, geo, nearMode, nearPos, loading, wilayas, t])
 
   return (
     <section className="signalements-page">
-      <div className="signalements-head">
-        <h1>📣 {t('signali.listTitle')}</h1>
-        <Link to="/signali" className="btn btn-primary signalements-new">
-          <IconPlus width={16} height={16} strokeWidth={2.6} /> {t('signali.newReport')}
-        </Link>
-      </div>
-
       <div className="toolbar toolbar-compact signalements-toolbar">
         <button type="button" className="filters-toggle" aria-expanded={filtersOpen} onClick={() => setFiltersOpen((v) => !v)}>
           ☰ {t('common.filters')}
-          {(wilaya || category || status !== 'open') && <span className="filters-badge" aria-hidden="true" />}
+          {(wilaya || category || status !== 'open' || geo !== 'all') && <span className="filters-badge" aria-hidden="true" />}
         </button>
-        {noLocationOnly && (
-          <div className="filters-badge-chip">
-            {t('signali.noLocationBubble')}
-            {noLocationOnly !== true && ` · ${unlocated.find((u) => String(u.wilaya) === noLocationOnly)?.wilaya_name || ''}`}
-            <button type="button" onClick={() => setNoLocationOnly(false)} aria-label={t('common.close')}>×</button>
-          </div>
-        )}
-        <span className="signalements-count">{t('signali.countTotal', { count: all.length })}</span>
+        <Link to="/signali" className="btn btn-primary signalements-new" aria-label={t('signali.newReport')}>
+          <IconPlus width={16} height={16} strokeWidth={2.6} /> {t('signali.newReport')}
+        </Link>
         <div className="view-toggle">
           <button type="button" className={viewMode === 'list' ? 'active' : ''} onClick={() => setViewMode('list')}>
             {t('needsList.list')}
@@ -383,6 +428,23 @@ export default function Signalements() {
           </button>
         </div>
       </div>
+      {(nearMode || noLocationOnly) && (
+        <div className="signalements-chips">
+          {nearMode && (
+            <div className="filters-badge-chip">
+              📍 {nearError ? t('signali.nearUnavailable') : t('signali.nearMe', { km: NEAR_KM })}
+              <button type="button" onClick={() => setFilter('near', '')} aria-label={t('common.close')}>×</button>
+            </div>
+          )}
+          {noLocationOnly && (
+            <div className="filters-badge-chip">
+              {t('signali.noLocationBubble')}
+              {noLocationOnly !== true && ` · ${unlocated.find((u) => String(u.wilaya) === noLocationOnly)?.wilaya_name || ''}`}
+              <button type="button" onClick={() => setNoLocationOnly(false)} aria-label={t('common.close')}>×</button>
+            </div>
+          )}
+        </div>
+      )}
       {filtersOpen && (
         <div className="filters-panel signalements-filters">
           <WilayaCombobox
@@ -398,18 +460,21 @@ export default function Signalements() {
               <option key={c} value={c}>{categoryEmoji(c)} {t(`signali.categories.${c}`)}</option>
             ))}
           </select>
-          <div className="signalements-status" role="group">
+          <div className="signalements-status" role="group" aria-label={t('signali.statusLabel')}>
             {['open', 'resolved', 'all'].map((v) => (
               <button key={v} type="button" className={status === v ? 'selected' : ''} onClick={() => setFilter('status', v === 'open' ? '' : v)}>
                 {t(`signali.filterStatus.${v}`)}
               </button>
             ))}
           </div>
-          {unlocated.length > 0 && (
-            <button type="button" className={`signali-link${noLocationOnly ? ' is-active' : ''}`} onClick={() => setNoLocationOnly((v) => !v)}>
-              📍 {t('signali.countNoLocation', { count: unlocated.length })}
-            </button>
-          )}
+          <div className="signalements-status" role="group" aria-label={t('signali.geoLabel')}>
+            {['all', 'with', 'without'].map((v) => (
+              <button key={v} type="button" className={geo === v ? 'selected' : ''} onClick={() => setFilter('geo', v === 'all' ? '' : v)}>
+                {t(`signali.filterGeo.${v}`)}
+              </button>
+            ))}
+          </div>
+          <span className="signalements-count">{t('signali.countTotal', { count: all.length })}</span>
         </div>
       )}
 
@@ -447,8 +512,6 @@ export default function Signalements() {
       </div>
       {error && <p className="error">{error}</p>}
 
-      {viewMode === 'map' && selected && <Preview s={selected} />}
-
       {viewMode === 'list' && !listed.length && !loading && <p className="hint">{t('signali.empty')}</p>}
       {viewMode === 'list' && !!listed.length && (
         <ul className="signalements-list">
@@ -461,6 +524,11 @@ export default function Signalements() {
                   <span>
                     <b>{t(`signali.categories.${s.category}`)}</b>
                     <small>{[s.address || s.commune, s.wilaya_name].filter(Boolean).join(' · ')}</small>
+                    {s.has_exact_position ? (
+                      <i className="signali-geo-badge">📍 {t('signali.geolocated')}</i>
+                    ) : (
+                      <i className="signali-geo-badge is-approx">{t('signali.approxLocation')}</i>
+                    )}
                   </span>
                   <em>👍 {s.confirmations_count + 1}</em>
                 </Link>

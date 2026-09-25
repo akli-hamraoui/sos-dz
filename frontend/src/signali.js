@@ -2,12 +2,23 @@ import { loadJSON, saveJSON } from './api'
 
 // Shared by the Signali wizard (pages/Signali.jsx) and the Signalements
 // map (pages/Signalements.jsx). Same codes as core.models.Signalement.
-export const SIGNALI_CATEGORIES = ['electricity', 'road', 'lighting', 'water', 'waste', 'signage', 'other']
+export const SIGNALI_CATEGORIES = ['pothole', 'road', 'waste', 'sewer', 'water', 'electricity', 'lighting', 'signage', 'danger', 'other']
 
 // Same codes as core.models.Signalement.STATUS_CHOICES.
 export const SIGNALI_STATUSES = ['new', 'in_review', 'resolved', 'cancelled']
 
-const EMOJI = { electricity: '⚡', road: '🕳️', lighting: '💡', water: '💧', waste: '🗑️', signage: '🚧', other: '⚠️' }
+const EMOJI = {
+  pothole: '🕳️',
+  road: '🛣️',
+  waste: '🗑️',
+  sewer: '🚽',
+  water: '💧',
+  electricity: '⚡',
+  lighting: '💡',
+  signage: '🚧',
+  danger: '⚠️',
+  other: '📌',
+}
 
 export function categoryEmoji(category) {
   return EMOJI[category] || EMOJI.other
@@ -36,3 +47,14 @@ export function getSignalementToken(id) {
 export function getOwnSignalementIds() {
   return Object.keys(loadJSON(TOKENS_KEY, {})).map(Number).filter(Boolean)
 }
+
+// The "Signal" megaphone (same drawing as IconMegaphone in icons.jsx, used
+// for the bottom-nav tab), as a plain string for Leaflet divIcons.
+export function signalIconSvg(size = 22, color = '#fff') {
+  return (
+    `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">` +
+    '<path d="M3.5 10.2v3.6a1 1 0 0 0 1 1H7l7.5 4.2V5L7 9.2H4.5a1 1 0 0 0-1 1Z"/><path d="M7.5 14.8 9 20h2.3"/>' +
+    '<path d="M18 9.2a4 4 0 0 1 0 5.6M20.3 7a7.2 7.2 0 0 1 0 10"/></svg>'
+  )
+}
+export const SIGNAL_ICON_SVG = signalIconSvg()

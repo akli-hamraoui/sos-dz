@@ -602,3 +602,69 @@
   font-size: 12px;
   line-height: 1;
 }
+
+.signali-review-media { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.signali-review-photo img { display: block; width: 72px; height: 72px; object-fit: cover; border-radius: 8px; }
+.signali-review-video { display: block; width: 100%; max-height: 220px; margin-top: 6px; border-radius: 8px; background: #000; }
+.signali-review-audio { display: block; width: 100%; margin-top: 6px; }
+.signali-review-text { font-weight: 500; white-space: pre-line; }
+
+/* Wizard map: same chrome as the other maps (fullscreen, center on me). */
+.signali-pin-frame { position: relative; height: 240px; margin-top: 8px; border-radius: 14px; overflow: hidden; }
+.signali-pin-frame .signali-pin-map { height: 100%; margin-top: 0; border-radius: 0; }
+.signali-pin-frame.map-frame-fullscreen .signali-pin-map { height: 100%; }
+.signali-pin-badge {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 3px solid #fff;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  background: #1f5fbf;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, .35);
+}
+.signali-pin-badge svg { transform: rotate(45deg); }
+
+.signali-detail header { grid-template-columns: 40px minmax(0, 1fr); }
+.signali-detail header .signali-status { display: inline-block; margin-top: 6px; }
+.signali-agree { display: inline-flex; align-items: center; gap: 6px; }
+.signali-agree b { padding: 1px 8px; border-radius: 999px; background: #eaf2ff; color: #1f5fbf; }
+.signali-agree.is-done { border-color: #1f5fbf; }
+.signali-media-warning { margin: 8px 0 0; padding: 8px 10px; border-radius: 10px; background: #fff4e0; color: #7a4b00; font-size: 13px; }
+
+/* --- Signalements page: compact, no horizontal scroll --- */
+.signalements-page { overflow-x: clip; max-width: 100%; box-sizing: border-box; padding-top: 4px; }
+.signalements-page * { box-sizing: border-box; }
+.signalements-toolbar { flex-wrap: wrap; gap: 8px; margin: 6px 0 8px; }
+.signalements-toolbar .signalements-new { display: inline-flex; align-items: center; gap: 4px; padding: 7px 12px; font-size: 14px; }
+.signalements-toolbar .view-toggle { margin-inline-start: auto; }
+.signalements-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 8px; }
+.signalements-filters { display: grid; grid-template-columns: 1fr; gap: 8px; margin: 0 0 10px; overflow: visible; position: relative; z-index: 1300; }
+.signalements-filters select { width: 100%; }
+.signalements-filters .urgent-sos-wilaya-options { z-index: 1400; max-height: 260px; }
+.signalements-status { display: flex; gap: 6px; }
+.signalements-filters .signalements-count { margin: 0; }
+
+/* No black focus outline on the map or its pins. */
+.signalements-page .leaflet-container:focus,
+.signalements-page .leaflet-marker-icon:focus,
+.signalements-page .leaflet-interactive:focus,
+.signalements-page .map-frame:focus { outline: none; }
+.signalements-page .leaflet-container { -webkit-tap-highlight-color: transparent; }
+
+/* Popups, like the other maps. */
+.signali-popup { display: grid; gap: 3px; min-width: 170px; max-width: 220px; }
+.signali-popup-media { display: block; width: 100%; height: 110px; object-fit: cover; border-radius: 8px; background: #1f2937; margin-bottom: 4px; }
+.signali-popup strong { font-size: 14px; }
+.signali-popup small { color: #5c6878; font-size: 12px; }
+.signali-popup p { margin: 2px 0; font-size: 13px; color: #394556; }
+.signali-popup a { font-weight: 700; color: #1f5fbf; }
+
+.signali-geo-badge { display: inline-block; margin-top: 3px; padding: 1px 7px; border-radius: 999px; background: #e8f5ee; color: #176b3a; font-size: 11px; font-style: normal; font-weight: 700; }
+.signali-geo-badge.is-approx { background: #f1f3f5; color: #6b7686; }
+.signalements-toolbar { flex-wrap: nowrap; }
+.signalements-toolbar .filters-toggle { flex: none; padding-inline: 10px; }
+.signalements-toolbar .signalements-new { flex: none; padding: 7px 10px; font-size: 13.5px; }
+.signalements-toolbar .view-toggle { flex: none; }
+.signalements-toolbar .view-toggle button { padding-inline: 12px; }

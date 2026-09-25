@@ -47,7 +47,9 @@ class SignalementAPITests(BaseAPITestCase):
         self.assertEqual(s.photos.count(), 1)
         # Moderation is left to the worker: nothing is public yet.
         self.assertEqual(s.photos.get().moderation_status, Need.MODERATION_PENDING)
-        self.assertIsNone(resp.data["photos"][0]["image"])
+        # Visible to its author (create response), never to the public yet.
+        self.assertTrue(resp.data["photos"][0]["image"])
+        self.assertIsNone(self.client.get(f"/api/signalements/{s.pk}/").data["photos"][0]["image"])
 
     def test_create_with_manual_address_only(self):
         resp = self._post(category="road", address="Rue Didouche Mourad", wilaya=self.wilaya.pk, photos=[make_test_image()])
@@ -299,3 +301,66 @@ class SignalementGeocodingTests(BaseAPITestCase):
         ):
             s = process_signalement(sid)
         self.assertIsNone(s.latitude)
+
+
+@override_settings(MEDIA_ROOT=MEDIA_ROOT)
+class SignalementRobustUploadTests(BaseAPITestCase):
+    def setUp(self):
+        super().setUp()
+        algeria_ip = patch("core.views.is_algeria_ip", return_value=True)
+        algeria_ip.start()
+        self.addCleanup(algeria_ip.stop)
+
+    def test_too_large_video_is_dropped_but_report_is_saved(self):
+        from core.media_validation import MAX_VIDEO_SIZE_BYTES
+
+        big = SimpleUploadedFile("big.mp4", b"x" * (MAX_VIDEO_SIZE_BYTES + 1), content_type="video/mp4")
+        resp = self.client.post(
+            "/api/signalements/",
+            dict(category="road", latitude=36.75, longitude=3.05, description="Trou", photos=[make_test_image()], video_file=big),
+            format="multipart",
+        )
+        self.assertEqual(resp.status_code, 201, resp.data)
+        s = Signalement.objects.get(pk=resp.data["id"])
+        self.assertFalse(s.video_file)
+        self.assertEqual(s.photos.count(), 1)
+        self.assertIn("Video", s.media_upload_errors)
+        self.assertTrue(resp.data["media_warnings"])
+
+    def test_storage_error_on_a_photo_does_not_fail_the_report(self):
+        from core.models import SignalementPhoto
+
+        with patch.object(SignalementPhoto.objects, "create", side_effect=OSError("disk full")):
+            resp = self.client.post(
+                "/api/signalements/",
+                dict(category="road", latitude=36.75, longitude=3.05, photos=[make_test_image()]),
+                format="multipart",
+            )
+        self.assertEqual(resp.status_code, 201, resp.data)
+        self.assertIn("disk full", Signalement.objects.get(pk=resp.data["id"]).media_upload_errors)
+
+    def test_retry_without_media_is_accepted_with_the_flag(self):
+        resp = self.client.post(
+            "/api/signalements/",
+            dict(category="road", latitude=36.75, longitude=3.05, description="Trou", media_upload_failed="1"),
+            format="multipart",
+        )
+        self.assertEqual(resp.status_code, 201, resp.data)
+        self.assertIn("could not upload", Signalement.objects.get(pk=resp.data["id"]).media_upload_errors)
+
+    def test_owner_sees_pending_photo_public_does_not(self):
+        resp = self.client.post(
+            "/api/signalements/",
+            dict(category="road", latitude=36.75, longitude=3.05, photos=[make_test_image()]),
+            format="multipart",
+        )
+        url = f"/api/signalements/{resp.data['id']}/"
+        self.assertIsNone(self.client.get(url).data["photos"][0]["image"])
+        self.assertTrue(self.client.get(url, HTTP_X_ACCESS_TOKEN=resp.data["access_token"]).data["photos"][0]["image"])
+
+    def test_new_categories_are_accepted(self):
+        for cat in ("pothole", "sewer", "danger"):
+            resp = self.client.post(
+                "/api/signalements/", dict(category=cat, latitude=36.75, longitude=3.05, photos=[make_test_image()]), format="multipart"
+            )
+            self.assertEqual(resp.status_code, 201, resp.data)

@@ -121,7 +121,8 @@
     "signaliSubtitle": "Report a street hazard: power pole, pothole, leak…",
     "insertFlyerShort": "Upload a flyer",
     "signaliShort": "Report a road or street problem",
-    "volunteerNotice": "This site is volunteer-run, community-driven and unofficial."
+    "volunteerNotice": "This site is volunteer-run, community-driven and unofficial.",
+    "nearbySignals": "See reports around me"
   },
   "status": {
     "open": "open",
@@ -795,11 +796,14 @@
     "sending": "Sending…",
     "categories": {
       "electricity": "Power pole / cable",
-      "road": "Pothole / damaged road",
+      "pothole": "Pothole",
+      "road": "Damaged road",
       "lighting": "Street lighting",
-      "water": "Water leak / sewer",
-      "waste": "Waste",
+      "water": "Water leak",
+      "sewer": "Sewer",
+      "waste": "Garbage / waste",
       "signage": "Road signs",
+      "danger": "Danger",
       "other": "Other"
     },
     "listTitle": "Reports",
@@ -873,6 +877,19 @@
     "pinOnMap": "Spot placed on the map",
     "videoFromGallery": "or pick a video from the gallery ({{size}} MB max)",
     "addressPlaceholderIn": "Address in {{wilaya}} (street, area, landmark)",
-    "wilayaNoMatch": "No wilaya found"
+    "wilayaNoMatch": "No wilaya found",
+    "agree": "Agree",
+    "mediaWarning": "A photo, video or the voice message could not be sent; your report was saved with the rest.",
+    "nearMe": "Around me ({{km}} km)",
+    "nearUnavailable": "Location unavailable, all reports",
+    "statusLabel": "Status",
+    "geoLabel": "Geolocation",
+    "filterGeo": {
+      "all": "All",
+      "with": "Geolocated",
+      "without": "No geolocation"
+    },
+    "geolocated": "Geolocated",
+    "approxLocation": "Wilaya centre"
   }
 }

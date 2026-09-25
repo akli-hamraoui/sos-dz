@@ -443,3 +443,36 @@
   line-height: 1.3;
   text-align: center;
 }
+
+/* Signali's icon: a road-works cone with the Signal megaphone as a badge. */
+.home.home-compact .home-signali-icon { position: relative; background: rgba(255, 255, 255, .95); }
+.home-signali-icon-badge {
+  position: absolute;
+  inset-inline-end: -4px;
+  bottom: -4px;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #1f4fa8;
+  color: #fff;
+}
+
+/* "Voir les signalements autour de moi", right under Signali. */
+.home-nearby-button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 1.5px solid #bcd3f5;
+  border-radius: 13px;
+  background: #eef4ff;
+  color: #1f4fa8;
+  font-weight: 700;
+  font-size: clamp(13.5px, 3.6vw, 15px);
+  text-decoration: none;
+}
+.home-nearby-button b { margin-inline-start: auto; font-weight: 400; font-size: 18px; }
+.home-nearby-button svg { flex: none; }
