@@ -927,5 +927,18 @@
     },
     "geolocated": "Géolocalisé",
     "approxLocation": "Centre de la wilaya"
+  },
+  "explore": {
+    "inAreaShort_one": "{{count}} ici",
+    "inAreaShort_other": "{{count}} ici",
+    "noneInArea": "Rien dans cette zone : dézoomez ou changez les filtres.",
+    "showAll": "Tout voir",
+    "showResults_one": "Voir {{count}} résultat",
+    "showResults_other": "Voir {{count}} résultats",
+    "sortedByDistance": "Du plus proche au plus loin",
+    "listCount_one": "Liste ({{count}})",
+    "listCount_other": "Liste ({{count}})",
+    "approxBubble": "Position approximative · {{place}} ({{count}})",
+    "noPosition": "Sans position"
   }
 }

@@ -908,5 +908,18 @@
     },
     "geolocated": "Geolocated",
     "approxLocation": "Wilaya centre"
+  },
+  "explore": {
+    "inAreaShort_one": "{{count}} here",
+    "inAreaShort_other": "{{count}} here",
+    "noneInArea": "Nothing in this area: zoom out or change the filters.",
+    "showAll": "Show all",
+    "showResults_one": "Show {{count}} result",
+    "showResults_other": "Show {{count}} results",
+    "sortedByDistance": "Nearest first",
+    "listCount_one": "List ({{count}})",
+    "listCount_other": "List ({{count}})",
+    "approxBubble": "Approximate position · {{place}} ({{count}})",
+    "noPosition": "No position"
   }
 }

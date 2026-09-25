@@ -927,5 +927,18 @@
     },
     "geolocated": "موقع محدد",
     "approxLocation": "وسط الولاية"
+  },
+  "explore": {
+    "inAreaShort_one": "{{count}} هنا",
+    "inAreaShort_other": "{{count}} هنا",
+    "noneInArea": "لا شيء في هذه المنطقة: صغّر الخريطة أو غيّر عوامل التصفية.",
+    "showAll": "عرض الكل",
+    "showResults_one": "عرض نتيجة واحدة",
+    "showResults_other": "عرض {{count}} نتائج",
+    "sortedByDistance": "الأقرب أولاً",
+    "listCount_one": "القائمة ({{count}})",
+    "listCount_other": "القائمة ({{count}})",
+    "approxBubble": "موقع تقريبي · {{place}} ({{count}})",
+    "noPosition": "بدون موقع"
   }
 }
