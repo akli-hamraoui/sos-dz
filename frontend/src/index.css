@@ -2663,7 +2663,7 @@ fieldset {
      space-around distributes free space per item's own width instead,
      which visibly uneven-spaces items with different label lengths. */
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   align-items: center;
   padding: 8px 0 max(8px, env(safe-area-inset-bottom));
   /* Leaflet's own zoom/attribution controls default to z-index: 1000 in
@@ -3606,7 +3606,7 @@ body { overflow-x: hidden; }
 }
 @media (max-width: 699px) {
   .bottom-nav {
-    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+    grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
     padding-left: 0 !important;
     padding-right: 0 !important;
   }

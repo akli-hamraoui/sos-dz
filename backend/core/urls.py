@@ -10,6 +10,7 @@ from core.views import (
     FlyerSubmissionViewSet,
     NeedViewSet,
     PickupViewSet,
+    SignalementViewSet,
     SupportRequestViewSet,
     TranslationOverridesView,
     VersionView,
@@ -28,6 +29,7 @@ router.register("content-reports", ContentReportViewSet, basename="content-repor
 router.register("collection-points", CollectionPointViewSet, basename="collection-point")
 router.register("flyer-submissions", FlyerSubmissionViewSet, basename="flyer-submission")
 router.register("comments", CommentViewSet, basename="comment")
+router.register("signalements", SignalementViewSet, basename="signalement")
 
 urlpatterns = router.urls + [
     path("config/", AppConfigurationView.as_view(), name="app-configuration"),

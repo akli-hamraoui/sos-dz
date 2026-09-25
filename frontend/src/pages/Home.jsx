@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useApp } from '../context/AppContext'
-import { IconAlgeriaFlag, IconCamera, IconClose, IconGlobeColor, IconHelp, IconMic, IconPlus, IconSparkle } from '../icons'
+import { IconAlgeriaFlag, IconCamera, IconClose, IconGlobeColor, IconHelp, IconMegaphone, IconMic, IconPlus, IconSparkle } from '../icons'
+import '../home-compact.css'
 
 // A small pulsing pill used to flag brand-new entry points (the voice SOS
 // and the flyer submission card) that a returning visitor wouldn't
@@ -51,7 +52,7 @@ export default function Home() {
   }, [createMenuOpen])
 
   return (
-    <section className="home">
+    <section className="home home-compact">
       <h1 className="sr-only">{t('seo.home.title')}</h1>
       <p className="home-tagline">{t('home.tagline')}</p>
 
@@ -158,6 +159,20 @@ export default function Home() {
           </Link>
         )}
       </div>
+
+      {/* Signali: anonymous citizen reports of street hazards (a dangerous
+          power pole, a pothole...). Full-width row of its own so the six
+          cards above could all be shrunk (home-compact.css) instead of
+          pushing "Qui sommes-nous" below the fold on a phone. */}
+      <Link to="/signali" className="home-signali-card">
+        <NewBadge />
+        <span className="home-signali-icon" aria-hidden="true"><IconMegaphone width={24} height={24} strokeWidth={2} /></span>
+        <span className="home-signali-copy">
+          <strong><PlusBadge /> {t('home.signaliTitle')}</strong>
+          <span>{t('home.signaliSubtitle')}</span>
+        </span>
+        <b className="home-signali-arrow" aria-hidden="true">→</b>
+      </Link>
 
       <Link to="/about" className="home-about-button">
         <IconHelp width={18} height={18} />

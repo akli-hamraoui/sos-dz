@@ -17,6 +17,7 @@ export const SEO_ROUTES = [
   { urlPath: '/collection-points', dir: 'collection-points', key: 'collectionPoints', changefreq: 'daily', priority: '0.8' },
   { urlPath: '/international-collection-points', dir: 'international-collection-points', key: 'internationalCollectionPoints', changefreq: 'weekly', priority: '0.6' },
   { urlPath: '/deliveries', dir: 'deliveries', key: 'deliveries', changefreq: 'weekly', priority: '0.6' },
+  { urlPath: '/signalements', dir: 'signalements', key: 'signalements', changefreq: 'daily', priority: '0.7' },
   { urlPath: '/about', dir: 'about', key: 'about', changefreq: 'monthly', priority: '0.5' },
   { urlPath: '/legal', dir: 'legal', key: 'legal', changefreq: 'monthly', priority: '0.3' },
 ]

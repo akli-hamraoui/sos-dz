@@ -3,7 +3,8 @@ import secrets
 import subprocess
 from functools import lru_cache
 
-from django.db.models import Prefetch, Q
+from django.core.cache import cache
+from django.db.models import F, Prefetch, Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import mixins, status, viewsets
@@ -49,11 +50,14 @@ from core.models import (
     Need,
     Pickup,
     ProgressUpdate,
+    Signalement,
+    SignalementPhoto,
     SupportRequest,
     TranslationOverride,
     Wilaya,
 )
 from core.permissions import read_only_block, write_guard
+from core.signalements import find_nearby_signalements, public_signalements
 from core.validators import is_within_algeria_bounds, normalize_place_name, validate_social_url
 from core.serializers import (
     AnonymizeSerializer,
@@ -81,6 +85,8 @@ from core.serializers import (
     PickupPublicSerializer,
     ProgressUpdateCreateSerializer,
     ProgressUpdateWithGPSSerializer,
+    SignalementCreateSerializer,
+    SignalementPublicSerializer,
     SupportRequestSerializer,
     WilayaSerializer,
 )
@@ -227,6 +233,7 @@ class AppConfigurationView(APIView):
             status=CollectionPoint.STATUS_ACTIVE
         ).exclude(country_code="").count()
         data["deliveries_en_route_count"] = Pickup.objects.filter(status=Pickup.STATUS_EN_ROUTE).count()
+        data["signalements_open_count"] = public_signalements().filter(status=Signalement.STATUS_NEW).count()
         return Response(data)
 
 
@@ -1573,3 +1580,120 @@ class CommentViewSet(mixins.CreateModelMixin, mixins.DestroyModelMixin, viewsets
         comment.confirmation_count = comment.confirmation_count + 1
         comment.save(update_fields=["confirmation_count"])
         return Response(CommentSerializer(comment, context={"request": request}).data)
+
+
+class SignalementViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.RetrieveModelMixin):
+    """Signali: anonymous reports of dangerous/broken spots in public space
+    (see models.Signalement). Created immediately and finished by the
+    voice worker (core.signalements.process_signalement), which runs the
+    NSFW moderation and the transcriptions in the background. Lists only
+    show reports that worker has finished with and that still have at
+    least one approved photo/video."""
+
+    queryset = Signalement.objects.select_related("wilaya").prefetch_related("photos")
+    permission_classes = [AllowAny]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+    # One map of pins, not pages of cards -- capped instead of paginated.
+    pagination_class = None
+    LIST_LIMIT = 500
+
+    def get_serializer_class(self):
+        return SignalementCreateSerializer if self.action == "create" else SignalementPublicSerializer
+
+    def get_throttles(self):
+        return [CreationRateThrottle()] if self.action == "create" else []
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        if self.action != "list":
+            return qs
+        qs = public_signalements(qs)
+        params = self.request.query_params
+        if params.get("wilaya"):
+            qs = qs.filter(wilaya_id=params["wilaya"])
+        if params.get("category"):
+            qs = qs.filter(category=params["category"])
+        if params.get("status"):
+            qs = qs.filter(status=params["status"])
+        return qs
+
+    def list(self, request, *args, **kwargs):
+        qs = self.get_queryset()[: self.LIST_LIMIT]
+        return Response(self.get_serializer(qs, many=True).data)
+
+    def create(self, request, *args, **kwargs):
+        block_reason = write_guard(request)
+        if block_reason:
+            return Response({"detail": block_reason}, status=status.HTTP_403_FORBIDDEN)
+        captcha_ok, captcha_error = verify_turnstile(request.data.get("turnstile_token"), getattr(request, "client_ip", None))
+        if not captcha_ok:
+            return Response({"detail": captcha_error}, status=status.HTTP_400_BAD_REQUEST)
+        photos = request.FILES.getlist("photos")
+        try:
+            validate_photo_count(photos)
+            validate_photo_size(photos)
+        except Exception as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        serializer = self.get_serializer(data=request.data, context={**self.get_serializer_context(), "photo_count": len(photos)})
+        serializer.is_valid(raise_exception=True)
+        signalement = serializer.save()
+        # Moderation and transcription run in the voice worker, never in
+        # this request -- see core.signalements.
+        for photo in photos:
+            SignalementPhoto.objects.create(signalement=signalement, image=photo)
+        out = SignalementPublicSerializer(signalement, context={"request": request}).data
+        out["access_token"] = signalement.access_token
+        return Response(out, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=["get"], url_path="nearby")
+    def nearby(self, request):
+        """Open reports within ~100 m, so the wizard can offer "already
+        reported -- confirm it" instead of creating a duplicate."""
+        try:
+            lat = float(request.query_params["lat"])
+            lon = float(request.query_params["lon"])
+        except (KeyError, ValueError):
+            return Response({"detail": "lat and lon query params are required."}, status=status.HTTP_400_BAD_REQUEST)
+        hits = find_nearby_signalements(lat, lon, request.query_params.get("category") or None)[:5]
+        return Response(SignalementPublicSerializer(hits, many=True, context={"request": request}).data)
+
+    VOTE_TTL_SECONDS = 60 * 60 * 24 * 90
+
+    def _vote(self, request, signalement, kind):
+        """One vote of each kind per IP per report -- False if already cast."""
+        ip = getattr(request, "client_ip", None) or request.META.get("REMOTE_ADDR", "")
+        return cache.add(f"signalement-vote:{kind}:{signalement.pk}:{ip}", 1, self.VOTE_TTL_SECONDS)
+
+    @action(detail=True, methods=["post"], url_path="confirm")
+    def confirm(self, request, *args, **kwargs):
+        """"Still there": another citizen confirms the problem."""
+        block_reason = read_only_block(request)
+        if block_reason:
+            return Response({"detail": block_reason}, status=status.HTTP_403_FORBIDDEN)
+        signalement = self.get_object()
+        if signalement.status != Signalement.STATUS_NEW:
+            return Response({"detail": "This report is already resolved."}, status=status.HTTP_400_BAD_REQUEST)
+        if self._vote(request, signalement, "confirm"):
+            Signalement.objects.filter(pk=signalement.pk).update(confirmations_count=F("confirmations_count") + 1)
+            signalement.refresh_from_db()
+        return Response(SignalementPublicSerializer(signalement, context={"request": request}).data)
+
+    @action(detail=True, methods=["post"], url_path="report-fixed")
+    def report_fixed(self, request, *args, **kwargs):
+        """"It's been fixed": the reporter (access token) or an admin
+        closes it at once; anyone else adds a vote, and
+        FIXED_REPORTS_TO_RESOLVE votes close it."""
+        block_reason = read_only_block(request)
+        if block_reason:
+            return Response({"detail": block_reason}, status=status.HTTP_403_FORBIDDEN)
+        signalement = self.get_object()
+        if signalement.status == Signalement.STATUS_NEW:
+            token = get_presented_token(request)
+            if is_admin_request(request) or (token and token == signalement.access_token):
+                signalement.mark_resolved()
+            elif self._vote(request, signalement, "fixed"):
+                Signalement.objects.filter(pk=signalement.pk).update(fixed_reports_count=F("fixed_reports_count") + 1)
+                signalement.refresh_from_db()
+                if signalement.fixed_reports_count >= Signalement.FIXED_REPORTS_TO_RESOLVE:
+                    signalement.mark_resolved()
+        return Response(SignalementPublicSerializer(signalement, context={"request": request}).data)
