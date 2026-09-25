@@ -69,6 +69,9 @@ export default function Signalements() {
   const { showAlert } = useDialog()
   const [params, setParams] = useSearchParams()
   const [filtersOpen, setFiltersOpen] = useState(false)
+  // Same "Liste / Carte" toggle as NeedsList.jsx. The map stays mounted
+  // (just hidden) in list mode, so switching back keeps its position.
+  const [viewMode, setViewMode] = useState('map')
   const [ownPending, setOwnPending] = useState([])
   const [items, setItems] = useState([])
   const [focusedReport, setFocused] = useState(null)
@@ -203,7 +206,7 @@ export default function Signalements() {
   useEffect(() => {
     const id = requestAnimationFrame(() => mapRef.current?.invalidateSize())
     return () => cancelAnimationFrame(id)
-  }, [fullscreen, mapHeight])
+  }, [fullscreen, mapHeight, viewMode])
 
   // The map fills the screen down to the bottom nav, like the other maps.
   useEffect(() => {
@@ -216,7 +219,7 @@ export default function Signalements() {
     recompute()
     window.addEventListener('resize', recompute)
     return () => window.removeEventListener('resize', recompute)
-  }, [fullscreen, filtersOpen, selectedId])
+  }, [fullscreen, filtersOpen, selectedId, viewMode])
 
   const recenterOnMe = async () => {
     const map = mapRef.current
@@ -293,6 +296,14 @@ export default function Signalements() {
           </div>
         )}
         <span className="signalements-count">{t('signali.countTotal', { count: all.length })}</span>
+        <div className="view-toggle">
+          <button type="button" className={viewMode === 'list' ? 'active' : ''} onClick={() => setViewMode('list')}>
+            {t('needsList.list')}
+          </button>
+          <button type="button" className={viewMode === 'map' ? 'active' : ''} onClick={() => setViewMode('map')}>
+            {t('needsList.map')}
+          </button>
+        </div>
       </div>
       {filtersOpen && (
         <div className="filters-panel signalements-filters">
@@ -323,7 +334,7 @@ export default function Signalements() {
         </div>
       )}
 
-      <div className="map-wrap">
+      <div className="map-wrap" hidden={viewMode !== 'map'}>
         <div
           ref={mapFrameRef}
           className={`map-frame signalements-map-frame${fullscreen ? ' map-frame-fullscreen' : ''}`}
@@ -357,9 +368,10 @@ export default function Signalements() {
       </div>
       {error && <p className="error">{error}</p>}
 
-      {selected && <Preview s={selected} />}
+      {viewMode === 'map' && selected && <Preview s={selected} />}
 
-      {!!listed.length && (
+      {viewMode === 'list' && !listed.length && !loading && <p className="hint">{t('signali.empty')}</p>}
+      {viewMode === 'list' && !!listed.length && (
         <ul className="signalements-list">
           {noLocationOnly && <li className="signalements-list-title">📍 {t('signali.noLocationBubble')}</li>}
           {listed.map((s) => {
