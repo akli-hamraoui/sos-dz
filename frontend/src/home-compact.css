@@ -234,3 +234,77 @@
 .home.home-compact .home-signali-card .home-badge-new {
   inset-inline-end: 10px;
 }
+
+/* Signali first and highlighted: taller, larger text, a glowing pulse and
+   a light sweeping across it. */
+.home.home-compact .home-signali-card {
+  overflow: hidden;
+  min-height: 74px;
+  margin: 6px 0 10px;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, #3b8cff, #1f4fa8 60%, #6d28d9);
+  animation: home-signali-glow 2.2s ease-in-out infinite;
+}
+.home.home-compact .home-signali-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 35%, rgba(255, 255, 255, .28) 50%, transparent 65%);
+  transform: translateX(-100%);
+  animation: home-signali-shine 3s ease-in-out infinite;
+  pointer-events: none;
+}
+.home.home-compact .home-signali-icon {
+  width: 48px;
+  height: 48px;
+  animation: home-signali-beat 1.6s ease-in-out infinite;
+}
+.home.home-compact .home-signali-copy strong {
+  font-size: clamp(18px, 5vw, 22px);
+}
+.home.home-compact .home-signali-copy > span {
+  font-size: clamp(12px, 3.2vw, 14px);
+  font-weight: 600;
+}
+.home.home-compact .home-signali-card .home-badge-new {
+  top: 6px;
+}
+@keyframes home-signali-glow {
+  0%, 100% { box-shadow: 0 5px 14px rgba(31, 79, 168, .3), 0 0 0 0 rgba(59, 140, 255, .45); }
+  50% { box-shadow: 0 6px 18px rgba(31, 79, 168, .4), 0 0 0 6px rgba(59, 140, 255, 0); }
+}
+@keyframes home-signali-shine {
+  0%, 55% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+@keyframes home-signali-beat {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .home.home-compact .home-signali-card,
+  .home.home-compact .home-signali-card::after,
+  .home.home-compact .home-signali-icon { animation: none; }
+}
+
+/* The two "browse collection points" cards: smaller, a single slim row. */
+.home.home-compact .home-collection-card {
+  min-height: 0;
+  padding: 7px 10px;
+  border-radius: 11px;
+}
+.home.home-compact .home-collection-card .home-card-icon {
+  width: 26px;
+  height: 26px;
+}
+.home.home-compact .home-collection-card-algeria .home-card-icon svg {
+  width: 18px;
+  height: 12px;
+}
+.home.home-compact .home-collection-card-international .home-card-icon svg {
+  width: 18px;
+  height: 18px;
+}
+.home.home-compact .home-collection-card strong {
+  font-size: clamp(12px, 3.2vw, 14px);
+}

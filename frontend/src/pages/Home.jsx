@@ -55,6 +55,19 @@ export default function Home() {
     <section className="home home-compact">
       <h1 className="sr-only">{t('seo.home.title')}</h1>
 
+      {/* Signali: anonymous citizen reports of street hazards (a dangerous
+          power pole, a pothole...). Full-width, first on the page and
+          highlighted (per request). */}
+      <Link to="/signali" className="home-signali-card">
+        <NewBadge />
+        <span className="home-signali-icon" aria-hidden="true"><IconMegaphone width={24} height={24} strokeWidth={2} /></span>
+        <span className="home-signali-copy">
+          <strong><PlusBadge /> {t('home.signaliTitle')}</strong>
+          <span>{t('home.signaliShort')}</span>
+        </span>
+        <b className="home-signali-arrow" aria-hidden="true">→</b>
+      </Link>
+
       {/* Sits above the SOS row now (moved up per request) -- these two
           creation entry points, not the emergency ones, are what most
           visitors are here for day-to-day. */}
@@ -113,19 +126,6 @@ export default function Home() {
       </div>
 
 
-      {/* Signali: anonymous citizen reports of street hazards (a dangerous
-          power pole, a pothole...). Full-width row of its own, in the
-          middle of the page (per request), between the creation cards and
-          the SOS pair. */}
-      <Link to="/signali" className="home-signali-card">
-        <NewBadge />
-        <span className="home-signali-icon" aria-hidden="true"><IconMegaphone width={24} height={24} strokeWidth={2} /></span>
-        <span className="home-signali-copy">
-          <strong><PlusBadge /> {t('home.signaliTitle')}</strong>
-          <span>{t('home.signaliShort')}</span>
-        </span>
-        <b className="home-signali-arrow" aria-hidden="true">→</b>
-      </Link>
 
       {/* The single red "Lancer un SOS" card used to cover both cases at
           once (a form-based need report and, buried three clicks away, the
