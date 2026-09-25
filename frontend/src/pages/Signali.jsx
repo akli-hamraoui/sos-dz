@@ -5,11 +5,11 @@ import L from 'leaflet'
 import { useApp } from '../context/AppContext'
 import { api, apiUpload } from '../api'
 import { translateApiError } from '../apiErrors'
-import { compressPhoto, formatDate, isInAlgeria } from '../utils'
+import { compressPhoto, formatDate, getCurrentPosition, isInAlgeria } from '../utils'
 import PlaceAutocomplete from '../components/PlaceAutocomplete'
 import WilayaCombobox from '../components/WilayaCombobox'
-import { IconCamera, IconLocate, IconMapPin, IconMic, IconSwitchCamera, IconTrash, IconVideoCam } from '../icons'
-import { SIGNALI_CATEGORIES, categoryEmoji, saveSignalementToken } from '../signali'
+import { IconCamera, IconClose, IconExpand, IconLocate, IconMapPin, IconMic, IconSwitchCamera, IconTrash, IconVideoCam } from '../icons'
+import { SIGNALI_CATEGORIES, categoryEmoji, saveSignalementToken, signalIconSvg } from '../signali'
 import '../urgent-sos-wizard-fixes.css'
 import '../signali.css'
 
@@ -62,7 +62,7 @@ function PinMap({ position, center, onMove }) {
       gestureHandlingOptions: { text: { touch: t('map.gestureTouch'), scroll: t('map.gestureScroll'), scrollMac: t('map.gestureScrollMac') } },
     })
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map)
-    const icon = L.divIcon({ className: 'signali-pin', html: '<span>⚠️</span>', iconSize: [36, 36], iconAnchor: [18, 34] })
+    const icon = L.divIcon({ className: 'signali-pin', html: `<span class="signali-pin-badge">${signalIconSvg(18)}</span>`, iconSize: [38, 46], iconAnchor: [19, 44] })
     const place = (latlng) => {
       if (!markerRef.current) {
         markerRef.current = L.marker(latlng, { icon, draggable: true }).addTo(map)
@@ -116,21 +116,48 @@ function PinMap({ position, center, onMove }) {
     map.setView([cLat, cLon], cZoom)
   }, [cLat, cLon, cZoom])
 
-  return <div ref={elRef} className="signali-pin-map" />
-}
+  // Same buttons as the other maps: fullscreen and "center on me".
+  const frameRef = useRef(null)
+  const [fullscreen, setFullscreen] = useState(false)
+  useEffect(() => {
+    const id = requestAnimationFrame(() => mapRef.current?.invalidateSize())
+    return () => cancelAnimationFrame(id)
+  }, [fullscreen])
+  useEffect(() => {
+    const onChange = () => setFullscreen(document.fullscreenElement === frameRef.current)
+    document.addEventListener('fullscreenchange', onChange)
+    return () => document.removeEventListener('fullscreenchange', onChange)
+  }, [])
+  const enterFullscreen = () => {
+    setFullscreen(true)
+    frameRef.current?.requestFullscreen?.({ navigationUI: 'hide' }).catch(() => {})
+  }
+  const exitFullscreen = () => {
+    if (document.fullscreenElement === frameRef.current) document.exitFullscreen?.()?.catch(() => {})
+    setFullscreen(false)
+  }
+  const recenterOnMe = async () => {
+    const pos = await getCurrentPosition({ maximumAge: 30000, timeout: 5000, enableHighAccuracy: true })
+    if (pos) mapRef.current?.setView(pos, 17)
+  }
 
-// "36.7525, 3.0420" (or with a space / semicolon, or copied from a maps
-// app as "36.7525° N, 3.0420° E") -> {latitude, longitude}
-function formatCoords({ latitude, longitude }) {
-  return `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`
-}
-
-function parseCoords(text) {
-  const m = String(text).replace(/[°NnEe]/g, ' ').replace(/\s+/g, ' ').trim().match(/^(-?\d+(?:[.,]\d+)?)\s*[,;\s]\s*(-?\d+(?:[.,]\d+)?)$/)
-  if (!m) return null
-  const latitude = parseFloat(m[1].replace(',', '.'))
-  const longitude = parseFloat(m[2].replace(',', '.'))
-  return Number.isFinite(latitude) && Number.isFinite(longitude) ? { latitude, longitude } : null
+  return (
+    <div ref={frameRef} className={`map-frame signali-pin-frame${fullscreen ? ' map-frame-fullscreen' : ''}`}>
+      <div ref={elRef} className="signali-pin-map" />
+      {fullscreen ? (
+        <button type="button" className="exit-fullscreen-btn" onClick={exitFullscreen} aria-label={t('map.exitFullscreen')} title={t('map.exitFullscreen')}>
+          <IconClose width={20} height={20} />
+        </button>
+      ) : (
+        <button type="button" className="expand-btn" onClick={enterFullscreen} aria-label={t('map.viewFullscreen')} title={t('map.viewFullscreen')}>
+          <IconExpand width={18} height={18} />
+        </button>
+      )}
+      <button type="button" className="locate-btn" onClick={recenterOnMe} aria-label={t('map.recenterOnMe')} title={t('map.recenterOnMe')}>
+        <IconLocate width={18} height={18} />
+      </button>
+    </div>
+  )
 }
 
 export default function Signali() {
@@ -152,7 +179,6 @@ export default function Signali() {
   const [commune, setCommune] = useState('')
   const [nearby, setNearby] = useState([])
   const [confirmedId, setConfirmedId] = useState(null)
-  const [coordsText, setCoordsText] = useState('')
   const [adminNote, setAdminNote] = useState(false)
 
   // --- media ---
@@ -296,7 +322,6 @@ export default function Signali() {
     if (!isInAlgeria(lat, lon)) return
     const next = { latitude: lat, longitude: lon }
     setCoords(next)
-    setCoordsText(formatCoords(next))
     prefillWilaya(next)
   }
 
@@ -304,18 +329,6 @@ export default function Signali() {
   // at least an address with its wilaya -- that one lands in the map's
   // "no location" bubble.
   const locationOk = locMode === 'gps' ? !!coords : locMode === 'manual' ? !!coords || !!(address.trim() && wilaya) : false
-
-  const applyTypedCoords = () => {
-    // Nothing typed: the pin already placed on the map is the answer.
-    if (!coordsText.trim()) return setError(coords ? '' : t('signali.coordsEmpty'))
-    const c = parseCoords(coordsText)
-    if (!c) return setError(t('signali.coordsInvalid'))
-    if (!isInAlgeria(c.latitude, c.longitude)) return setError(t('signali.coordsOutsideAlgeria'))
-    setError('')
-    setCoords(c)
-    setCoordsText(formatCoords(c))
-    prefillWilaya(c)
-  }
 
   const selectedWilaya = wilayas.find((w) => String(w.id) === String(wilaya))
   // Address suggestions stay inside the chosen wilaya: a search box around
@@ -503,27 +516,45 @@ export default function Signali() {
     if (config.turnstile_enabled && !(window.__turnstileToken || '')) return setError(t('apiErrors.captchaRequired'))
     setBusy(true)
     setError('')
-    try {
+    const fields = {
+      category,
+      wilaya,
+      commune: commune.trim(),
+      address: address.trim(),
+      latitude: coords ? coords.latitude.toFixed(6) : '',
+      longitude: coords ? coords.longitude.toFixed(6) : '',
+      position_source: locMode === 'gps' ? 'gps' : 'manual',
+      description: description.trim(),
+      turnstile_token: window.__turnstileToken || '',
+    }
+    const build = (withMedia) => {
       const f = new FormData()
-      const fields = {
-        category,
-        wilaya,
-        commune: commune.trim(),
-        address: address.trim(),
-        latitude: coords ? coords.latitude.toFixed(6) : '',
-        longitude: coords ? coords.longitude.toFixed(6) : '',
-        position_source: locMode === 'gps' ? 'gps' : 'manual',
-        description: description.trim(),
-        turnstile_token: window.__turnstileToken || '',
-      }
       Object.entries(fields).forEach(([k, v]) => v !== '' && v != null && f.append(k, v))
+      if (!withMedia) {
+        f.append('media_upload_failed', '1')
+        return f
+      }
       photos.forEach((p, i) => f.append('photos', p.file, p.file.name || `photo-${i + 1}.jpg`))
       if (video) f.append('video_file', new File([video.blob], `signali-video.${extFor(video.blob.type || '')}`, { type: video.blob.type || 'video/webm' }))
       if (voice) f.append('voice_file', new File([voice.blob], `signali-voice.${extFor(voice.blob.type || '')}`, { type: voice.blob.type || 'audio/webm' }))
-      const created = await apiUpload('/signalements/', f)
+      return f
+    }
+    try {
+      let created
+      try {
+        created = await apiUpload('/signalements/', build(true))
+      } catch (e) {
+        // The whole upload failed (too big for the connection/proxy, network
+        // drop...): send the report anyway, without its media, so nothing
+        // the citizen wrote is lost -- the server notes it for the admin.
+        // A plain validation error (4xx other than 413) is shown as is.
+        if (e?.status && e.status < 500 && e.status !== 413) throw e
+        console.warn('[Signali] upload with media failed, retrying without it', e)
+        created = await apiUpload('/signalements/', build(false))
+      }
       if (created?.id && created.access_token) saveSignalementToken(created.id, created.access_token)
       Promise.resolve(refreshConfig()).catch(() => {})
-      navigate(`/signalements/${created.id}`, { state: { justCreated: true } })
+      navigate(`/signalements/${created.id}`, { state: { justCreated: true, mediaWarnings: created.media_warnings || [] } })
     } catch (e) {
       setError(translateApiError(e, t))
     } finally {
@@ -637,21 +668,8 @@ export default function Signali() {
                 <label htmlFor="signali-commune">{t('signali.communeLabel')} <small>({t('common.optional')})</small></label>
                 <input id="signali-commune" type="text" value={commune} onChange={(e) => setCommune(e.target.value)} />
                 <span className="signali-fields-title">{t('signali.pickOnMap')}</span>
-                <PinMap position={coords} center={manualCenter} onMove={(c) => (setCoords(c), setCoordsText(formatCoords(c)), setError(''), prefillWilaya(c))} />
+                <PinMap position={coords} center={manualCenter} onMove={(c) => (setCoords(c), setError(''), prefillWilaya(c))} />
                 <small className="signali-hint">{coords ? t('signali.dragPinHint') : t('signali.tapMapHint')}</small>
-                <label htmlFor="signali-coords">{t('signali.coordsLabel')} <small>({t('common.optional')})</small></label>
-                <div className="signali-coords-row">
-                  <input
-                    id="signali-coords"
-                    type="text"
-                    inputMode="decimal"
-                    value={coordsText}
-                    onChange={(e) => setCoordsText(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), applyTypedCoords())}
-                    placeholder={t('signali.coordsPlaceholder')}
-                  />
-                  <button type="button" className="urgent-sos-secondary" onClick={applyTypedCoords}>{t('signali.placeCoords')}</button>
-                </div>
                 {!coords && address.trim() && wilaya && <small className="signali-hint">{t('signali.noPinHint')}</small>}
               </div>
             )}
@@ -852,14 +870,31 @@ export default function Signali() {
                 <span>🖼️</span>
                 <div>
                   <b>{[photos.length ? t('signali.photosCount', { count: photos.length }) : '', video ? t('signali.videoIncluded') : ''].filter(Boolean).join(' + ')}</b>
+                  {/* Look at everything before sending: tap a photo to open it. */}
+                  <div className="signali-review-media">
+                    {photos.map((p) => (
+                      <a key={p.url} href={p.url} target="_blank" rel="noreferrer" className="signali-review-photo">
+                        <img src={p.url} alt={t('common.photoAlt')} />
+                      </a>
+                    ))}
+                  </div>
+                  {video && <video className="signali-review-video" src={video.url} controls playsInline preload="metadata" />}
                 </div>
               </li>
-              {(description.trim() || voice) && (
+              {voice && (
+                <li>
+                  <span>🎙️</span>
+                  <div>
+                    <b>{t('signali.voiceIncluded')}</b>
+                    <audio className="signali-review-audio" src={voice.url} controls preload="metadata" />
+                  </div>
+                </li>
+              )}
+              {description.trim() && (
                 <li>
                   <span>💬</span>
                   <div>
-                    {description.trim() && <b>{description.trim()}</b>}
-                    {voice && <small>🎙️ {t('signali.voiceIncluded')}</small>}
+                    <b className="signali-review-text">{description.trim()}</b>
                   </div>
                 </li>
               )}

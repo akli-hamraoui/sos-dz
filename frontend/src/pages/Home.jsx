@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useApp } from '../context/AppContext'
-import { IconAlgeriaFlag, IconCamera, IconClose, IconGlobeColor, IconHelp, IconMegaphone, IconMic, IconPlus, IconSparkle } from '../icons'
+import { IconAlgeriaFlag, IconCamera, IconClose, IconGlobeColor, IconHelp, IconMic, IconNearby, IconPlus, IconSignaliPin, IconSparkle } from '../icons'
 import '../home-compact.css'
 
 // A small pulsing pill used to flag brand-new entry points (the voice SOS
@@ -83,12 +83,23 @@ export default function Home() {
           highlighted (per request). */}
       <Link to="/signali" className="home-signali-card">
         <NewBadge />
-        <span className="home-signali-icon" aria-hidden="true"><IconMegaphone width={24} height={24} strokeWidth={2} /></span>
+        <span className="home-signali-icon" aria-hidden="true">
+          <IconSignaliPin width={42} height={42} />
+        </span>
         <span className="home-signali-copy">
           <strong><PlusBadge /> {t('home.signaliTitle')}</strong>
           <span>{t('home.signaliShort')}</span>
         </span>
         <b className="home-signali-arrow" aria-hidden="true">→</b>
+      </Link>
+
+      {/* Right under Signali: the reports within 30 km of the visitor. */}
+      <Link to="/signalements?near=1" className="home-nearby-card">
+        <span className="home-nearby-icon" aria-hidden="true">
+          <span className="home-nearby-ping" />
+          <IconNearby width={26} height={26} />
+        </span>
+        <strong>{t('home.nearbySignals')}</strong>
       </Link>
 
       {/* Sits above the SOS row now (moved up per request) -- these two
@@ -183,22 +194,6 @@ export default function Home() {
       </div>
 
 
-      {/* Browsing collection points: moved to the bottom (per request),
-          below the action buttons. */}
-      <div className="home-collection-grid">
-        <Link to="/collection-points" className="home-collection-card home-collection-card-algeria">
-          <span className="home-card-icon"><IconAlgeriaFlag width={30} height={20} /></span>
-          <strong>{t('home.collectionPointsAlgeria')}</strong>
-          <span>{t('home.collectionPointsAlgeriaDescription')}</span>
-          <em>{t('home.viewPoints')} <b aria-hidden="true">→</b></em>
-        </Link>
-        <Link to="/international-collection-points" className="home-collection-card home-collection-card-international">
-          <span className="home-card-icon"><IconGlobeColor width={30} height={30} /></span>
-          <strong>{t('home.collectionPointsInternational')}</strong>
-          <span>{t('home.collectionPointsInternationalDescription')}</span>
-          <em>{t('home.viewPoints')} <b aria-hidden="true">→</b></em>
-        </Link>
-      </div>
 
       <Link to="/about" className="home-about-button">
         <IconHelp width={18} height={18} />

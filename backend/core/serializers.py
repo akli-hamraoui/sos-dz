@@ -934,8 +934,25 @@ class FlyerSubmissionStatusSerializer(serializers.ModelSerializer):
 # Signali
 # ---------------------------------------------------------------------------
 
-class SignalementPhotoSerializer(ModeratedPhotoMixin, serializers.ModelSerializer):
+def _signali_media_visible(context, status):
+    """Public: approved only. The report's own author (access token) also
+    sees media still awaiting review; an admin sees everything (so they
+    can check it before approving it in Django Admin)."""
+    if status == Need.MODERATION_APPROVED:
+        return True
+    viewer = context.get("signali_viewer")
+    return viewer == "admin" or (viewer == "owner" and status == Need.MODERATION_PENDING)
+
+
+class SignalementPhotoSerializer(serializers.ModelSerializer):
     image = serializers.SerializerMethodField()
+
+    def get_image(self, obj):
+        if not _signali_media_visible(self.context, obj.moderation_status):
+            return None
+        request = self.context.get("request")
+        url = obj.image.url
+        return request.build_absolute_uri(url) if request else url
 
     class Meta:
         model = SignalementPhoto
@@ -959,7 +976,7 @@ class SignalementPublicSerializer(serializers.ModelSerializer):
             "latitude", "longitude", "display_latitude", "display_longitude", "has_exact_position", "position_source",
             "description", "voice_transcript", "video_transcript", "photos", "video_file",
             "video_moderation_status", "voice_file", "processing_status", "status", "resolved_at",
-            "category_suggested_by_ai", "confirmations_count", "fixed_reports_count", "created_at",
+            "category_suggested_by_ai", "confirmations_count", "fixed_reports_count", "abuse_reports_count", "created_at",
         ]
 
     def _url(self, field):
@@ -968,7 +985,7 @@ class SignalementPublicSerializer(serializers.ModelSerializer):
         return request.build_absolute_uri(url) if request else url
 
     def get_video_file(self, obj):
-        if not obj.video_file or obj.video_moderation_status != Need.MODERATION_APPROVED:
+        if not obj.video_file or not _signali_media_visible(self.context, obj.video_moderation_status):
             return None
         return self._url(obj.video_file)
 
@@ -991,8 +1008,18 @@ class SignalementPublicSerializer(serializers.ModelSerializer):
 class SignalementDetailSerializer(SignalementPublicSerializer):
     comments = serializers.SerializerMethodField()
 
+    media_under_review = serializers.SerializerMethodField()
+
     class Meta(SignalementPublicSerializer.Meta):
-        fields = SignalementPublicSerializer.Meta.fields + ["comments"]
+        fields = SignalementPublicSerializer.Meta.fields + ["comments", "media_under_review"]
+
+    def get_media_under_review(self, obj):
+        """A photo or the video is still waiting for its check (so hidden
+        from the public for now) -- the page says so."""
+        pending = Need.MODERATION_PENDING
+        return any(p.moderation_status == pending for p in obj.photos.all()) or bool(
+            obj.video_file and obj.video_moderation_status == pending
+        )
 
     def get_comments(self, obj):
         roots = obj.comments.filter(parent_comment__isnull=True).prefetch_related("replies")
@@ -1009,15 +1036,17 @@ class SignalementManageSerializer(serializers.ModelSerializer):
 
 
 class SignalementCreateSerializer(serializers.ModelSerializer):
+    """Everything but the media: photos, video and voice are attached one
+    by one afterwards (SignalementViewSet.create), so one bad file never
+    stops the report itself from being saved."""
+
     wilaya = serializers.PrimaryKeyRelatedField(queryset=Wilaya.objects.all(), required=False, allow_null=True)
-    voice_file = serializers.FileField(required=False, allow_null=True)
-    video_file = serializers.FileField(required=False, allow_null=True)
 
     class Meta:
         model = Signalement
         fields = [
             "category", "wilaya", "commune", "address", "latitude", "longitude",
-            "position_source", "description", "voice_file", "video_file",
+            "position_source", "description",
         ]
 
     def validate(self, attrs):
@@ -1048,10 +1077,8 @@ class SignalementCreateSerializer(serializers.ModelSerializer):
             if not attrs["wilaya"]:
                 raise serializers.ValidationError("Please choose the wilaya of the reported place.")
 
-        video_file = attrs.get("video_file")
-        if not video_file and not self.context.get("photo_count"):
+        # A photo or a video must have been *sent* (the wizard enforces it);
+        # whether it could be stored is handled per file by the view.
+        if not self.context.get("media_submitted"):
             raise serializers.ValidationError("At least one photo or a video is required.")
-        if video_file:
-            validate_video_size(video_file)
-            validate_video_duration(video_file)
         return attrs

@@ -31,8 +31,8 @@ from core.collection_point_geocoding import (
 from core.flyer_publish import publish_extracted_point
 from core.geo import get_country_centroid
 from core.geoip import is_algeria_ip
-from core.media_validation import validate_photo_count, validate_photo_size
-from core.moderation import moderate_image_field, moderate_video_field, moderation_active
+from core.media_validation import MAX_PHOTOS as MAX_SIGNALEMENT_PHOTOS, validate_photo_count, validate_photo_size, validate_video_duration, validate_video_size
+from core.moderation import moderate_image_field, moderate_video_field, moderation_active, sidecar_reachable
 from core.models import (
     AppConfiguration,
     AuditLog,
@@ -57,7 +57,7 @@ from core.models import (
     Wilaya,
 )
 from core.permissions import VOICE_SOS_GEO_MESSAGE, read_only_block, write_guard
-from core.signalements import find_nearby_signalements, public_signalements
+from core.signalements import find_nearby_signalements, moderate_signalement_media, public_signalements
 from core.validators import is_within_algeria_bounds, normalize_place_name, validate_social_url
 from core.serializers import (
     AnonymizeSerializer,
@@ -236,6 +236,8 @@ class AppConfigurationView(APIView):
         ).exclude(country_code="").count()
         data["deliveries_en_route_count"] = Pickup.objects.filter(status=Pickup.STATUS_EN_ROUTE).count()
         data["signalements_open_count"] = public_signalements().filter(status__in=Signalement.OPEN_STATUSES).count()
+        # Bottom-nav "Signal" badge: every report on the public map.
+        data["signalements_total_count"] = public_signalements().exclude(status=Signalement.STATUS_CANCELLED).count()
         # Same Algeria-only (or admin anywhere) rule as the voice SOS,
         # re-checked on submission (SignalementViewSet.create).
         data["signali_available"] = signali_allowed(request)
@@ -1644,6 +1646,13 @@ class SignalementViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.
         qs = self.get_queryset()[: self.LIST_LIMIT]
         return Response(self.get_serializer(qs, many=True).data)
 
+    def retrieve(self, request, *args, **kwargs):
+        signalement = self.get_object()
+        token = get_presented_token(request)
+        viewer = "admin" if is_admin_request(request) else "owner" if token and token == signalement.access_token else None
+        ctx = {**self.get_serializer_context(), "signali_viewer": viewer}
+        return Response(SignalementDetailSerializer(signalement, context=ctx).data)
+
     def create(self, request, *args, **kwargs):
         block_reason = read_only_block(request)
         if block_reason:
@@ -1654,21 +1663,78 @@ class SignalementViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.
         if not captcha_ok:
             return Response({"detail": captcha_error}, status=status.HTTP_400_BAD_REQUEST)
         photos = request.FILES.getlist("photos")
-        try:
-            validate_photo_count(photos)
-            validate_photo_size(photos)
-        except Exception as exc:
-            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
-        serializer = self.get_serializer(data=request.data, context={**self.get_serializer_context(), "photo_count": len(photos)})
+        video = request.FILES.get("video_file")
+        voice = request.FILES.get("voice_file")
+        # The wizard retries without its media when the full upload fails
+        # (too big for the connection/proxy): the report still goes through.
+        upload_failed = str(request.data.get("media_upload_failed", "")).lower() in ("1", "true")
+        media_submitted = bool(photos or video or upload_failed)
+        serializer = self.get_serializer(data=request.data, context={**self.get_serializer_context(), "media_submitted": media_submitted})
         serializer.is_valid(raise_exception=True)
         signalement = serializer.save()
-        # Moderation and transcription run in the voice worker, never in
-        # this request -- see core.signalements.
-        for photo in photos:
-            SignalementPhoto.objects.create(signalement=signalement, image=photo)
-        out = SignalementDetailSerializer(signalement, context={"request": request}).data
+        warnings = self._attach_media(signalement, photos, video, voice)
+        if upload_failed:
+            warnings.insert(0, "The phone could not upload the photo/video (connection or size); report sent without it.")
+        if warnings:
+            signalement.media_upload_errors = "\n".join(warnings)
+            signalement.save(update_fields=["media_upload_errors", "last_modified_at"])
+            logger.warning("Signalement %s created with media problems: %s", signalement.pk, " | ".join(warnings))
+        else:
+            logger.info("Signalement %s created: photos=%s video=%s voice=%s", signalement.pk, len(photos), bool(video), bool(voice))
+        self._moderate_now(signalement)
+        out = SignalementDetailSerializer(signalement, context={"request": request, "signali_viewer": "owner"}).data
         out["access_token"] = signalement.access_token
+        out["media_warnings"] = warnings
         return Response(out, status=status.HTTP_201_CREATED)
+
+    @staticmethod
+    def _moderate_now(signalement):
+        """NSFW check right away, like the SOS photos, so the report shows
+        with its approved media at once. Skipped when the sidecar doesn't
+        answer its health check (never makes the reporter wait on a dead
+        service): the worker retries it. Never fails the submission."""
+        try:
+            if not moderation_active() or sidecar_reachable():
+                moderate_signalement_media(signalement)
+            else:
+                logger.warning("Signalement %s: moderation sidecar unreachable, the worker will retry", signalement.pk)
+        except Exception:
+            logger.exception("Signalement %s: moderation at submission failed, the worker will retry", signalement.pk)
+
+    def _attach_media(self, signalement, photos, video, voice):
+        """Stores each file on its own; a file that's too large, unreadable
+        or fails to save is skipped and reported, never fatal. Transcription
+        happens later in the worker (core.signalements)."""
+        warnings = []
+        for index, photo in enumerate(photos[:MAX_SIGNALEMENT_PHOTOS], start=1):
+            try:
+                validate_photo_size([photo])
+                SignalementPhoto.objects.create(signalement=signalement, image=photo)
+            except Exception as exc:
+                logger.exception("Signalement %s: photo %s could not be saved", signalement.pk, index)
+                warnings.append(f"Photo {index} ({getattr(photo, 'name', '?')}, {getattr(photo, 'size', 0) // 1024} KB) dropped: {self._reason(exc)}")
+        if len(photos) > MAX_SIGNALEMENT_PHOTOS:
+            warnings.append(f"{len(photos) - MAX_SIGNALEMENT_PHOTOS} extra photo(s) ignored (max {MAX_SIGNALEMENT_PHOTOS}).")
+        for field, upload, check in (("video_file", video, True), ("voice_file", voice, False)):
+            if not upload:
+                continue
+            try:
+                if check:
+                    validate_video_size(upload)
+                    validate_video_duration(upload)
+                getattr(signalement, field).save(upload.name, upload, save=True)
+            except Exception as exc:
+                logger.exception("Signalement %s: %s could not be saved", signalement.pk, field)
+                label = "Video" if field == "video_file" else "Voice message"
+                warnings.append(f"{label} ({getattr(upload, 'name', '?')}, {getattr(upload, 'size', 0) // 1024} KB) dropped: {self._reason(exc)}")
+        return warnings
+
+    @staticmethod
+    def _reason(exc):
+        detail = getattr(exc, "detail", None)
+        if isinstance(detail, (list, tuple)) and detail:
+            detail = detail[0]
+        return str(detail or exc)[:200]
 
     @action(detail=True, methods=["post"], url_path="manage")
     def manage(self, request, *args, **kwargs):
@@ -1690,7 +1756,8 @@ class SignalementViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.
             serializer.save()
         if new_status and new_status != signalement.status:
             signalement.set_status(new_status)
-        return Response(SignalementDetailSerializer(signalement, context={"request": request}).data)
+        viewer = "admin" if is_admin_request(request) else "owner"
+        return Response(SignalementDetailSerializer(signalement, context={"request": request, "signali_viewer": viewer}).data)
 
     @action(detail=False, methods=["get"], url_path="nearby")
     def nearby(self, request):
@@ -1723,6 +1790,21 @@ class SignalementViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.
         if self._vote(request, signalement, "confirm"):
             Signalement.objects.filter(pk=signalement.pk).update(confirmations_count=F("confirmations_count") + 1)
             signalement.refresh_from_db()
+        return Response(SignalementDetailSerializer(signalement, context={"request": request}).data)
+
+    @action(detail=True, methods=["post"], url_path="report-abuse")
+    def report_abuse(self, request, *args, **kwargs):
+        """"Abus": a citizen flags the report as fake or offensive. One
+        vote per IP; ABUSE_REPORTS_TO_HIDE votes hide it from the public
+        lists until an admin reviews it."""
+        block_reason = read_only_block(request)
+        if block_reason:
+            return Response({"detail": block_reason}, status=status.HTTP_403_FORBIDDEN)
+        signalement = self.get_object()
+        if self._vote(request, signalement, "abuse"):
+            Signalement.objects.filter(pk=signalement.pk).update(abuse_reports_count=F("abuse_reports_count") + 1)
+            signalement.refresh_from_db()
+            logger.warning("Signali report #%s flagged as abusive (%s votes)", signalement.pk, signalement.abuse_reports_count)
         return Response(SignalementDetailSerializer(signalement, context={"request": request}).data)
 
     @action(detail=True, methods=["post"], url_path="report-fixed")

@@ -334,15 +334,64 @@ class DeliveryPhotoAdmin(admin.ModelAdmin):
 
 @admin.register(SignalementPhoto)
 class SignalementPhotoAdmin(admin.ModelAdmin):
-    list_display = ["id", "signalement", "moderation_status", "moderated_by", "created_at"]
+    list_display = ["id", "thumbnail", "signalement", "moderation_status", "moderated_by", "created_at"]
     list_filter = ["moderation_status"]
     actions = [approve_media, reject_media]
+
+    @admin.display(description="Photo")
+    def thumbnail(self, obj):
+        return _admin_image(obj.image, 60)
+
+
+def _admin_image(field, height):
+    """Admin-only preview (never shown publicly before approval)."""
+    if not field:
+        return "-"
+    try:
+        return format_html('<a href="{0}" target="_blank"><img src="{0}" style="height:{1}px;border-radius:6px"></a>', field.url, height)
+    except Exception:
+        return "(file missing)"
 
 
 class SignalementPhotoInline(admin.TabularInline):
     model = SignalementPhoto
     extra = 0
-    fields = ["image", "moderation_status", "moderated_by"]
+    fields = ["preview", "image", "moderation_status", "moderated_by"]
+    readonly_fields = ["preview"]
+
+    @admin.display(description="Preview")
+    def preview(self, obj):
+        return _admin_image(obj.image, 90)
+
+
+def approve_all_signalement_media(modeladmin, request, queryset):
+    """Unblock the display by hand: approves every photo and the video of
+    the selected reports (e.g. when the NSFW sidecar was down)."""
+    photos = SignalementPhoto.objects.filter(signalement__in=queryset).update(moderation_status=Need.MODERATION_APPROVED, moderated_by=Need.MODERATED_BY_ADMIN)
+    videos = queryset.exclude(video_file="").update(video_moderation_status=Need.MODERATION_APPROVED, video_moderated_by=Need.MODERATED_BY_ADMIN)
+    AuditLog.objects.create(admin_user=request.user, action="approved signalement media", target_description=f"{photos} photo(s), {videos} video(s)")
+    modeladmin.message_user(request, f"Approved {photos} photo(s) and {videos} video(s).")
+
+
+approve_all_signalement_media.short_description = "Approve all photos + video (show on the map)"
+
+
+def mark_signalement_processed(modeladmin, request, queryset):
+    """Stuck in 'pending' (worker down)? Mark as processed so it can show."""
+    count = queryset.filter(processing_status=Signalement.PROCESSING_PENDING).update(processing_status=Signalement.PROCESSING_READY)
+    modeladmin.message_user(request, f"Marked {count} report(s) as processed.")
+
+
+mark_signalement_processed.short_description = "Mark as processed (skip the worker)"
+
+
+def clear_signalement_abuse_reports(modeladmin, request, queryset):
+    """Reviewed an "Abus"-flagged report and it's legit: show it again."""
+    count = queryset.update(abuse_reports_count=0)
+    modeladmin.message_user(request, f"Cleared the abuse reports of {count} report(s).")
+
+
+clear_signalement_abuse_reports.short_description = "Not abusive: clear the abuse reports (show again)"
 
 
 def mark_signalement_resolved(modeladmin, request, queryset):
@@ -356,12 +405,31 @@ mark_signalement_resolved.short_description = "Mark selected reports as resolved
 
 @admin.register(Signalement)
 class SignalementAdmin(admin.ModelAdmin):
-    list_display = ["id", "category", "wilaya", "address", "processing_status", "video_moderation_status", "confirmations_count", "fixed_reports_count", "status", "audit_creator_ip", "created_at"]
+    list_display = ["id", "category", "wilaya", "address", "processing_status", "video_moderation_status", "has_media_problem", "confirmations_count", "fixed_reports_count", "abuse_reports_count", "status", "audit_creator_ip", "created_at"]
     list_filter = ["category", "status", "processing_status", "video_moderation_status", "wilaya"]
     search_fields = ["address", "commune", "description", "voice_transcript", "video_transcript", "audit_creator_ip"]
-    readonly_fields = ["access_token", "processing_error", "created_at", "last_modified_at", "audit_creator_ip", "audit_creator_country", "audit_editor_ip"]
+    readonly_fields = [
+        "access_token", "media_upload_errors", "processing_error", "video_preview", "voice_preview",
+        "created_at", "last_modified_at", "audit_creator_ip", "audit_creator_country", "audit_editor_ip",
+    ]
     inlines = [SignalementPhotoInline]
-    actions = [approve_video, reject_video, mark_signalement_resolved]
+    actions = [approve_all_signalement_media, approve_video, reject_video, mark_signalement_processed, clear_signalement_abuse_reports, mark_signalement_resolved]
+
+    @admin.display(description="Media problem", boolean=True)
+    def has_media_problem(self, obj):
+        return bool(obj.media_upload_errors)
+
+    @admin.display(description="Video")
+    def video_preview(self, obj):
+        if not obj.video_file:
+            return "-"
+        return format_html('<video src="{}" controls preload="metadata" style="max-height:240px;border-radius:6px"></video>', obj.video_file.url)
+
+    @admin.display(description="Voice")
+    def voice_preview(self, obj):
+        if not obj.voice_file:
+            return "-"
+        return format_html('<audio src="{}" controls preload="none"></audio>', obj.voice_file.url)
 
 
 def process_duplicate_merge(modeladmin, request, queryset):

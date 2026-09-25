@@ -67,9 +67,19 @@ def moderation_active():
     return AppConfiguration.get_solo().media_moderation_active
 
 
-def moderate_image_field(django_file):
-    """django_file: an ImageField/FileField file object. Returns one of
-    STATUS_APPROVED/STATUS_PENDING/STATUS_REJECTED."""
+def sidecar_reachable():
+    """True when the NSFWJS sidecar answers its health check (model loaded)."""
+    try:
+        return requests.get(f"{settings.NSFWJS_SIDECAR_URL}/health", timeout=3).ok
+    except Exception:
+        return False
+
+
+def check_image_field(django_file):
+    """Like moderate_image_field, but returns None when the sidecar
+    couldn't answer at all -- "try again later", as opposed to
+    STATUS_PENDING, which means the model had a real doubt (a human must
+    look). Signali uses it to retry instead of queuing for manual review."""
     if not moderation_active():
         return STATUS_APPROVED
     try:
@@ -78,8 +88,15 @@ def moderate_image_field(django_file):
         django_file.seek(0)
         score = classify_image_bytes(data, getattr(django_file, "name", "upload.jpg"))
     except ModerationUnavailable:
-        return STATUS_PENDING
+        return None
     return status_for_score(score)
+
+
+def moderate_image_field(django_file):
+    """django_file: an ImageField/FileField file object. Returns one of
+    STATUS_APPROVED/STATUS_PENDING/STATUS_REJECTED."""
+    status = check_image_field(django_file)
+    return STATUS_PENDING if status is None else status
 
 
 def ffmpeg_available():
@@ -89,15 +106,23 @@ def ffmpeg_available():
 def moderate_video_field(django_file):
     """Extracts frames every FRAME_INTERVAL_SECONDS and classifies each,
     taking the worst (max) score across frames. Needs `ffmpeg` on PATH --
-    not installed in this sandbox, so this path degrades to STATUS_PENDING
-    (never auto-approved sight-unseen) when it's unavailable, consistent
-    with the "fail toward manual review" policy above. Install ffmpeg on
-    the IONOS VPS (documented in DEPLOYMENT.md) for full enforcement."""
+    without it (or without the sidecar) this degrades to STATUS_PENDING
+    (never auto-approved sight-unseen), consistent with the "fail toward
+    manual review" policy above. Install ffmpeg on the IONOS VPS
+    (documented in DEPLOYMENT.md) for full enforcement."""
+    status = check_video_field(django_file)
+    return STATUS_PENDING if status is None else status
+
+
+def check_video_field(django_file):
+    """moderate_video_field's worker: None when ffmpeg or the sidecar is
+    unavailable ("try again later"); STATUS_PENDING when the video itself
+    is the problem (unreadable, no frames) or the model had a doubt."""
     if not moderation_active():
         return STATUS_APPROVED
     if not ffmpeg_available():
-        logger.warning("ffmpeg not found -- cannot extract video frames for moderation; queuing for manual review.")
-        return STATUS_PENDING
+        logger.warning("ffmpeg not found -- cannot extract video frames for moderation.")
+        return None
 
     django_file.seek(0)
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -126,7 +151,7 @@ def moderate_video_field(django_file):
             try:
                 score = classify_image_bytes(frame.read_bytes(), frame.name)
             except ModerationUnavailable:
-                return STATUS_PENDING
+                return None
             worst_score = max(worst_score, score)
 
     return status_for_score(worst_score)

@@ -121,7 +121,8 @@
     "signaliSubtitle": "Signalez un danger dans la rue : poteau électrique, trou, fuite…",
     "insertFlyerShort": "Insérer un flyer",
     "signaliShort": "Signaler un problème de voirie",
-    "volunteerNotice": "Ce site est bénévole, solidaire et non officiel."
+    "volunteerNotice": "Ce site est bénévole, solidaire et non officiel.",
+    "nearbySignals": "Voir les signalements autour de moi"
   },
   "status": {
     "open": "ouvert",
@@ -814,11 +815,14 @@
     "sending": "Envoi…",
     "categories": {
       "electricity": "Poteau / câble électrique",
-      "road": "Trou / route abîmée",
+      "pothole": "Nid-de-poule / trou",
+      "road": "Route abîmée",
       "lighting": "Éclairage public",
-      "water": "Fuite d'eau / égout",
-      "waste": "Déchets",
+      "water": "Fuite d'eau",
+      "sewer": "Égouts",
+      "waste": "Ordures / déchets",
       "signage": "Signalisation",
+      "danger": "Danger",
       "other": "Autre"
     },
     "listTitle": "Signalements",
@@ -872,7 +876,7 @@
       "cancelled": "Annulé"
     },
     "noExactPosition": "Pas de position GPS exacte : affiché dans la bulle « sans localisation ».",
-    "mediaUnderReview": "Photo/vidéo en attente de vérification.",
+    "mediaUnderReview": "Photo ou vidéo en cours de vérification automatique : elle s'affichera dès qu'elle sera validée.",
     "descriptionHeading": "Description",
     "itinerary": "Itinéraire Google Maps",
     "openReport": "Voir le signalement",
@@ -883,7 +887,7 @@
     "countNoLocation_one": "{{count}} sans localisation",
     "countNoLocation_other": "{{count}} sans localisation",
     "aiTitle": "Analyse IA en cours",
-    "aiText": "Il sera affiché sur la carte après vérification.",
+    "aiText": "Il est déjà sur la carte ; les photos et vidéos s'affichent dès qu'elles sont vérifiées.",
     "aiWorking": "Analyse IA en cours…",
     "aiSentTitle": "Signal envoyé, analyse IA en cours",
     "reviewShortNote": "Anonyme. Vérifié par l'IA avant d'apparaître sur la carte.",
@@ -892,6 +896,22 @@
     "pinOnMap": "Point placé sur la carte",
     "videoFromGallery": "ou choisir une vidéo dans la galerie ({{size}} Mo max)",
     "addressPlaceholderIn": "Adresse à {{wilaya}} (rue, quartier, repère)",
-    "wilayaNoMatch": "Aucune wilaya trouvée"
+    "wilayaNoMatch": "Aucune wilaya trouvée",
+    "agree": "D'accord",
+    "abuse": "Abus",
+    "abuseConfirm": "Signaler ce signalement comme abusif (faux, insultant ou hors sujet) ?",
+    "thanksAbuse": "Merci, votre signalement d'abus a été enregistré.",
+    "mediaWarning": "Une photo, vidéo ou le message vocal n'a pas pu être envoyé ; votre signal a bien été enregistré avec le reste.",
+    "nearMe": "Autour de moi ({{km}} km)",
+    "nearUnavailable": "Position indisponible, tous les signalements",
+    "statusLabel": "Statut",
+    "geoLabel": "Géolocalisation",
+    "filterGeo": {
+      "all": "Tous",
+      "with": "Géolocalisés",
+      "without": "Sans géolocalisation"
+    },
+    "geolocated": "Géolocalisé",
+    "approxLocation": "Centre de la wilaya"
   }
 }

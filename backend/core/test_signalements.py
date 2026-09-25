@@ -26,6 +26,11 @@ class SignalementAPITests(BaseAPITestCase):
         algeria_ip = patch("core.views.is_algeria_ip", return_value=True)
         algeria_ip.start()
         self.addCleanup(algeria_ip.stop)
+        # Sidecar "down" unless a test says otherwise: no network in tests.
+        for target in ("core.views.sidecar_reachable", "core.signalements.sidecar_reachable"):
+            down = patch(target, return_value=False)
+            down.start()
+            self.addCleanup(down.stop)
 
     def _post(self, **data):
         return self.client.post("/api/signalements/", data, format="multipart")
@@ -45,9 +50,11 @@ class SignalementAPITests(BaseAPITestCase):
         self.assertEqual(s.processing_status, Signalement.PROCESSING_PENDING)
         self.assertEqual(s.wilaya, self.wilaya)
         self.assertEqual(s.photos.count(), 1)
-        # Moderation is left to the worker: nothing is public yet.
+        # Sidecar down at submission: left unchecked for the worker to retry.
         self.assertEqual(s.photos.get().moderation_status, Need.MODERATION_PENDING)
-        self.assertIsNone(resp.data["photos"][0]["image"])
+        # Visible to its author (create response), never to the public yet.
+        self.assertTrue(resp.data["photos"][0]["image"])
+        self.assertIsNone(self.client.get(f"/api/signalements/{s.pk}/").data["photos"][0]["image"])
 
     def test_create_with_manual_address_only(self):
         resp = self._post(category="road", address="Rue Didouche Mourad", wilaya=self.wilaya.pk, photos=[make_test_image()])
@@ -75,18 +82,53 @@ class SignalementAPITests(BaseAPITestCase):
         resp = self._post(category="road", latitude=48.85, longitude=2.35, photos=[make_test_image()])
         self.assertEqual(resp.status_code, 400)
 
-    def test_pending_report_is_hidden_until_processed(self):
+    def test_new_report_is_public_at_once_but_its_photo_only_once_approved(self):
         s = self._create_ready()
-        self.assertEqual(self.client.get("/api/signalements/").data, [])
-        with patch("core.signalements.moderate_image_field", return_value=Need.MODERATION_APPROVED):
+        listed = self.client.get("/api/signalements/").data
+        self.assertEqual([x["id"] for x in listed], [s.pk])
+        self.assertIsNone(listed[0]["photos"][0]["image"])
+        self.assertTrue(self.client.get(f"/api/signalements/{s.pk}/").data["media_under_review"])
+        with patch("core.signalements.check_image_field", return_value=Need.MODERATION_APPROVED):
             process_signalement(s.pk)
         listed = self.client.get("/api/signalements/").data
         self.assertEqual([x["id"] for x in listed], [s.pk])
         self.assertTrue(listed[0]["photos"][0]["image"])
 
+    def test_photos_are_checked_at_submission_when_the_sidecar_answers(self):
+        with patch("core.views.sidecar_reachable", return_value=True), patch(
+            "core.signalements.check_image_field", return_value=Need.MODERATION_APPROVED
+        ):
+            s = self._create_ready()
+        photo = s.photos.get()
+        self.assertEqual((photo.moderation_status, photo.moderated_by), (Need.MODERATION_APPROVED, Need.MODERATED_BY_SYSTEM))
+        self.assertTrue(self.client.get("/api/signalements/").data[0]["photos"][0]["image"])
+
+    def test_unanswered_check_is_retried_by_the_worker_but_a_doubt_is_not(self):
+        from core.signalements import retry_unanswered_moderation
+
+        with patch("core.views.sidecar_reachable", return_value=True), patch(
+            "core.signalements.check_image_field", return_value=None
+        ):
+            unanswered = self._create_ready()
+        with patch("core.views.sidecar_reachable", return_value=True), patch(
+            "core.signalements.check_image_field", return_value=Need.MODERATION_PENDING
+        ):
+            doubtful = self._create_ready()
+        self.assertEqual(unanswered.photos.get().moderated_by, "")
+        self.assertEqual(doubtful.photos.get().moderated_by, Need.MODERATED_BY_SYSTEM)
+        # Sidecar still down: nothing happens.
+        self.assertEqual(retry_unanswered_moderation(), (0, 0))
+        with patch("core.signalements.sidecar_reachable", return_value=True), patch(
+            "core.signalements.check_image_field", return_value=Need.MODERATION_APPROVED
+        ) as check:
+            self.assertEqual(retry_unanswered_moderation(), (1, 0))
+        self.assertEqual(check.call_count, 1)
+        self.assertEqual(unanswered.photos.get().moderation_status, Need.MODERATION_APPROVED)
+        self.assertEqual(doubtful.photos.get().moderation_status, Need.MODERATION_PENDING)
+
     def test_rejected_media_keeps_report_hidden(self):
         s = self._create_ready()
-        with patch("core.signalements.moderate_image_field", return_value=Need.MODERATION_REJECTED):
+        with patch("core.signalements.check_image_field", return_value=Need.MODERATION_REJECTED):
             process_signalement(s.pk)
         self.assertEqual(self.client.get("/api/signalements/").data, [])
 
@@ -94,7 +136,7 @@ class SignalementAPITests(BaseAPITestCase):
         oran = Wilaya.objects.get(code="31")
         a = self._create_ready(category="road")
         b = self._create_ready(category="waste", latitude=35.7, longitude=-0.63)
-        with patch("core.signalements.moderate_image_field", return_value=Need.MODERATION_APPROVED):
+        with patch("core.signalements.check_image_field", return_value=Need.MODERATION_APPROVED):
             process_signalement(a.pk)
             process_signalement(b.pk)
         ids = lambda q: [x["id"] for x in self.client.get(f"/api/signalements/?{q}").data]  # noqa: E731
@@ -105,7 +147,7 @@ class SignalementAPITests(BaseAPITestCase):
         audio = SimpleUploadedFile("voice.webm", b"fake-audio", content_type="audio/webm")
         video = SimpleUploadedFile("clip.webm", b"fake-video", content_type="video/webm")
         s = self._create_ready(photos=[], voice_file=audio, video_file=video)
-        with patch("core.signalements.moderate_video_field", return_value=Need.MODERATION_APPROVED), patch(
+        with patch("core.signalements.check_video_field", return_value=Need.MODERATION_APPROVED), patch(
             "core.signalements.transcribe_audio", side_effect=["Voix", VoiceAIError("No speech was detected.")]
         ):
             process_signalement(s.pk)
@@ -120,7 +162,7 @@ class SignalementAPITests(BaseAPITestCase):
     def test_rejected_video_is_not_transcribed(self):
         video = SimpleUploadedFile("clip.webm", b"fake-video", content_type="video/webm")
         s = self._create_ready(photos=[], video_file=video)
-        with patch("core.signalements.moderate_video_field", return_value=Need.MODERATION_REJECTED), patch(
+        with patch("core.signalements.check_video_field", return_value=Need.MODERATION_REJECTED), patch(
             "core.signalements.transcribe_audio"
         ) as transcribe:
             process_signalement(s.pk)
@@ -150,7 +192,7 @@ class SignalementLot2Tests(BaseAPITestCase):
             format="multipart",
         )
         self.token = resp.data["access_token"]
-        with patch("core.signalements.moderate_image_field", return_value=Need.MODERATION_APPROVED):
+        with patch("core.signalements.check_image_field", return_value=Need.MODERATION_APPROVED):
             self.s = process_signalement(resp.data["id"])
 
     def test_nearby_finds_open_reports_within_radius(self):
@@ -172,6 +214,17 @@ class SignalementLot2Tests(BaseAPITestCase):
         self.assertEqual(resp.data["status"], Signalement.STATUS_RESOLVED)
         self.assertEqual(self.client.get("/api/signalements/nearby/?lat=36.75&lon=3.05").data, [])
 
+    def test_abuse_reports_count_once_per_ip_and_hide_the_report(self):
+        url = f"/api/signalements/{self.s.pk}/report-abuse/"
+        self.client.post(url, REMOTE_ADDR="10.0.1.1")
+        resp = self.client.post(url, REMOTE_ADDR="10.0.1.1")
+        self.assertEqual(resp.data["abuse_reports_count"], 1)
+        self.assertEqual(len(self.client.get("/api/signalements/").data), 1)
+        for i in range(2, Signalement.ABUSE_REPORTS_TO_HIDE + 1):
+            resp = self.client.post(url, REMOTE_ADDR=f"10.0.1.{i}")
+        self.assertEqual(resp.data["abuse_reports_count"], Signalement.ABUSE_REPORTS_TO_HIDE)
+        self.assertEqual(self.client.get("/api/signalements/").data, [])
+
     def test_reporter_token_resolves_immediately(self):
         resp = self.client.post(f"/api/signalements/{self.s.pk}/report-fixed/", HTTP_X_ACCESS_TOKEN=self.token)
         self.assertEqual(resp.data["status"], Signalement.STATUS_RESOLVED)
@@ -183,7 +236,7 @@ class SignalementLot2Tests(BaseAPITestCase):
             dict(category="other", latitude=36.75, longitude=3.05, description="Un grand trou sur la route", photos=[make_test_image()]),
             format="multipart",
         )
-        with patch("core.signalements.moderate_image_field", return_value=Need.MODERATION_APPROVED), patch(
+        with patch("core.signalements.check_image_field", return_value=Need.MODERATION_APPROVED), patch(
             "core.signalements.classify_category", return_value="road"
         ):
             s = process_signalement(resp.data["id"])
@@ -236,7 +289,7 @@ class SignalementAccessAndManageTests(BaseAPITestCase):
         with patch("core.views.is_algeria_ip", return_value=True):
             a = self._post().data
             b = self._post(latitude=35.7, longitude=-0.63).data
-        with patch("core.signalements.moderate_image_field", return_value=Need.MODERATION_APPROVED):
+        with patch("core.signalements.check_image_field", return_value=Need.MODERATION_APPROVED):
             process_signalement(a["id"])
             process_signalement(b["id"])
         self.client.post(f"/api/signalements/{a['id']}/manage/", {"status": "in_review"}, format="json", HTTP_X_ACCESS_TOKEN=a["access_token"])
@@ -264,7 +317,8 @@ class SignalementAdminPendingTests(BaseAPITestCase):
                 dict(category="road", latitude=36.75, longitude=3.05, photos=[make_test_image()]),
                 format="multipart",
             ).data["id"]
-        self.assertEqual(self.client.get("/api/signalements/?include_pending=1").data, [])
+        # Awaiting processing no longer hides it from anyone.
+        self.assertEqual([x["id"] for x in self.client.get("/api/signalements/").data], [sid])
         User.objects.create_superuser("root", "r@x.dz", "pw")
         self.client.login(username="root", password="pw")
         listed = self.client.get("/api/signalements/?include_pending=1").data
@@ -286,7 +340,7 @@ class SignalementGeocodingTests(BaseAPITestCase):
 
     def test_typed_address_is_geocoded_inside_its_wilaya(self):
         sid = self._manual("15")  # Tizi Ouzou
-        with patch("core.signalements.moderate_image_field", return_value=Need.MODERATION_APPROVED), patch(
+        with patch("core.signalements.check_image_field", return_value=Need.MODERATION_APPROVED), patch(
             "core.signalements.NominatimClient.search", return_value=(36.71, 4.05, "Tizi Ouzou")
         ):
             s = process_signalement(sid)
@@ -294,8 +348,71 @@ class SignalementGeocodingTests(BaseAPITestCase):
 
     def test_geocoded_point_in_another_wilaya_is_ignored(self):
         sid = self._manual("15")  # Tizi Ouzou, but the geocoder answers Oran
-        with patch("core.signalements.moderate_image_field", return_value=Need.MODERATION_APPROVED), patch(
+        with patch("core.signalements.check_image_field", return_value=Need.MODERATION_APPROVED), patch(
             "core.signalements.NominatimClient.search", return_value=(35.70, -0.63, "Oran")
         ):
             s = process_signalement(sid)
         self.assertIsNone(s.latitude)
+
+
+@override_settings(MEDIA_ROOT=MEDIA_ROOT)
+class SignalementRobustUploadTests(BaseAPITestCase):
+    def setUp(self):
+        super().setUp()
+        algeria_ip = patch("core.views.is_algeria_ip", return_value=True)
+        algeria_ip.start()
+        self.addCleanup(algeria_ip.stop)
+
+    def test_too_large_video_is_dropped_but_report_is_saved(self):
+        from core.media_validation import MAX_VIDEO_SIZE_BYTES
+
+        big = SimpleUploadedFile("big.mp4", b"x" * (MAX_VIDEO_SIZE_BYTES + 1), content_type="video/mp4")
+        resp = self.client.post(
+            "/api/signalements/",
+            dict(category="road", latitude=36.75, longitude=3.05, description="Trou", photos=[make_test_image()], video_file=big),
+            format="multipart",
+        )
+        self.assertEqual(resp.status_code, 201, resp.data)
+        s = Signalement.objects.get(pk=resp.data["id"])
+        self.assertFalse(s.video_file)
+        self.assertEqual(s.photos.count(), 1)
+        self.assertIn("Video", s.media_upload_errors)
+        self.assertTrue(resp.data["media_warnings"])
+
+    def test_storage_error_on_a_photo_does_not_fail_the_report(self):
+        from core.models import SignalementPhoto
+
+        with patch.object(SignalementPhoto.objects, "create", side_effect=OSError("disk full")):
+            resp = self.client.post(
+                "/api/signalements/",
+                dict(category="road", latitude=36.75, longitude=3.05, photos=[make_test_image()]),
+                format="multipart",
+            )
+        self.assertEqual(resp.status_code, 201, resp.data)
+        self.assertIn("disk full", Signalement.objects.get(pk=resp.data["id"]).media_upload_errors)
+
+    def test_retry_without_media_is_accepted_with_the_flag(self):
+        resp = self.client.post(
+            "/api/signalements/",
+            dict(category="road", latitude=36.75, longitude=3.05, description="Trou", media_upload_failed="1"),
+            format="multipart",
+        )
+        self.assertEqual(resp.status_code, 201, resp.data)
+        self.assertIn("could not upload", Signalement.objects.get(pk=resp.data["id"]).media_upload_errors)
+
+    def test_owner_sees_pending_photo_public_does_not(self):
+        resp = self.client.post(
+            "/api/signalements/",
+            dict(category="road", latitude=36.75, longitude=3.05, photos=[make_test_image()]),
+            format="multipart",
+        )
+        url = f"/api/signalements/{resp.data['id']}/"
+        self.assertIsNone(self.client.get(url).data["photos"][0]["image"])
+        self.assertTrue(self.client.get(url, HTTP_X_ACCESS_TOKEN=resp.data["access_token"]).data["photos"][0]["image"])
+
+    def test_new_categories_are_accepted(self):
+        for cat in ("pothole", "sewer", "danger"):
+            resp = self.client.post(
+                "/api/signalements/", dict(category=cat, latitude=36.75, longitude=3.05, photos=[make_test_image()]), format="multipart"
+            )
+            self.assertEqual(resp.status_code, 201, resp.data)

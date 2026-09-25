@@ -1125,19 +1125,25 @@ class Signalement(AuditMixin, models.Model):
     has run and at least one of its photos/video is approved."""
 
     CATEGORY_ELECTRICITY = "electricity"
+    CATEGORY_POTHOLE = "pothole"
     CATEGORY_ROAD = "road"
     CATEGORY_LIGHTING = "lighting"
     CATEGORY_WATER = "water"
+    CATEGORY_SEWER = "sewer"
     CATEGORY_WASTE = "waste"
     CATEGORY_SIGNAGE = "signage"
+    CATEGORY_DANGER = "danger"
     CATEGORY_OTHER = "other"
     CATEGORY_CHOICES = [
         (CATEGORY_ELECTRICITY, "Poteau / câble électrique dangereux"),
-        (CATEGORY_ROAD, "Trou / route dégradée"),
+        (CATEGORY_POTHOLE, "Nid-de-poule / trou"),
+        (CATEGORY_ROAD, "Route dégradée"),
         (CATEGORY_LIGHTING, "Éclairage public"),
-        (CATEGORY_WATER, "Fuite d'eau / égout"),
-        (CATEGORY_WASTE, "Déchets"),
+        (CATEGORY_WATER, "Fuite d'eau"),
+        (CATEGORY_SEWER, "Égouts"),
+        (CATEGORY_WASTE, "Ordures / déchets"),
         (CATEGORY_SIGNAGE, "Signalisation"),
+        (CATEGORY_DANGER, "Danger"),
         (CATEGORY_OTHER, "Autre"),
     ]
 
@@ -1185,6 +1191,10 @@ class Signalement(AuditMixin, models.Model):
 
     processing_status = models.CharField(max_length=10, choices=PROCESSING_CHOICES, default=PROCESSING_PENDING)
     processing_error = models.CharField(max_length=500, blank=True)
+    # Media that couldn't be attached when the report was sent (too large,
+    # unreadable, storage error...): the report is saved anyway with what
+    # did arrive, and this says what was dropped -- for the admin.
+    media_upload_errors = models.TextField(blank=True)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=STATUS_NEW)
     resolved_at = models.DateTimeField(null=True, blank=True)
     # True when the reporter left "Autre" and the worker's local LLM picked
@@ -1200,6 +1210,11 @@ class Signalement(AuditMixin, models.Model):
     FIXED_REPORTS_TO_RESOLVE = 3
     confirmations_count = models.PositiveIntegerField(default=0)
     fixed_reports_count = models.PositiveIntegerField(default=0)
+    # "Abus": citizens flag a fake/offensive report (one vote per IP).
+    # ABUSE_REPORTS_TO_HIDE of them take it off the public map and list
+    # until an admin looks at it (reset the count to 0 to show it again).
+    ABUSE_REPORTS_TO_HIDE = 5
+    abuse_reports_count = models.PositiveIntegerField(default=0)
 
     access_token = models.CharField(max_length=32, unique=True, default=generate_token, editable=False)
     created_at = models.DateTimeField(auto_now_add=True)

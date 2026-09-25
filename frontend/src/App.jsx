@@ -101,7 +101,6 @@ const PAGE_TITLE_KEYS = {
   '/international-collection-points/create': 'internationalCollectionPoints.createTitle',
   '/deliveries': 'nav.deliveries',
   '/signali': 'signali.title',
-  '/signalements': 'nav.signalements',
   '/support': 'support.title',
   '/report-bug': 'reportBug.title',
   '/about': 'about.title',
@@ -298,7 +297,7 @@ function BottomNav() {
         <span className="icon">
           <IconMegaphone />
           <MapIndicator />
-          {!!config.signalements_open_count && <span className="nav-badge">{formatBadgeCount(config.signalements_open_count)}</span>}
+          {!!config.signalements_total_count && <span className="nav-badge">{formatBadgeCount(config.signalements_total_count)}</span>}
         </span>
         <span className="nav-label-offset">{t('nav.signalementsShort')}</span>
       </Link>

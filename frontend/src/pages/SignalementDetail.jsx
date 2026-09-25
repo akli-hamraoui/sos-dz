@@ -5,6 +5,7 @@ import { api } from '../api'
 import { translateApiError } from '../apiErrors'
 import { useDialog } from '../context/DialogContext'
 import { formatDate, googleMapsDirectionsUrl } from '../utils'
+import { IconAbuse } from '../icons'
 import CommentThread from '../components/CommentThread'
 import CopyButton from '../components/CopyButton'
 import PhotoLightbox from '../components/PhotoLightbox'
@@ -126,8 +127,12 @@ function UnlockWithCode({ id, onUnlocked }) {
 export default function SignalementDetail() {
   const { id } = useParams()
   const { t, i18n } = useTranslation()
+  const { showConfirm } = useDialog()
   const location = useLocation()
   const justCreated = !!location.state?.justCreated
+  const mediaWarnings = location.state?.mediaWarnings || []
+  const [agreed, setAgreed] = useState(false)
+  const [flagged, setFlagged] = useState(false)
   const [s, setS] = useState(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -137,7 +142,9 @@ export default function SignalementDetail() {
 
   const load = useCallback(async () => {
     try {
-      setS(await api(`/signalements/${id}/`))
+      // With its code, the author also sees photos/video still awaiting review.
+      const code = getSignalementToken(id)
+      setS(await api(`/signalements/${id}/`, { headers: code ? { 'X-Access-Token': code } : {} }))
       setError('')
     } catch (e) {
       setError(translateApiError(e, t))
@@ -176,16 +183,16 @@ export default function SignalementDetail() {
 
   return (
     <section className="signalements-page signalement-detail-page">
-      {/* One short notice (sent + AI check under way), not two. */}
-      {s.processing_status === 'pending' ? (
-        <SignaliAiNotice sent={justCreated} />
-      ) : (
-        justCreated && (
+      {/* Only right after sending: one short notice (sent + AI check). */}
+      {justCreated &&
+        (pending ? (
+          <SignaliAiNotice sent />
+        ) : (
           <div className="signali-created" role="status">
             <strong>✓ {t('signali.createdTitle')}</strong>
           </div>
-        )
-      )}
+        ))}
+      {justCreated && mediaWarnings.length > 0 && <p className="signali-media-warning" role="status">⚠️ {t('signali.mediaWarning')}</p>}
       {token && justCreated && <ManagePanel s={s} token={token} justCreated onChange={setS} onForget={forget} />}
 
       <article className="signali-detail">
@@ -194,10 +201,11 @@ export default function SignalementDetail() {
           <div>
             <h1>{t(`signali.categories.${s.category}`)}</h1>
             <small>{[s.address, s.commune, s.wilaya_name].filter(Boolean).join(', ')}</small>
+            {/* Under the title, never over it. */}
+            <span className={`signali-status is-${s.status}`}>
+              {t(`signali.status.${s.status}`)}
+            </span>
           </div>
-          <span className={`signali-status is-${pending ? 'pending' : s.status}`}>
-            {pending ? t('signali.statusPending') : t(`signali.status.${s.status}`)}
-          </span>
         </header>
         {!s.has_exact_position && <p className="signali-pending-note">📍 {t('signali.noExactPosition')}</p>}
 
@@ -211,7 +219,8 @@ export default function SignalementDetail() {
             {s.video_file && <video src={s.video_file} controls playsInline preload="metadata" />}
           </div>
         )}
-        {!pending && !photos.length && !s.video_file && <p className="signali-pending-note">{t('signali.mediaUnderReview')}</p>}
+        {/* A photo/the video still waits for its check: hidden for now. */}
+        {s.media_under_review && <p className="signali-pending-note">🛡️ {t('signali.mediaUnderReview')}</p>}
 
         {s.description && (
           <>
@@ -232,7 +241,6 @@ export default function SignalementDetail() {
         <div className="signali-detail-meta">
           <span>{formatDate(s.created_at, i18n.language)}</span>
           {s.category_suggested_by_ai && <span>✨ {t('signali.aiCategory')}</span>}
-          <span>👍 {t('signali.confirmationsCount', { count: s.confirmations_count + 1 })}</span>
           {s.fixed_reports_count > 0 && open && <span>🔧 {t('signali.fixedCount', { count: s.fixed_reports_count })}</span>}
         </div>
 
@@ -242,9 +250,34 @@ export default function SignalementDetail() {
           </a>
           <Link className="btn" to={`/signalements?focus=${s.id}`}>🗺️ {t('signali.viewOnMap')}</Link>
         </div>
-        {open && !pending && (
+        <div className="signali-detail-actions">
+          {/* "I agree / still there": one per person (IP), the count goes up
+              right away. The reporter counts as the first one. */}
+          <button
+            type="button"
+            className={`btn signali-agree${agreed ? ' is-done' : ''}`}
+            onClick={() => vote('confirm', t('signali.thanksConfirm')).then(() => setAgreed(true))}
+            disabled={busy || agreed || !open}
+          >
+            👍 {t('signali.agree')} <b>{s.confirmations_count + 1}</b>
+          </button>
+          {/* "Abus": fake/offensive report. One per person (IP); enough of
+              them hide it until an admin reviews it. */}
+          <button
+            type="button"
+            className={`btn signali-abuse${flagged ? ' is-done' : ''}`}
+            onClick={async () => {
+              if (!(await showConfirm(t('signali.abuseConfirm')))) return
+              await vote('report-abuse', t('signali.thanksAbuse'))
+              setFlagged(true)
+            }}
+            disabled={busy || flagged}
+          >
+            <IconAbuse width={18} height={18} aria-hidden="true" /> {t('signali.abuse')} <b>{s.abuse_reports_count || 0}</b>
+          </button>
+        </div>
+        {open && (
           <div className="signali-detail-actions">
-            <button type="button" className="btn" onClick={() => vote('confirm', t('signali.thanksConfirm'))} disabled={busy}>👍 {t('signali.stillThere')}</button>
             {!token && (
               <button type="button" className="btn" onClick={() => vote('report-fixed', t('signali.thanksFixed'))} disabled={busy}>🔧 {t('signali.itsFixed')}</button>
             )}
