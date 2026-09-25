@@ -7,6 +7,7 @@ import { api, apiUpload } from '../api'
 import { translateApiError } from '../apiErrors'
 import { compressPhoto, formatDate, isInAlgeria } from '../utils'
 import PlaceAutocomplete from '../components/PlaceAutocomplete'
+import SignaliAiNotice from '../components/SignaliAiNotice'
 import { IconCamera, IconLocate, IconMapPin, IconMic, IconSwitchCamera, IconTrash, IconVideoCam } from '../icons'
 import { SIGNALI_CATEGORIES, categoryEmoji, saveSignalementToken } from '../signali'
 import '../urgent-sos-wizard-fixes.css'
@@ -821,6 +822,7 @@ export default function Signali() {
                 </li>
               )}
             </ul>
+            <SignaliAiNotice />
             <div className="urgent-sos-location-confirmation confirmed" role="status">
               <strong>🔒 {t('signali.anonymousTitle')}</strong>
               <span>{t('signali.anonymousText')}</span>

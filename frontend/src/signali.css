@@ -435,3 +435,69 @@
 .signali-unlock { margin-top: 14px; display: grid; gap: 6px; }
 .signali-unlock label { font-weight: 700; font-size: 14px; }
 .comment-notice { margin: 0 0 8px; padding: 8px 10px; border-radius: 10px; background: #fff4e0; color: #7a4b00; font-size: 12.5px; }
+
+/* --- AI analysis notice (components/SignaliAiNotice.jsx) --- */
+.signali-ai {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  margin: 10px 0;
+  padding: 12px;
+  border: 1px solid #c9d8f5;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #eef4ff, #f6efff);
+}
+.signali-ai-anim { position: relative; width: 76px; height: 76px; }
+.signali-ai-core {
+  position: absolute;
+  inset: 14px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #2f7de1, #7c3aed);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(47, 125, 225, .4);
+  animation: signali-ai-beat 1.6s ease-in-out infinite;
+}
+.signali-ai-ring {
+  position: absolute;
+  inset: 14px;
+  border-radius: 50%;
+  border: 3px solid rgba(47, 125, 225, .6);
+  animation: signali-ai-ring 1.8s ease-out infinite;
+}
+.signali-ai-ring-2 { animation-delay: .9s; border-color: rgba(124, 58, 237, .55); }
+.signali-ai-scan {
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  height: 30%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, .55), rgba(255, 255, 255, 0));
+  animation: signali-ai-scan 1.5s linear infinite;
+}
+.signali-ai-spark { position: absolute; color: #9333ea; animation: signali-ai-twinkle 1.4s ease-in-out infinite; }
+.signali-ai-spark-1 { top: 2px; inset-inline-end: 4px; }
+.signali-ai-spark-2 { bottom: 6px; inset-inline-start: 2px; animation-delay: .45s; color: #2f7de1; }
+.signali-ai-spark-3 { top: 10px; inset-inline-start: 0; animation-delay: .9s; }
+.signali-ai-copy { display: grid; gap: 3px; min-width: 0; }
+.signali-ai-copy strong { color: #2a3a8f; font-size: 14.5px; }
+.signali-ai-copy span { color: #394556; font-size: 13px; line-height: 1.4; }
+.signali-ai-copy em { color: #6b4fc9; font-size: 12.5px; font-style: normal; font-weight: 700; }
+.signali-ai-dots { display: inline-flex; gap: 3px; margin-inline-start: 4px; vertical-align: middle; }
+.signali-ai-dots i { width: 5px; height: 5px; border-radius: 50%; background: currentColor; animation: signali-ai-dot 1.2s ease-in-out infinite; }
+.signali-ai-dots i:nth-child(2) { animation-delay: .2s; }
+.signali-ai-dots i:nth-child(3) { animation-delay: .4s; }
+.signali-ai.is-compact { grid-template-columns: 60px minmax(0, 1fr); padding: 10px; }
+.signali-ai.is-compact .signali-ai-anim { width: 60px; height: 60px; }
+.signali-ai.is-compact .signali-ai-core,
+.signali-ai.is-compact .signali-ai-ring { inset: 10px; }
+@keyframes signali-ai-beat { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+@keyframes signali-ai-ring { 0% { transform: scale(1); opacity: .9; } 100% { transform: scale(1.75); opacity: 0; } }
+@keyframes signali-ai-scan { 0% { transform: translateY(-100%); } 100% { transform: translateY(340%); } }
+@keyframes signali-ai-twinkle { 0%, 100% { opacity: .2; transform: scale(.7) rotate(0deg); } 50% { opacity: 1; transform: scale(1.15) rotate(20deg); } }
+@keyframes signali-ai-dot { 0%, 80%, 100% { opacity: .25; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-3px); } }
+@media (prefers-reduced-motion: reduce) {
+  .signali-ai-core, .signali-ai-ring, .signali-ai-scan, .signali-ai-spark, .signali-ai-dots i { animation: none; }
+}

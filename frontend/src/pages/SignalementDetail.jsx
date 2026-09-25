@@ -8,6 +8,7 @@ import { formatDate, googleMapsDirectionsUrl } from '../utils'
 import CommentThread from '../components/CommentThread'
 import CopyButton from '../components/CopyButton'
 import PhotoLightbox from '../components/PhotoLightbox'
+import SignaliAiNotice from '../components/SignaliAiNotice'
 import { categoryEmoji, getSignalementToken, saveSignalementToken, SIGNALI_CATEGORIES, SIGNALI_STATUSES } from '../signali'
 import '../signali.css'
 
@@ -178,9 +179,9 @@ export default function SignalementDetail() {
       {justCreated && (
         <div className="signali-created" role="status">
           <strong>✓ {t('signali.createdTitle')}</strong>
-          <span>{t('signali.createdText')}</span>
         </div>
       )}
+      {s.processing_status === 'pending' && <SignaliAiNotice compact={!justCreated} />}
       {token && justCreated && <ManagePanel s={s} token={token} justCreated onChange={setS} onForget={forget} />}
 
       <article className="signali-detail">
@@ -194,7 +195,6 @@ export default function SignalementDetail() {
             {pending ? t('signali.statusPending') : t(`signali.status.${s.status}`)}
           </span>
         </header>
-        {pending && <p className="signali-pending-note">{t('signali.pendingNote')}</p>}
         {!s.has_exact_position && <p className="signali-pending-note">📍 {t('signali.noExactPosition')}</p>}
 
         {(photos.length > 0 || s.video_file) && (

@@ -88,7 +88,7 @@
     "legal": "Legal notice",
     "djangoAdmin": "Administration",
     "signalements": "Reports",
-    "signalementsShort": "Reports"
+    "signalementsShort": "Signal"
   },
   "home": {
     "privacyNotice": "Information from associations, aid requests and couriers (name, phone, address, collection points) is public so volunteers can contact you.\n* Phone numbers are not required.\n* You can anonymize your information at any time.",
@@ -859,6 +859,9 @@
     "countTotal_one": "{{count}} report",
     "countTotal_other": "{{count}} reports",
     "countNoLocation_one": "{{count}} without location",
-    "countNoLocation_other": "{{count}} without location"
+    "countNoLocation_other": "{{count}} without location",
+    "aiTitle": "Artificial intelligence analysis",
+    "aiText": "Your report will be analysed by artificial intelligence (photo/video check, voice transcription, problem type) and will appear on the map shortly.",
+    "aiWorking": "AI analysis in progress…"
   }
 }

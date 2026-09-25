@@ -288,12 +288,8 @@ function BottomNav() {
   const isActive = (path) => location.pathname === path
   return (
     <nav className="bottom-nav">
-      <Link to="/" className={isActive('/') ? 'active' : ''}>
-        <span className="icon"><IconHome /></span>
-        <span>{t('nav.home')}</span>
-      </Link>
-      {/* Signali reports: on the left, next to Accueil (per request) --
-          the volunteers/deliveries tab moved out of this bar to make room
+      {/* Signali reports: first tab, on the far left (per request) -- the
+          volunteers/deliveries tab moved out of this bar to make room
           (still reachable from the top menu). */}
       <Link to="/signalements" className={location.pathname.startsWith('/signal') ? 'active' : ''}>
         <span className="icon">
@@ -302,6 +298,10 @@ function BottomNav() {
           {!!config.signalements_open_count && <span className="nav-badge">{formatBadgeCount(config.signalements_open_count)}</span>}
         </span>
         <span className="nav-label-offset">{t('nav.signalementsShort')}</span>
+      </Link>
+      <Link to="/" className={isActive('/') ? 'active' : ''}>
+        <span className="icon"><IconHome /></span>
+        <span>{t('nav.home')}</span>
       </Link>
       <Link to="/needs" className={`nav-icon-only${isActive('/needs') ? ' active' : ''}`} aria-label={t('nav.needs')}>
         <span className="icon">

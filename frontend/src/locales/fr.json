@@ -88,7 +88,7 @@
     "legal": "Mentions légales",
     "djangoAdmin": "Administration",
     "signalements": "Signalements",
-    "signalementsShort": "Signalements"
+    "signalementsShort": "Signal"
   },
   "home": {
     "privacyNotice": "Les informations des associations, demandes d'aide et transporteurs (nom, téléphone, adresse, points de collecte) sont publiques pour permettre aux bénévoles de vous contacter.\n* Le téléphone n'est pas obligatoire.\n* Vous pouvez anonymiser vos informations à tout moment.",
@@ -878,6 +878,9 @@
     "countTotal_one": "{{count}} signalement",
     "countTotal_other": "{{count}} signalements",
     "countNoLocation_one": "{{count}} sans localisation",
-    "countNoLocation_other": "{{count}} sans localisation"
+    "countNoLocation_other": "{{count}} sans localisation",
+    "aiTitle": "Analyse par intelligence artificielle",
+    "aiText": "Votre signal va être analysé par l'intelligence artificielle (vérification de la photo/vidéo, transcription de la voix, type de problème) et sera affiché prochainement sur la carte.",
+    "aiWorking": "Analyse IA en cours…"
   }
 }
