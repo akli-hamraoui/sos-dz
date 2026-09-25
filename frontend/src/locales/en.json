@@ -229,7 +229,9 @@
     "noLocationBubbleLabel": "No location",
     "playAudio": "Play audio",
     "stopAudio": "Stop",
-    "noGeographicPosition": "No geographic position"
+    "noGeographicPosition": "No geographic position",
+    "inArea_one": "{{count}} SOS here",
+    "inArea_other": "{{count}} SOS here"
   },
   "help": {
     "instructions": "Please choose a collection point or a need to help with on the map, or use the list or filters.",
@@ -398,7 +400,10 @@
     "socialLinks": "Social media",
     "visitSocial": "View on {{network}}",
     "addViaFlyer": "+ Add from a flyer",
-    "countryBubbleTitle": "Collection points — {{country}}"
+    "countryBubbleTitle": "Collection points — {{country}}",
+    "inArea_one": "{{count}} collection point here",
+    "inArea_other": "{{count}} collection points here",
+    "addShort": "Add"
   },
   "submitFlyer": {
     "title": "Add a collection point from a flyer",
@@ -457,7 +462,10 @@
     "country": "Country",
     "exactPositionRequired": "An exact position (via the place search or \"Use my location\") is required for an international point.",
     "positionInAlgeria": "This position is inside Algeria. Please use the national collection points page instead.",
-    "positionInAlgeriaLink": "Create a collection point in Algeria"
+    "positionInAlgeriaLink": "Create a collection point in Algeria",
+    "inArea_one": "{{count}} collection point here",
+    "inArea_other": "{{count}} collection points here",
+    "countryFilter": "Country"
   },
   "language": {
     "label": "Language",
@@ -485,7 +493,13 @@
     "filterByPosition": "Filter by position",
     "positionWith": "Has a position",
     "positionWithout": "No position",
-    "viewTransporterDetail": "View transporter details"
+    "viewTransporterDetail": "View transporter details",
+    "inArea_one": "{{count}} courier here",
+    "inArea_other": "{{count}} couriers here",
+    "noPositionChip": "Deliveries with no position",
+    "live": "Live",
+    "departure": "Declared departure",
+    "deliverShort": "Deliver"
   },
   "quickActions": {
     "create": "Collection point",

@@ -1,642 +1,175 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
-import { Link } from 'react-router-dom'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import L from 'leaflet'
 import { useApp } from '../context/AppContext'
-import { useDialog } from '../context/DialogContext'
 import { api } from '../api'
-import { maskPhone, formatDate, getCurrentPosition, RECENTER_BOX_METERS } from '../utils'
-import { fetchDrivingRoute, ROUTE_COLOR } from '../routing'
-import { flyerPopupButtonHtml, attachMapPopupBehavior, attachMapTapToActivate } from '../mapMarkers'
-import PhotoThumb from '../components/PhotoThumb'
-import PhotoLightbox from '../components/PhotoLightbox'
-import { IconTruck, IconLocate, IconExpand, IconClose } from '../icons'
+import { drawRouteOn, ROUTE_COLOR } from '../routing'
+import { TRUCK_GREEN } from '../mapMarkers'
+import WilayaCombobox from '../components/WilayaCombobox'
+import ExploreMap from '../components/ExploreMap'
 
-// Same green already used elsewhere for this app's own accent (the
-// Collecte FAB, "Prendre en charge" button, Home's privacy notice --
-// see index.css --collection-accent) -- reused here instead of the
-// previous grey/black truck so a courier marker reads as "SOS DZ's own"
-// rather than a generic dark pin.
-const TRUCK_GREEN = '#2c8f67'
+// Deliveries in progress, in the shared "explore" view
+// (components/ExploreMap.jsx): one truck per courier en route, at their
+// latest live position (volunteered by the courier) or, failing that, the
+// departure point they declared (muted pin). Refreshed every 20 s without
+// moving the map. Tapping a courier draws their road to the destination
+// (when it has exact GPS). Deliveries with no position at all are listed
+// behind a chip. Filters: wilaya and text search.
 
-// Maps Pickup.responder_type values to the same labels already used at
-// take-charge time (TakeCharge.jsx) -- reused here as the closest existing
-// concept to "vehicle/type of transporter" rather than inventing a new label set.
-const RESPONDER_TYPE_LABEL_KEYS = {
-  individual_volunteer: 'takeCharge.individualVolunteer',
-  organization: 'takeCharge.organization',
-  collective_truck: 'takeCharge.collectiveTruck',
-}
-
-// How often the live-locations map silently refreshes marker positions in
-// the background -- frequent enough to feel live, spaced out enough not
-// to hammer the server while every visitor's map tab sits open. Never
-// re-fits the view on these background ticks (only on the very first
-// load), so a viewer's own pan/zoom is never yanked out from under them.
 const LIVE_REFRESH_INTERVAL_MS = 20000
+const TRUCK_SVG =
+  '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="{c}" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">' +
+  '<path d="M2.5 7.5h11v8h-11Z"/><path d="M13.5 11h4l3 2.8v1.7h-7Z"/><circle cx="7" cy="18" r="1.7"/><circle cx="17" cy="18" r="1.7"/><path d="M2.5 16h2.8M15.5 16h.2M18.7 16H21"/></svg>'
+const TRUCK_WHITE = TRUCK_SVG.replace('{c}', '#fff')
+const TRUCK_BIG = TRUCK_SVG.replace('{c}', TRUCK_GREEN).replace('width="18" height="18"', 'width="44" height="44"')
 
 export default function Deliveries() {
-  const { t, i18n } = useTranslation()
-  const { activeCampaignWilayas, pickupTokens } = useApp()
-  const { showAlert } = useDialog()
+  const { t } = useTranslation()
+  const location = useLocation()
+  const { wilayas } = useApp()
   const [filterWilaya, setFilterWilaya] = useState('')
-  // '' (both, default) | 'with' | 'without' -- whether this transporter
-  // currently has a known position (live ping or declared departure
-  // point), same locatedPickupIds truth already used for the list's
-  // "Position indisponible" badge and the map's unknown-position bubble.
-  const [filterPosition, setFilterPosition] = useState('')
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
+  const [live, setLive] = useState([])
   const [pickups, setPickups] = useState([])
-  // Map first -- seeing where couriers currently are is the more useful
-  // default than a text list, same reasoning as NeedsList's own map-first
-  // default.
-  const [viewMode, setViewMode] = useState('map')
-  // Filters (search, wilaya, position) tucked behind this toggle instead
-  // of always expanded -- see CollectionPoints.jsx's own filtersOpen for
-  // the rationale (same pattern, reused across every map+filters page).
-  const [filtersOpen, setFiltersOpen] = useState(false)
-  // See CollectionPoints.jsx's own lightboxPhoto for the full rationale.
-  const [lightboxPhoto, setLightboxPhoto] = useState(null)
-  // pickup_ids currently shown on the map (live ping or declared departure
-  // position) -- used to flag, in the list, which en_route deliveries have
-  // neither and so are never on the map at all (never "position
-  // unavailable" purely by omission -- see the .noPosition list below).
-  const [locatedPickupIds, setLocatedPickupIds] = useState(() => new Set())
-  const [mapPointsLoading, setMapPointsLoading] = useState(false)
-  const mapPointsLoadedRef = useRef(false)
-  // The position filter applied on top of the server-side-filtered
-  // `pickups` -- client-side, since locatedPickupIds is itself only known
-  // client-side (derived from the separate live-locations fetch below).
-  const filteredPickups = pickups.filter((p) => {
-    if (filterPosition === 'with') return locatedPickupIds.has(p.id)
-    if (filterPosition === 'without') return !locatedPickupIds.has(p.id)
-    return true
-  })
-  // How many of the currently-filtered en_route deliveries have neither a
-  // live ping nor a declared departure position -- shown as one grey
-  // "count" bubble on the map (never as individual invented markers, see
-  // renderLiveLocations below) so a courier count isn't silently missing
-  // from the map with no indication they exist at all. Naturally 0 (bubble
-  // hidden) once filterPosition === 'with' excludes every unlocated one.
-  const unknownPositionCount = filteredPickups.filter((p) => p.status === 'en_route' && !locatedPickupIds.has(p.id)).length
-  // Tap-to-activate map -- see CollectionPoints.jsx's own mapActive for
-  // the full rationale (replaces the old two-finger-to-pan gesture
-  // handling, reported awkward on mobile). Starts "asleep" so a single
-  // finger scrolls the page; the first tap wakes it. The periodic
-  // renderLiveLocations refresh only ever replaces markers on an
-  // *existing* map instance (never recreates it -- see its own
-  // `if (!mapRef.current)` guard), so this never gets silently reset by
-  // a background tick.
-  const [mapActive, setMapActive] = useState(false)
-  // Fullscreen expand -- see CollectionPoints.jsx's own fullscreen.
-  const [fullscreen, setFullscreen] = useState(false)
-  // Map fills the remaining viewport height -- see CollectionPoints.jsx's
-  // own mapFillHeight for the full rationale.
-  const [mapFillHeight, setMapFillHeight] = useState(500)
-  const mapFrameRef = useRef(null)
-  const mapRef = useRef(null)
-  const mapElRef = useRef(null)
-  const markersRef = useRef([])
-  // The one trajectory line currently drawn (from clicking a transporter's
-  // marker) -- at most one at a time, cleared whenever markers are
-  // re-rendered or another marker is clicked, never left stacking up.
-  const routeLineRef = useRef(null)
+  const [loading, setLoading] = useState(true)
 
-  // Debounced so typing doesn't fire a request on every keystroke.
   useEffect(() => {
     const timer = setTimeout(() => setSearch(searchInput.trim()), 300)
     return () => clearTimeout(timer)
   }, [searchInput])
 
-  const load = useCallback(async () => {
+  // Couriers' positions, refreshed in place.
+  useEffect(() => {
+    let cancelled = false
+    const load = () =>
+      api('/pickups/live-locations/')
+        .then((data) => !cancelled && setLive(data || []))
+        .catch(() => {}) // offline: the next tick retries
+        .finally(() => !cancelled && setLoading(false))
+    load()
+    const timer = setInterval(load, LIVE_REFRESH_INTERVAL_MS)
+    return () => {
+      cancelled = true
+      clearInterval(timer)
+    }
+  }, [location.key])
+
+  // Every delivery matching the filters (for the "no position" list).
+  useEffect(() => {
+    let cancelled = false
     const params = new URLSearchParams()
     if (filterWilaya) params.set('wilaya', filterWilaya)
     if (search) params.set('search', search)
-    const qs = params.toString() ? `?${params.toString()}` : ''
-    const data = await api(`/pickups/${qs}`)
-    setPickups(data.results || data)
-  }, [filterWilaya, search])
+    const qs = params.toString() ? `?${params}` : ''
+    api(`/pickups/${qs}`)
+      .then((data) => !cancelled && setPickups(data?.results || data || []))
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [filterWilaya, search, location.key])
 
-  const hasActiveFilters = !!(filterWilaya || filterPosition || searchInput)
-  const resetFilters = () => {
-    setFilterWilaya('')
-    setFilterPosition('')
-    setSearchInput('')
-  }
-
-  useEffect(() => {
-    load().catch(() => {}) // offline/network failure -- offline banner already informs the user
-  }, [load])
-
-  // fitView: true only for the initial load of a map session -- background
-  // refresh ticks pass false so they update marker positions in place
-  // without moving the map the viewer is currently looking at.
-  const renderLiveLocations = useCallback(
-    async (fitView) => {
-      if (!mapRef.current) {
-        mapRef.current = L.map(mapElRef.current, {
-          attributionControl: false,
-          center: [28.0, 2.6],
-          zoom: 5,
-          fadeAnimation: false,
-          zoomAnimation: false,
-          markerZoomAnimation: false,
-          // Starts fully "asleep" -- see mapActive above -- so a single
-          // finger over the map scrolls the page like anything else on
-          // it. activateMap enables all of these once explicitly tapped.
-          dragging: false,
-          touchZoom: false,
-          scrollWheelZoom: false,
-          doubleClickZoom: false,
-          boxZoom: false,
-        })
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          attribution: '&copy; OpenStreetMap contributors',
-          maxZoom: 19,
-          updateWhenZooming: false,
-          keepBuffer: 1,
-        }).addTo(mapRef.current)
-        L.control.attribution({ prefix: false }).addTo(mapRef.current)
-        // See CollectionPoints.jsx's own equivalent registration -- wires
-        // up any popup's "view photo" link to the shared PhotoLightbox
-        // without closing the popup underneath it.
-        attachMapPopupBehavior(mapRef.current, (photoUrl) => setLightboxPhoto(photoUrl), activateMap)
-        // Also wired from the overlay's own ref callback (for when it
-        // remounts later, e.g. deactivate/reactivate) -- done here too
-        // since on first mount that ref callback can fire before this
-        // effect has actually created the map yet (mapRef.current still
-        // null at that point), which would otherwise silently skip wiring
-        // it the very first time the page loads.
-        attachMapTapToActivate(mapRef.current, activateMap)
-      }
-      
-      let locations
-      const showInitialLoader = !mapPointsLoadedRef.current
-      if (showInitialLoader) setMapPointsLoading(true)
-      try {
-        locations = await api('/pickups/live-locations/')
-      } catch {
-        return // offline/network failure -- silently skip this refresh, the next tick retries
-      } finally {
-        mapPointsLoadedRef.current = true
-        if (showInitialLoader) setMapPointsLoading(false)
-      }
-      // Updated regardless of viewMode -- the list view's "no position"
-      // flagging (below) needs this even when the map itself isn't mounted.
-      // Always computed from the full, unfiltered fetch (never invented
-      // from a filtered subset) since it's also this page's one source of
-      // truth for "does this pickup have a position at all".
-      setLocatedPickupIds(new Set(locations.map((l) => l.pickup_id)))
-      if (!mapElRef.current) return
-      // Every entry here inherently has a position (that's what this
-      // endpoint returns) -- filterPosition === 'without' means "only show
-      // transporters without one", which this map can't place individual
-      // pins for (no coordinates to place them at), so it shows none here
-      // and lets the unknown-position bubble below carry that count instead.
-      const locationsToRender = filterPosition === 'without' ? [] : locations
-      const map = mapRef.current
-      markersRef.current.forEach((m) => map.removeLayer(m))
-      // A marker click draws a fresh trajectory -- clear any leftover one
-      // from a previously clicked marker instead of stacking lines up.
-      if (routeLineRef.current) {
-        map.removeLayer(routeLineRef.current)
-        routeLineRef.current = null
-      }
-      // Same truck-on-white-circle marker as the per-need live map
-      // (NeedDetail.jsx) -- reads as "a delivery" at a glance, distinct
-      // from any other pin style in the app. Green (this app's own accent,
-      // see TRUCK_GREEN above) for both variants; the departure-only one
-      // (is_live false -- a declared starting point, not an actual live
-      // ping) stays visually muted/dashed via CSS (.pickup-marker-pin-
-      // departure) so it's never mistaken for a currently-tracked courier.
-      const truckSvg =
-        '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="1.9" ' +
-        'stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 7.5h11v8h-11Z"/><path d="M13.5 11h4l3 2.8v1.7h-7Z"/>' +
-        '<circle cx="7" cy="18" r="1.7"/><circle cx="17" cy="18" r="1.7"/><path d="M2.5 16h2.8M15.5 16h.2M18.7 16H21"/></svg>'
-      const truckIcon = L.divIcon({
-        className: 'pickup-marker-icon',
-        html: `<span class="pickup-marker-pin">${truckSvg.replace('{color}', TRUCK_GREEN)}</span>`,
-        iconSize: [30, 30],
-        iconAnchor: [15, 15],
-      })
-      const departureIcon = L.divIcon({
-        className: 'pickup-marker-icon pickup-marker-departure',
-        html: `<span class="pickup-marker-pin pickup-marker-pin-departure">${truckSvg.replace('{color}', TRUCK_GREEN)}</span>`,
-        iconSize: [30, 30],
-        iconAnchor: [15, 15],
-      })
-      markersRef.current = locationsToRender.map((loc) => {
-        // Exactly one of the need_*/collection_point_* pairs is populated,
-        // matching whichever this delivery is headed to/from -- see
-        // PickupViewSet.live_locations.
-        const destHref = loc.need_id ? `/needs/${loc.need_id}` : `/collection-points/${loc.collection_point_id}`
-        const destLabel = loc.need_id ? `${loc.need_title} — ${loc.need_wilaya_name}` : `${loc.collection_point_name} — ${loc.collection_point_wilaya_name}`
-        const marker = L.marker([loc.latitude, loc.longitude], { icon: loc.is_live ? truckIcon : departureIcon }).addTo(map)
-        const statusLine = loc.is_live
-          ? t('deliveries.liveMarkerLabel')
-          : t('deliveries.departureMarkerLabel') + (loc.departure_description ? ` (${loc.departure_description})` : '')
-        const photoBtn = flyerPopupButtonHtml(t, loc.photo)
-        marker.bindPopup(
-          `<div class="deliveries-map-popup"><strong>${loc.responder_name}</strong><br>${t('deliveries.bringing')}: ${loc.content_brought || '—'}<br>` +
-            `<em>${statusLine}</em><br><a href="/pickups/${loc.pickup_id}">${t('deliveries.viewTransporterDetail')}</a>` +
-            `<br><a href="${destHref}">${destLabel}</a>` +
-            (photoBtn ? `<br>${photoBtn}` : '') +
-            `</div>`
-        )
-        // Trajectory to the destination on click -- silently skipped (no
-        // line, no error, the rest of the marker/popup still works) when
-        // the destination has no exact GPS coordinates, per spec: a need
-        // reported with only wilaya+description has none.
-        marker.on('click', () => {
-          if (routeLineRef.current) {
-            map.removeLayer(routeLineRef.current)
-            routeLineRef.current = null
-          }
-          if (loc.destination_latitude == null || loc.destination_longitude == null) return
-          const from = [loc.latitude, loc.longitude]
-          const dest = [loc.destination_latitude, loc.destination_longitude]
-          // Basic straight line first (always available, no network
-          // dependency), replaced by the real road-following route (same
-          // OSRM helper as NeedDetail's own live map) once/if it resolves.
-          const straight = L.polyline([from, dest], { color: ROUTE_COLOR, weight: 3, dashArray: '4,8' }).addTo(map)
-          routeLineRef.current = straight
-          // The map's zoom up to this point only ever framed the courier
-          // markers themselves (see fitView below), which can leave the
-          // destination well outside the visible area once a trajectory is
-          // drawn -- zoom out just enough to fit both ends of the line.
-          map.fitBounds(L.latLngBounds([from, dest]).pad(0.3), { maxZoom: 13, animate: false })
-          requestAnimationFrame(() => map._sosdzCenterOpenPopup?.())
-          fetchDrivingRoute(from, dest)
-            .then((route) => {
-              if (routeLineRef.current !== straight) return // superseded by another click/re-render meanwhile
-              map.removeLayer(straight)
-              routeLineRef.current = L.polyline(route.coordinates, { color: ROUTE_COLOR, weight: 4, dashArray: '1,10', lineCap: 'round' }).addTo(map)
-              // The straight-line fit above already frames both endpoints. Once the
-
-              // road route arrives, replace only the line geometry: fitting the map a
-
-              // second time here makes the open popup jump/flicker when the routing
-
-              // request completes a moment after the user's tap.
-            })
-            .catch(() => {
-              /* routing service unreachable -- the basic straight line drawn above stays as-is */
-            })
-        })
-        return marker
-      })
-      if (fitView) {
-        if (locationsToRender.length > 1) {
-          map.fitBounds(L.latLngBounds(locationsToRender.map((l) => [l.latitude, l.longitude])).pad(0.3), { maxZoom: 13, animate: false })
-        } else if (locationsToRender.length === 1) {
-          map.setView([locationsToRender[0].latitude, locationsToRender[0].longitude], 13)
-        } else {
-          map.setView([28.0, 2.6], 5) // whole-country fallback, nothing to frame yet
-        }
-      }
+  const wilayaName = wilayas.find((w) => String(w.id) === String(filterWilaya))?.name
+  const matches = useCallback(
+    (fields, place) => {
+      if (wilayaName && place !== wilayaName) return false
+      if (!search) return true
+      const q = search.toLowerCase()
+      return fields.some((f) => (f || '').toLowerCase().includes(q))
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [t, filterPosition]
+    [wilayaName, search]
   )
 
-  useEffect(() => {
-    // fitView only makes sense once there's an actual map to fit -- in
-    // list view this call still runs (to keep locatedPickupIds fresh for
-    // the "no position" flagging below), it just no-ops on the map itself
-    // since renderLiveLocations bails out early when mapElRef isn't mounted.
-    renderLiveLocations(viewMode === 'map')
-    const interval = setInterval(() => renderLiveLocations(false), LIVE_REFRESH_INTERVAL_MS)
-    return () => clearInterval(interval)
-  }, [viewMode, renderLiveLocations])
+  const items = useMemo(
+    () =>
+      live
+        .filter((l) => l.latitude != null && matches([l.responder_name, l.content_brought, l.need_title, l.collection_point_name], l.need_wilaya_name || l.collection_point_wilaya_name))
+        .map((l) => ({ id: l.pickup_id, lat: l.latitude, lng: l.longitude, exact: true, raw: l })),
+    [live, matches]
+  )
+  const offMapItems = useMemo(() => {
+    const located = new Set(live.map((l) => l.pickup_id))
+    return pickups
+      .filter((p) => p.status === 'en_route' && !located.has(p.id))
+      .map((p) => ({
+        id: p.id,
+        lat: null,
+        lng: null,
+        raw: {
+          pickup_id: p.id,
+          responder_name: p.organization_or_person_name || p.responder_name,
+          content_brought: p.content_brought,
+          need_title: p.need_title,
+          need_wilaya_name: p.need_wilaya_name,
+          collection_point_name: p.collection_point_name,
+          collection_point_wilaya_name: p.collection_point_wilaya_name,
+          noPosition: true,
+        },
+      }))
+  }, [pickups, live])
 
-  const recenterOnMe = async () => {
-    const map = mapRef.current
-    if (!map) return
-    const pos = await getCurrentPosition({
-      maximumAge: 30000,
-      timeout: 3000,
-      enableHighAccuracy: false,
-    })
-    // See CollectionPoints.jsx's own recenterOnMe -- an explicit tap
-    // deserves feedback on failure.
-    if (!pos) {
-      showAlert(t('map.locationUnavailable'))
-      return
-    }
-    map.fitBounds(L.latLng(pos[0], pos[1]).toBounds(RECENTER_BOX_METERS))
-  }
-
-  // Switching to "Liste" unmounts the map div -- tear down the Leaflet
-  // instance so switching back to "Carte" builds a fresh one instead of
-  // pointing at a stale, now-detached DOM node (see NeedsList.jsx for the
-  // same fix, same reason).
-  useEffect(() => {
-    if (viewMode === 'map' || !mapRef.current) return
-    mapRef.current.remove()
-    mapRef.current = null
-    markersRef.current = []
-    routeLineRef.current = null
-    setMapActive(false)
-    setFullscreen(false)
-  }, [viewMode])
-
-  // See CollectionPoints.jsx's own activateMap/deactivateMap/
-  // enterFullscreen/exitFullscreen for the full rationale.
-  const activateMap = () => {
-    const map = mapRef.current
-    if (!map) return
-    map.dragging.enable()
-    map.touchZoom.enable()
-    map.scrollWheelZoom.enable()
-    map.doubleClickZoom.enable()
-    map.boxZoom.enable()
-    setMapActive(true)
-  }
-
-  const deactivateMap = () => {
-    const map = mapRef.current
-    if (!map) return
-    map.dragging.disable()
-    map.touchZoom.disable()
-    map.scrollWheelZoom.disable()
-    map.doubleClickZoom.disable()
-    map.boxZoom.disable()
-    setMapActive(false)
-  }
-
-  const enterFullscreen = () => {
-    activateMap()
-    setFullscreen(true)
-
-    // Use the native Fullscreen API when the browser supports it. The CSS
-    // fullscreen class remains the fallback for browsers that reject or do
-    // not expose requestFullscreen (notably some iOS contexts).
-    const frame = mapFrameRef.current
-    if (frame?.requestFullscreen) {
-      frame.requestFullscreen({ navigationUI: 'hide' }).catch(() => {
-        // CSS fallback is already active through setFullscreen(true).
-      })
-    }
-  }
-  const exitFullscreen = () => {
-    const frame = mapFrameRef.current
-    if (document.fullscreenElement === frame) {
-      const exitPromise = document.exitFullscreen?.()
-      exitPromise?.catch(() => {})
-    }
-    setFullscreen(false)
-    deactivateMap()
-  }
-
-  // Keep React state synchronized with browser fullscreen (including the
-  // Android back/escape gesture) and refresh Leaflet after the frame changes
-  // size. Leaflet documents invalidateSize() as the required call after a
-  // map container is resized dynamically.
-  useEffect(() => {
-    const onFullscreenChange = () => {
-      const nativeFullscreen = document.fullscreenElement === mapFrameRef.current
-      setFullscreen(nativeFullscreen)
-      if (!nativeFullscreen) deactivateMap()
-
-      requestAnimationFrame(() => {
-        mapRef.current?.invalidateSize({ pan: false, animate: false })
-        requestAnimationFrame(() => mapRef.current?.invalidateSize({ pan: false, animate: false }))
-      })
-    }
-
-    document.addEventListener('fullscreenchange', onFullscreenChange)
-    return () => document.removeEventListener('fullscreenchange', onFullscreenChange)
+  const pin = useCallback((x) => ({ html: TRUCK_WHITE, color: x.raw.is_live ? TRUCK_GREEN : '#8a99a6', blink: x.raw.is_live }), [])
+  const card = useCallback(
+    (x) => {
+      const l = x.raw
+      const dest = l.need_title ? `${l.need_title} — ${l.need_wilaya_name}` : l.collection_point_name ? `${l.collection_point_name} — ${l.collection_point_wilaya_name}` : ''
+      return {
+        to: `/pickups/${l.pickup_id}`,
+        title: l.responder_name,
+        subtitle: dest,
+        text: l.content_brought ? `${t('deliveries.bringing')} : ${l.content_brought}` : '',
+        image: l.photo,
+        iconHtml: TRUCK_BIG,
+        badges: [
+          l.noPosition
+            ? { text: t('deliveries.unknownPosition'), tone: 'grey' }
+            : l.is_live
+              ? { text: t('deliveries.live'), tone: 'green' }
+              : { text: l.departure_description ? `${t('deliveries.departure')} (${l.departure_description})` : t('deliveries.departure'), tone: 'grey' },
+        ],
+      }
+    },
+    [t]
+  )
+  // Courier -> destination road, when the destination has exact GPS.
+  const onSelect = useCallback((x, overlay) => {
+    const l = x.raw
+    if (l.destination_latitude == null || l.destination_longitude == null) return
+    drawRouteOn(overlay, [x.lat, x.lng], [l.destination_latitude, l.destination_longitude], ROUTE_COLOR, 800)
   }, [])
 
-  useEffect(() => {
-    const map = mapRef.current
-    if (!map) return
-    const rafId = requestAnimationFrame(() => map.invalidateSize())
-    return () => cancelAnimationFrame(rafId)
-  }, [fullscreen, mapFillHeight])
+  const chips = [
+    wilayaName && { key: 'wilaya', label: wilayaName, clear: () => setFilterWilaya('') },
+    search && { key: 'search', label: `🔎 ${search}`, clear: () => setSearchInput('') },
+  ].filter(Boolean)
 
-  // Airbnb-style "map fills the screen" -- see CollectionPoints.jsx's own
-  // equivalent effect for the full rationale.
-  useEffect(() => {
-    if (viewMode !== 'map' || fullscreen) return
-    const el = mapFrameRef.current
-    if (!el) return
-    const BOTTOM_NAV_CLEARANCE = 90
-    const MIN_HEIGHT = 160
-    const recompute = () => {
-      const top = el.getBoundingClientRect().top
-      setMapFillHeight(Math.max(MIN_HEIGHT, Math.round(window.innerHeight - top - BOTTOM_NAV_CLEARANCE)))
-    }
-    recompute()
-    window.addEventListener('resize', recompute)
-    return () => window.removeEventListener('resize', recompute)
-  }, [viewMode, fullscreen, filtersOpen])
-
-  useEffect(() => {
-    if (!fullscreen) return
-    const previousOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.body.style.overflow = previousOverflow
-    }
-  }, [fullscreen])
+  const filterPanel = () => (
+    <>
+      <input type="search" value={searchInput} onChange={(e) => setSearchInput(e.target.value)} placeholder={t('deliveries.searchPlaceholder')} aria-label={t('deliveries.searchPlaceholder')} />
+      <WilayaCombobox wilayas={wilayas} value={filterWilaya} onChange={setFilterWilaya} placeholder={t('needsList.filterByWilaya')} emptyLabel={t('needsList.all')} />
+      <p className="sx-filters-note">{t('deliveries.liveMapNote')}</p>
+    </>
+  )
 
   return (
-    <section className="needs-page deliveries-page needs-page-map-fill">
-      {/* Starting a delivery (previously two buttons in a second toolbar
-          right here) is now reachable from the header's own truck
-          QuickActions menu (App.jsx) -- same two destinations
-          (/needs, /collection-points), so this page doesn't need to
-          duplicate them in its own toolbar too. */}
-      <div className="toolbar toolbar-compact">
-        <button type="button" className="filters-toggle" aria-expanded={filtersOpen} onClick={() => setFiltersOpen((v) => !v)}>
-          ☰ {t('common.filters')}
-          {hasActiveFilters && <span className="filters-badge" aria-hidden="true" />}
-        </button>
-        <div className="view-toggle">
-          <button className={viewMode === 'list' ? 'active' : ''} onClick={() => setViewMode('list')}>
-            {t('needsList.list')}
-          </button>
-          <button className={viewMode === 'map' ? 'active' : ''} onClick={() => setViewMode('map')}>
-            {t('needsList.map')}
-          </button>
-        </div>
-      </div>
-      {filtersOpen && (
-        <div className="filters-panel">
-          {/* Transporter info -- name/first name/full name/phone/email all
-              searched together server-side (PickupViewSet.get_queryset). */}
-          <input
-            type="search"
-            className="search-input"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            placeholder={t('deliveries.searchPlaceholder')}
-          />
-          {/* Destination info -- wilaya here is the destination's wilaya
-              (need/collection point), not the courier's current position,
-              same as the search box above already matching destination
-              name/phone too (see PickupViewSet.get_queryset). */}
-          <label>
-            {t('needsList.filterByWilaya')}
-            <select value={filterWilaya} onChange={(e) => setFilterWilaya(e.target.value)}>
-              <option value="">{t('needsList.all')}</option>
-              {activeCampaignWilayas.map((w) => (
-                <option key={w.id} value={w.id}>
-                  {w.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            {t('deliveries.filterByPosition')}
-            <select value={filterPosition} onChange={(e) => setFilterPosition(e.target.value)}>
-              <option value="">{t('needsList.all')}</option>
-              <option value="with">{t('deliveries.positionWith')}</option>
-              <option value="without">{t('deliveries.positionWithout')}</option>
-            </select>
-          </label>
-          <button type="button" className="btn" onClick={resetFilters}>
-            {t('deliveries.resetFilters')}
-          </button>
-        </div>
-      )}
-
-      {viewMode === 'list' && (
-        <>
-          {filteredPickups.length === 0 && <p>{t('deliveries.noDeliveries')}</p>}
-          <div className="needs-list">
-            {filteredPickups.map((p) => {
-              const isCollectionPoint = !!p.collection_point
-              const destinationName = isCollectionPoint ? p.collection_point_name : p.need_title
-              const destinationWilaya = isCollectionPoint ? p.collection_point_wilaya_name : p.need_wilaya_name
-              const destinationTypeLabel = isCollectionPoint ? t('needsList.collectionPointLabel') : t('takeCharge.resourceTypeNeed')
-              return (
-                // Card's own click target is the transporter's own detail
-                // page (PickupDetail.jsx via /pickups/:id) -- previously
-                // this linked straight to the destination (need/collection
-                // point), which made every card read as "a listing of
-                // destinations" rather than "a list of transporters" (the
-                // destination's own name was the card's bold headline).
-                // PickupDetail itself still offers a "view destination"
-                // link for whoever wants to go there instead.
-                <Link className="need-card" to={`/pickups/${p.id}`} key={p.id}>
-                  <PhotoThumb src={p.photo} alt={p.organization_or_person_name || p.responder_name} onOpen={setLightboxPhoto} />
-                  <span className={`badge badge-status-${p.status}`}>{t(`status.${p.status}`)}</span>
-                  {/* pickupTokens only ever holds pickups created in this exact
-                      browser (see AppContext) -- lets someone who just took
-                      charge of a delivery instantly spot it again in this
-                      list instead of hunting for the need/collection point it
-                      came from. */}
-                  {!!pickupTokens[p.id] && <span className="badge badge-accent">{t('deliveries.yours')}</span>}
-                  {/* En route with neither a live ping nor a declared
-                      departure position -- explicitly flagged rather than
-                      just silently missing from the map, per the "never let
-                      a courier look located when they're not" rule. */}
-                  {p.status === 'en_route' && !locatedPickupIds.has(p.id) && (
-                    <span className="badge badge-muted">{t('deliveries.positionUnavailable')}</span>
-                  )}
-                  <h3>
-                    <IconTruck width={17} height={17} strokeWidth={1.9} className="truck-icon" />{' '}
-                    {p.organization_or_person_name || p.responder_name}
-                  </h3>
-                  {/* Once anonymized, responder_phone is already a masked
-                      value straight from the backend (e.g. "XXXXXXXXXX",
-                      see core/anonymization.py) -- real anonymization, not
-                      UI-layer hiding, so it's safe/expected to display as-is
-                      rather than needing an is_anonymized guard here. */}
-                  {p.responder_phone && <p className="status">{maskPhone(p.responder_phone)}</p>}
-                  {p.responder_type && RESPONDER_TYPE_LABEL_KEYS[p.responder_type] && (
-                    <p className="status">
-                      {t('deliveries.vehicle')}: {t(RESPONDER_TYPE_LABEL_KEYS[p.responder_type])}
-                    </p>
-                  )}
-                  {destinationName && (
-                    <p className="status">
-                      {t('deliveries.destination')} ({destinationTypeLabel}): {destinationName}
-                      {destinationWilaya ? ` — ${destinationWilaya}` : ''}
-                    </p>
-                  )}
-                  {p.content_brought && (
-                    <p className="status">
-                      {t('deliveries.bringing')}: {p.content_brought}
-                    </p>
-                  )}
-                  <p className="status">
-                    {t('deliveries.since')} {formatDate(p.pickup_date, i18n.language)}
-                  </p>
-                </Link>
-              )
-            })}
-          </div>
-        </>
-      )}
-
-      {viewMode === 'map' && (
-        <div className="map-wrap">
-          {/* Always shows the map itself -- couriers with a known position
-              (live or declared departure) get real markers, everyone else
-              en_route is represented by the single unknown-position-chip
-              bubble below, never a separate "nothing to show" message
-              standing in for the map. */}
-          <div
-            className={`map-frame${fullscreen ? ' map-frame-fullscreen' : ''}`}
-            ref={mapFrameRef}
-          >
-            <div id="deliveries-map" ref={mapElRef} style={{ height: '100%' }} />
-            {mapPointsLoading && (
-              <div className="map-points-loader" aria-live="polite" aria-label="Chargement des points">
-                <span className="map-points-loader-spinner" aria-hidden="true" />
-                <span>Chargement des points…</span>
-              </div>
-            )}
-            {!mapActive && !fullscreen && (
-              <div
-                className="map-activate-overlay map-activate-hint-only"
-              >
-                <span className="map-activate-hint">{t('map.tapToInteract')}</span>
-              </div>
-            )}
-            {mapActive && !fullscreen && (
-              <button type="button" className="map-deactivate-btn" onClick={deactivateMap}>
-                {t('map.exitMapInteraction')}
-              </button>
-            )}
-            
-            {!fullscreen && (
-              <button
-                type="button"
-                className="expand-btn"
-                onClick={enterFullscreen}
-                aria-label={t('map.viewFullscreen')}
-                title={t('map.viewFullscreen')}
-              >
-                <IconExpand width={18} height={18} />
-              </button>
-            )}
-            {fullscreen && (
-              <button type="button" className="exit-fullscreen-btn" onClick={exitFullscreen} aria-label={t('map.exitFullscreen')} title={t('map.exitFullscreen')}>
-                <IconClose width={20} height={20} />
-              </button>
-            )}
-            <button type="button" className="locate-btn" onClick={recenterOnMe} aria-label={t('map.recenterOnMe')} title={t('map.recenterOnMe')}>
-              <IconLocate width={18} height={18} />
-            </button>
-            {unknownPositionCount > 0 && (
-              <div className="unknown-position-chip">
-                <span className="unknown-position-pin">
-                  <IconTruck width={16} height={16} strokeWidth={1.9} />
-                  <span className="unknown-position-count">{unknownPositionCount}</span>
-                </span>
-                <span className="unknown-position-label">{t('deliveries.unknownPosition')}</span>
-              </div>
-            )}
-          </div>
-          <p className="legend-note">{t('deliveries.liveMapNote')}</p>
-        </div>
-      )}
-      <PhotoLightbox src={lightboxPhoto} onClose={() => setLightboxPhoto(null)} />
-    </section>
+    <ExploreMap
+      items={items}
+      loading={loading}
+      pin={pin}
+      card={card}
+      clusterColor={TRUCK_GREEN}
+      countLabel={(n) => t('deliveries.inArea', { count: n })}
+      emptyLabel={t('deliveries.noDeliveries')}
+      addButton={{ to: '/needs', label: t('deliveries.deliverShort') }}
+      filterPanel={filterPanel}
+      filterCount={chips.length}
+      chips={chips}
+      fitKey={`${filterWilaya}|${search}`}
+      emptyView={[[34.5, 3], 5]}
+      offMap={{ items: offMapItems, label: t('deliveries.noPositionChip') }}
+      onSelect={onSelect}
+      storageKey="deliveriesView"
+    />
   )
 }

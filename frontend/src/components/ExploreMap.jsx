@@ -75,7 +75,7 @@ function clusterItems(map, items) {
 
 // Zoomed all the way in, items on the very same spot are nudged apart on
 // screen so each pin stays tappable.
-const SPREAD_MIN_PX = 44
+const SPREAD_MIN_PX = 58
 function spreadMarkers(markers, map) {
   const pos = markers.map((m) => map.latLngToContainerPoint(m.getLatLng()))
   const off = markers.map(() => ({ x: 0, y: 0 }))
@@ -175,6 +175,7 @@ export default function ExploreMap({
   onSelect, // (item, overlay, map) -- e.g. draw a route on `overlay`
   storageKey,
   minZoom,
+  onMapReady, // (map) -- e.g. to fly to a searched place
 }) {
   const { t } = useTranslation()
   const { showAlert } = useDialog()
@@ -263,6 +264,11 @@ export default function ExploreMap({
   const overlayRef = useRef(null)
   const meRef = useRef(null)
   const groupsRef = useRef([])
+  const bubblesRef = useRef([])
+  // Pins, clusters and bubbles landing on (almost) the same spot -- e.g. a
+  // wilaya's "approximate position" bubble over the pins around its
+  // centre -- are nudged apart on screen, at every zoom.
+  const spreadAll = (map) => spreadMarkers([...groupsRef.current.map((g) => g.marker), ...bubblesRef.current], map)
   const fittedRef = useRef('')
   const quietMoveRef = useRef(false) // a pan we made for the carousel: keep its order
   const freshViewRef = useRef(false) // the user moved the map: restart the carousel
@@ -279,7 +285,9 @@ export default function ExploreMap({
   }, [fitKey])
   const [zoomTick, setZoomTick] = useState(0)
 
-  const refreshView = useCallback(() => {
+  // `fresh`: the user moved the map (the carousel starts over); a data
+  // refresh or the sheet moving keeps the current card.
+  const refreshView = useCallback((fresh = true) => {
     const map = mapRef.current
     if (!map) return
     // Only the part of the map not hidden under the phone's list sheet.
@@ -292,7 +300,7 @@ export default function ExploreMap({
       .map((x) => [x, center.distanceTo([x.lat, x.lng]) + (x.exact === false ? 1e7 : 0)])
       .sort((a, b) => a[1] - b[1])
       .map(([x]) => x.id)
-    freshViewRef.current = true
+    if (fresh) freshViewRef.current = true
     setViewIds(inView)
   }, [])
 
@@ -304,6 +312,7 @@ export default function ExploreMap({
     layerRef.current = L.layerGroup().addTo(map)
     overlayRef.current = L.layerGroup().addTo(map)
     mapRef.current = map
+    onMapReady?.(map)
     map.on('zoomend', () => setZoomTick((n) => n + 1))
     // A tap on the map itself (not a pin) puts the card away.
     map.on('click', () => {
@@ -358,7 +367,7 @@ export default function ExploreMap({
       g.marker.setZIndexOffset(on ? 1500 : 0)
       moved = true
     })
-    if (moved && map && map.getZoom() > CLUSTER_UNTIL_ZOOM) spreadMarkers(groupsRef.current.filter((x) => x.single).map((x) => x.marker), map)
+    if (moved && map) spreadMarkers([...groupsRef.current.map((x) => x.marker), ...bubblesRef.current], map)
   }, [clusterColor])
   useEffect(() => lightMarkers(), [lit, lightMarkers])
 
@@ -393,10 +402,11 @@ export default function ExploreMap({
     // No exact position: one bubble per group (wilaya, country...), on its
     // shared spot; tapping it lists that group's items.
     const byGroup = new Map()
+    const bubbleMarkers = []
     grouped.forEach((x) => byGroup.set(x.group, [...(byGroup.get(x.group) || []), x]))
     byGroup.forEach((members, key) => {
       const b = bubbleRef.current ? bubbleRef.current(members) : { html: `<span class="xp-bubble">${members.length}</span>`, label: '' }
-      L.marker([members[0].lat, members[0].lng], {
+      const bubbleMarker = L.marker([members[0].lat, members[0].lng], {
         icon: L.divIcon({ className: 'xp-marker-icon', html: b.html, iconSize: [64, 64], iconAnchor: [32, 32] }),
         zIndexOffset: 2000,
         title: b.label || '',
@@ -407,11 +417,13 @@ export default function ExploreMap({
           if (!window.matchMedia?.(WIDE_QUERY).matches) setSheet('half')
         })
         .addTo(layer)
+      bubbleMarkers.push(bubbleMarker)
     })
     groupsRef.current = groups
-    if (map.getZoom() > CLUSTER_UNTIL_ZOOM) spreadMarkers(groups.filter((g) => g.single).map((g) => g.marker), map)
+    bubblesRef.current = bubbleMarkers
+    spreadAll(map)
     lightMarkers()
-    refreshView()
+    refreshView(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps -- pin/bubble via refs
   }, [located, grouped, zoomTick, refreshView, lightMarkers, clusterColor])
 
@@ -440,7 +452,7 @@ export default function ExploreMap({
   useEffect(() => {
     if (coverRef.current === cover) return
     coverRef.current = cover
-    refreshView()
+    refreshView(false)
   }, [cover, refreshView])
 
   // Refit when the filters (or the focused item) change -- not on every
@@ -465,7 +477,8 @@ export default function ExploreMap({
         /* nothing saved */
       }
     }
-    const pad = { paddingBottomRight: [0, coverRef.current] }
+    // Room for the floating bar / buttons, and the list sheet below.
+    const pad = { paddingTopLeft: [30, 110], paddingBottomRight: [60, coverRef.current + 30] }
     const points = items.filter((x) => x.lat != null).map((x) => [x.lat, x.lng])
     if (focused?.lat != null) {
       map.setView([focused.lat, focused.lng], focused.exact === false ? 11 : 16)
@@ -582,10 +595,18 @@ export default function ExploreMap({
   const allChips = [
     ...chips,
     groupOnly && { key: '_group', label: groupOnly.offMap ? offMap?.label : groupOnly.label, clear: () => setGroupOnly(null) },
-    !groupOnly && offMap?.items?.length > 0 && { key: '_offmap', label: `${offMap.label} (${offMap.items.length})`, open: () => setGroupOnly({ offMap: true }) },
+    !groupOnly &&
+      offMap?.items?.length > 0 && {
+        key: '_offmap',
+        label: `${offMap.label} (${offMap.items.length})`,
+        open: () => {
+          setGroupOnly({ offMap: true })
+          if (!wide) setSheet('half')
+        },
+      },
   ].filter(Boolean)
 
-  const headLabel = loading ? t('common.loading') : countLabel(shown.length)
+  const headLabel = loading ? t('common.loading') : groupOnly?.offMap ? `${offMap?.label} (${shown.length})` : countLabel(shown.length)
   const empty = !loading && !shown.length && (
     <div className="sx-empty">
       <span>{items.length ? t('explore.noneInArea') : emptyLabel}</span>

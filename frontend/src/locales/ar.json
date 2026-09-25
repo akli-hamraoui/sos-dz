@@ -229,7 +229,9 @@
     "noLocationBubbleLabel": "بدون تحديد الموقع",
     "playAudio": "الاستماع إلى التسجيل",
     "stopAudio": "إيقاف",
-    "noGeographicPosition": "بدون موقع جغرافي"
+    "noGeographicPosition": "بدون موقع جغرافي",
+    "inArea_one": "{{count}} نداء هنا",
+    "inArea_other": "{{count}} نداءات هنا"
   },
   "help": {
     "instructions": "الرجاء اختيار نقطة تجميع أو احتياج للمساعدة فيه على الخريطة، أو استخدام القائمة أو الفلاتر.",
@@ -398,7 +400,10 @@
     "socialLinks": "وسائل التواصل الاجتماعي",
     "visitSocial": "عرض على {{network}}",
     "addViaFlyer": "+ إضافة عبر منشور",
-    "countryBubbleTitle": "نقاط التجميع — {{country}}"
+    "countryBubbleTitle": "نقاط التجميع — {{country}}",
+    "inArea_one": "نقطة جمع واحدة هنا",
+    "inArea_other": "{{count}} نقاط جمع هنا",
+    "addShort": "إضافة"
   },
   "submitFlyer": {
     "title": "إضافة نقطة تجميع من منشور",
@@ -457,7 +462,10 @@
     "country": "البلد",
     "exactPositionRequired": "يلزم تحديد موقع دقيق (عبر البحث عن مكان أو \"استخدام موقعي\") لنقطة دولية.",
     "positionInAlgeria": "هذا الموقع داخل الجزائر. يرجى استخدام صفحة نقاط التجميع الوطنية بدلاً من ذلك.",
-    "positionInAlgeriaLink": "إنشاء نقطة تجميع في الجزائر"
+    "positionInAlgeriaLink": "إنشاء نقطة تجميع في الجزائر",
+    "inArea_one": "نقطة جمع واحدة هنا",
+    "inArea_other": "{{count}} نقاط جمع هنا",
+    "countryFilter": "البلد"
   },
   "language": {
     "label": "اللغة",
@@ -485,7 +493,13 @@
     "filterByPosition": "تصفية حسب الموقع",
     "positionWith": "له موقع",
     "positionWithout": "بدون موقع",
-    "viewTransporterDetail": "عرض تفاصيل المتطوع"
+    "viewTransporterDetail": "عرض تفاصيل المتطوع",
+    "inArea_one": "موصّل واحد هنا",
+    "inArea_other": "{{count}} موصّلين هنا",
+    "noPositionChip": "توصيلات بدون موقع",
+    "live": "مباشر",
+    "departure": "نقطة انطلاق مصرّح بها",
+    "deliverShort": "توصيل"
   },
   "quickActions": {
     "create": "تجميع",

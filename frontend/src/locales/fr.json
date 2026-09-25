@@ -229,7 +229,9 @@
     "noLocationBubbleLabel": "Sans localisation",
     "playAudio": "Écouter l'audio",
     "stopAudio": "Arrêter",
-    "noGeographicPosition": "Pas de position géographique"
+    "noGeographicPosition": "Pas de position géographique",
+    "inArea_one": "{{count}} SOS ici",
+    "inArea_other": "{{count}} SOS ici"
   },
   "help": {
     "instructions": "Veuillez choisir sur la carte un point de collecte ou un SOS à aider, ou utiliser la liste ou les filtres.",
@@ -398,7 +400,10 @@
     "socialLinks": "Réseaux sociaux",
     "visitSocial": "Voir sur {{network}}",
     "addViaFlyer": "+ Ajouter à partir d'un flyer",
-    "countryBubbleTitle": "Points de collecte — {{country}}"
+    "countryBubbleTitle": "Points de collecte — {{country}}",
+    "inArea_one": "{{count}} point de collecte ici",
+    "inArea_other": "{{count}} points de collecte ici",
+    "addShort": "Ajouter"
   },
   "submitFlyer": {
     "title": "Ajouter un point de collecte à partir d'un flyer",
@@ -457,7 +462,10 @@
     "country": "Pays",
     "exactPositionRequired": "Une position exacte (via la recherche de lieu ou « Utiliser ma position ») est obligatoire pour un point international.",
     "positionInAlgeria": "Cette position se trouve en Algérie. Merci d'utiliser la page nationale des points de collecte.",
-    "positionInAlgeriaLink": "Créer un point de collecte en Algérie"
+    "positionInAlgeriaLink": "Créer un point de collecte en Algérie",
+    "inArea_one": "{{count}} point de collecte ici",
+    "inArea_other": "{{count}} points de collecte ici",
+    "countryFilter": "Pays"
   },
   "language": {
     "label": "Langue",
@@ -485,7 +493,13 @@
     "filterByPosition": "Filtrer par position",
     "positionWith": "Avec position",
     "positionWithout": "Sans position",
-    "viewTransporterDetail": "Voir les détails du transporteur"
+    "viewTransporterDetail": "Voir les détails du transporteur",
+    "inArea_one": "{{count}} livreur ici",
+    "inArea_other": "{{count}} livreurs ici",
+    "noPositionChip": "Livraisons sans position",
+    "live": "En direct",
+    "departure": "Départ déclaré",
+    "deliverShort": "Livrer"
   },
   "quickActions": {
     "create": "Collecte",

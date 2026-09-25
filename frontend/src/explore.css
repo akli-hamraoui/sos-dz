@@ -150,3 +150,10 @@ body.sx-explore-page > #root footer,
 body.sx-explore-page footer { display: none; }
 /* Room under the last card for the floating "Carte" button. */
 .sx-sheet.is-full .sx-sheet-body { padding-bottom: 84px; }
+.xp-bubble b { font-size: 16px; }
+body.sx-explore-page main > .page-title { display: none; }
+/* An icon standing in for a missing photo keeps its own size. */
+.sx-thumb .sx-thumb-icon img, .sx-thumb .sx-thumb-icon svg { width: 46px; height: 46px; object-fit: contain; background: none; }
+.sx-thumb-badge img, .sx-thumb-badge svg { width: 16px; height: 16px; }
+.sx-filters-link { display: block; text-align: center; font-weight: 700; color: #1f5fbf; font-size: 14px; }
+.sx-filters-note { margin: 0; color: #5c6878; font-size: 12.5px; line-height: 1.35; }
