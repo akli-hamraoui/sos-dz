@@ -712,7 +712,7 @@
   font: inherit; font-size: 14px; font-weight: 700; white-space: nowrap; text-decoration: none; cursor: pointer;
 }
 .sx-pill.is-dark { background: #15213a; color: #fff; }
-.sx-pill.is-primary { margin-inline-start: auto; background: var(--signali, #1f5fbf); color: #fff; }
+.sx-pill.is-primary { margin-inline-start: auto; background: linear-gradient(135deg, #3b8cff, #1f4fa8); color: #fff; }
 .sx-pill.is-count { min-width: 0; flex-shrink: 1; justify-content: flex-start; overflow: hidden; text-overflow: ellipsis; font-weight: 600; color: #394556; }
 .sx-pill-count { display: grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 999px; background: var(--signali, #1f5fbf); color: #fff; font-size: 12px; }
 .sx-chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
