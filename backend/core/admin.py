@@ -26,6 +26,8 @@ from core.models import (
     Pickup,
     ProgressUpdate,
     RecoveryRequestProxy,
+    Signalement,
+    SignalementPhoto,
     SupportRequest,
     TranslationOverride,
     Wilaya,
@@ -328,6 +330,38 @@ class DeliveryPhotoAdmin(admin.ModelAdmin):
     list_display = ["id", "pickup", "moderation_status", "moderated_by", "created_at"]
     list_filter = ["moderation_status"]
     actions = [approve_media, reject_media]
+
+
+@admin.register(SignalementPhoto)
+class SignalementPhotoAdmin(admin.ModelAdmin):
+    list_display = ["id", "signalement", "moderation_status", "moderated_by", "created_at"]
+    list_filter = ["moderation_status"]
+    actions = [approve_media, reject_media]
+
+
+class SignalementPhotoInline(admin.TabularInline):
+    model = SignalementPhoto
+    extra = 0
+    fields = ["image", "moderation_status", "moderated_by"]
+
+
+def mark_signalement_resolved(modeladmin, request, queryset):
+    count = queryset.update(status=Signalement.STATUS_RESOLVED, resolved_at=timezone.now())
+    AuditLog.objects.create(admin_user=request.user, action="resolved signalements", target_description=f"{count} item(s)")
+    modeladmin.message_user(request, f"Marked {count} report(s) as resolved.")
+
+
+mark_signalement_resolved.short_description = "Mark selected reports as resolved"
+
+
+@admin.register(Signalement)
+class SignalementAdmin(admin.ModelAdmin):
+    list_display = ["id", "category", "wilaya", "address", "processing_status", "video_moderation_status", "confirmations_count", "fixed_reports_count", "status", "audit_creator_ip", "created_at"]
+    list_filter = ["category", "status", "processing_status", "video_moderation_status", "wilaya"]
+    search_fields = ["address", "commune", "description", "voice_transcript", "video_transcript", "audit_creator_ip"]
+    readonly_fields = ["access_token", "processing_error", "created_at", "last_modified_at", "audit_creator_ip", "audit_creator_country", "audit_editor_ip"]
+    inlines = [SignalementPhotoInline]
+    actions = [approve_video, reject_video, mark_signalement_resolved]
 
 
 def process_duplicate_merge(modeladmin, request, queryset):

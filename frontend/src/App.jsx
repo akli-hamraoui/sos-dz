@@ -26,6 +26,9 @@ import CollectionPointDetail from './pages/CollectionPointDetail'
 import InternationalCollectionPoints from './pages/InternationalCollectionPoints'
 import CreateInternationalCollectionPoint from './pages/CreateInternationalCollectionPoint'
 import Deliveries from './pages/Deliveries'
+import Signali from './pages/Signali'
+import Signalements from './pages/Signalements'
+import SignalementDetail from './pages/SignalementDetail'
 import BackButton from './components/BackButton'
 import Seo from './components/Seo'
 import {
@@ -33,6 +36,7 @@ import {
   IconBox,
   IconGlobe,
   IconTruck,
+  IconMegaphone,
   IconWarning,
   IconWifiOff,
   IconCheckCircle,
@@ -97,6 +101,8 @@ const PAGE_TITLE_KEYS = {
   '/international-collection-points': 'internationalCollectionPoints.navButton',
   '/international-collection-points/create': 'internationalCollectionPoints.createTitle',
   '/deliveries': 'nav.deliveries',
+  '/signali': 'signali.title',
+  '/signalements': 'nav.signalements',
   '/support': 'support.title',
   '/report-bug': 'reportBug.title',
   '/about': 'about.title',
@@ -151,6 +157,9 @@ function TopNavLinks({ isActive, isAdmin }) {
       </Link>
       <Link to="/deliveries" className={isActive('/deliveries') ? 'active' : ''}>
         {t('nav.deliveries')}
+      </Link>
+      <Link to="/signalements" className={isActive('/signalements') ? 'active' : ''}>
+        {t('nav.signalements')}
       </Link>
       <Link to="/create" className={isActive('/create') ? 'active' : ''}>
         {t('nav.iNeedHelp')}
@@ -279,6 +288,17 @@ function BottomNav() {
   const isActive = (path) => location.pathname === path
   return (
     <nav className="bottom-nav">
+      {/* Signali reports: first tab, on the far left (per request) -- the
+          volunteers/deliveries tab moved out of this bar to make room
+          (still reachable from the top menu). */}
+      <Link to="/signalements" className={location.pathname.startsWith('/signal') ? 'active' : ''}>
+        <span className="icon">
+          <IconMegaphone />
+          <MapIndicator />
+          {!!config.signalements_open_count && <span className="nav-badge">{formatBadgeCount(config.signalements_open_count)}</span>}
+        </span>
+        <span className="nav-label-offset">{t('nav.signalementsShort')}</span>
+      </Link>
       <Link to="/" className={isActive('/') ? 'active' : ''}>
         <span className="icon"><IconHome /></span>
         <span>{t('nav.home')}</span>
@@ -329,14 +349,6 @@ function BottomNav() {
           <br />
           {t('nav.internationalCollectionPointsLine2')}
         </span>
-      </Link>
-      <Link to="/deliveries" className={isActive('/deliveries') ? 'active' : ''}>
-        <span className="icon">
-          <IconTruck />
-          <MapIndicator shiftRight />
-          {!!config.deliveries_en_route_count && <span className="nav-badge">{formatBadgeCount(config.deliveries_en_route_count)}</span>}
-        </span>
-        <span className="nav-label-offset">{t('nav.deliveriesShort')}</span>
       </Link>
     </nav>
   )
@@ -467,6 +479,9 @@ export default function App() {
           <Route path="/international-collection-points" element={<InternationalCollectionPoints />} />
           <Route path="/international-collection-points/create" element={<CreateInternationalCollectionPoint />} />
           <Route path="/deliveries" element={<Deliveries />} />
+          <Route path="/signali" element={<Signali />} />
+          <Route path="/signalements" element={<Signalements />} />
+          <Route path="/signalements/:id" element={<SignalementDetail />} />
         </Routes>
       </main>
 

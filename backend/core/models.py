@@ -1019,8 +1019,8 @@ class ExtractedCollectionPoint(models.Model):
 
 
 class Comment(AuditMixin, models.Model):
-    """Usable on a Need, a CollectionPoint, or a Pickup (exactly one of the
-    three FKs is set). One level of replies only -- parent_comment_id must
+    """Usable on a Need, a CollectionPoint, a Pickup or a Signalement
+    (exactly one of the four FKs is set). One level of replies only -- parent_comment_id must
     itself have no parent."""
 
     CATEGORY_FIELD_INFO = "field_info"
@@ -1035,6 +1035,7 @@ class Comment(AuditMixin, models.Model):
     need = models.ForeignKey(Need, null=True, blank=True, on_delete=models.CASCADE, related_name="comments")
     collection_point = models.ForeignKey(CollectionPoint, null=True, blank=True, on_delete=models.CASCADE, related_name="comments")
     pickup = models.ForeignKey(Pickup, null=True, blank=True, on_delete=models.CASCADE, related_name="comments")
+    signalement = models.ForeignKey("Signalement", null=True, blank=True, on_delete=models.CASCADE, related_name="comments")
     parent_comment = models.ForeignKey("self", null=True, blank=True, on_delete=models.CASCADE, related_name="replies")
 
     author_name = models.CharField(max_length=200)
@@ -1097,3 +1098,131 @@ class TranslationOverride(AuditMixin, models.Model):
 
     def __str__(self):
         return f"[{self.locale}] {self.key}"
+
+
+# ---------------------------------------------------------------------------
+# Signali: citizen reports of public-space anomalies
+# ---------------------------------------------------------------------------
+
+def signalement_media_upload_path(instance, filename):
+    return _random_filename("signalement_media", filename)
+
+
+def signalement_photo_upload_path(instance, filename):
+    return _random_filename("signalement_photos", filename)
+
+
+class Signalement(AuditMixin, models.Model):
+    """An anonymous citizen report of a dangerous or broken spot in public
+    space (a hanging electric cable, a hole in the road...). Deliberately
+    not a Need: no campaign, no contact, no pickup -- just a place, at
+    least one photo or video, and an optional typed and/or spoken
+    description. Created immediately (the reporter gets their access
+    token without waiting) and then finished in the background by the
+    voice worker (core.signalements.process_signalement): NSFW moderation
+    of every photo/video and Whisper transcription of the voice note and
+    of the video's own soundtrack. Stays out of public lists until that
+    has run and at least one of its photos/video is approved."""
+
+    CATEGORY_ELECTRICITY = "electricity"
+    CATEGORY_ROAD = "road"
+    CATEGORY_LIGHTING = "lighting"
+    CATEGORY_WATER = "water"
+    CATEGORY_WASTE = "waste"
+    CATEGORY_SIGNAGE = "signage"
+    CATEGORY_OTHER = "other"
+    CATEGORY_CHOICES = [
+        (CATEGORY_ELECTRICITY, "Poteau / câble électrique dangereux"),
+        (CATEGORY_ROAD, "Trou / route dégradée"),
+        (CATEGORY_LIGHTING, "Éclairage public"),
+        (CATEGORY_WATER, "Fuite d'eau / égout"),
+        (CATEGORY_WASTE, "Déchets"),
+        (CATEGORY_SIGNAGE, "Signalisation"),
+        (CATEGORY_OTHER, "Autre"),
+    ]
+
+    POSITION_GPS = "gps"
+    POSITION_MANUAL = "manual"
+    POSITION_CHOICES = [(POSITION_GPS, "GPS"), (POSITION_MANUAL, "Manual address")]
+
+    PROCESSING_PENDING = "pending"
+    PROCESSING_READY = "ready"
+    PROCESSING_CHOICES = [(PROCESSING_PENDING, "Pending"), (PROCESSING_READY, "Ready")]
+
+    STATUS_NEW = "new"
+    STATUS_IN_REVIEW = "in_review"
+    STATUS_RESOLVED = "resolved"
+    STATUS_CANCELLED = "cancelled"
+    STATUS_CHOICES = [
+        (STATUS_NEW, "New"),
+        (STATUS_IN_REVIEW, "In review"),
+        (STATUS_RESOLVED, "Resolved"),
+        (STATUS_CANCELLED, "Cancelled"),
+    ]
+    OPEN_STATUSES = (STATUS_NEW, STATUS_IN_REVIEW)
+
+    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default=CATEGORY_OTHER)
+    wilaya = models.ForeignKey(Wilaya, on_delete=models.PROTECT, related_name="signalements")
+    commune = models.CharField(max_length=200, blank=True)
+    address = models.CharField(max_length=300, blank=True)
+    # Null only for a manual address typed without picking a map
+    # suggestion -- the map then falls back to the wilaya's centroid.
+    latitude = models.FloatField(null=True, blank=True)
+    longitude = models.FloatField(null=True, blank=True)
+    position_source = models.CharField(max_length=10, choices=POSITION_CHOICES, default=POSITION_GPS)
+
+    description = models.TextField(blank=True)
+    voice_file = models.FileField(upload_to=signalement_media_upload_path, null=True, blank=True)
+    video_file = models.FileField(upload_to=signalement_media_upload_path, null=True, blank=True)
+    # Pending until the background worker has scored it, same fail-closed
+    # policy as core.moderation: never public sight-unseen.
+    video_moderation_status = models.CharField(max_length=10, choices=Need.MODERATION_CHOICES, default=Need.MODERATION_PENDING)
+    video_moderated_by = models.CharField(max_length=10, choices=Need.MODERATED_BY_CHOICES, blank=True)
+    # Whisper output: the voice note and the video's soundtrack, kept
+    # apart from the reporter's own typed description.
+    voice_transcript = models.TextField(blank=True)
+    video_transcript = models.TextField(blank=True)
+
+    processing_status = models.CharField(max_length=10, choices=PROCESSING_CHOICES, default=PROCESSING_PENDING)
+    processing_error = models.CharField(max_length=500, blank=True)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=STATUS_NEW)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    # True when the reporter left "Autre" and the worker's local LLM picked
+    # the category from the description/transcripts instead.
+    category_suggested_by_ai = models.BooleanField(default=False)
+
+    # Other citizens passing by: "still there" / "it's been fixed". One vote
+    # per IP per report (see SignalementViewSet._vote). FIXED_REPORTS_TO_RESOLVE
+    # "fixed" votes close the report on their own; its reporter (access
+    # token, shown once as a code to copy) or an admin can change its
+    # status directly (see SignalementViewSet.manage). The reporter's IP
+    # is kept by AuditMixin (audit_creator_ip), like every other write.
+    FIXED_REPORTS_TO_RESOLVE = 3
+    confirmations_count = models.PositiveIntegerField(default=0)
+    fixed_reports_count = models.PositiveIntegerField(default=0)
+
+    access_token = models.CharField(max_length=32, unique=True, default=generate_token, editable=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_modified_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"#{self.pk} {self.get_category_display()} - {self.wilaya}"
+
+    def set_status(self, status):
+        self.status = status
+        self.resolved_at = timezone.now() if status == self.STATUS_RESOLVED else None
+        self.save(update_fields=["status", "resolved_at", "last_modified_at"])
+
+    def mark_resolved(self):
+        self.set_status(self.STATUS_RESOLVED)
+
+
+class SignalementPhoto(AuditMixin, models.Model):
+    signalement = models.ForeignKey(Signalement, on_delete=models.CASCADE, related_name="photos")
+    image = models.ImageField(upload_to=signalement_photo_upload_path)
+    moderation_status = models.CharField(max_length=10, choices=Need.MODERATION_CHOICES, default=Need.MODERATION_PENDING)
+    moderated_by = models.CharField(max_length=10, choices=Need.MODERATED_BY_CHOICES, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)

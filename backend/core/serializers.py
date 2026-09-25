@@ -17,6 +17,8 @@ from core.models import (
     Need,
     Pickup,
     ProgressUpdate,
+    Signalement,
+    SignalementPhoto,
     SupportRequest,
     Wilaya,
 )
@@ -661,7 +663,7 @@ class CommentSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Comment
-        fields = ["id", "need", "collection_point", "pickup", "parent_comment", "author_name", "text", "category", "confirmation_count", "created_at", "replies"]
+        fields = ["id", "need", "collection_point", "pickup", "signalement", "parent_comment", "author_name", "text", "category", "confirmation_count", "created_at", "replies"]
 
     def get_replies(self, obj):
         # Only ever one level deep -- replies never nest replies.
@@ -673,12 +675,12 @@ class CommentSerializer(serializers.ModelSerializer):
 class CommentCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Comment
-        fields = ["need", "collection_point", "pickup", "parent_comment", "author_name", "text", "category"]
+        fields = ["need", "collection_point", "pickup", "signalement", "parent_comment", "author_name", "text", "category"]
 
     def validate(self, attrs):
-        targets = [attrs.get("need"), attrs.get("collection_point"), attrs.get("pickup")]
+        targets = [attrs.get("need"), attrs.get("collection_point"), attrs.get("pickup"), attrs.get("signalement")]
         if sum(1 for t in targets if t) != 1:
-            raise serializers.ValidationError("Exactly one of 'need', 'collection_point', or 'pickup' must be set.")
+            raise serializers.ValidationError("Exactly one of 'need', 'collection_point', 'pickup' or 'signalement' must be set.")
         parent = attrs.get("parent_comment")
         if parent is not None:
             if parent.parent_comment_id is not None:
@@ -926,3 +928,130 @@ class FlyerSubmissionStatusSerializer(serializers.ModelSerializer):
             "id", "access_token", "status", "rejection_reason", "organization_common",
             "created_at", "extracted_points",
         ]
+
+
+# ---------------------------------------------------------------------------
+# Signali
+# ---------------------------------------------------------------------------
+
+class SignalementPhotoSerializer(ModeratedPhotoMixin, serializers.ModelSerializer):
+    image = serializers.SerializerMethodField()
+
+    class Meta:
+        model = SignalementPhoto
+        fields = ["id", "image", "moderation_status"]
+
+
+class SignalementPublicSerializer(serializers.ModelSerializer):
+    wilaya_name = serializers.CharField(source="wilaya.name", read_only=True)
+    category_label = serializers.CharField(source="get_category_display", read_only=True)
+    photos = SignalementPhotoSerializer(many=True, read_only=True)
+    video_file = serializers.SerializerMethodField()
+    voice_file = serializers.SerializerMethodField()
+    display_latitude = serializers.SerializerMethodField()
+    display_longitude = serializers.SerializerMethodField()
+    has_exact_position = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Signalement
+        fields = [
+            "id", "category", "category_label", "wilaya", "wilaya_name", "commune", "address",
+            "latitude", "longitude", "display_latitude", "display_longitude", "has_exact_position", "position_source",
+            "description", "voice_transcript", "video_transcript", "photos", "video_file",
+            "video_moderation_status", "voice_file", "processing_status", "status", "resolved_at",
+            "category_suggested_by_ai", "confirmations_count", "fixed_reports_count", "created_at",
+        ]
+
+    def _url(self, field):
+        request = self.context.get("request")
+        url = field.url
+        return request.build_absolute_uri(url) if request else url
+
+    def get_video_file(self, obj):
+        if not obj.video_file or obj.video_moderation_status != Need.MODERATION_APPROVED:
+            return None
+        return self._url(obj.video_file)
+
+    def get_voice_file(self, obj):
+        return self._url(obj.voice_file) if obj.voice_file else None
+
+    # No coordinates (an address typed without a map pin, or an admin
+    # testing from abroad): grouped into the map's "no location" bubble.
+    def get_has_exact_position(self, obj):
+        return obj.latitude is not None and obj.longitude is not None
+
+    # Pinned on its wilaya's centroid when it has no coordinates of its own.
+    def get_display_latitude(self, obj):
+        return obj.latitude if obj.latitude is not None else obj.wilaya.centroid_latitude
+
+    def get_display_longitude(self, obj):
+        return obj.longitude if obj.longitude is not None else obj.wilaya.centroid_longitude
+
+
+class SignalementDetailSerializer(SignalementPublicSerializer):
+    comments = serializers.SerializerMethodField()
+
+    class Meta(SignalementPublicSerializer.Meta):
+        fields = SignalementPublicSerializer.Meta.fields + ["comments"]
+
+    def get_comments(self, obj):
+        roots = obj.comments.filter(parent_comment__isnull=True).prefetch_related("replies")
+        return CommentSerializer(roots, many=True, context=self.context).data
+
+
+class SignalementManageSerializer(serializers.ModelSerializer):
+    """What the reporter (access token) or an admin may change afterwards."""
+
+    class Meta:
+        model = Signalement
+        fields = ["status", "category", "description"]
+        extra_kwargs = {f: {"required": False} for f in fields}
+
+
+class SignalementCreateSerializer(serializers.ModelSerializer):
+    wilaya = serializers.PrimaryKeyRelatedField(queryset=Wilaya.objects.all(), required=False, allow_null=True)
+    voice_file = serializers.FileField(required=False, allow_null=True)
+    video_file = serializers.FileField(required=False, allow_null=True)
+
+    class Meta:
+        model = Signalement
+        fields = [
+            "category", "wilaya", "commune", "address", "latitude", "longitude",
+            "position_source", "description", "voice_file", "video_file",
+        ]
+
+    def validate(self, attrs):
+        from core.signalements import nearest_wilaya
+
+        lat, lon = attrs.get("latitude"), attrs.get("longitude")
+        if (lat is None) != (lon is None):
+            raise serializers.ValidationError("Latitude and longitude must be sent together.")
+        if lat is not None and lon is not None and not is_within_algeria_bounds(lat, lon) and is_request_admin(self.context.get("request")):
+            # An admin testing from abroad (their own real GPS): same rule
+            # as the admin voice SOS -- never pin a report outside Algeria,
+            # drop the coordinates and fall back to a wilaya instead.
+            attrs["latitude"] = attrs["longitude"] = lat = lon = None
+            if not attrs.get("wilaya"):
+                attrs["wilaya"] = Wilaya.objects.filter(code="16").first()
+            if not (attrs.get("address") or "").strip():
+                attrs["address"] = "Position GPS hors Algérie (test admin)"
+        has_coords = lat is not None
+        address = (attrs.get("address") or "").strip()
+        if not has_coords and not address:
+            raise serializers.ValidationError("A GPS position or a manual address is required.")
+        if has_coords:
+            validate_algeria_bounds(lat, lon)
+        else:
+            attrs["position_source"] = Signalement.POSITION_MANUAL
+        if not attrs.get("wilaya"):
+            attrs["wilaya"] = nearest_wilaya(lat, lon) if has_coords else None
+            if not attrs["wilaya"]:
+                raise serializers.ValidationError("Please choose the wilaya of the reported place.")
+
+        video_file = attrs.get("video_file")
+        if not video_file and not self.context.get("photo_count"):
+            raise serializers.ValidationError("At least one photo or a video is required.")
+        if video_file:
+            validate_video_size(video_file)
+            validate_video_duration(video_file)
+        return attrs

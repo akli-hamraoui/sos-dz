@@ -5,13 +5,14 @@ import { useDialog } from '../context/DialogContext'
 import { api } from '../api'
 import { formatDate } from '../utils'
 
-// Shared by NeedDetail and CollectionPointDetail -- comments only ever
+// Shared by NeedDetail, CollectionPointDetail and SignalementDetail (with
+// its `notice` about recorded IPs) -- comments only ever
 // require a name (no phone), and deletion is authorized by a per-comment
 // owner_token saved locally on creation (see AppContext.commentTokens),
 // same pattern as Need/Pickup's access_token. A comment not created in
 // this browser simply has no delete button, rather than prompting for
 // credentials that no longer exist.
-export default function CommentThread({ comments, target, targetId, onChanged }) {
+export default function CommentThread({ comments, target, targetId, onChanged, notice }) {
   const { t, i18n } = useTranslation()
   const { commentAuthor, setCommentAuthor, commentTokens, saveCommentToken } = useApp()
   const { showPrompt, showConfirm } = useDialog()
@@ -75,6 +76,7 @@ export default function CommentThread({ comments, target, targetId, onChanged })
   return (
     <div className="comment-thread">
       <h3>{t('comments.title')}</h3>
+      {notice && <p className="comment-notice">{notice}</p>}
       {comments.map((c) => (
         <div key={c.id}>
           <div className="comment">
