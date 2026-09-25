@@ -195,7 +195,7 @@
   padding: 12px 12px 110px;
   --signali: #1f5fbf;
 }
-.signalements-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.signalements-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .signalements-head h1 { margin: 0; font-size: 22px; }
 .signalements-head p { margin: 4px 0 0; color: #5c6878; font-size: 14px; }
 .signalements-new { flex: none; display: inline-flex; align-items: center; gap: 6px; background: var(--signali); border-color: var(--signali); }
@@ -212,7 +212,9 @@
   font-size: 14px;
 }
 
-.signalements-filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 12px 0 10px; }
+.signalements-filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 0 0 10px; }
+.signalements-toolbar { display: flex; align-items: center; gap: 8px; margin: 10px 0 8px; }
+.signalements-count { margin-inline-start: auto; color: #5c6878; font-size: 13px; }
 .signalements-filters select {
   min-width: 0;
   padding: 9px 10px;
@@ -236,7 +238,7 @@
 .signalements-status button.selected { background: var(--signali); border-color: var(--signali); color: #fff; }
 
 .signalements-map-frame { position: relative; }
-.signalements-map { height: min(58vh, 460px); border-radius: 14px; overflow: hidden; border: 1px solid var(--border, #d9dee7); z-index: 0; }
+.signalements-map { border-radius: inherit; z-index: 0; }
 .signalements-empty {
   position: absolute;
   inset-inline: 12px;
@@ -501,3 +503,54 @@
 @media (prefers-reduced-motion: reduce) {
   .signali-ai-core, .signali-ai-ring, .signali-ai-scan, .signali-ai-spark, .signali-ai-dots i { animation: none; }
 }
+
+/* --- Wizard: one page scroll, never a second scroll inside the card ---
+   The urgent SOS styles this page reuses are tuned to fit one screen
+   (fixed height + overflow on .urgent-sos-page/.urgent-sos-shell), which
+   turned the Signali wizard into a small box scrolling on its own inside
+   the page, with its buttons hidden below. Signali lets the page scroll
+   normally and keeps each step's buttons stuck above the bottom nav. */
+.urgent-sos-page.signali-page {
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow: visible !important;
+  overflow-x: clip !important;
+}
+.signali-page .urgent-sos-shell,
+.signali-page .urgent-sos-card,
+.signali-page .urgent-sos-validation-panel {
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+}
+.signali-page .urgent-sos-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  margin-inline: -4px;
+  padding: 10px 4px 4px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0), #fff 30%);
+}
+@media (max-width: 959px) {
+  .signali-page .urgent-sos-actions {
+    /* Clear the fixed bottom nav. */
+    bottom: calc(90px + env(safe-area-inset-bottom));
+  }
+}
+.signali-page .signali-camera-actions {
+  position: sticky;
+  bottom: calc(96px + env(safe-area-inset-bottom));
+  z-index: 5;
+  padding: 8px 0;
+  background: #fff;
+}
+
+.signali-review-note { margin: 8px 0 0; color: #176b3a; font-size: 13px; font-weight: 600; }
+.signali-ai.is-compact { grid-template-columns: 52px minmax(0, 1fr); gap: 10px; padding: 8px 10px; margin: 8px 0; }
+.signali-ai.is-compact .signali-ai-anim { width: 52px; height: 52px; }
+.signali-ai.is-compact .signali-ai-core,
+.signali-ai.is-compact .signali-ai-ring { inset: 7px; }
+.signali-ai.is-compact .signali-ai-core svg { width: 20px; height: 20px; }
+.signali-ai.is-compact .signali-ai-copy strong { font-size: 13.5px; }
+.signali-ai.is-compact .signali-ai-copy span { font-size: 12.5px; }

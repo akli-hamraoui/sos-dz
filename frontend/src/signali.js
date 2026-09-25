@@ -30,3 +30,9 @@ export function saveSignalementToken(id, token) {
 export function getSignalementToken(id) {
   return loadJSON(TOKENS_KEY, {})[id] || null
 }
+
+// Ids of reports sent from this device (their reporter can see them on
+// the map even while they're still being checked).
+export function getOwnSignalementIds() {
+  return Object.keys(loadJSON(TOKENS_KEY, {})).map(Number).filter(Boolean)
+}

@@ -1,13 +1,15 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import L from 'leaflet'
 import { useApp } from '../context/AppContext'
+import { useDialog } from '../context/DialogContext'
 import { api } from '../api'
 import { translateApiError } from '../apiErrors'
-import { formatDate } from '../utils'
-import { IconPlus } from '../icons'
-import { SIGNALI_CATEGORIES, categoryEmoji } from '../signali'
+import { formatDate, getCurrentPosition, RECENTER_BOX_METERS } from '../utils'
+import { attachMapTapToActivate } from '../mapMarkers'
+import { IconClose, IconExpand, IconLocate, IconPlus } from '../icons'
+import { SIGNALI_CATEGORIES, categoryEmoji, getOwnSignalementIds } from '../signali'
 import '../signali.css'
 
 // The Signali map: every public citizen report (see
@@ -18,7 +20,11 @@ import '../signali.css'
 // their wilaya's centroid. Tapping a pin shows a preview that opens the
 // report's own page (SignalementDetail.jsx). ?focus=<id> centers on one
 // report -- also fetched on its own, since a report still being checked
-// isn't in the public list yet.
+// isn't in the public list yet. Same map chrome as the other maps
+// (NeedsList.jsx): hidden filters panel, "tap to interact" overlay,
+// fullscreen, "center on me", and a map that fills the screen. Reports
+// still being checked show as grey pins to their own reporter (this
+// device's tokens) and to admins.
 
 function pinIcon(s, selected) {
   const open = s.status === 'new' || s.status === 'in_review'
@@ -59,8 +65,11 @@ function Preview({ s }) {
 
 export default function Signalements() {
   const { t } = useTranslation()
-  const { wilayas } = useApp()
+  const { wilayas, config } = useApp()
+  const { showAlert } = useDialog()
   const [params, setParams] = useSearchParams()
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const [ownPending, setOwnPending] = useState([])
   const [items, setItems] = useState([])
   const [focusedReport, setFocused] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -89,6 +98,7 @@ export default function Signalements() {
     if (wilaya) q.set('wilaya', wilaya)
     if (category) q.set('category', category)
     if (status !== 'all') q.set('status', status)
+    if (config.is_admin) q.set('include_pending', '1')
     api(`/signalements/?${q}`)
       .then((data) => !cancelled && (setItems(data || []), setError('')))
       .catch((e) => !cancelled && setError(translateApiError(e, t)))
@@ -96,7 +106,21 @@ export default function Signalements() {
     return () => {
       cancelled = true
     }
-  }, [wilaya, category, status, t])
+  }, [wilaya, category, status, t, config.is_admin])
+
+  // This device's own reports that aren't public yet (still being
+  // checked): shown to their reporter as grey pins.
+  useEffect(() => {
+    const ids = getOwnSignalementIds().slice(-10)
+    if (!ids.length) return
+    let cancelled = false
+    Promise.all(ids.map((id) => api(`/signalements/${id}/`).catch(() => null))).then((rows) => {
+      if (!cancelled) setOwnPending(rows.filter((r) => r && r.processing_status === 'pending' && r.status !== 'cancelled'))
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const focused = focusedReport && focusedReport.id === focusId ? focusedReport : null
   useEffect(() => {
@@ -110,7 +134,10 @@ export default function Signalements() {
     }
   }, [focusId])
 
-  const all = useMemo(() => (focused && !items.some((x) => x.id === focused.id) ? [focused, ...items] : items), [focused, items])
+  const all = useMemo(() => {
+    const extra = [focused, ...ownPending].filter((x, i, arr) => x && !items.some((y) => y.id === x.id) && arr.findIndex((z) => z && z.id === x.id) === i)
+    return [...extra, ...items]
+  }, [focused, ownPending, items])
   const located = useMemo(() => all.filter((s) => s.has_exact_position), [all])
   const unlocated = useMemo(() => all.filter((s) => !s.has_exact_position), [all])
   const selected = all.find((x) => x.id === selectedId) || null
@@ -118,26 +145,86 @@ export default function Signalements() {
 
   // --- map ---
   const mapEl = useRef(null)
+  const mapFrameRef = useRef(null)
   const mapRef = useRef(null)
   const layerRef = useRef(null)
   const fittedRef = useRef('')
+  const [mapActive, setMapActive] = useState(false)
+  const [fullscreen, setFullscreen] = useState(false)
+  const [mapHeight, setMapHeight] = useState(420)
+
+  // Same "asleep until tapped" behaviour as NeedsList.jsx/CollectionPoints.jsx:
+  // one finger scrolls the page, a tap wakes the map up.
+  const setInteractive = useCallback((on) => {
+    const map = mapRef.current
+    if (!map) return
+    ;['dragging', 'touchZoom', 'scrollWheelZoom', 'doubleClickZoom', 'boxZoom'].forEach((h) => (on ? map[h].enable() : map[h].disable()))
+    setMapActive(on)
+  }, [])
 
   useEffect(() => {
     const map = L.map(mapEl.current, {
       attributionControl: false,
       center: [28, 2.6],
       zoom: 5,
-      gestureHandling: true,
-      gestureHandlingOptions: { text: { touch: t('map.gestureTouch'), scroll: t('map.gestureScroll'), scrollMac: t('map.gestureScrollMac') } },
+      dragging: false,
+      touchZoom: false,
+      scrollWheelZoom: false,
+      doubleClickZoom: false,
+      boxZoom: false,
     })
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors', maxZoom: 19 }).addTo(map)
     L.control.attribution({ prefix: false }).addTo(map)
     layerRef.current = L.layerGroup().addTo(map)
     mapRef.current = map
+    attachMapTapToActivate(map, () => setInteractive(true))
     return () => map.remove()
-    // Created once; the gesture hint keeps the language it was opened in.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [setInteractive])
+
+  const enterFullscreen = () => {
+    setInteractive(true)
+    setFullscreen(true)
+    mapFrameRef.current?.requestFullscreen?.({ navigationUI: 'hide' }).catch(() => {})
+  }
+  const exitFullscreen = () => {
+    if (document.fullscreenElement === mapFrameRef.current) document.exitFullscreen?.()?.catch(() => {})
+    setFullscreen(false)
+    setInteractive(false)
+  }
+  useEffect(() => {
+    const onChange = () => {
+      const native = document.fullscreenElement === mapFrameRef.current
+      setFullscreen(native)
+      if (!native) setInteractive(false)
+    }
+    document.addEventListener('fullscreenchange', onChange)
+    return () => document.removeEventListener('fullscreenchange', onChange)
+  }, [setInteractive])
+  useEffect(() => {
+    const id = requestAnimationFrame(() => mapRef.current?.invalidateSize())
+    return () => cancelAnimationFrame(id)
+  }, [fullscreen, mapHeight])
+
+  // The map fills the screen down to the bottom nav, like the other maps.
+  useEffect(() => {
+    if (fullscreen) return
+    const recompute = () => {
+      const el = mapFrameRef.current
+      if (!el) return
+      setMapHeight(Math.max(260, Math.round(window.innerHeight - el.getBoundingClientRect().top - 100)))
+    }
+    recompute()
+    window.addEventListener('resize', recompute)
+    return () => window.removeEventListener('resize', recompute)
+  }, [fullscreen, filtersOpen, selectedId])
+
+  const recenterOnMe = async () => {
+    const map = mapRef.current
+    if (!map) return
+    const pos = await getCurrentPosition({ maximumAge: 30000, timeout: 3000, enableHighAccuracy: false })
+    if (!pos) return showAlert(t('map.locationUnavailable'))
+    map.fitBounds(L.latLng(pos[0], pos[1]).toBounds(RECENTER_BOX_METERS))
+  }
 
   useEffect(() => {
     const map = mapRef.current
@@ -188,49 +275,85 @@ export default function Signalements() {
   return (
     <section className="signalements-page">
       <div className="signalements-head">
-        <div>
-          <h1>📣 {t('signali.listTitle')}</h1>
-          <p>{t('signali.listSubtitle')}</p>
-        </div>
+        <h1>📣 {t('signali.listTitle')}</h1>
         <Link to="/signali" className="btn btn-primary signalements-new">
           <IconPlus width={16} height={16} strokeWidth={2.6} /> {t('signali.newReport')}
         </Link>
       </div>
 
-      <div className="signalements-filters">
-        <select value={wilaya} onChange={(e) => setFilter('wilaya', e.target.value)} aria-label={t('signali.wilayaLabel')}>
-          <option value="">{t('signali.allWilayas')}</option>
-          {wilayas.map((w) => (
-            <option key={w.id} value={w.id}>{w.code} - {w.name}</option>
-          ))}
-        </select>
-        <select value={category} onChange={(e) => setFilter('category', e.target.value)} aria-label={t('signali.categoryLabel')}>
-          <option value="">{t('signali.allCategories')}</option>
-          {SIGNALI_CATEGORIES.map((c) => (
-            <option key={c} value={c}>{categoryEmoji(c)} {t(`signali.categories.${c}`)}</option>
-          ))}
-        </select>
-        <div className="signalements-status" role="group">
-          {['open', 'resolved', 'all'].map((v) => (
-            <button key={v} type="button" className={status === v ? 'selected' : ''} onClick={() => setFilter('status', v === 'open' ? '' : v)}>
-              {t(`signali.filterStatus.${v}`)}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="signalements-counts">
-        <span>{t('signali.countTotal', { count: all.length })}</span>
-        {unlocated.length > 0 && (
-          <button type="button" className={`signali-link${noLocationOnly ? ' is-active' : ''}`} onClick={() => setNoLocationOnly((v) => !v)}>
-            📍 {t('signali.countNoLocation', { count: unlocated.length })}
-          </button>
+      <div className="toolbar toolbar-compact signalements-toolbar">
+        <button type="button" className="filters-toggle" aria-expanded={filtersOpen} onClick={() => setFiltersOpen((v) => !v)}>
+          ☰ {t('common.filters')}
+          {(wilaya || category || status !== 'open') && <span className="filters-badge" aria-hidden="true" />}
+        </button>
+        {noLocationOnly && (
+          <div className="filters-badge-chip">
+            {t('signali.noLocationBubble')}
+            <button type="button" onClick={() => setNoLocationOnly(false)} aria-label={t('common.close')}>×</button>
+          </div>
         )}
+        <span className="signalements-count">{t('signali.countTotal', { count: all.length })}</span>
       </div>
+      {filtersOpen && (
+        <div className="filters-panel signalements-filters">
+          <select value={wilaya} onChange={(e) => setFilter('wilaya', e.target.value)} aria-label={t('signali.wilayaLabel')}>
+            <option value="">{t('signali.allWilayas')}</option>
+            {wilayas.map((w) => (
+              <option key={w.id} value={w.id}>{w.code} - {w.name}</option>
+            ))}
+          </select>
+          <select value={category} onChange={(e) => setFilter('category', e.target.value)} aria-label={t('signali.categoryLabel')}>
+            <option value="">{t('signali.allCategories')}</option>
+            {SIGNALI_CATEGORIES.map((c) => (
+              <option key={c} value={c}>{categoryEmoji(c)} {t(`signali.categories.${c}`)}</option>
+            ))}
+          </select>
+          <div className="signalements-status" role="group">
+            {['open', 'resolved', 'all'].map((v) => (
+              <button key={v} type="button" className={status === v ? 'selected' : ''} onClick={() => setFilter('status', v === 'open' ? '' : v)}>
+                {t(`signali.filterStatus.${v}`)}
+              </button>
+            ))}
+          </div>
+          {unlocated.length > 0 && (
+            <button type="button" className={`signali-link${noLocationOnly ? ' is-active' : ''}`} onClick={() => setNoLocationOnly((v) => !v)}>
+              📍 {t('signali.countNoLocation', { count: unlocated.length })}
+            </button>
+          )}
+        </div>
+      )}
 
-      <div className="signalements-map-frame">
-        <div ref={mapEl} className="signalements-map" />
-        {!loading && !all.length && <div className="signalements-empty">{t('signali.empty')}</div>}
+      <div className="map-wrap">
+        <div
+          ref={mapFrameRef}
+          className={`map-frame signalements-map-frame${fullscreen ? ' map-frame-fullscreen' : ''}`}
+          style={fullscreen ? undefined : { height: mapHeight }}
+        >
+          <div ref={mapEl} className="signalements-map" style={{ height: '100%' }} />
+          {!loading && !all.length && <div className="signalements-empty">{t('signali.empty')}</div>}
+          {!mapActive && !fullscreen && (
+            <div className="map-activate-overlay map-activate-hint-only">
+              <span className="map-activate-hint">{t('map.tapToInteract')}</span>
+            </div>
+          )}
+          {mapActive && !fullscreen && (
+            <button type="button" className="map-deactivate-btn" onClick={() => setInteractive(false)}>
+              {t('map.exitMapInteraction')}
+            </button>
+          )}
+          {!fullscreen ? (
+            <button type="button" className="expand-btn" onClick={enterFullscreen} aria-label={t('map.viewFullscreen')} title={t('map.viewFullscreen')}>
+              <IconExpand width={18} height={18} />
+            </button>
+          ) : (
+            <button type="button" className="exit-fullscreen-btn" onClick={exitFullscreen} aria-label={t('map.exitFullscreen')} title={t('map.exitFullscreen')}>
+              <IconClose width={20} height={20} />
+            </button>
+          )}
+          <button type="button" className="locate-btn" onClick={recenterOnMe} aria-label={t('map.recenterOnMe')} title={t('map.recenterOnMe')}>
+            <IconLocate width={18} height={18} />
+          </button>
+        </div>
       </div>
       {error && <p className="error">{error}</p>}
 

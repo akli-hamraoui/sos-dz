@@ -840,7 +840,7 @@
     "statusSaved": "Status updated.",
     "saved": "Changes saved.",
     "manageTitle": "Your management code",
-    "tokenWarning": "Copy and keep this code: it's your report's password. It lets you edit it, change its status (in review, fixed…) or cancel it, even from another phone. It won't be shown anywhere else.",
+    "tokenWarning": "Keep this code: it lets you edit or cancel your report, even from another phone.",
     "changeStatus": "Change status",
     "forgetCode": "Forget the code on this device",
     "codeInvalid": "Wrong code for this report.",
@@ -863,8 +863,13 @@
     "countTotal_other": "{{count}} reports",
     "countNoLocation_one": "{{count}} without location",
     "countNoLocation_other": "{{count}} without location",
-    "aiTitle": "Artificial intelligence analysis",
-    "aiText": "Your report will be analysed by artificial intelligence (photo/video check, voice transcription, problem type) and will appear on the map shortly.",
-    "aiWorking": "AI analysis in progress…"
+    "aiTitle": "AI analysis in progress",
+    "aiText": "It will appear on the map once checked.",
+    "aiWorking": "AI analysis in progress…",
+    "aiSentTitle": "Report sent, AI analysis in progress",
+    "reviewShortNote": "Anonymous. Checked by AI before it appears on the map.",
+    "coordsEmpty": "Tap the map or type GPS coordinates.",
+    "coordsPlaceholder": "e.g. 36.7525, 3.0420",
+    "pinOnMap": "Spot placed on the map"
   }
 }

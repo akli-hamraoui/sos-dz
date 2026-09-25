@@ -7,7 +7,6 @@ import { api, apiUpload } from '../api'
 import { translateApiError } from '../apiErrors'
 import { compressPhoto, formatDate, isInAlgeria } from '../utils'
 import PlaceAutocomplete from '../components/PlaceAutocomplete'
-import SignaliAiNotice from '../components/SignaliAiNotice'
 import { IconCamera, IconLocate, IconMapPin, IconMic, IconSwitchCamera, IconTrash, IconVideoCam } from '../icons'
 import { SIGNALI_CATEGORIES, categoryEmoji, saveSignalementToken } from '../signali'
 import '../urgent-sos-wizard-fixes.css'
@@ -118,9 +117,14 @@ function PinMap({ position, center, onMove }) {
   return <div ref={elRef} className="signali-pin-map" />
 }
 
-// "36.7525, 3.0420" (or with a space / semicolon) -> {latitude, longitude}
+// "36.7525, 3.0420" (or with a space / semicolon, or copied from a maps
+// app as "36.7525° N, 3.0420° E") -> {latitude, longitude}
+function formatCoords({ latitude, longitude }) {
+  return `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`
+}
+
 function parseCoords(text) {
-  const m = String(text).trim().match(/^(-?\d+(?:[.,]\d+)?)\s*[,;\s]\s*(-?\d+(?:[.,]\d+)?)$/)
+  const m = String(text).replace(/[°NnEe]/g, ' ').replace(/\s+/g, ' ').trim().match(/^(-?\d+(?:[.,]\d+)?)\s*[,;\s]\s*(-?\d+(?:[.,]\d+)?)$/)
   if (!m) return null
   const latitude = parseFloat(m[1].replace(',', '.'))
   const longitude = parseFloat(m[2].replace(',', '.'))
@@ -290,6 +294,7 @@ export default function Signali() {
     if (!isInAlgeria(lat, lon)) return
     const next = { latitude: lat, longitude: lon }
     setCoords(next)
+    setCoordsText(formatCoords(next))
     prefillWilaya(next)
   }
 
@@ -299,11 +304,14 @@ export default function Signali() {
   const locationOk = locMode === 'gps' ? !!coords : locMode === 'manual' ? !!coords || !!(address.trim() && wilaya) : false
 
   const applyTypedCoords = () => {
+    // Nothing typed: the pin already placed on the map is the answer.
+    if (!coordsText.trim()) return setError(coords ? '' : t('signali.coordsEmpty'))
     const c = parseCoords(coordsText)
     if (!c) return setError(t('signali.coordsInvalid'))
     if (!isInAlgeria(c.latitude, c.longitude)) return setError(t('signali.coordsOutsideAlgeria'))
     setError('')
     setCoords(c)
+    setCoordsText(formatCoords(c))
     prefillWilaya(c)
   }
 
@@ -603,7 +611,7 @@ export default function Signali() {
                 <label htmlFor="signali-commune">{t('signali.communeLabel')} <small>({t('common.optional')})</small></label>
                 <input id="signali-commune" type="text" value={commune} onChange={(e) => setCommune(e.target.value)} />
                 <span className="signali-fields-title">{t('signali.pickOnMap')}</span>
-                <PinMap position={coords} center={manualCenter} onMove={(c) => (setCoords(c), prefillWilaya(c))} />
+                <PinMap position={coords} center={manualCenter} onMove={(c) => (setCoords(c), setCoordsText(formatCoords(c)), setError(''), prefillWilaya(c))} />
                 <small className="signali-hint">{coords ? t('signali.dragPinHint') : t('signali.tapMapHint')}</small>
                 <label htmlFor="signali-coords">{t('signali.coordsLabel')} <small>({t('common.optional')})</small></label>
                 <div className="signali-coords-row">
@@ -614,7 +622,7 @@ export default function Signali() {
                     value={coordsText}
                     onChange={(e) => setCoordsText(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), applyTypedCoords())}
-                    placeholder="36.7525, 3.0420"
+                    placeholder={t('signali.coordsPlaceholder')}
                   />
                   <button type="button" className="urgent-sos-secondary" onClick={applyTypedCoords}>{t('signali.placeCoords')}</button>
                 </div>
@@ -798,7 +806,7 @@ export default function Signali() {
               <li>
                 <span>📍</span>
                 <div>
-                  <b>{address.trim() || (locMode === 'gps' ? t('signali.gpsPosition') : '')}</b>
+                  <b>{address.trim() || (locMode === 'gps' ? t('signali.gpsPosition') : coords ? t('signali.pinOnMap') : '')}</b>
                   <small>{[commune.trim(), wilayaName].filter(Boolean).join(', ')}{accuracy && locMode === 'gps' ? ` · ±${accuracy} m` : ''}</small>
                 </div>
               </li>
@@ -822,11 +830,7 @@ export default function Signali() {
                 </li>
               )}
             </ul>
-            <SignaliAiNotice />
-            <div className="urgent-sos-location-confirmation confirmed" role="status">
-              <strong>🔒 {t('signali.anonymousTitle')}</strong>
-              <span>{t('signali.anonymousText')}</span>
-            </div>
+            <p className="signali-review-note">🔒 {t('signali.reviewShortNote')}</p>
             {config.turnstile_enabled && (
               <div
                 className="cf-turnstile urgent-sos-turnstile"

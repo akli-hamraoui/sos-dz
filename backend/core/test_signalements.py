@@ -251,3 +251,22 @@ class SignalementAccessAndManageTests(BaseAPITestCase):
         self.assertEqual(resp.status_code, 201, resp.data)
         detail = self.client.get(f"/api/signalements/{sid}/").data
         self.assertEqual([c["text"] for c in detail["comments"]], ["Toujours là ce matin"])
+
+
+@override_settings(MEDIA_ROOT=MEDIA_ROOT)
+class SignalementAdminPendingTests(BaseAPITestCase):
+    def test_admin_can_list_pending_reports_but_public_cannot(self):
+        from django.contrib.auth.models import User
+
+        with patch("core.views.is_algeria_ip", return_value=True):
+            sid = self.client.post(
+                "/api/signalements/",
+                dict(category="road", latitude=36.75, longitude=3.05, photos=[make_test_image()]),
+                format="multipart",
+            ).data["id"]
+        self.assertEqual(self.client.get("/api/signalements/?include_pending=1").data, [])
+        User.objects.create_superuser("root", "r@x.dz", "pw")
+        self.client.login(username="root", password="pw")
+        listed = self.client.get("/api/signalements/?include_pending=1").data
+        self.assertEqual([x["id"] for x in listed], [sid])
+        self.assertEqual(listed[0]["processing_status"], "pending")
