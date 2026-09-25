@@ -10,7 +10,8 @@ import { getCurrentPosition, haversineKm, RECENTER_BOX_METERS } from '../utils'
 import { attachMapTapToActivate } from '../mapMarkers'
 import { IconClose, IconExpand, IconLocate, IconPlus } from '../icons'
 import WilayaCombobox from '../components/WilayaCombobox'
-import { SIGNALI_CATEGORIES, SIGNAL_ICON_SVG, categoryEmoji, getOwnSignalementIds } from '../signali'
+import { SIGNALI_CATEGORIES, SIGNAL_ICON_SVG, categoryEmoji, categoryIconHtml, getOwnSignalementIds } from '../signali'
+import CategoryIcon from '../components/CategoryIcon'
 import '../signali.css'
 
 // The Signali map: every public citizen report (see
@@ -34,7 +35,7 @@ function pinIcon(s, selected) {
     open ? 'is-open' : 'is-resolved',
     selected ? 'is-selected' : '',
   ].join(' ')
-  return L.divIcon({ className: 'signali-marker-icon', html: `<span class="${cls}">${categoryEmoji(s.category)}</span>`, iconSize: [34, 34], iconAnchor: [17, 17] })
+  return L.divIcon({ className: 'signali-marker-icon', html: `<span class="${cls}">${categoryIconHtml(s.category)}</span>`, iconSize: [34, 34], iconAnchor: [17, 17] })
 }
 
 
@@ -104,9 +105,9 @@ function Thumb({ s, size }) {
           <span className="signali-thumb-play" aria-hidden="true">▶</span>
         </>
       ) : (
-        <span className="signali-thumb-icon" aria-hidden="true">{categoryEmoji(s.category)}</span>
+        <CategoryIcon category={s.category} className="signali-thumb-icon" />
       )}
-      {(photo || s.video_file) && <span className="signali-thumb-badge" aria-hidden="true">{categoryEmoji(s.category)}</span>}
+      {(photo || s.video_file) && <CategoryIcon category={s.category} className="signali-thumb-badge" />}
     </span>
   )
 }
@@ -128,7 +129,7 @@ function popupHtml(t, s) {
   const short = text.length > 70 ? `${text.slice(0, 70)}…` : text
   return (
     `<div class="signali-popup">${media}` +
-    `<strong>${categoryEmoji(s.category)} ${escapeHtml(t(`signali.categories.${s.category}`))}</strong>` +
+    `<strong>${categoryIconHtml(s.category)} ${escapeHtml(t(`signali.categories.${s.category}`))}</strong>` +
     `<small>${escapeHtml([s.address || s.commune, s.wilaya_name].filter(Boolean).join(' · '))}</small>` +
     (short ? `<p>${escapeHtml(short)}</p>` : '') +
     `<a href="/signalements/${s.id}" data-signali-id="${s.id}">${escapeHtml(t('signali.openReport'))} →</a></div>`
@@ -284,7 +285,13 @@ export default function Signalements() {
     attachMapTapToActivate(map, () => setInteractive(true))
     // Popup "open the report" links navigate inside the app.
     map.on('popupopen', (e) => {
-      const link = e.popup.getElement()?.querySelector('[data-signali-id]')
+      // Leaflet stops touches/presses that start on a popup, so a finger
+      // sliding on it didn't move the map. Let them through to the map's
+      // drag handler; taps (link, ×) still work, and clicks on the popup
+      // still don't close it (_leaflet_disable_click stays set).
+      const el = e.popup.getElement()
+      if (el) L.DomEvent.off(el, 'mousedown touchstart', L.DomEvent.stopPropagation)
+      const link = el?.querySelector('[data-signali-id]')
       if (link)
         link.onclick = (ev) => {
           ev.preventDefault()
@@ -371,6 +378,9 @@ export default function Signalements() {
           const [dx, dy] = marker._signaliOffset || [0, 0]
           e.popup.options.offset = L.point(dx, dy - 12)
           e.popup.update()
+          // Leaflet pans for the popup before this offset applies: pan
+          // again so a nudged pin's popup never hangs off the map.
+          e.popup._adjustPan?.()
         })
         .addTo(layer)
       if (s.id === focusId && focused) requestAnimationFrame(() => marker.openPopup())

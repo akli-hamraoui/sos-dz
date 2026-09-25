@@ -671,3 +671,18 @@
 .signalements-toolbar .signalements-new { flex: none; padding: 7px 10px; font-size: 13.5px; }
 .signalements-toolbar .view-toggle { flex: none; }
 .signalements-toolbar .view-toggle button { padding-inline: 12px; }
+
+/* Category icon drawn as SVG (sewer): sits on the text line like an emoji. */
+.signali-cat-icon { display: inline-flex; align-items: center; justify-content: center; line-height: 1; }
+.signali-cat-svg { display: block; flex: none; }
+
+/* index.css styles the SOS chevron as a mere decoration (pointer-events:
+   none, a fixed right offset): here it's a real button. */
+.signali-wilaya-combobox .urgent-sos-wilaya-chevron { pointer-events: auto; right: auto; inset-inline-end: 8px; }
+.signali-wilaya-combobox { scroll-margin-top: 70px; }
+
+/* The status badge on its own line under the address, never beside or over
+   the text. */
+.signali-detail header small { display: block; }
+.signali-detail header .signali-status { display: block; width: fit-content; margin-top: 6px; }
+.signali-detail-media + .signali-section-title, .signali-detail-media + .signali-pending-note { margin-top: 16px; }

@@ -6,6 +6,7 @@ import { translateApiError } from '../apiErrors'
 import { useDialog } from '../context/DialogContext'
 import { formatDate, googleMapsDirectionsUrl } from '../utils'
 import { IconAbuse } from '../icons'
+import CategoryIcon from '../components/CategoryIcon'
 import CommentThread from '../components/CommentThread'
 import CopyButton from '../components/CopyButton'
 import PhotoLightbox from '../components/PhotoLightbox'
@@ -140,20 +141,35 @@ export default function SignalementDetail() {
   const [lightbox, setLightbox] = useState(null)
   const [token, setToken] = useState(() => getSignalementToken(id))
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (quiet = false) => {
     try {
       // With its code, the author also sees photos/video still awaiting review.
       const code = getSignalementToken(id)
       setS(await api(`/signalements/${id}/`, { headers: code ? { 'X-Access-Token': code } : {} }))
       setError('')
     } catch (e) {
-      setError(translateApiError(e, t))
+      if (!quiet) setError(translateApiError(e, t))
     }
   }, [id, t])
 
   useEffect(() => {
     load()
   }, [load])
+
+  // Right after sending, the worker finishes the report in the background:
+  // re-read it every few seconds so "AI analysis in progress" turns into
+  // "sent" (and the checked photos show) without reloading the page.
+  const processing = s?.processing_status === 'pending'
+  useEffect(() => {
+    if (!processing) return
+    let tries = 0
+    const timer = setInterval(() => {
+      tries += 1
+      if (tries > 75) clearInterval(timer) // ~5 min: the worker is down, stop asking
+      load(true)
+    }, 4000)
+    return () => clearInterval(timer)
+  }, [processing, load])
 
   const vote = async (path, done) => {
     setBusy(true)
@@ -197,7 +213,7 @@ export default function SignalementDetail() {
 
       <article className="signali-detail">
         <header>
-          <span className="signali-detail-emoji" aria-hidden="true">{categoryEmoji(s.category)}</span>
+          <CategoryIcon category={s.category} className="signali-detail-emoji" />
           <div>
             <h1>{t(`signali.categories.${s.category}`)}</h1>
             <small>{[s.address, s.commune, s.wilaya_name].filter(Boolean).join(', ')}</small>

@@ -51,6 +51,17 @@ export default function WilayaCombobox({ id, wilayas, value, onChange, placehold
     setOpen(false)
   }
 
+  // On phones the keyboard takes the bottom half of the screen: bring the
+  // field to the top so the list opens above the keyboard, not under it.
+  const openList = () => {
+    setOpen(true)
+    setTimeout(() => rootRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 250)
+  }
+  // Keeps the focus in the field when a button of the combobox is pressed:
+  // otherwise the keyboard closes mid-tap, the page jumps and the tap can
+  // land next to the option (seen on iPhone).
+  const keepFocus = (e) => e.preventDefault()
+
   return (
     <div className="urgent-sos-wilaya-combobox signali-wilaya-combobox" ref={rootRef}>
       <input
@@ -62,26 +73,30 @@ export default function WilayaCombobox({ id, wilayas, value, onChange, placehold
           setOpen(true)
         }}
         onFocus={(e) => {
-          setOpen(true)
+          openList()
           e.target.select()
         }}
+        // Already focused (e.g. right after a pick): focus doesn't fire
+        // again, the tap itself must reopen the list.
+        onClick={() => !open && openList()}
+        onKeyDown={(e) => e.key === 'Escape' && setOpen(false)}
         placeholder={placeholder}
         autoComplete="off"
         role="combobox"
         aria-expanded={open}
       />
       {(search || value) && (
-        <button type="button" className="urgent-sos-wilaya-reset" onClick={() => pick(null)} aria-label={t('common.close')}>
+        <button type="button" className="urgent-sos-wilaya-reset" onMouseDown={keepFocus} onClick={() => pick(null)} aria-label={t('common.close')}>
           ×
         </button>
       )}
-      <button type="button" className="urgent-sos-wilaya-chevron" onClick={() => setOpen((v) => !v)} aria-label={placeholder}>
+      <button type="button" className="urgent-sos-wilaya-chevron" onMouseDown={keepFocus} onClick={() => (open ? setOpen(false) : openList())} aria-label={placeholder}>
         <Chevron />
       </button>
       {open && (
         <div className="urgent-sos-wilaya-options" role="listbox">
           {emptyLabel && (
-            <button type="button" className="urgent-sos-wilaya-option" onClick={() => pick(null)}>
+            <button type="button" className="urgent-sos-wilaya-option" onMouseDown={keepFocus} onClick={() => pick(null)}>
               <span>{emptyLabel}</span>
             </button>
           )}
@@ -93,13 +108,14 @@ export default function WilayaCombobox({ id, wilayas, value, onChange, placehold
                 role="option"
                 aria-selected={String(w.id) === String(value)}
                 className="urgent-sos-wilaya-option"
+                onMouseDown={keepFocus}
                 onClick={() => pick(w)}
               >
                 <span>{label(w)}</span>
               </button>
             ))
           ) : (
-            <div className="urgent-sos-wilaya-empty">{t('signali.wilayaNoMatch')}</div>
+            <div className="urgent-sos-wilaya-empty">{wilayas.length ? t('signali.wilayaNoMatch') : t('common.loading')}</div>
           )}
         </div>
       )}
