@@ -940,7 +940,8 @@
       "without": "بدون موقع"
     },
     "geolocated": "موقع محدد",
-    "approxLocation": "وسط الولاية"
+    "approxLocation": "وسط الولاية",
+    "categoriesHint": "حتى {{max}} أنواع. أول نوع تختاره هو النوع الرئيسي."
   },
   "explore": {
     "inAreaShort_one": "{{count}} هنا",

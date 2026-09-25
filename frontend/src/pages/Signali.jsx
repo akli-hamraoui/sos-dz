@@ -10,8 +10,9 @@ import { compressPhoto, formatDate, getCurrentPosition, isInAlgeria } from '../u
 import PlaceAutocomplete from '../components/PlaceAutocomplete'
 import WilayaCombobox from '../components/WilayaCombobox'
 import { IconCamera, IconClose, IconExpand, IconLocate, IconMapPin, IconMic, IconSwitchCamera, IconTrash, IconVideoCam } from '../icons'
-import { SIGNALI_CATEGORIES, saveSignalementToken, signalIconSvg } from '../signali'
+import { saveSignalementToken, signalIconSvg } from '../signali'
 import CategoryIcon from '../components/CategoryIcon'
+import CategoryPicker from '../components/CategoryPicker'
 import '../urgent-sos-wizard-fixes.css'
 import '../signali.css'
 
@@ -192,7 +193,7 @@ export default function Signali() {
   const [videoSec, setVideoSec] = useState(0)
 
   // --- description ---
-  const [category, setCategory] = useState('other')
+  const [categories, setCategories] = useState(['other'])
   const [description, setDescription] = useState('')
   const [voice, setVoice] = useState(null) // {blob, url}
   const [recordingVoice, setRecordingVoice] = useState(false)
@@ -519,7 +520,7 @@ export default function Signali() {
     setBusy(true)
     setError('')
     const fields = {
-      category,
+      categories,
       wilaya,
       commune: commune.trim(),
       address: address.trim(),
@@ -531,7 +532,10 @@ export default function Signali() {
     }
     const build = (withMedia) => {
       const f = new FormData()
-      Object.entries(fields).forEach(([k, v]) => v !== '' && v != null && f.append(k, v))
+      Object.entries(fields).forEach(([k, v]) => {
+        if (Array.isArray(v)) v.forEach((x) => f.append(k, x))
+        else if (v !== '' && v != null) f.append(k, v)
+      })
       if (!withMedia) {
         f.append('media_upload_failed', '1')
         return f
@@ -810,14 +814,8 @@ export default function Signali() {
           <div className="urgent-sos-card">
             <h2>{t('signali.descriptionTitle')}</h2>
             <p>{t('signali.descriptionText')}</p>
-            <div className="signali-categories" role="radiogroup" aria-label={t('signali.categoryLabel')}>
-              {SIGNALI_CATEGORIES.map((c) => (
-                <button key={c} type="button" role="radio" aria-checked={category === c} className={category === c ? 'selected' : ''} onClick={() => setCategory(c)}>
-                  <CategoryIcon category={c} /> {t(`signali.categories.${c}`)}
-                </button>
-              ))}
-            </div>
-            {category === 'other' && <small className="signali-hint">{t('signali.otherCategoryHint')}</small>}
+            <CategoryPicker value={categories} onChange={setCategories} />
+            {categories[0] === 'other' && <small className="signali-hint">{t('signali.otherCategoryHint')}</small>}
 
             <label htmlFor="signali-description" className="signali-label">{t('signali.textLabel')} <small>({t('common.optional')})</small></label>
             <textarea id="signali-description" rows={3} value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t('signali.textPlaceholder')} maxLength={2000} />
@@ -865,8 +863,14 @@ export default function Signali() {
                 </div>
               </li>
               <li>
-                <CategoryIcon category={category} />
-                <div><b>{t(`signali.categories.${category}`)}</b></div>
+                <CategoryIcon category={categories[0]} />
+                <div className="signali-summary-types">
+                  {categories.map((c) => (
+                    <span key={c} className="signali-type-pill">
+                      <CategoryIcon category={c} /> {t(`signali.categories.${c}`)}
+                    </span>
+                  ))}
+                </div>
               </li>
               <li>
                 <span>🖼️</span>

@@ -969,10 +969,12 @@ class SignalementPublicSerializer(serializers.ModelSerializer):
     display_longitude = serializers.SerializerMethodField()
     has_exact_position = serializers.SerializerMethodField()
 
+    categories = serializers.ListField(child=serializers.CharField(), read_only=True)
+
     class Meta:
         model = Signalement
         fields = [
-            "id", "category", "category_label", "wilaya", "wilaya_name", "commune", "address",
+            "id", "category", "categories", "category_label", "wilaya", "wilaya_name", "commune", "address",
             "latitude", "longitude", "display_latitude", "display_longitude", "has_exact_position", "position_source",
             "description", "voice_transcript", "video_transcript", "photos", "video_file",
             "video_moderation_status", "voice_file", "processing_status", "status", "resolved_at",
@@ -1026,13 +1028,38 @@ class SignalementDetailSerializer(SignalementPublicSerializer):
         return CommentSerializer(roots, many=True, context=self.context).data
 
 
+def _categories_field():
+    return serializers.ListField(
+        child=serializers.ChoiceField(choices=Signalement.CATEGORY_CHOICES),
+        required=False,
+        allow_empty=False,
+        max_length=Signalement.MAX_CATEGORIES,
+        write_only=True,
+    )
+
+
+def _apply_categories(attrs):
+    """`categories` (up to 3, main first) -> category + extra_categories."""
+    codes = attrs.pop("categories", None)
+    if codes:
+        holder = Signalement()
+        holder.set_categories(codes)
+        attrs["category"], attrs["extra_categories"] = holder.category, holder.extra_categories
+    return attrs
+
+
 class SignalementManageSerializer(serializers.ModelSerializer):
     """What the reporter (access token) or an admin may change afterwards."""
 
+    categories = _categories_field()
+
     class Meta:
         model = Signalement
-        fields = ["status", "category", "description"]
-        extra_kwargs = {f: {"required": False} for f in fields}
+        fields = ["status", "category", "categories", "description"]
+        extra_kwargs = {f: {"required": False} for f in ["status", "category", "description"]}
+
+    def validate(self, attrs):
+        return _apply_categories(attrs)
 
 
 class SignalementCreateSerializer(serializers.ModelSerializer):
@@ -1041,11 +1068,14 @@ class SignalementCreateSerializer(serializers.ModelSerializer):
     stops the report itself from being saved."""
 
     wilaya = serializers.PrimaryKeyRelatedField(queryset=Wilaya.objects.all(), required=False, allow_null=True)
+    # Up to 3 types, main first (the wizard sends this; `category` alone
+    # still works).
+    categories = _categories_field()
 
     class Meta:
         model = Signalement
         fields = [
-            "category", "wilaya", "commune", "address", "latitude", "longitude",
+            "category", "categories", "wilaya", "commune", "address", "latitude", "longitude",
             "position_source", "description",
         ]
 
@@ -1081,4 +1111,4 @@ class SignalementCreateSerializer(serializers.ModelSerializer):
         # whether it could be stored is handled per file by the view.
         if not self.context.get("media_submitted"):
             raise serializers.ValidationError("At least one photo or a video is required.")
-        return attrs
+        return _apply_categories(attrs)

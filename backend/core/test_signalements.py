@@ -428,3 +428,45 @@ class MapProviderConfigTests(BaseAPITestCase):
         config.save()
         data = self.client.get("/api/config/").data
         self.assertEqual((data["map_provider"], data["google_maps_api_key"]), ("google", "browser-key"))
+
+
+@override_settings(MEDIA_ROOT=MEDIA_ROOT)
+class SignalementMultiCategoryTests(BaseAPITestCase):
+    def setUp(self):
+        super().setUp()
+        algeria_ip = patch("core.views.is_algeria_ip", return_value=True)
+        algeria_ip.start()
+        self.addCleanup(algeria_ip.stop)
+
+    def _create(self, categories):
+        return self.client.post(
+            "/api/signalements/",
+            {"categories": categories, "latitude": 36.75, "longitude": 3.05, "photos": [make_test_image()]},
+            format="multipart",
+        )
+
+    def test_up_to_three_types_main_first_and_filterable_by_any(self):
+        resp = self._create(["waste", "sewer", "danger"])
+        self.assertEqual(resp.status_code, 201, resp.data)
+        self.assertEqual(resp.data["category"], "waste")
+        self.assertEqual(resp.data["categories"], ["waste", "sewer", "danger"])
+        s = Signalement.objects.get(pk=resp.data["id"])
+        self.assertEqual(s.extra_categories, "sewer,danger")
+        ids = lambda c: [x["id"] for x in self.client.get(f"/api/signalements/?category={c}").data]  # noqa: E731
+        self.assertEqual(ids("sewer"), [s.pk])
+        self.assertEqual(ids("waste"), [s.pk])
+        self.assertEqual(ids("water"), [])
+
+    def test_more_than_three_types_is_refused(self):
+        self.assertEqual(self._create(["waste", "sewer", "danger", "road"]).status_code, 400)
+
+    def test_other_only_on_its_own_and_duplicates_dropped(self):
+        resp = self._create(["other", "road", "road"])
+        self.assertEqual(resp.data["categories"], ["road"])
+
+    def test_owner_can_change_the_types(self):
+        resp = self._create(["road"])
+        url = f"/api/signalements/{resp.data['id']}/manage/"
+        out = self.client.post(url, {"categories": ["pothole", "road"]}, format="json", HTTP_X_ACCESS_TOKEN=resp.data["access_token"])
+        self.assertEqual(out.status_code, 200, out.data)
+        self.assertEqual(out.data["categories"], ["pothole", "road"])

@@ -940,7 +940,8 @@
       "without": "Sans géolocalisation"
     },
     "geolocated": "Géolocalisé",
-    "approxLocation": "Centre de la wilaya"
+    "approxLocation": "Centre de la wilaya",
+    "categoriesHint": "Jusqu'à {{max}} types. Le premier choisi est le type principal."
   },
   "explore": {
     "inAreaShort_one": "{{count}} ici",

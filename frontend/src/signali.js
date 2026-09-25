@@ -78,3 +78,16 @@ export function signalIconSvg(size = 22, color = '#fff') {
   )
 }
 export const SIGNAL_ICON_SVG = signalIconSvg()
+
+// Up to 3 types per report (Signalement.MAX_CATEGORIES); the first picked
+// is the main one (map icon). "Autre" only ever on its own.
+export const MAX_SIGNALI_CATEGORIES = 3
+export function toggleCategory(list, code) {
+  if (list.includes(code)) {
+    const next = list.filter((c) => c !== code)
+    return next.length ? next : ['other']
+  }
+  if (code === 'other') return ['other']
+  const base = list.filter((c) => c !== 'other')
+  return base.length >= MAX_SIGNALI_CATEGORIES ? base : [...base, code]
+}

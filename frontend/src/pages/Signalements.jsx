@@ -120,7 +120,7 @@ export default function Signalements() {
       const open = s.status === 'new' || s.status === 'in_review'
       return {
         to: `/signalements/${s.id}`,
-        title: t(`signali.categories.${s.category}`),
+        title: (s.categories?.length ? s.categories : [s.category]).map((c) => t(`signali.categories.${c}`)).join(' · '),
         subtitle: [s.address || s.commune, s.wilaya_name].filter(Boolean).join(' · '),
         text: (s.description || s.voice_transcript || '').trim(),
         image: s.photos.find((p) => p.image)?.image,

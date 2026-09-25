@@ -1634,7 +1634,7 @@ class SignalementViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.
         if params.get("wilaya"):
             qs = qs.filter(wilaya_id=params["wilaya"])
         if params.get("category"):
-            qs = qs.filter(category=params["category"])
+            qs = qs.filter(Signalement.has_category_q(params["category"]))
         # "open" = reported or being looked into; anything else is exact.
         if params.get("status") == "open":
             qs = qs.filter(status__in=Signalement.OPEN_STATUSES)
