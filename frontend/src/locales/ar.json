@@ -118,7 +118,9 @@
     "createPointFlyer": "إرسال صورة",
     "learnMore": "اعرف المزيد",
     "signaliTitle": "سينيالي",
-    "signaliSubtitle": "أبلغ عن خطر في الشارع: عمود كهرباء، حفرة، تسرب…"
+    "signaliSubtitle": "أبلغ عن خطر في الشارع: عمود كهرباء، حفرة، تسرب…",
+    "insertFlyerShort": "إدراج ملصق",
+    "signaliShort": "أبلغ عن خطر"
   },
   "status": {
     "open": "مفتوح",

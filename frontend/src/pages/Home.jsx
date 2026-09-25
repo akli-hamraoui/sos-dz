@@ -54,7 +54,19 @@ export default function Home() {
   return (
     <section className="home home-compact">
       <h1 className="sr-only">{t('seo.home.title')}</h1>
-      <p className="home-tagline">{t('home.tagline')}</p>
+
+      {/* Signali: anonymous citizen reports of street hazards (a dangerous
+          power pole, a pothole...). Full-width, first on the page and
+          highlighted (per request). */}
+      <Link to="/signali" className="home-signali-card">
+        <NewBadge />
+        <span className="home-signali-icon" aria-hidden="true"><IconMegaphone width={24} height={24} strokeWidth={2} /></span>
+        <span className="home-signali-copy">
+          <strong><PlusBadge /> {t('home.signaliTitle')}</strong>
+          <span>{t('home.signaliShort')}</span>
+        </span>
+        <b className="home-signali-arrow" aria-hidden="true">→</b>
+      </Link>
 
       {/* Sits above the SOS row now (moved up per request) -- these two
           creation entry points, not the emergency ones, are what most
@@ -107,11 +119,12 @@ export default function Home() {
             </span>
           </span>
           <span className="home-secondary-copy">
-            <strong><PlusBadge /> {t('home.insertFlyerTitle')}</strong>
+            <strong><PlusBadge /> {t('home.insertFlyerShort')}</strong>
             <em>{t('home.createPointFlyer')} <b aria-hidden="true">→</b></em>
           </span>
         </Link>
       </div>
+
 
 
       {/* The single red "Lancer un SOS" card used to cover both cases at
@@ -146,19 +159,6 @@ export default function Home() {
         )}
       </div>
 
-      {/* Signali: anonymous citizen reports of street hazards (a dangerous
-          power pole, a pothole...). Full-width row of its own so the six
-          cards above could all be shrunk (home-compact.css) instead of
-          pushing "Qui sommes-nous" below the fold on a phone. */}
-      <Link to="/signali" className="home-signali-card">
-        <NewBadge />
-        <span className="home-signali-icon" aria-hidden="true"><IconMegaphone width={24} height={24} strokeWidth={2} /></span>
-        <span className="home-signali-copy">
-          <strong><PlusBadge /> {t('home.signaliTitle')}</strong>
-          <span>{t('home.signaliSubtitle')}</span>
-        </span>
-        <b className="home-signali-arrow" aria-hidden="true">→</b>
-      </Link>
 
       {/* Browsing collection points: moved to the bottom (per request),
           below the action buttons. */}
