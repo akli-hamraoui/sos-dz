@@ -888,6 +888,8 @@
     "inArea_other": "{{count}} signalements ici",
     "noneInArea": "Aucun signalement dans cette zone : dézoomez ou changez les filtres.",
     "showAll": "Tout voir",
+    "listCount_one": "Liste ({{count}})",
+    "listCount_other": "Liste ({{count}})",
     "inAreaShort_one": "{{count}} ici",
     "inAreaShort_other": "{{count}} ici",
     "showResults_one": "Voir {{count}} signalement",

@@ -888,6 +888,8 @@
     "inArea_other": "{{count}} بلاغات هنا",
     "noneInArea": "لا توجد بلاغات في هذه المنطقة: صغّر الخريطة أو غيّر عوامل التصفية.",
     "showAll": "عرض الكل",
+    "listCount_one": "القائمة ({{count}})",
+    "listCount_other": "القائمة ({{count}})",
     "inAreaShort_one": "{{count}} هنا",
     "inAreaShort_other": "{{count}} هنا",
     "showResults_one": "عرض بلاغ واحد",

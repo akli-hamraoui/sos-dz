@@ -165,7 +165,14 @@ export default function Signalements() {
   const { showAlert } = useDialog()
   const [params, setParams] = useSearchParams()
   const [filtersOpen, setFiltersOpen] = useState(false)
-  const [listOpen, setListOpen] = useState(false)
+  // Phone: the list is a bottom sheet -- 'half' (start: map above, list
+  // below), 'full', 'peek' (just its header) -- or 'card' after a pin tap
+  // (sheet down, that report's card in a carousel). Drag the handle.
+  const [sheet, setSheet] = useState(() => (Number(new URLSearchParams(window.location.search).get('focus')) ? 'card' : 'half'))
+  const sheetModeRef = useRef(sheet)
+  useEffect(() => {
+    sheetModeRef.current = sheet
+  }, [sheet])
   const [ownPending, setOwnPending] = useState([])
   const [items, setItems] = useState([])
   const [focusedReport, setFocused] = useState(null)
@@ -326,6 +333,7 @@ export default function Signalements() {
   const fittedRef = useRef('')
   const quietMoveRef = useRef(false) // a pan we made for the carousel: keep its order
   const freshViewRef = useRef(false) // the user moved the map: restart the carousel
+  const coverRef = useRef(0) // px of map hidden under the phone's list sheet
   const carouselRef = useRef(null)
   const listRef = useRef(null)
   const filterKeyRef = useRef('')
@@ -341,8 +349,11 @@ export default function Signalements() {
   const refreshView = useCallback(() => {
     const map = mapRef.current
     if (!map) return
-    const bounds = map.getBounds()
-    const center = map.getCenter()
+    // Only the part of the map not hidden under the phone's list sheet.
+    const size = map.getSize()
+    const visibleH = Math.max(80, size.y - coverRef.current)
+    const bounds = L.latLngBounds(map.containerPointToLatLng([0, 0]), map.containerPointToLatLng([size.x, visibleH]))
+    const center = map.containerPointToLatLng([size.x / 2, visibleH / 2])
     const inView = allRef.current
       .filter((s) => bounds.contains([s.display_latitude, s.display_longitude]))
       .map((s) => [s, center.distanceTo([s.display_latitude, s.display_longitude]) + (s.has_exact_position ? 0 : 1e7)])
@@ -360,6 +371,13 @@ export default function Signalements() {
     layerRef.current = L.layerGroup().addTo(map)
     mapRef.current = map
     map.on('zoomend', () => setZoomTick((n) => n + 1))
+    // A tap on the map itself (not a pin) puts the card away.
+    map.on('click', () => {
+      if (sheetModeRef.current === 'card') {
+        setSheet('peek')
+        setSelectedId(null)
+      }
+    })
     map.on('moveend', () => {
       try {
         const c = map.getCenter()
@@ -455,6 +473,17 @@ export default function Signalements() {
     meRef.current = L.circleMarker(myPos, { radius: 8, color: '#fff', weight: 3, fillColor: '#1a73e8', fillOpacity: 1, interactive: false }).addTo(map)
   }, [myPos])
 
+  // Phone list sheet: its snap heights, and how much map it hides.
+  const snaps = { full: 0, half: Math.round(height * 0.5), peek: height - 74 }
+  const sheetTop = sheet === 'card' ? height : snaps[sheet]
+  // The map area the sheet hides (none in full: the map isn't seen then).
+  const cover = wide || sheet === 'card' || sheet === 'full' ? 0 : height - sheetTop
+  useEffect(() => {
+    if (coverRef.current === cover) return
+    coverRef.current = cover
+    refreshView()
+  }, [cover, refreshView])
+
   // Refit when the filters (or the focused report) change -- not on
   // every selection, the view mustn't jump under the finger.
   useEffect(() => {
@@ -477,11 +506,12 @@ export default function Signalements() {
       }
     }
     const points = all.map((s) => [s.display_latitude, s.display_longitude])
-    if (nearMode && nearPos) map.fitBounds(L.latLng(nearPos[0], nearPos[1]).toBounds(NEAR_KM * 2000))
+    const pad = { paddingBottomRight: [0, coverRef.current] }
+    if (nearMode && nearPos) map.fitBounds(L.latLng(nearPos[0], nearPos[1]).toBounds(NEAR_KM * 2000), pad)
     else if (focused) {
       map.setView([focused.display_latitude, focused.display_longitude], focused.has_exact_position ? 16 : 11)
       setSelectedId(focused.id)
-    } else if (points.length) map.fitBounds(L.latLngBounds(points).pad(0.15), { maxZoom: 15 })
+    } else if (points.length) map.fitBounds(L.latLngBounds(points).pad(0.15), { maxZoom: 15, ...pad })
     else {
       const w = wilayas.find((x) => String(x.id) === wilaya)
       if (w?.centroid_latitude) map.setView([w.centroid_latitude, w.centroid_longitude], 9)
@@ -500,6 +530,7 @@ export default function Signalements() {
   const select = (id, source) => {
     setSelectedId(id)
     if (source === 'map') {
+      if (!wide) setSheet('card')
       if (noLocationOnly && !shown.some((s) => s.id === id)) setNoLocationOnly('')
       requestAnimationFrame(() => requestAnimationFrame(() => scrollCardIntoView(id)))
       return
@@ -550,7 +581,7 @@ export default function Signalements() {
   const firstShown = shown[0]?.id
   const selectedShown = shown.some((s) => s.id === selectedId)
   useEffect(() => {
-    if (wide || !firstShown) return
+    if (wide || sheet !== 'card' || !firstShown) return
     if (!freshViewRef.current && selectedShown) return
     freshViewRef.current = false
     if (focusId && selectedShown) {
@@ -561,7 +592,7 @@ export default function Signalements() {
     setSelectedId(firstShown)
     carouselRef.current?.scrollTo({ left: 0 })
     // eslint-disable-next-line react-hooks/exhaustive-deps -- scrollCardIntoView reads refs only
-  }, [shownKey, firstShown, selectedShown, wide, focusId])
+  }, [shownKey, firstShown, selectedShown, wide, focusId, sheet])
 
   const recenterOnMe = async () => {
     const map = mapRef.current
@@ -611,27 +642,72 @@ export default function Signalements() {
       )}
     </div>
   )
-  const list = (
-    <div className="sx-list-inner">
-      <div className="sx-list-head">
-        <h2>{countLabel}</h2>
-        {myPos && <small>{t('signali.sortedByDistance')}</small>}
-      </div>
+  const listHead = (
+    <div className="sx-list-head">
+      <h2>{countLabel}</h2>
+      {myPos && <small>{t('signali.sortedByDistance')}</small>}
+    </div>
+  )
+  const listBody = (
+    <>
       {empty}
       <div className="sx-list-grid">
         {shown.map((s) => (
           <ReportCard key={s.id} s={s} t={t} i18n={i18n} distance={distanceOf(s)} selected={s.id === lit} onHover={wide ? setHoveredId : undefined} compact={!wide} />
         ))}
       </div>
-    </div>
+    </>
   )
+
+  // --- phone bottom sheet: drag on its handle ---
+  const sheetRef = useRef(null)
+  const dragRef = useRef(null)
+  const onSheetDown = (e) => {
+    dragRef.current = { y: e.clientY, top: sheetTop, t: performance.now(), moved: false }
+    e.currentTarget.setPointerCapture?.(e.pointerId)
+  }
+  const onSheetMove = (e) => {
+    const d = dragRef.current
+    const el = sheetRef.current
+    if (!d || !el) return
+    const dy = e.clientY - d.y
+    if (Math.abs(dy) > 4) d.moved = true
+    if (!d.moved) return
+    el.style.transition = 'none'
+    el.style.top = `${Math.min(snaps.peek, Math.max(snaps.full, d.top + dy))}px`
+  }
+  const onSheetUp = (e) => {
+    const d = dragRef.current
+    const el = sheetRef.current
+    dragRef.current = null
+    if (!d || !el) return
+    const order = ['full', 'half', 'peek']
+    let target
+    if (!d.moved) {
+      // A tap on the handle: peek -> half -> full -> half.
+      target = sheet === 'peek' ? 'half' : sheet === 'half' ? 'full' : 'half'
+    } else {
+      // Where the sheet would coast to with the finger's speed, then the
+      // nearest snap height to that.
+      const dy = e.clientY - d.y
+      const speed = dy / Math.max(1, performance.now() - d.t) // px/ms, + = down
+      const projected = d.top + dy + speed * 180
+      target = order.reduce((a, b) => (Math.abs(snaps[b] - projected) < Math.abs(snaps[a] - projected) ? b : a))
+    }
+    el.style.transition = ''
+    el.style.top = `${snaps[target]}px`
+    setSheet(target)
+  }
 
   return (
     <section className="signalements-page is-explore">
       <div ref={rootRef} className={`sx${wide ? ' is-wide' : ''}`} style={{ height }}>
         {wide && (
           <aside className="sx-side" ref={listRef}>
-            {list}
+            <div className="sx-list-inner">
+              {listHead}
+              {listBody}
+            </div>
           </aside>
         )}
         <div className="sx-map-wrap">
@@ -697,20 +773,30 @@ export default function Signalements() {
 
           {!wide && (
             <>
-              <button type="button" className="sx-pill is-dark sx-list-toggle" onClick={() => setListOpen(true)}>
-                ☰ {t('needsList.list')}
-              </button>
-              <div className="sx-carousel" ref={carouselRef} onScroll={onCarouselScroll}>
-                {empty}
-                {shown.slice(0, CAROUSEL_MAX).map((s) => (
-                  <ReportCard key={s.id} s={s} t={t} i18n={i18n} distance={distanceOf(s)} selected={s.id === selectedId} />
-                ))}
-              </div>
-              <div className={`sx-sheet${listOpen ? ' is-open' : ''}`} aria-hidden={!listOpen}>
-                {listOpen && list}
-                <button type="button" className="sx-pill is-dark sx-map-toggle" onClick={() => setListOpen(false)}>
-                  🗺️ {t('needsList.map')}
-                </button>
+              {sheet === 'card' && (
+                <>
+                  <button type="button" className="sx-pill is-dark sx-list-toggle" onClick={() => setSheet('half')}>
+                    ☰ {t('signali.listCount', { count: shown.length })}
+                  </button>
+                  <div className="sx-carousel" ref={carouselRef} onScroll={onCarouselScroll}>
+                    {empty}
+                    {shown.slice(0, CAROUSEL_MAX).map((s) => (
+                      <ReportCard key={s.id} s={s} t={t} i18n={i18n} distance={distanceOf(s)} selected={s.id === selectedId} />
+                    ))}
+                  </div>
+                </>
+              )}
+              <div ref={sheetRef} className={`sx-sheet is-${sheet}`} style={{ top: sheetTop }}>
+                <div className="sx-sheet-grab" onPointerDown={onSheetDown} onPointerMove={onSheetMove} onPointerUp={onSheetUp} onPointerCancel={onSheetUp}>
+                  <span className="sx-sheet-handle" aria-hidden="true" />
+                  {listHead}
+                </div>
+                <div className="sx-sheet-body">{listBody}</div>
+                {sheet === 'full' && (
+                  <button type="button" className="sx-pill is-dark sx-map-toggle" onClick={() => setSheet('peek')}>
+                    🗺️ {t('needsList.map')}
+                  </button>
+                )}
               </div>
             </>
           )}

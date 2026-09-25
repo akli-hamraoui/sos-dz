@@ -869,6 +869,8 @@
     "inArea_other": "{{count}} reports here",
     "noneInArea": "No report in this area: zoom out or change the filters.",
     "showAll": "Show all",
+    "listCount_one": "List ({{count}})",
+    "listCount_other": "List ({{count}})",
     "inAreaShort_one": "{{count}} here",
     "inAreaShort_other": "{{count}} here",
     "showResults_one": "Show {{count}} report",
