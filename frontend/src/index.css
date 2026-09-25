@@ -1452,6 +1452,34 @@ textarea {
 .place-autocomplete textarea {
   width: 100%;
 }
+/* Room for the × that empties the field. */
+.place-autocomplete.has-value input,
+.place-autocomplete.has-value textarea {
+  padding-inline-end: 40px;
+}
+.place-autocomplete-clear {
+  position: absolute;
+  top: 50%;
+  inset-inline-end: 6px;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: #e9edf3;
+  color: #4a5566;
+  cursor: pointer;
+}
+.place-autocomplete-clear:active {
+  background: #d6dde8;
+}
+.place-autocomplete textarea + .place-autocomplete-clear {
+  top: 8px;
+  transform: none;
+}
 .place-suggestions {
   position: absolute;
   /* Above Leaflet's own panes/controls (z-index: 1000) -- this field's
@@ -1489,6 +1517,15 @@ textarea {
 }
 .place-suggestions li:hover {
   background: var(--bg);
+}
+.place-suggestions li.place-suggestions-credit {
+  cursor: default;
+  padding-block: 4px;
+  text-align: end;
+  font-size: 11px;
+  font-weight: 700;
+  color: #5f6368;
+  background: none;
 }
 fieldset {
   border: 1px solid var(--border);

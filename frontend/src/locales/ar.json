@@ -34,7 +34,8 @@
     "adminModeBadge": "وضع الإدارة",
     "adminLogout": "تسجيل الخروج",
     "nonOfficialFooterNote": "موقع غير رسمي، طوّره ونشره متطوع.",
-    "filters": "الفلاتر"
+    "filters": "الفلاتر",
+    "clear": "مسح"
   },
   "validation": {
     "required": "هذا الحقل إلزامي.",
@@ -229,7 +230,9 @@
     "noLocationBubbleLabel": "بدون تحديد الموقع",
     "playAudio": "الاستماع إلى التسجيل",
     "stopAudio": "إيقاف",
-    "noGeographicPosition": "بدون موقع جغرافي"
+    "noGeographicPosition": "بدون موقع جغرافي",
+    "inArea_one": "{{count}} نداء هنا",
+    "inArea_other": "{{count}} نداءات هنا"
   },
   "help": {
     "instructions": "الرجاء اختيار نقطة تجميع أو احتياج للمساعدة فيه على الخريطة، أو استخدام القائمة أو الفلاتر.",
@@ -398,7 +401,10 @@
     "socialLinks": "وسائل التواصل الاجتماعي",
     "visitSocial": "عرض على {{network}}",
     "addViaFlyer": "+ إضافة عبر منشور",
-    "countryBubbleTitle": "نقاط التجميع — {{country}}"
+    "countryBubbleTitle": "نقاط التجميع — {{country}}",
+    "inArea_one": "نقطة جمع واحدة هنا",
+    "inArea_other": "{{count}} نقاط جمع هنا",
+    "addShort": "إضافة"
   },
   "submitFlyer": {
     "title": "إضافة نقطة تجميع من منشور",
@@ -457,7 +463,10 @@
     "country": "البلد",
     "exactPositionRequired": "يلزم تحديد موقع دقيق (عبر البحث عن مكان أو \"استخدام موقعي\") لنقطة دولية.",
     "positionInAlgeria": "هذا الموقع داخل الجزائر. يرجى استخدام صفحة نقاط التجميع الوطنية بدلاً من ذلك.",
-    "positionInAlgeriaLink": "إنشاء نقطة تجميع في الجزائر"
+    "positionInAlgeriaLink": "إنشاء نقطة تجميع في الجزائر",
+    "inArea_one": "نقطة جمع واحدة هنا",
+    "inArea_other": "{{count}} نقاط جمع هنا",
+    "countryFilter": "البلد"
   },
   "language": {
     "label": "اللغة",
@@ -485,7 +494,13 @@
     "filterByPosition": "تصفية حسب الموقع",
     "positionWith": "له موقع",
     "positionWithout": "بدون موقع",
-    "viewTransporterDetail": "عرض تفاصيل المتطوع"
+    "viewTransporterDetail": "عرض تفاصيل المتطوع",
+    "inArea_one": "موصّل واحد هنا",
+    "inArea_other": "{{count}} موصّلين هنا",
+    "noPositionChip": "توصيلات بدون موقع",
+    "live": "مباشر",
+    "departure": "نقطة انطلاق مصرّح بها",
+    "deliverShort": "توصيل"
   },
   "quickActions": {
     "create": "تجميع",
@@ -765,7 +780,7 @@
     "wilayaLabel": "الولاية",
     "wilayaPlaceholder": "ابحث عن ولاية (الاسم أو الرقم)",
     "communeLabel": "البلدية",
-    "dragPinHint": "حرّك الدبوس أو المس الخريطة لتحديد المكان بدقة.",
+    "dragPinHint": "اسحب الخريطة بإصبع واحد لوضع الدبوس على المكان المحدد (أو المس المكان).",
     "locationRequired": "حدد موقعك GPS أو عنواناً مع ولايته للمتابعة.",
     "nearbyTitle": "هل تم الإبلاغ عنه هنا؟",
     "nearbyText": "تم الإبلاغ عن هذه المشاكل على بعد أقل من 100 م. إن كانت نفسها، أكّدها بدلاً من إنشاء بلاغ جديد.",
@@ -779,7 +794,7 @@
     "takePhoto": "التقاط صورة",
     "recordVideo": "تصوير فيديو",
     "videoMax": "{{max}} ث كحد أقصى",
-    "fromGallery": "أو اختر صوراً من المعرض",
+    "fromGallery": "صور من المعرض",
     "record": "تصوير",
     "stop": "إيقاف",
     "switchCamera": "تبديل الكاميرا",
@@ -854,7 +869,7 @@
     "coordsInvalid": "إحداثيات غير صالحة. مثال: 36.7525, 3.0420",
     "coordsOutsideAlgeria": "هذه الإحداثيات خارج الجزائر.",
     "pickOnMap": "أو ضع النقطة على الخريطة",
-    "tapMapHint": "المس الخريطة في المكان الدقيق للمشكلة.",
+    "tapMapHint": "اسحب الخريطة بإصبع واحد إلى مكان المشكلة بالضبط، أو المسه.",
     "coordsLabel": "إحداثيات GPS",
     "placeCoords": "وضع",
     "noPinHint": "بدون نقطة على الخريطة، سيظهر البلاغ في فقاعة «بدون موقع» لولايته.",
@@ -908,7 +923,7 @@
     "coordsEmpty": "المس الخريطة أو اكتب إحداثيات GPS.",
     "coordsPlaceholder": "مثال: 36.7525, 3.0420",
     "pinOnMap": "نقطة محددة على الخريطة",
-    "videoFromGallery": "أو اختر فيديو من المعرض ({{size}} ميغا كحد أقصى)",
+    "videoFromGallery": "فيديو من المعرض",
     "addressPlaceholderIn": "عنوان في {{wilaya}} (شارع، حي، معلم)",
     "wilayaNoMatch": "لم يتم العثور على ولاية",
     "agree": "أوافق",
@@ -926,6 +941,23 @@
       "without": "بدون موقع"
     },
     "geolocated": "موقع محدد",
-    "approxLocation": "وسط الولاية"
+    "approxLocation": "وسط الولاية",
+    "categoriesHint": "حتى {{max}} أنواع. أول نوع تختاره هو النوع الرئيسي.",
+    "videoFromGalleryMax": "{{size}} ميغا كحد أقصى"
+  },
+  "explore": {
+    "inAreaShort_one": "{{count}} هنا",
+    "inAreaShort_other": "{{count}} هنا",
+    "noneInArea": "لا شيء في هذه المنطقة: صغّر الخريطة أو غيّر عوامل التصفية.",
+    "showAll": "عرض الكل",
+    "showResults_one": "عرض نتيجة واحدة",
+    "showResults_other": "عرض {{count}} نتائج",
+    "sortedByDistance": "الأقرب أولاً",
+    "listCount_one": "القائمة ({{count}})",
+    "listCount_other": "القائمة ({{count}})",
+    "approxBubble": "موقع تقريبي · {{place}} ({{count}})",
+    "noPosition": "بدون موقع",
+    "noPositionWhat": "ما هذا؟",
+    "noPositionHelp": "هذه العناصر بدون موقع دقيق (عنوان مكتوب بدون تحديد على الخريطة، مكان غير موجود…)، لذلك لا تظهر على الخريطة: المس الفقاعة لعرضها في قائمة مع ولايتها."
   }
 }

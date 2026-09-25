@@ -94,7 +94,7 @@ def find_nearby_signalements(latitude, longitude, category=None, radius=NEARBY_R
         longitude__range=(longitude - dlon, longitude + dlon),
     )
     if category:
-        qs = qs.filter(category=category)
+        qs = qs.filter(Signalement.has_category_q(category))
     hits = [(s, _distance_meters(latitude, longitude, s.latitude, s.longitude)) for s in qs.select_related("wilaya").prefetch_related("photos")]
     return [s for s, d in sorted(hits, key=lambda x: x[1]) if d <= radius]
 

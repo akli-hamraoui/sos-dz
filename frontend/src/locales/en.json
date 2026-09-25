@@ -34,7 +34,8 @@
     "adminModeBadge": "Admin mode",
     "adminLogout": "log out",
     "nonOfficialFooterNote": "Unofficial site, developed and deployed by a volunteer.",
-    "filters": "Filters"
+    "filters": "Filters",
+    "clear": "Clear"
   },
   "validation": {
     "required": "This field is required.",
@@ -229,7 +230,9 @@
     "noLocationBubbleLabel": "No location",
     "playAudio": "Play audio",
     "stopAudio": "Stop",
-    "noGeographicPosition": "No geographic position"
+    "noGeographicPosition": "No geographic position",
+    "inArea_one": "{{count}} SOS here",
+    "inArea_other": "{{count}} SOS here"
   },
   "help": {
     "instructions": "Please choose a collection point or a need to help with on the map, or use the list or filters.",
@@ -398,7 +401,10 @@
     "socialLinks": "Social media",
     "visitSocial": "View on {{network}}",
     "addViaFlyer": "+ Add from a flyer",
-    "countryBubbleTitle": "Collection points — {{country}}"
+    "countryBubbleTitle": "Collection points — {{country}}",
+    "inArea_one": "{{count}} collection point here",
+    "inArea_other": "{{count}} collection points here",
+    "addShort": "Add"
   },
   "submitFlyer": {
     "title": "Add a collection point from a flyer",
@@ -457,7 +463,10 @@
     "country": "Country",
     "exactPositionRequired": "An exact position (via the place search or \"Use my location\") is required for an international point.",
     "positionInAlgeria": "This position is inside Algeria. Please use the national collection points page instead.",
-    "positionInAlgeriaLink": "Create a collection point in Algeria"
+    "positionInAlgeriaLink": "Create a collection point in Algeria",
+    "inArea_one": "{{count}} collection point here",
+    "inArea_other": "{{count}} collection points here",
+    "countryFilter": "Country"
   },
   "language": {
     "label": "Language",
@@ -485,7 +494,13 @@
     "filterByPosition": "Filter by position",
     "positionWith": "Has a position",
     "positionWithout": "No position",
-    "viewTransporterDetail": "View transporter details"
+    "viewTransporterDetail": "View transporter details",
+    "inArea_one": "{{count}} courier here",
+    "inArea_other": "{{count}} couriers here",
+    "noPositionChip": "Deliveries with no position",
+    "live": "Live",
+    "departure": "Declared departure",
+    "deliverShort": "Deliver"
   },
   "quickActions": {
     "create": "Collection point",
@@ -746,7 +761,7 @@
     "wilayaLabel": "Wilaya",
     "wilayaPlaceholder": "Search a wilaya (name or number)",
     "communeLabel": "Commune",
-    "dragPinHint": "Drag the pin or tap the map to mark the exact spot.",
+    "dragPinHint": "Slide the map with one finger to put the pin on the exact spot (or tap the spot).",
     "locationRequired": "Give your GPS location or an address with its wilaya to continue.",
     "nearbyTitle": "Already reported here?",
     "nearbyText": "These problems were already reported less than 100 m away. If it's the same one, confirm it instead of creating a new report.",
@@ -760,7 +775,7 @@
     "takePhoto": "Take a photo",
     "recordVideo": "Record a video",
     "videoMax": "{{max}} s max",
-    "fromGallery": "or pick photos from the gallery",
+    "fromGallery": "Photos from gallery",
     "record": "Record",
     "stop": "Stop",
     "switchCamera": "Switch camera",
@@ -835,7 +850,7 @@
     "coordsInvalid": "Invalid coordinates. Example: 36.7525, 3.0420",
     "coordsOutsideAlgeria": "These coordinates are outside Algeria.",
     "pickOnMap": "Or place the spot on the map",
-    "tapMapHint": "Tap the map at the exact spot of the problem.",
+    "tapMapHint": "Slide the map with one finger to the exact spot of the problem, or tap it.",
     "coordsLabel": "GPS coordinates",
     "placeCoords": "Place",
     "noPinHint": "Without a pin on the map, the report will show in its wilaya's \"no location\" bubble.",
@@ -889,7 +904,7 @@
     "coordsEmpty": "Tap the map or type GPS coordinates.",
     "coordsPlaceholder": "e.g. 36.7525, 3.0420",
     "pinOnMap": "Spot placed on the map",
-    "videoFromGallery": "or pick a video from the gallery ({{size}} MB max)",
+    "videoFromGallery": "Video from gallery",
     "addressPlaceholderIn": "Address in {{wilaya}} (street, area, landmark)",
     "wilayaNoMatch": "No wilaya found",
     "agree": "Agree",
@@ -907,6 +922,23 @@
       "without": "No geolocation"
     },
     "geolocated": "Geolocated",
-    "approxLocation": "Wilaya centre"
+    "approxLocation": "Wilaya centre",
+    "categoriesHint": "Up to {{max}} types. The first one picked is the main type.",
+    "videoFromGalleryMax": "{{size}} MB max"
+  },
+  "explore": {
+    "inAreaShort_one": "{{count}} here",
+    "inAreaShort_other": "{{count}} here",
+    "noneInArea": "Nothing in this area: zoom out or change the filters.",
+    "showAll": "Show all",
+    "showResults_one": "Show {{count}} result",
+    "showResults_other": "Show {{count}} results",
+    "sortedByDistance": "Nearest first",
+    "listCount_one": "List ({{count}})",
+    "listCount_other": "List ({{count}})",
+    "approxBubble": "Approximate position · {{place}} ({{count}})",
+    "noPosition": "No position",
+    "noPositionWhat": "What is this?",
+    "noPositionHelp": "These have no exact position (address typed without a pin, place not found…), so they aren't placed on the map: tap the bubble to see them as a list, with their wilaya."
   }
 }

@@ -10,7 +10,8 @@ import CategoryIcon from '../components/CategoryIcon'
 import CommentThread from '../components/CommentThread'
 import CopyButton from '../components/CopyButton'
 import PhotoLightbox from '../components/PhotoLightbox'
-import { categoryEmoji, getSignalementToken, saveSignalementToken, SIGNALI_CATEGORIES, SIGNALI_STATUSES } from '../signali'
+import { getSignalementToken, saveSignalementToken, SIGNALI_STATUSES } from '../signali'
+import CategoryPicker from '../components/CategoryPicker'
 import '../signali.css'
 
 // One Signali report: its photos, video, description, voice note and
@@ -25,7 +26,7 @@ function ManagePanel({ s, token, justCreated, onChange, onForget }) {
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
   const [description, setDescription] = useState(s.description || '')
-  const [category, setCategory] = useState(s.category)
+  const [categories, setCategories] = useState(s.categories?.length ? s.categories : [s.category])
 
   const manage = async (body, done) => {
     setBusy(true)
@@ -68,16 +69,12 @@ function ManagePanel({ s, token, justCreated, onChange, onForget }) {
         ))}
       </div>
 
-      <label className="signali-label" htmlFor="signali-edit-category">{t('signali.categoryLabel')}</label>
-      <select id="signali-edit-category" value={category} onChange={(e) => setCategory(e.target.value)}>
-        {SIGNALI_CATEGORIES.map((c) => (
-          <option key={c} value={c}>{categoryEmoji(c)} {t(`signali.categories.${c}`)}</option>
-        ))}
-      </select>
+      <div className="signali-label">{t('signali.categoryLabel')}</div>
+      <CategoryPicker value={categories} onChange={setCategories} />
       <label className="signali-label" htmlFor="signali-edit-description">{t('signali.textLabel')}</label>
       <textarea id="signali-edit-description" rows={3} value={description} onChange={(e) => setDescription(e.target.value)} maxLength={2000} />
       <div className="signali-detail-actions">
-        <button type="button" className="btn btn-primary" onClick={() => manage({ description, category }, t('signali.saved'))} disabled={busy}>
+        <button type="button" className="btn btn-primary" onClick={() => manage({ description, categories }, t('signali.saved'))} disabled={busy}>
           {t('common.save')}
         </button>
         <button type="button" className="btn" onClick={onForget}>{t('signali.forgetCode')}</button>
@@ -251,6 +248,16 @@ export default function SignalementDetail() {
           <CategoryIcon category={s.category} className="signali-detail-emoji" />
           <div>
             <h1>{t(`signali.categories.${s.category}`)}</h1>
+            {/* Every type of the report, on its own line (wraps, never overlaps). */}
+            {s.categories?.length > 1 && (
+              <div className="signali-type-pills">
+                {s.categories.slice(1).map((c) => (
+                  <span key={c} className="signali-type-pill">
+                    <CategoryIcon category={c} /> {t(`signali.categories.${c}`)}
+                  </span>
+                ))}
+              </div>
+            )}
             <small>{[s.address, s.commune, s.wilaya_name].filter(Boolean).join(', ')}</small>
             {/* Under the title, never over it. */}
             <span className={`signali-status is-${s.status}`}>

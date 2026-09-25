@@ -34,7 +34,8 @@
     "adminModeBadge": "Mode admin",
     "adminLogout": "se déconnecter",
     "nonOfficialFooterNote": "Site non-officiel, développé et déployé par un bénévole.",
-    "filters": "Filtres"
+    "filters": "Filtres",
+    "clear": "Effacer"
   },
   "validation": {
     "required": "Ce champ est obligatoire.",
@@ -229,7 +230,9 @@
     "noLocationBubbleLabel": "Sans localisation",
     "playAudio": "Écouter l'audio",
     "stopAudio": "Arrêter",
-    "noGeographicPosition": "Pas de position géographique"
+    "noGeographicPosition": "Pas de position géographique",
+    "inArea_one": "{{count}} SOS ici",
+    "inArea_other": "{{count}} SOS ici"
   },
   "help": {
     "instructions": "Veuillez choisir sur la carte un point de collecte ou un SOS à aider, ou utiliser la liste ou les filtres.",
@@ -398,7 +401,10 @@
     "socialLinks": "Réseaux sociaux",
     "visitSocial": "Voir sur {{network}}",
     "addViaFlyer": "+ Ajouter à partir d'un flyer",
-    "countryBubbleTitle": "Points de collecte — {{country}}"
+    "countryBubbleTitle": "Points de collecte — {{country}}",
+    "inArea_one": "{{count}} point de collecte ici",
+    "inArea_other": "{{count}} points de collecte ici",
+    "addShort": "Ajouter"
   },
   "submitFlyer": {
     "title": "Ajouter un point de collecte à partir d'un flyer",
@@ -457,7 +463,10 @@
     "country": "Pays",
     "exactPositionRequired": "Une position exacte (via la recherche de lieu ou « Utiliser ma position ») est obligatoire pour un point international.",
     "positionInAlgeria": "Cette position se trouve en Algérie. Merci d'utiliser la page nationale des points de collecte.",
-    "positionInAlgeriaLink": "Créer un point de collecte en Algérie"
+    "positionInAlgeriaLink": "Créer un point de collecte en Algérie",
+    "inArea_one": "{{count}} point de collecte ici",
+    "inArea_other": "{{count}} points de collecte ici",
+    "countryFilter": "Pays"
   },
   "language": {
     "label": "Langue",
@@ -485,7 +494,13 @@
     "filterByPosition": "Filtrer par position",
     "positionWith": "Avec position",
     "positionWithout": "Sans position",
-    "viewTransporterDetail": "Voir les détails du transporteur"
+    "viewTransporterDetail": "Voir les détails du transporteur",
+    "inArea_one": "{{count}} livreur ici",
+    "inArea_other": "{{count}} livreurs ici",
+    "noPositionChip": "Livraisons sans position",
+    "live": "En direct",
+    "departure": "Départ déclaré",
+    "deliverShort": "Livrer"
   },
   "quickActions": {
     "create": "Collecte",
@@ -765,7 +780,7 @@
     "wilayaLabel": "Wilaya",
     "wilayaPlaceholder": "Rechercher une wilaya (nom ou numéro)",
     "communeLabel": "Commune",
-    "dragPinHint": "Déplacez l'épingle ou touchez la carte pour indiquer l'endroit exact.",
+    "dragPinHint": "Faites glisser la carte d'un doigt pour placer l'épingle sur l'endroit exact (ou touchez l'endroit).",
     "locationRequired": "Indiquez votre position GPS ou une adresse avec sa wilaya pour continuer.",
     "nearbyTitle": "Déjà signalé ici ?",
     "nearbyText": "Ces problèmes ont déjà été signalés à moins de 100 m. Si c'est le même, confirmez-le au lieu d'en créer un nouveau.",
@@ -779,7 +794,7 @@
     "takePhoto": "Prendre une photo",
     "recordVideo": "Filmer une vidéo",
     "videoMax": "{{max}} s max",
-    "fromGallery": "ou choisir des photos dans la galerie",
+    "fromGallery": "Photos de la galerie",
     "record": "Filmer",
     "stop": "Arrêter",
     "switchCamera": "Changer de caméra",
@@ -854,7 +869,7 @@
     "coordsInvalid": "Coordonnées invalides. Exemple : 36.7525, 3.0420",
     "coordsOutsideAlgeria": "Ces coordonnées sont hors d'Algérie.",
     "pickOnMap": "Ou placez le point sur la carte",
-    "tapMapHint": "Touchez la carte à l'endroit exact du problème.",
+    "tapMapHint": "Faites glisser la carte d'un doigt jusqu'à l'endroit exact du problème, ou touchez-le.",
     "coordsLabel": "Coordonnées GPS",
     "placeCoords": "Placer",
     "noPinHint": "Sans point sur la carte, le signalement sera affiché dans la bulle « sans localisation » de sa wilaya.",
@@ -908,7 +923,7 @@
     "coordsEmpty": "Touchez la carte ou tapez des coordonnées GPS.",
     "coordsPlaceholder": "ex. 36.7525, 3.0420",
     "pinOnMap": "Point placé sur la carte",
-    "videoFromGallery": "ou choisir une vidéo dans la galerie ({{size}} Mo max)",
+    "videoFromGallery": "Vidéo de la galerie",
     "addressPlaceholderIn": "Adresse à {{wilaya}} (rue, quartier, repère)",
     "wilayaNoMatch": "Aucune wilaya trouvée",
     "agree": "D'accord",
@@ -926,6 +941,23 @@
       "without": "Sans géolocalisation"
     },
     "geolocated": "Géolocalisé",
-    "approxLocation": "Centre de la wilaya"
+    "approxLocation": "Centre de la wilaya",
+    "categoriesHint": "Jusqu'à {{max}} types. Le premier choisi est le type principal.",
+    "videoFromGalleryMax": "{{size}} Mo max"
+  },
+  "explore": {
+    "inAreaShort_one": "{{count}} ici",
+    "inAreaShort_other": "{{count}} ici",
+    "noneInArea": "Rien dans cette zone : dézoomez ou changez les filtres.",
+    "showAll": "Tout voir",
+    "showResults_one": "Voir {{count}} résultat",
+    "showResults_other": "Voir {{count}} résultats",
+    "sortedByDistance": "Du plus proche au plus loin",
+    "listCount_one": "Liste ({{count}})",
+    "listCount_other": "Liste ({{count}})",
+    "approxBubble": "Position approximative · {{place}} ({{count}})",
+    "noPosition": "Sans position",
+    "noPositionWhat": "Qu'est-ce que c'est ?",
+    "noPositionHelp": "Ces signalements n'ont pas de position exacte (adresse tapée sans épingle, lieu non trouvé…). Ils ne sont donc pas placés sur la carte : touchez la bulle pour les voir en liste, avec leur wilaya."
   }
 }

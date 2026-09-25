@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useSearchParams, Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import L from 'leaflet'
+import { addBaseLayer } from '../mapBase'
 import { useApp } from '../context/AppContext'
 import { useDialog } from '../context/DialogContext'
 import { api } from '../api'
@@ -111,10 +112,7 @@ export default function NeedDetail() {
     })
     // Standard OpenStreetMap raster tiles -- see NeedsList.jsx for why
     // (CartoDB's free tier now requires an API key).
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap contributors',
-      maxZoom: 19,
-    }).addTo(map)
+    addBaseLayer(map)
     L.control.attribution({ prefix: false }).addTo(map)
     attachMapPopupBehavior(map)
     mapRef.current = map

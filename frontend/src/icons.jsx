@@ -36,6 +36,10 @@ export function IconCopy(props) { return (<svg {...base} {...props}><rect x="8" 
 export function IconReplay(props) { return (<svg {...base} {...props}><path d="M20 11a8 8 0 1 0 1 4" /><path d="M20 5v6h-6" /></svg>) }
 export function IconVideoCam(props) { return (<svg {...base} {...props}><rect x="3" y="6.5" width="12" height="11" rx="2.5" /><path d="M15 10.2 21 7v10l-6-3.2Z" /></svg>) }
 export function IconCamera(props) { return (<svg {...base} {...props}><path d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2l1-2h7l1 2h2a1.5 1.5 0 0 1 1.5 1.5v9A1.5 1.5 0 0 1 18.5 19h-13A1.5 1.5 0 0 1 4 17.5Z" /><circle cx="12" cy="13" r="3.3" /></svg>) }
+// Gallery pickers (Signali's media step): a picture, and a film with an
+// upload arrow.
+export function IconGallery(props) { return (<svg {...base} {...props}><rect x="3.5" y="4.5" width="17" height="15" rx="2.5" /><circle cx="9" cy="9.5" r="1.6" /><path d="m4 17 4.6-4.6a1.2 1.2 0 0 1 1.7 0L14 16l2-2a1.2 1.2 0 0 1 1.7 0l2.8 2.8" /></svg>) }
+export function IconVideoUpload(props) { return (<svg {...base} {...props}><rect x="3" y="6" width="12.5" height="12" rx="2.5" /><path d="m15.5 10.5 5-3v9l-5-3" /><path d="M9.25 15V9.3M6.9 11.5l2.35-2.3 2.35 2.3" /></svg>) }
 export function IconPlay(props) { return (<svg {...base} {...props} fill="currentColor" stroke="none"><path d="M7 4.5v15l13-7.5Z" /></svg>) }
 export function IconTrash(props) { return (<svg {...base} {...props}><path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13" /></svg>) }
 export function IconSwitchCamera(props) { return (<svg {...base} {...props}><path d="M17 2.1l4 4-4 4" /><path d="M3 12.9a9 9 0 0 1 15-6.7l3 2.7" /><path d="M7 21.9l-4-4 4-4" /><path d="M21 11.1a9 9 0 0 1-15 6.7l-3-2.7" /></svg>) }

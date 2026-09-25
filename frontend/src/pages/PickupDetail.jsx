@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import L from 'leaflet'
+import { addBaseLayer } from '../mapBase'
 import { useApp } from '../context/AppContext'
 import { api } from '../api'
 import CommentThread from '../components/CommentThread'
@@ -51,10 +52,7 @@ export default function PickupDetail() {
         text: { touch: t('map.gestureTouch'), scroll: t('map.gestureScroll'), scrollMac: t('map.gestureScrollMac') },
       },
     })
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap contributors',
-      maxZoom: 19,
-    }).addTo(map)
+    addBaseLayer(map)
     L.control.attribution({ prefix: false }).addTo(map)
     attachMapPopupBehavior(map)
     const point = [position.latitude, position.longitude]

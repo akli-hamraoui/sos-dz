@@ -242,6 +242,37 @@ export async function searchPlacesTypeahead(query, lang, signal) {
     })
 }
 
+// Address-level companion to searchPlaces for PlaceAutocomplete: Photon
+// matches word prefixes ("Bab Ez" -> Bab Ezzouar), where Nominatim often
+// returns only a couple of exact matches, so the two together fill the
+// suggestion list. `viewbox` is Nominatim's [west, north, east, south];
+// Algeria's own box otherwise (`countryCode` 'dz'), anywhere for 'any'.
+const ALGERIA_BOX = [-8.7, 37.2, 12, 18.9]
+export async function searchPlacesPrefix(query, lang, signal, countryCode = 'dz', viewbox = null) {
+  const supportedLang = ['en', 'de', 'fr'].includes(lang) ? lang : 'fr'
+  const box = viewbox || (countryCode === 'dz' ? ALGERIA_BOX : null)
+  const boxParam = box ? `&bbox=${box[0]},${box[3]},${box[2]},${box[1]}` : ''
+  const url = `${PHOTON_BASE}/?q=${encodeURIComponent(query)}&lang=${supportedLang}&limit=15${boxParam}`
+  const resp = await fetch(url, { signal })
+  if (!resp.ok) throw new Error('Prefix search failed')
+  const geojson = await resp.json()
+  return (geojson.features || [])
+    .filter((f) => f.properties?.name && f.geometry?.coordinates)
+    .filter((f) => countryCode === 'any' || !countryCode || (f.properties.countrycode || '').toLowerCase() === countryCode.toLowerCase())
+    .map((f) => {
+      const p = f.properties
+      const [lon, lat] = f.geometry.coordinates
+      const street = p.street && p.street !== p.name ? `${p.housenumber ? `${p.housenumber} ` : ''}${p.street}` : ''
+      const parts = [p.name, street, p.district, p.city, p.county, p.state].filter(Boolean)
+      return {
+        place_id: `photon-${p.osm_type || 'p'}${p.osm_id ?? `${lat}_${lon}`}`,
+        display_name: parts.filter((x, i) => parts.indexOf(x) === i).join(', '),
+        lat,
+        lon,
+      }
+    })
+}
+
 // Geocodes a whole country (by its ISO code) to a bounding box, so
 // InternationalCollectionPoints.jsx can zoom its map to roughly the right
 // place as soon as a country is picked from the filter, before any

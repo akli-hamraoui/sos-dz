@@ -37,3 +37,24 @@ export async function fetchDrivingRoute([lat1, lon1], [lat2, lon2]) {
     durationMin: route.duration / 60,
   }
 }
+
+// Draws a route from `from` to `dest` on `overlay` (a Leaflet layer group
+// the caller clears): a dashed straight line at once, replaced by the
+// road-following one if/when OSRM answers. Beyond `maxKm` nothing is drawn
+// (a line across the country isn't a "drive there" prompt).
+export function drawRouteOn(overlay, from, dest, color, maxKm = 100) {
+  // Lazy import keeps Leaflet out of this module's own dependencies.
+  return import('leaflet').then(({ default: L }) => {
+    const km = Math.hypot(from[0] - dest[0], from[1] - dest[1]) * 111
+    if (km > maxKm) return null
+    const straight = L.polyline([from, dest], { color, weight: 3, dashArray: '4,8', interactive: false }).addTo(overlay)
+    fetchDrivingRoute(from, dest)
+      .then((route) => {
+        if (!overlay.hasLayer(straight)) return // cleared/superseded meanwhile
+        overlay.removeLayer(straight)
+        L.polyline(route.coordinates, { color, weight: 4, dashArray: '1,10', lineCap: 'round', interactive: false }).addTo(overlay)
+      })
+      .catch(() => {})
+    return straight
+  })
+}

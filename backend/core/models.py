@@ -148,6 +148,34 @@ class AppConfiguration(AuditMixin, models.Model):
             "without touching the manual creation forms, which are unaffected."
         ),
     )
+    # Map background + address suggestions: OpenStreetMap (free, the
+    # default) or Google Maps. With Google, the site falls back to
+    # OpenStreetMap by itself whenever Google fails (bad key, daily quota
+    # reached, Google unreachable) -- set a daily quota in Google Cloud to
+    # cap the bill.
+    MAP_PROVIDER_OSM = "osm"
+    MAP_PROVIDER_GOOGLE = "google"
+    MAP_PROVIDER_CHOICES = [(MAP_PROVIDER_OSM, "OpenStreetMap (free)"), (MAP_PROVIDER_GOOGLE, "Google Maps")]
+    map_provider = models.CharField(
+        max_length=10,
+        choices=MAP_PROVIDER_CHOICES,
+        default=MAP_PROVIDER_OSM,
+        help_text=(
+            "Map background and address suggestions for every map and address field. "
+            "Google Maps needs the browser API key below (Maps JavaScript API + Places API "
+            "(New) enabled, restricted to this site's domain). If Google fails for any "
+            "reason, visitors automatically get OpenStreetMap instead."
+        ),
+    )
+    google_maps_api_key = models.CharField(
+        max_length=200,
+        blank=True,
+        help_text=(
+            "Google Maps *browser* key (it is sent to every visitor's browser, that's how "
+            "Google Maps works): restrict it to HTTP referrer https://sosdz.org/* in Google "
+            "Cloud, and set a daily quota + budget alert there."
+        ),
+    )
     # Phone numbers are a related model (AdminContactPhone, up to 5 --
     # enforced by AdminContactPhoneInline's max_num in admin.py) rather
     # than a single field, so an admin can list more than one contact
@@ -1168,6 +1196,11 @@ class Signalement(AuditMixin, models.Model):
     OPEN_STATUSES = (STATUS_NEW, STATUS_IN_REVIEW)
 
     category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default=CATEGORY_OTHER)
+    # Up to MAX_CATEGORIES types per report: `category` is the main one (map
+    # icon, AI suggestion...), these are the others, comma-separated codes
+    # (a plain CharField so "has type X" stays a simple query on any DB).
+    MAX_CATEGORIES = 3
+    extra_categories = models.CharField(max_length=60, blank=True)
     wilaya = models.ForeignKey(Wilaya, on_delete=models.PROTECT, related_name="signalements")
     commune = models.CharField(max_length=200, blank=True)
     address = models.CharField(max_length=300, blank=True)
@@ -1225,6 +1258,25 @@ class Signalement(AuditMixin, models.Model):
 
     def __str__(self):
         return f"#{self.pk} {self.get_category_display()} - {self.wilaya}"
+
+    @property
+    def categories(self):
+        return [self.category] + [c for c in self.extra_categories.split(",") if c]
+
+    def set_categories(self, codes):
+        """Main type first, duplicates dropped, 'other' only on its own."""
+        codes = list(dict.fromkeys(codes))[: self.MAX_CATEGORIES]
+        if len(codes) > 1:
+            codes = [c for c in codes if c != self.CATEGORY_OTHER]
+        self.category = codes[0] if codes else self.CATEGORY_OTHER
+        self.extra_categories = ",".join(codes[1:])
+
+    @staticmethod
+    def has_category_q(code):
+        """Filter: reports of type `code`, main or extra."""
+        from django.db.models import Q
+
+        return Q(category=code) | Q(extra_categories__regex=rf"(^|,){code}(,|$)")
 
     def set_status(self, status):
         self.status = status

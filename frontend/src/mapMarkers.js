@@ -5,6 +5,8 @@
 // here rather than a third copy-pasted inline SVG string.
 
 import L from 'leaflet'
+import { getCurrentPosition } from './utils'
+import { drawRouteOn, COLLECTION_POINT_ROUTE_COLOR } from './routing'
 
 export const NEED_SOS_ICON = '<img src="/icons/need-marker-sos.png" width="18" height="18" alt="" style="filter:invert(1)" />'
 
@@ -272,3 +274,17 @@ export function collectionPointPopupHtml(t, p) {
     `${p.hours ? '<br>' + p.hours : ''}<br>${p.wilaya_name}${gpsNote}<br><a href="/collection-points/${p.id}">${t('common.open')}</a>`
   )
 }
+// --- ExploreMap helpers for the collection point pages ---
+export const CP_BOX_SVG_WHITE =
+  '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">' +
+  '<path d="M3.5 7.5 12 3l8.5 4.5v9L12 21l-8.5-4.5v-9Z"/><path d="M3.5 7.5 12 12l8.5-4.5"/><path d="M12 12v9"/></svg>'
+export const CP_BOX_SVG_GREEN = CP_BOX_SVG_WHITE.replace('stroke="#fff"', 'stroke="#2c8f67"').replace('width="18" height="18"', 'width="44" height="44"')
+export const CP_GREEN = '#2c8f67'
+
+// Visitor -> point route, on the overlay ExploreMap clears on every pick.
+export function routeToPoint(item, overlay) {
+  getCurrentPosition({ maximumAge: 60000, timeout: 5000, enableHighAccuracy: false }).then((pos) => {
+    if (pos) drawRouteOn(overlay, pos, [item.lat, item.lng], COLLECTION_POINT_ROUTE_COLOR)
+  })
+}
+
