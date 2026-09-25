@@ -12,7 +12,7 @@ const EMOJI = {
   road: '🛣️',
   waste: '🗑️',
   // No sewer emoji exists (🚽 is a toilet): text-only spots (<option>)
-  // get this, everything else draws a manhole cover (categoryIconHtml).
+  // get this, everything else draws a plumbing pipe (categoryIconHtml).
   sewer: '🌊',
   water: '💧',
   electricity: '⚡',
@@ -26,17 +26,20 @@ export function categoryEmoji(category) {
   return EMOJI[category] || EMOJI.other
 }
 
-// A manhole cover, sized like the text around it (1em).
-const MANHOLE_SVG =
+// A plumbing pipe (elbow + flanges) dripping water, sized like the text
+// around it (1em).
+const PIPE_SVG =
   '<svg class="signali-cat-svg" width="1em" height="1em" viewBox="0 0 24 24" aria-hidden="true">' +
-  '<circle cx="12" cy="12" r="11" fill="#3f4650"/><circle cx="12" cy="12" r="9" fill="#7d8792"/>' +
-  '<path d="M3 12h18M4.2 8.2h15.6M4.2 15.8h15.6M12 3v18M8.2 4.2v15.6M15.8 4.2v15.6" stroke="#4a525c" stroke-width="1.2"/>' +
-  '<circle cx="12" cy="12" r="9" fill="none" stroke="#2f353d" stroke-width="1"/></svg>'
+  '<path d="M1.5 4.5h13a5.5 5.5 0 0 1 5.5 5.5v6h-6v-5.5a.5.5 0 0 0-.5-.5h-12Z" fill="#8b98a6"/>' +
+  '<path d="M1.5 5.6h13a4.4 4.4 0 0 1 4.4 4.4v6" fill="none" stroke="#c3ccd6" stroke-width="1.1"/>' +
+  '<rect x="4.2" y="3.2" width="2.4" height="8.6" rx=".8" fill="#56616e"/>' +
+  '<rect x="12.8" y="14.2" width="8.4" height="2.6" rx=".8" fill="#56616e"/>' +
+  '<path d="M17 18.2c.9 1.3 1.5 2.1 1.5 2.8a1.5 1.5 0 0 1-3 0c0-.7.6-1.5 1.5-2.8Z" fill="#2f8fe0"/></svg>'
 
 // The category's icon as HTML: its emoji, or a drawing when no emoji fits.
 // For Leaflet divIcons/popups and (via CategoryIcon) React.
 export function categoryIconHtml(category) {
-  return category === 'sewer' ? MANHOLE_SVG : categoryEmoji(category)
+  return category === 'sewer' ? PIPE_SVG : categoryEmoji(category)
 }
 
 // A report's access token lets its (anonymous) reporter close it as
