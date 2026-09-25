@@ -28,6 +28,7 @@ import CreateInternationalCollectionPoint from './pages/CreateInternationalColle
 import Deliveries from './pages/Deliveries'
 import Signali from './pages/Signali'
 import Signalements from './pages/Signalements'
+import SignalementDetail from './pages/SignalementDetail'
 import BackButton from './components/BackButton'
 import Seo from './components/Seo'
 import {
@@ -291,6 +292,17 @@ function BottomNav() {
         <span className="icon"><IconHome /></span>
         <span>{t('nav.home')}</span>
       </Link>
+      {/* Signali reports: on the left, next to Accueil (per request) --
+          the volunteers/deliveries tab moved out of this bar to make room
+          (still reachable from the top menu). */}
+      <Link to="/signalements" className={location.pathname.startsWith('/signal') ? 'active' : ''}>
+        <span className="icon">
+          <IconMegaphone />
+          <MapIndicator />
+          {!!config.signalements_open_count && <span className="nav-badge">{formatBadgeCount(config.signalements_open_count)}</span>}
+        </span>
+        <span className="nav-label-offset">{t('nav.signalementsShort')}</span>
+      </Link>
       <Link to="/needs" className={`nav-icon-only${isActive('/needs') ? ' active' : ''}`} aria-label={t('nav.needs')}>
         <span className="icon">
           {/* Same SOS mark used for need pins/the Home & Besoins "J'ai
@@ -337,22 +349,6 @@ function BottomNav() {
           <br />
           {t('nav.internationalCollectionPointsLine2')}
         </span>
-      </Link>
-      <Link to="/deliveries" className={isActive('/deliveries') ? 'active' : ''}>
-        <span className="icon">
-          <IconTruck />
-          <MapIndicator shiftRight />
-          {!!config.deliveries_en_route_count && <span className="nav-badge">{formatBadgeCount(config.deliveries_en_route_count)}</span>}
-        </span>
-        <span className="nav-label-offset">{t('nav.deliveriesShort')}</span>
-      </Link>
-      <Link to="/signalements" className={isActive('/signalements') || isActive('/signali') ? 'active' : ''}>
-        <span className="icon">
-          <IconMegaphone />
-          <MapIndicator shiftRight />
-          {!!config.signalements_open_count && <span className="nav-badge">{formatBadgeCount(config.signalements_open_count)}</span>}
-        </span>
-        <span className="nav-label-offset">{t('nav.signalementsShort')}</span>
       </Link>
     </nav>
   )
@@ -485,6 +481,7 @@ export default function App() {
           <Route path="/deliveries" element={<Deliveries />} />
           <Route path="/signali" element={<Signali />} />
           <Route path="/signalements" element={<Signalements />} />
+          <Route path="/signalements/:id" element={<SignalementDetail />} />
         </Routes>
       </main>
 

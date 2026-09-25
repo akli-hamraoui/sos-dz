@@ -663,7 +663,7 @@ class CommentSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Comment
-        fields = ["id", "need", "collection_point", "pickup", "parent_comment", "author_name", "text", "category", "confirmation_count", "created_at", "replies"]
+        fields = ["id", "need", "collection_point", "pickup", "signalement", "parent_comment", "author_name", "text", "category", "confirmation_count", "created_at", "replies"]
 
     def get_replies(self, obj):
         # Only ever one level deep -- replies never nest replies.
@@ -675,12 +675,12 @@ class CommentSerializer(serializers.ModelSerializer):
 class CommentCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Comment
-        fields = ["need", "collection_point", "pickup", "parent_comment", "author_name", "text", "category"]
+        fields = ["need", "collection_point", "pickup", "signalement", "parent_comment", "author_name", "text", "category"]
 
     def validate(self, attrs):
-        targets = [attrs.get("need"), attrs.get("collection_point"), attrs.get("pickup")]
+        targets = [attrs.get("need"), attrs.get("collection_point"), attrs.get("pickup"), attrs.get("signalement")]
         if sum(1 for t in targets if t) != 1:
-            raise serializers.ValidationError("Exactly one of 'need', 'collection_point', or 'pickup' must be set.")
+            raise serializers.ValidationError("Exactly one of 'need', 'collection_point', 'pickup' or 'signalement' must be set.")
         parent = attrs.get("parent_comment")
         if parent is not None:
             if parent.parent_comment_id is not None:
@@ -950,12 +950,13 @@ class SignalementPublicSerializer(serializers.ModelSerializer):
     voice_file = serializers.SerializerMethodField()
     display_latitude = serializers.SerializerMethodField()
     display_longitude = serializers.SerializerMethodField()
+    has_exact_position = serializers.SerializerMethodField()
 
     class Meta:
         model = Signalement
         fields = [
             "id", "category", "category_label", "wilaya", "wilaya_name", "commune", "address",
-            "latitude", "longitude", "display_latitude", "display_longitude", "position_source",
+            "latitude", "longitude", "display_latitude", "display_longitude", "has_exact_position", "position_source",
             "description", "voice_transcript", "video_transcript", "photos", "video_file",
             "video_moderation_status", "voice_file", "processing_status", "status", "resolved_at",
             "category_suggested_by_ai", "confirmations_count", "fixed_reports_count", "created_at",
@@ -974,13 +975,37 @@ class SignalementPublicSerializer(serializers.ModelSerializer):
     def get_voice_file(self, obj):
         return self._url(obj.voice_file) if obj.voice_file else None
 
-    # A manual address typed without picking a map suggestion has no
-    # coordinates of its own -- pin it on its wilaya's centroid instead.
+    # No coordinates (an address typed without a map pin, or an admin
+    # testing from abroad): grouped into the map's "no location" bubble.
+    def get_has_exact_position(self, obj):
+        return obj.latitude is not None and obj.longitude is not None
+
+    # Pinned on its wilaya's centroid when it has no coordinates of its own.
     def get_display_latitude(self, obj):
         return obj.latitude if obj.latitude is not None else obj.wilaya.centroid_latitude
 
     def get_display_longitude(self, obj):
         return obj.longitude if obj.longitude is not None else obj.wilaya.centroid_longitude
+
+
+class SignalementDetailSerializer(SignalementPublicSerializer):
+    comments = serializers.SerializerMethodField()
+
+    class Meta(SignalementPublicSerializer.Meta):
+        fields = SignalementPublicSerializer.Meta.fields + ["comments"]
+
+    def get_comments(self, obj):
+        roots = obj.comments.filter(parent_comment__isnull=True).prefetch_related("replies")
+        return CommentSerializer(roots, many=True, context=self.context).data
+
+
+class SignalementManageSerializer(serializers.ModelSerializer):
+    """What the reporter (access token) or an admin may change afterwards."""
+
+    class Meta:
+        model = Signalement
+        fields = ["status", "category", "description"]
+        extra_kwargs = {f: {"required": False} for f in fields}
 
 
 class SignalementCreateSerializer(serializers.ModelSerializer):
@@ -1001,6 +1026,15 @@ class SignalementCreateSerializer(serializers.ModelSerializer):
         lat, lon = attrs.get("latitude"), attrs.get("longitude")
         if (lat is None) != (lon is None):
             raise serializers.ValidationError("Latitude and longitude must be sent together.")
+        if lat is not None and lon is not None and not is_within_algeria_bounds(lat, lon) and is_request_admin(self.context.get("request")):
+            # An admin testing from abroad (their own real GPS): same rule
+            # as the admin voice SOS -- never pin a report outside Algeria,
+            # drop the coordinates and fall back to a wilaya instead.
+            attrs["latitude"] = attrs["longitude"] = lat = lon = None
+            if not attrs.get("wilaya"):
+                attrs["wilaya"] = Wilaya.objects.filter(code="16").first()
+            if not (attrs.get("address") or "").strip():
+                attrs["address"] = "Position GPS hors Algérie (test admin)"
         has_coords = lat is not None
         address = (attrs.get("address") or "").strip()
         if not has_coords and not address:

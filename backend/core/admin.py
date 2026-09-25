@@ -356,10 +356,10 @@ mark_signalement_resolved.short_description = "Mark selected reports as resolved
 
 @admin.register(Signalement)
 class SignalementAdmin(admin.ModelAdmin):
-    list_display = ["id", "category", "wilaya", "address", "processing_status", "video_moderation_status", "confirmations_count", "fixed_reports_count", "status", "created_at"]
+    list_display = ["id", "category", "wilaya", "address", "processing_status", "video_moderation_status", "confirmations_count", "fixed_reports_count", "status", "audit_creator_ip", "created_at"]
     list_filter = ["category", "status", "processing_status", "video_moderation_status", "wilaya"]
-    search_fields = ["address", "commune", "description", "voice_transcript", "video_transcript"]
-    readonly_fields = ["access_token", "processing_error", "created_at", "last_modified_at"]
+    search_fields = ["address", "commune", "description", "voice_transcript", "video_transcript", "audit_creator_ip"]
+    readonly_fields = ["access_token", "processing_error", "created_at", "last_modified_at", "audit_creator_ip", "audit_creator_country", "audit_editor_ip"]
     inlines = [SignalementPhotoInline]
     actions = [approve_video, reject_video, mark_signalement_resolved]
 

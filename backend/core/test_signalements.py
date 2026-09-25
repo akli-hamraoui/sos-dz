@@ -23,6 +23,9 @@ class SignalementAPITests(BaseAPITestCase):
     def setUp(self):
         super().setUp()
         self.wilaya = Wilaya.objects.get(code="16")  # Alger
+        algeria_ip = patch("core.views.is_algeria_ip", return_value=True)
+        algeria_ip.start()
+        self.addCleanup(algeria_ip.stop)
 
     def _post(self, **data):
         return self.client.post("/api/signalements/", data, format="multipart")
@@ -138,6 +141,9 @@ class SignalementAPITests(BaseAPITestCase):
 class SignalementLot2Tests(BaseAPITestCase):
     def setUp(self):
         super().setUp()
+        algeria_ip = patch("core.views.is_algeria_ip", return_value=True)
+        algeria_ip.start()
+        self.addCleanup(algeria_ip.stop)
         resp = self.client.post(
             "/api/signalements/",
             dict(category="electricity", latitude=36.75, longitude=3.05, photos=[make_test_image()]),
@@ -183,3 +189,65 @@ class SignalementLot2Tests(BaseAPITestCase):
             s = process_signalement(resp.data["id"])
         self.assertEqual(s.category, "road")
         self.assertTrue(s.category_suggested_by_ai)
+
+
+@override_settings(MEDIA_ROOT=MEDIA_ROOT)
+class SignalementAccessAndManageTests(BaseAPITestCase):
+    def _post(self, client=None, **data):
+        payload = dict(category="road", latitude=36.75, longitude=3.05, photos=[make_test_image()])
+        payload.update(data)
+        return (client or self.client).post("/api/signalements/", payload, format="multipart")
+
+    def test_non_algerian_ip_is_refused_even_with_geo_toggle_off(self):
+        with patch("core.views.is_algeria_ip", return_value=False):
+            self.assertEqual(self._post().status_code, 403)
+            self.assertFalse(self.client.get("/api/config/").data["signali_available"])
+
+    def test_admin_from_abroad_is_allowed_and_coordinates_outside_algeria_are_dropped(self):
+        from django.contrib.auth.models import User
+
+        User.objects.create_superuser("root", "r@x.dz", "pw")
+        self.client.login(username="root", password="pw")
+        with patch("core.views.is_algeria_ip", return_value=False):
+            self.assertTrue(self.client.get("/api/config/").data["signali_available"])
+            resp = self._post(latitude=48.85, longitude=2.35)
+        self.assertEqual(resp.status_code, 201, resp.data)
+        self.assertFalse(resp.data["has_exact_position"])
+        self.assertEqual(resp.data["wilaya_name"], "Alger")
+
+    def test_creator_ip_is_recorded(self):
+        with patch("core.views.is_algeria_ip", return_value=True):
+            resp = self._post(REMOTE_ADDR="41.100.0.5")
+        self.assertIsNotNone(Signalement.objects.get(pk=resp.data["id"]).audit_creator_ip)
+
+    def test_manage_with_code_changes_status_and_wrong_code_is_refused(self):
+        with patch("core.views.is_algeria_ip", return_value=True):
+            resp = self._post()
+        url = f"/api/signalements/{resp.data['id']}/manage/"
+        self.assertEqual(self.client.post(url, {"status": "cancelled"}, HTTP_X_ACCESS_TOKEN="nope").status_code, 403)
+        ok = self.client.post(url, {"status": "in_review", "description": "Précision"}, format="json", HTTP_X_ACCESS_TOKEN=resp.data["access_token"])
+        self.assertEqual(ok.status_code, 200)
+        self.assertEqual(ok.data["status"], "in_review")
+        self.assertEqual(ok.data["description"], "Précision")
+        cancelled = self.client.post(url, {"status": "cancelled"}, format="json", HTTP_X_ACCESS_TOKEN=resp.data["access_token"])
+        self.assertEqual(cancelled.data["status"], "cancelled")
+
+    def test_cancelled_reports_leave_the_map_and_in_review_counts_as_open(self):
+        with patch("core.views.is_algeria_ip", return_value=True):
+            a = self._post().data
+            b = self._post(latitude=35.7, longitude=-0.63).data
+        with patch("core.signalements.moderate_image_field", return_value=Need.MODERATION_APPROVED):
+            process_signalement(a["id"])
+            process_signalement(b["id"])
+        self.client.post(f"/api/signalements/{a['id']}/manage/", {"status": "in_review"}, format="json", HTTP_X_ACCESS_TOKEN=a["access_token"])
+        self.client.post(f"/api/signalements/{b['id']}/manage/", {"status": "cancelled"}, format="json", HTTP_X_ACCESS_TOKEN=b["access_token"])
+        self.assertEqual([x["id"] for x in self.client.get("/api/signalements/?status=open").data], [a["id"]])
+        self.assertEqual([x["id"] for x in self.client.get("/api/signalements/").data], [a["id"]])
+
+    def test_comments_on_a_report(self):
+        with patch("core.views.is_algeria_ip", return_value=True):
+            sid = self._post().data["id"]
+        resp = self.client.post("/api/comments/", {"signalement": sid, "author_name": "Karim", "text": "Toujours là ce matin"}, format="json")
+        self.assertEqual(resp.status_code, 201, resp.data)
+        detail = self.client.get(f"/api/signalements/{sid}/").data
+        self.assertEqual([c["text"] for c in detail["comments"]], ["Toujours là ce matin"])

@@ -183,3 +183,11 @@
   padding: 6px 14px;
   white-space: nowrap;
 }
+
+/* Collection points now sit last, just above "Qui sommes-nous". */
+.home.home-compact .home-signali-card {
+  margin-bottom: 8px;
+}
+.home.home-compact .home-collection-grid {
+  margin-bottom: 0;
+}

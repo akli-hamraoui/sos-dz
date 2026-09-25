@@ -56,7 +56,7 @@ from core.models import (
     TranslationOverride,
     Wilaya,
 )
-from core.permissions import read_only_block, write_guard
+from core.permissions import VOICE_SOS_GEO_MESSAGE, read_only_block, write_guard
 from core.signalements import find_nearby_signalements, public_signalements
 from core.validators import is_within_algeria_bounds, normalize_place_name, validate_social_url
 from core.serializers import (
@@ -86,6 +86,8 @@ from core.serializers import (
     ProgressUpdateCreateSerializer,
     ProgressUpdateWithGPSSerializer,
     SignalementCreateSerializer,
+    SignalementDetailSerializer,
+    SignalementManageSerializer,
     SignalementPublicSerializer,
     SupportRequestSerializer,
     WilayaSerializer,
@@ -233,7 +235,10 @@ class AppConfigurationView(APIView):
             status=CollectionPoint.STATUS_ACTIVE
         ).exclude(country_code="").count()
         data["deliveries_en_route_count"] = Pickup.objects.filter(status=Pickup.STATUS_EN_ROUTE).count()
-        data["signalements_open_count"] = public_signalements().filter(status=Signalement.STATUS_NEW).count()
+        data["signalements_open_count"] = public_signalements().filter(status__in=Signalement.OPEN_STATUSES).count()
+        # Same Algeria-only (or admin anywhere) rule as the voice SOS,
+        # re-checked on submission (SignalementViewSet.create).
+        data["signali_available"] = signali_allowed(request)
         return Response(data)
 
 
@@ -1582,6 +1587,13 @@ class CommentViewSet(mixins.CreateModelMixin, mixins.DestroyModelMixin, viewsets
         return Response(CommentSerializer(comment, context={"request": request}).data)
 
 
+def signali_allowed(request):
+    """Signali is for people in Algeria (server-side IP check, never the
+    browser's word), or an admin from anywhere -- whatever the sitewide
+    geo_restrict_writes_to_algeria toggle says."""
+    return is_admin_request(request) or is_algeria_ip(getattr(request, "client_ip", None)) is True
+
+
 class SignalementViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.RetrieveModelMixin):
     """Signali: anonymous reports of dangerous/broken spots in public space
     (see models.Signalement). Created immediately and finished by the
@@ -1598,7 +1610,9 @@ class SignalementViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.
     LIST_LIMIT = 500
 
     def get_serializer_class(self):
-        return SignalementCreateSerializer if self.action == "create" else SignalementPublicSerializer
+        if self.action == "create":
+            return SignalementCreateSerializer
+        return SignalementDetailSerializer if self.action == "retrieve" else SignalementPublicSerializer
 
     def get_throttles(self):
         return [CreationRateThrottle()] if self.action == "create" else []
@@ -1607,13 +1621,16 @@ class SignalementViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.
         qs = super().get_queryset()
         if self.action != "list":
             return qs
-        qs = public_signalements(qs)
+        qs = public_signalements(qs).exclude(status=Signalement.STATUS_CANCELLED)
         params = self.request.query_params
         if params.get("wilaya"):
             qs = qs.filter(wilaya_id=params["wilaya"])
         if params.get("category"):
             qs = qs.filter(category=params["category"])
-        if params.get("status"):
+        # "open" = reported or being looked into; anything else is exact.
+        if params.get("status") == "open":
+            qs = qs.filter(status__in=Signalement.OPEN_STATUSES)
+        elif params.get("status"):
             qs = qs.filter(status=params["status"])
         return qs
 
@@ -1622,9 +1639,11 @@ class SignalementViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.
         return Response(self.get_serializer(qs, many=True).data)
 
     def create(self, request, *args, **kwargs):
-        block_reason = write_guard(request)
+        block_reason = read_only_block(request)
         if block_reason:
             return Response({"detail": block_reason}, status=status.HTTP_403_FORBIDDEN)
+        if not signali_allowed(request):
+            return Response({"detail": VOICE_SOS_GEO_MESSAGE}, status=status.HTTP_403_FORBIDDEN)
         captcha_ok, captcha_error = verify_turnstile(request.data.get("turnstile_token"), getattr(request, "client_ip", None))
         if not captcha_ok:
             return Response({"detail": captcha_error}, status=status.HTTP_400_BAD_REQUEST)
@@ -1641,9 +1660,31 @@ class SignalementViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.
         # this request -- see core.signalements.
         for photo in photos:
             SignalementPhoto.objects.create(signalement=signalement, image=photo)
-        out = SignalementPublicSerializer(signalement, context={"request": request}).data
+        out = SignalementDetailSerializer(signalement, context={"request": request}).data
         out["access_token"] = signalement.access_token
         return Response(out, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["post"], url_path="manage")
+    def manage(self, request, *args, **kwargs):
+        """The reporter (the access token shown once after sending, as a
+        code to copy) or an admin changes the status (in review, fixed,
+        cancelled...), the category or the description. An empty body just
+        checks the code."""
+        block_reason = read_only_block(request)
+        if block_reason:
+            return Response({"detail": block_reason}, status=status.HTTP_403_FORBIDDEN)
+        signalement = self.get_object()
+        token = get_presented_token(request)
+        if not (is_admin_request(request) or (token and token == signalement.access_token)):
+            return Response({"detail": "Invalid code for this report."}, status=status.HTTP_403_FORBIDDEN)
+        serializer = SignalementManageSerializer(signalement, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        new_status = serializer.validated_data.pop("status", None)
+        if serializer.validated_data:
+            serializer.save()
+        if new_status and new_status != signalement.status:
+            signalement.set_status(new_status)
+        return Response(SignalementDetailSerializer(signalement, context={"request": request}).data)
 
     @action(detail=False, methods=["get"], url_path="nearby")
     def nearby(self, request):
@@ -1671,12 +1712,12 @@ class SignalementViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.
         if block_reason:
             return Response({"detail": block_reason}, status=status.HTTP_403_FORBIDDEN)
         signalement = self.get_object()
-        if signalement.status != Signalement.STATUS_NEW:
-            return Response({"detail": "This report is already resolved."}, status=status.HTTP_400_BAD_REQUEST)
+        if signalement.status not in Signalement.OPEN_STATUSES:
+            return Response({"detail": "This report is already closed."}, status=status.HTTP_400_BAD_REQUEST)
         if self._vote(request, signalement, "confirm"):
             Signalement.objects.filter(pk=signalement.pk).update(confirmations_count=F("confirmations_count") + 1)
             signalement.refresh_from_db()
-        return Response(SignalementPublicSerializer(signalement, context={"request": request}).data)
+        return Response(SignalementDetailSerializer(signalement, context={"request": request}).data)
 
     @action(detail=True, methods=["post"], url_path="report-fixed")
     def report_fixed(self, request, *args, **kwargs):
@@ -1687,7 +1728,7 @@ class SignalementViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.
         if block_reason:
             return Response({"detail": block_reason}, status=status.HTTP_403_FORBIDDEN)
         signalement = self.get_object()
-        if signalement.status == Signalement.STATUS_NEW:
+        if signalement.status in Signalement.OPEN_STATUSES:
             token = get_presented_token(request)
             if is_admin_request(request) or (token and token == signalement.access_token):
                 signalement.mark_resolved()
@@ -1696,4 +1737,4 @@ class SignalementViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.
                 signalement.refresh_from_db()
                 if signalement.fixed_reports_count >= Signalement.FIXED_REPORTS_TO_RESOLVE:
                     signalement.mark_resolved()
-        return Response(SignalementPublicSerializer(signalement, context={"request": request}).data)
+        return Response(SignalementDetailSerializer(signalement, context={"request": request}).data)

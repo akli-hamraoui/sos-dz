@@ -72,7 +72,7 @@ def find_nearby_signalements(latitude, longitude, category=None, radius=NEARBY_R
     dlat = radius / 111000
     dlon = radius / (111000 * max(math.cos(math.radians(latitude)), 0.01))
     qs = public_signalements().filter(
-        status=Signalement.STATUS_NEW,
+        status__in=Signalement.OPEN_STATUSES,
         created_at__gte=timezone.now() - timedelta(days=NEARBY_MAX_AGE_DAYS),
         latitude__range=(latitude - dlat, latitude + dlat),
         longitude__range=(longitude - dlon, longitude + dlon),

@@ -1019,8 +1019,8 @@ class ExtractedCollectionPoint(models.Model):
 
 
 class Comment(AuditMixin, models.Model):
-    """Usable on a Need, a CollectionPoint, or a Pickup (exactly one of the
-    three FKs is set). One level of replies only -- parent_comment_id must
+    """Usable on a Need, a CollectionPoint, a Pickup or a Signalement
+    (exactly one of the four FKs is set). One level of replies only -- parent_comment_id must
     itself have no parent."""
 
     CATEGORY_FIELD_INFO = "field_info"
@@ -1035,6 +1035,7 @@ class Comment(AuditMixin, models.Model):
     need = models.ForeignKey(Need, null=True, blank=True, on_delete=models.CASCADE, related_name="comments")
     collection_point = models.ForeignKey(CollectionPoint, null=True, blank=True, on_delete=models.CASCADE, related_name="comments")
     pickup = models.ForeignKey(Pickup, null=True, blank=True, on_delete=models.CASCADE, related_name="comments")
+    signalement = models.ForeignKey("Signalement", null=True, blank=True, on_delete=models.CASCADE, related_name="comments")
     parent_comment = models.ForeignKey("self", null=True, blank=True, on_delete=models.CASCADE, related_name="replies")
 
     author_name = models.CharField(max_length=200)
@@ -1149,8 +1150,16 @@ class Signalement(AuditMixin, models.Model):
     PROCESSING_CHOICES = [(PROCESSING_PENDING, "Pending"), (PROCESSING_READY, "Ready")]
 
     STATUS_NEW = "new"
+    STATUS_IN_REVIEW = "in_review"
     STATUS_RESOLVED = "resolved"
-    STATUS_CHOICES = [(STATUS_NEW, "New"), (STATUS_RESOLVED, "Resolved")]
+    STATUS_CANCELLED = "cancelled"
+    STATUS_CHOICES = [
+        (STATUS_NEW, "New"),
+        (STATUS_IN_REVIEW, "In review"),
+        (STATUS_RESOLVED, "Resolved"),
+        (STATUS_CANCELLED, "Cancelled"),
+    ]
+    OPEN_STATUSES = (STATUS_NEW, STATUS_IN_REVIEW)
 
     category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default=CATEGORY_OTHER)
     wilaya = models.ForeignKey(Wilaya, on_delete=models.PROTECT, related_name="signalements")
@@ -1185,7 +1194,9 @@ class Signalement(AuditMixin, models.Model):
     # Other citizens passing by: "still there" / "it's been fixed". One vote
     # per IP per report (see SignalementViewSet._vote). FIXED_REPORTS_TO_RESOLVE
     # "fixed" votes close the report on their own; its reporter (access
-    # token) or an admin can close it immediately.
+    # token, shown once as a code to copy) or an admin can change its
+    # status directly (see SignalementViewSet.manage). The reporter's IP
+    # is kept by AuditMixin (audit_creator_ip), like every other write.
     FIXED_REPORTS_TO_RESOLVE = 3
     confirmations_count = models.PositiveIntegerField(default=0)
     fixed_reports_count = models.PositiveIntegerField(default=0)
@@ -1200,10 +1211,13 @@ class Signalement(AuditMixin, models.Model):
     def __str__(self):
         return f"#{self.pk} {self.get_category_display()} - {self.wilaya}"
 
-    def mark_resolved(self):
-        self.status = self.STATUS_RESOLVED
-        self.resolved_at = timezone.now()
+    def set_status(self, status):
+        self.status = status
+        self.resolved_at = timezone.now() if status == self.STATUS_RESOLVED else None
         self.save(update_fields=["status", "resolved_at", "last_modified_at"])
+
+    def mark_resolved(self):
+        self.set_status(self.STATUS_RESOLVED)
 
 
 class SignalementPhoto(AuditMixin, models.Model):

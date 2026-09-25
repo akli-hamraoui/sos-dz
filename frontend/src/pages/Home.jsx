@@ -113,20 +113,6 @@ export default function Home() {
         </Link>
       </div>
 
-      <div className="home-collection-grid">
-        <Link to="/collection-points" className="home-collection-card home-collection-card-algeria">
-          <span className="home-card-icon"><IconAlgeriaFlag width={30} height={20} /></span>
-          <strong>{t('home.collectionPointsAlgeria')}</strong>
-          <span>{t('home.collectionPointsAlgeriaDescription')}</span>
-          <em>{t('home.viewPoints')} <b aria-hidden="true">→</b></em>
-        </Link>
-        <Link to="/international-collection-points" className="home-collection-card home-collection-card-international">
-          <span className="home-card-icon"><IconGlobeColor width={30} height={30} /></span>
-          <strong>{t('home.collectionPointsInternational')}</strong>
-          <span>{t('home.collectionPointsInternationalDescription')}</span>
-          <em>{t('home.viewPoints')} <b aria-hidden="true">→</b></em>
-        </Link>
-      </div>
 
       {/* The single red "Lancer un SOS" card used to cover both cases at
           once (a form-based need report and, buried three clicks away, the
@@ -173,6 +159,23 @@ export default function Home() {
         </span>
         <b className="home-signali-arrow" aria-hidden="true">→</b>
       </Link>
+
+      {/* Browsing collection points: moved to the bottom (per request),
+          below the action buttons. */}
+      <div className="home-collection-grid">
+        <Link to="/collection-points" className="home-collection-card home-collection-card-algeria">
+          <span className="home-card-icon"><IconAlgeriaFlag width={30} height={20} /></span>
+          <strong>{t('home.collectionPointsAlgeria')}</strong>
+          <span>{t('home.collectionPointsAlgeriaDescription')}</span>
+          <em>{t('home.viewPoints')} <b aria-hidden="true">→</b></em>
+        </Link>
+        <Link to="/international-collection-points" className="home-collection-card home-collection-card-international">
+          <span className="home-card-icon"><IconGlobeColor width={30} height={30} /></span>
+          <strong>{t('home.collectionPointsInternational')}</strong>
+          <span>{t('home.collectionPointsInternationalDescription')}</span>
+          <em>{t('home.viewPoints')} <b aria-hidden="true">→</b></em>
+        </Link>
+      </div>
 
       <Link to="/about" className="home-about-button">
         <IconHelp width={18} height={18} />

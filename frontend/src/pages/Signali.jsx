@@ -38,8 +38,11 @@ function extFor(type) {
 }
 
 // Small Leaflet map with a draggable pin: GPS is rarely exactly on the
-// broken pole, so the reporter can nudge it (drag, or tap the map).
-function PinMap({ position, onMove }) {
+// broken pole, so the reporter can nudge it (drag, or tap the map). With
+// no position yet (manual entry), it starts on `center` and the first tap
+// drops the pin -- a map-based alternative to typing an address.
+function PinMap({ position, center, onMove }) {
+  const { t } = useTranslation()
   const elRef = useRef(null)
   const mapRef = useRef(null)
   const markerRef = useRef(null)
@@ -47,39 +50,80 @@ function PinMap({ position, onMove }) {
   useEffect(() => {
     onMoveRef.current = onMove
   }, [onMove])
-  const initialRef = useRef(position)
+  const initialRef = useRef({ position, center })
 
   useEffect(() => {
-    const map = L.map(elRef.current, { attributionControl: false, zoomControl: true })
+    const map = L.map(elRef.current, {
+      attributionControl: false,
+      zoomControl: true,
+      gestureHandling: true,
+      gestureHandlingOptions: { text: { touch: t('map.gestureTouch'), scroll: t('map.gestureScroll'), scrollMac: t('map.gestureScrollMac') } },
+    })
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map)
     const icon = L.divIcon({ className: 'signali-pin', html: '<span>⚠️</span>', iconSize: [36, 36], iconAnchor: [18, 34] })
-    const start = initialRef.current
-    const marker = L.marker([start.latitude, start.longitude], { icon, draggable: true }).addTo(map)
-    marker.on('dragend', () => {
-      const p = marker.getLatLng()
-      onMoveRef.current({ latitude: p.lat, longitude: p.lng })
-    })
+    const place = (latlng) => {
+      if (!markerRef.current) {
+        markerRef.current = L.marker(latlng, { icon, draggable: true }).addTo(map)
+        markerRef.current.on('dragend', () => {
+          const p = markerRef.current.getLatLng()
+          onMoveRef.current({ latitude: p.lat, longitude: p.lng })
+        })
+      } else {
+        markerRef.current.setLatLng(latlng)
+      }
+    }
     map.on('click', (e) => {
-      marker.setLatLng(e.latlng)
+      place(e.latlng)
       onMoveRef.current({ latitude: e.latlng.lat, longitude: e.latlng.lng })
     })
-    map.setView([start.latitude, start.longitude], 17)
+    const start = initialRef.current
+    if (start.position) {
+      place([start.position.latitude, start.position.longitude])
+      map.setView([start.position.latitude, start.position.longitude], 17)
+    } else {
+      map.setView([start.center.latitude, start.center.longitude], start.center.zoom)
+    }
     mapRef.current = map
-    markerRef.current = marker
-    return () => map.remove()
+    mapRef.current._signaliPlace = place
+    return () => {
+      markerRef.current = null
+      map.remove()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Follows position changes made outside the map (typed coordinates, an
+  // address suggestion, GPS) and center changes (a newly picked wilaya).
+  const lat = position?.latitude
+  const lon = position?.longitude
   useEffect(() => {
-    const marker = markerRef.current
-    if (!marker) return
-    const current = marker.getLatLng()
-    if (current.lat !== position.latitude || current.lng !== position.longitude) {
-      marker.setLatLng([position.latitude, position.longitude])
-      mapRef.current.setView([position.latitude, position.longitude], Math.max(mapRef.current.getZoom(), 16))
+    const map = mapRef.current
+    if (!map || lat == null) return
+    const current = markerRef.current?.getLatLng()
+    if (!current || current.lat !== lat || current.lng !== lon) {
+      map._signaliPlace([lat, lon])
+      map.setView([lat, lon], Math.max(map.getZoom(), 16))
     }
-  }, [position.latitude, position.longitude])
+  }, [lat, lon])
+  const cLat = center?.latitude
+  const cLon = center?.longitude
+  const cZoom = center?.zoom
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || cLat == null || markerRef.current) return
+    map.setView([cLat, cLon], cZoom)
+  }, [cLat, cLon, cZoom])
 
   return <div ref={elRef} className="signali-pin-map" />
+}
+
+// "36.7525, 3.0420" (or with a space / semicolon) -> {latitude, longitude}
+function parseCoords(text) {
+  const m = String(text).trim().match(/^(-?\d+(?:[.,]\d+)?)\s*[,;\s]\s*(-?\d+(?:[.,]\d+)?)$/)
+  if (!m) return null
+  const latitude = parseFloat(m[1].replace(',', '.'))
+  const longitude = parseFloat(m[2].replace(',', '.'))
+  return Number.isFinite(latitude) && Number.isFinite(longitude) ? { latitude, longitude } : null
 }
 
 export default function Signali() {
@@ -101,6 +145,8 @@ export default function Signali() {
   const [commune, setCommune] = useState('')
   const [nearby, setNearby] = useState([])
   const [confirmedId, setConfirmedId] = useState(null)
+  const [coordsText, setCoordsText] = useState('')
+  const [adminNote, setAdminNote] = useState(false)
 
   // --- media ---
   const [photos, setPhotos] = useState([]) // [{file, url}]
@@ -204,6 +250,18 @@ export default function Signali() {
       }
       const { latitude, longitude, accuracy: acc } = p.coords
       if (!isInAlgeria(latitude, longitude)) {
+        if (config.is_admin) {
+          // An admin testing from abroad: never pin outside Algeria (the
+          // server drops such coordinates too) -- fall back to a manual
+          // entry pre-filled with Alger, like the admin voice SOS.
+          setLocMode('manual')
+          setLocStatus('idle')
+          setCoords(null)
+          setAddress(t('signali.adminOutsideAddress'))
+          setWilaya(String(wilayas.find((w) => w.code === '16')?.id || ''))
+          setAdminNote(true)
+          return
+        }
         setLocStatus('error')
         setError(t('signali.locationOutsideAlgeria'))
         return
@@ -220,6 +278,7 @@ export default function Signali() {
 
   const useManual = () => {
     setError('')
+    setAdminNote(false)
     setLocMode('manual')
     setLocStatus('idle')
     setCoords(null)
@@ -233,7 +292,24 @@ export default function Signali() {
     prefillWilaya(next)
   }
 
-  const locationOk = locMode === 'gps' ? !!coords : locMode === 'manual' ? !!(address.trim() && wilaya) : false
+  // Manual entry: a pin dropped on the map (or typed GPS coordinates), or
+  // at least an address with its wilaya -- that one lands in the map's
+  // "no location" bubble.
+  const locationOk = locMode === 'gps' ? !!coords : locMode === 'manual' ? !!coords || !!(address.trim() && wilaya) : false
+
+  const applyTypedCoords = () => {
+    const c = parseCoords(coordsText)
+    if (!c) return setError(t('signali.coordsInvalid'))
+    if (!isInAlgeria(c.latitude, c.longitude)) return setError(t('signali.coordsOutsideAlgeria'))
+    setError('')
+    setCoords(c)
+    prefillWilaya(c)
+  }
+
+  const selectedWilaya = wilayas.find((w) => String(w.id) === String(wilaya))
+  const manualCenter = selectedWilaya?.centroid_latitude
+    ? { latitude: selectedWilaya.centroid_latitude, longitude: selectedWilaya.centroid_longitude, zoom: 11 }
+    : { latitude: 34.5, longitude: 3, zoom: 5 }
 
   const confirmExisting = async (id) => {
     setBusy(true)
@@ -409,7 +485,7 @@ export default function Signali() {
       const created = await apiUpload('/signalements/', f)
       if (created?.id && created.access_token) saveSignalementToken(created.id, created.access_token)
       Promise.resolve(refreshConfig()).catch(() => {})
-      navigate(`/signalements?focus=${created.id}`, { state: { justCreated: created } })
+      navigate(`/signalements/${created.id}`, { state: { justCreated: true } })
     } catch (e) {
       setError(translateApiError(e, t))
     } finally {
@@ -417,8 +493,25 @@ export default function Signali() {
     }
   }
 
-  const wilayaName = wilayas.find((w) => String(w.id) === String(wilaya))?.name || ''
+  const wilayaName = selectedWilaya?.name || ''
   const steps = [t('signali.stepLocation'), t('signali.stepMedia'), t('signali.stepDescription'), t('signali.stepReview')]
+
+  // Same rule as the server (views.signali_allowed): Algeria, or an admin.
+  if (config.signali_available === false) {
+    return (
+      <section className="urgent-sos-page signali-page">
+        <div className="urgent-sos-shell">
+          <div className="urgent-sos-card">
+            <h2>{t('signali.title')}</h2>
+            <p>{t('signali.algeriaOnly')}</p>
+            <div className="urgent-sos-actions">
+              <Link to="/signalements" className="urgent-sos-primary">{t('signali.viewOnMap')}</Link>
+            </div>
+          </div>
+        </div>
+      </section>
+    )
+  }
 
   if (confirmedId) {
     return (
@@ -428,7 +521,7 @@ export default function Signali() {
             <div className="urgent-sos-final-badge">✓ {t('signali.confirmedTitle')}</div>
             <p>{t('signali.confirmedText')}</p>
             <div className="urgent-sos-actions">
-              <Link to={`/signalements?focus=${confirmedId}`} className="urgent-sos-primary">{t('signali.viewOnMap')}</Link>
+              <Link to={`/signalements/${confirmedId}`} className="urgent-sos-primary">{t('signali.viewOnMap')}</Link>
             </div>
           </div>
         </div>
@@ -486,20 +579,10 @@ export default function Signali() {
               </div>
             )}
 
+            {adminNote && <div className="urgent-sos-location-status warning">⚠️ {t('signali.adminOutsideNote')}</div>}
+
             {locMode === 'manual' && (
               <div className="signali-fields">
-                <label htmlFor="signali-address">{t('signali.addressLabel')}</label>
-                <PlaceAutocomplete
-                  id="signali-address"
-                  value={address}
-                  onChange={(v) => {
-                    setAddress(v)
-                    setCoords(null)
-                  }}
-                  onSelectPlace={onSelectPlace}
-                  placeholder={t('signali.addressPlaceholder')}
-                  countryCode="dz"
-                />
                 <label htmlFor="signali-wilaya">{t('signali.wilayaLabel')}</label>
                 <select id="signali-wilaya" value={wilaya} onChange={(e) => setWilaya(e.target.value)}>
                   <option value="">{t('signali.wilayaPlaceholder')}</option>
@@ -507,12 +590,38 @@ export default function Signali() {
                     <option key={w.id} value={w.id}>{w.code} - {w.name}</option>
                   ))}
                 </select>
+                <label htmlFor="signali-address">{t('signali.addressLabel')}</label>
+                <PlaceAutocomplete
+                  id="signali-address"
+                  value={address}
+                  onChange={setAddress}
+                  onSelectPlace={onSelectPlace}
+                  placeholder={t('signali.addressPlaceholder')}
+                  countryCode="dz"
+                />
                 <label htmlFor="signali-commune">{t('signali.communeLabel')} <small>({t('common.optional')})</small></label>
                 <input id="signali-commune" type="text" value={commune} onChange={(e) => setCommune(e.target.value)} />
+                <span className="signali-fields-title">{t('signali.pickOnMap')}</span>
+                <PinMap position={coords} center={manualCenter} onMove={(c) => (setCoords(c), prefillWilaya(c))} />
+                <small className="signali-hint">{coords ? t('signali.dragPinHint') : t('signali.tapMapHint')}</small>
+                <label htmlFor="signali-coords">{t('signali.coordsLabel')} <small>({t('common.optional')})</small></label>
+                <div className="signali-coords-row">
+                  <input
+                    id="signali-coords"
+                    type="text"
+                    inputMode="decimal"
+                    value={coordsText}
+                    onChange={(e) => setCoordsText(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), applyTypedCoords())}
+                    placeholder="36.7525, 3.0420"
+                  />
+                  <button type="button" className="urgent-sos-secondary" onClick={applyTypedCoords}>{t('signali.placeCoords')}</button>
+                </div>
+                {!coords && address.trim() && wilaya && <small className="signali-hint">{t('signali.noPinHint')}</small>}
               </div>
             )}
 
-            {coords && (
+            {locMode === 'gps' && coords && (
               <>
                 <PinMap position={coords} onMove={setCoords} />
                 <small className="signali-hint">{t('signali.dragPinHint')}</small>
