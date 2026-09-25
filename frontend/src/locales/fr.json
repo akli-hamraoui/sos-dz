@@ -34,7 +34,8 @@
     "adminModeBadge": "Mode admin",
     "adminLogout": "se déconnecter",
     "nonOfficialFooterNote": "Site non-officiel, développé et déployé par un bénévole.",
-    "filters": "Filtres"
+    "filters": "Filtres",
+    "clear": "Effacer"
   },
   "validation": {
     "required": "Ce champ est obligatoire.",
@@ -779,7 +780,7 @@
     "wilayaLabel": "Wilaya",
     "wilayaPlaceholder": "Rechercher une wilaya (nom ou numéro)",
     "communeLabel": "Commune",
-    "dragPinHint": "Déplacez l'épingle ou touchez la carte pour indiquer l'endroit exact.",
+    "dragPinHint": "Faites glisser la carte d'un doigt pour placer l'épingle sur l'endroit exact (ou touchez l'endroit).",
     "locationRequired": "Indiquez votre position GPS ou une adresse avec sa wilaya pour continuer.",
     "nearbyTitle": "Déjà signalé ici ?",
     "nearbyText": "Ces problèmes ont déjà été signalés à moins de 100 m. Si c'est le même, confirmez-le au lieu d'en créer un nouveau.",
@@ -793,7 +794,7 @@
     "takePhoto": "Prendre une photo",
     "recordVideo": "Filmer une vidéo",
     "videoMax": "{{max}} s max",
-    "fromGallery": "ou choisir des photos dans la galerie",
+    "fromGallery": "Photos de la galerie",
     "record": "Filmer",
     "stop": "Arrêter",
     "switchCamera": "Changer de caméra",
@@ -868,7 +869,7 @@
     "coordsInvalid": "Coordonnées invalides. Exemple : 36.7525, 3.0420",
     "coordsOutsideAlgeria": "Ces coordonnées sont hors d'Algérie.",
     "pickOnMap": "Ou placez le point sur la carte",
-    "tapMapHint": "Touchez la carte à l'endroit exact du problème.",
+    "tapMapHint": "Faites glisser la carte d'un doigt jusqu'à l'endroit exact du problème, ou touchez-le.",
     "coordsLabel": "Coordonnées GPS",
     "placeCoords": "Placer",
     "noPinHint": "Sans point sur la carte, le signalement sera affiché dans la bulle « sans localisation » de sa wilaya.",
@@ -922,7 +923,7 @@
     "coordsEmpty": "Touchez la carte ou tapez des coordonnées GPS.",
     "coordsPlaceholder": "ex. 36.7525, 3.0420",
     "pinOnMap": "Point placé sur la carte",
-    "videoFromGallery": "ou choisir une vidéo dans la galerie ({{size}} Mo max)",
+    "videoFromGallery": "Vidéo de la galerie",
     "addressPlaceholderIn": "Adresse à {{wilaya}} (rue, quartier, repère)",
     "wilayaNoMatch": "Aucune wilaya trouvée",
     "agree": "D'accord",
@@ -941,7 +942,8 @@
     },
     "geolocated": "Géolocalisé",
     "approxLocation": "Centre de la wilaya",
-    "categoriesHint": "Jusqu'à {{max}} types. Le premier choisi est le type principal."
+    "categoriesHint": "Jusqu'à {{max}} types. Le premier choisi est le type principal.",
+    "videoFromGalleryMax": "{{size}} Mo max"
   },
   "explore": {
     "inAreaShort_one": "{{count}} ici",

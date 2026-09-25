@@ -34,7 +34,8 @@
     "adminModeBadge": "وضع الإدارة",
     "adminLogout": "تسجيل الخروج",
     "nonOfficialFooterNote": "موقع غير رسمي، طوّره ونشره متطوع.",
-    "filters": "الفلاتر"
+    "filters": "الفلاتر",
+    "clear": "مسح"
   },
   "validation": {
     "required": "هذا الحقل إلزامي.",
@@ -779,7 +780,7 @@
     "wilayaLabel": "الولاية",
     "wilayaPlaceholder": "ابحث عن ولاية (الاسم أو الرقم)",
     "communeLabel": "البلدية",
-    "dragPinHint": "حرّك الدبوس أو المس الخريطة لتحديد المكان بدقة.",
+    "dragPinHint": "اسحب الخريطة بإصبع واحد لوضع الدبوس على المكان المحدد (أو المس المكان).",
     "locationRequired": "حدد موقعك GPS أو عنواناً مع ولايته للمتابعة.",
     "nearbyTitle": "هل تم الإبلاغ عنه هنا؟",
     "nearbyText": "تم الإبلاغ عن هذه المشاكل على بعد أقل من 100 م. إن كانت نفسها، أكّدها بدلاً من إنشاء بلاغ جديد.",
@@ -793,7 +794,7 @@
     "takePhoto": "التقاط صورة",
     "recordVideo": "تصوير فيديو",
     "videoMax": "{{max}} ث كحد أقصى",
-    "fromGallery": "أو اختر صوراً من المعرض",
+    "fromGallery": "صور من المعرض",
     "record": "تصوير",
     "stop": "إيقاف",
     "switchCamera": "تبديل الكاميرا",
@@ -868,7 +869,7 @@
     "coordsInvalid": "إحداثيات غير صالحة. مثال: 36.7525, 3.0420",
     "coordsOutsideAlgeria": "هذه الإحداثيات خارج الجزائر.",
     "pickOnMap": "أو ضع النقطة على الخريطة",
-    "tapMapHint": "المس الخريطة في المكان الدقيق للمشكلة.",
+    "tapMapHint": "اسحب الخريطة بإصبع واحد إلى مكان المشكلة بالضبط، أو المسه.",
     "coordsLabel": "إحداثيات GPS",
     "placeCoords": "وضع",
     "noPinHint": "بدون نقطة على الخريطة، سيظهر البلاغ في فقاعة «بدون موقع» لولايته.",
@@ -922,7 +923,7 @@
     "coordsEmpty": "المس الخريطة أو اكتب إحداثيات GPS.",
     "coordsPlaceholder": "مثال: 36.7525, 3.0420",
     "pinOnMap": "نقطة محددة على الخريطة",
-    "videoFromGallery": "أو اختر فيديو من المعرض ({{size}} ميغا كحد أقصى)",
+    "videoFromGallery": "فيديو من المعرض",
     "addressPlaceholderIn": "عنوان في {{wilaya}} (شارع، حي، معلم)",
     "wilayaNoMatch": "لم يتم العثور على ولاية",
     "agree": "أوافق",
@@ -941,7 +942,8 @@
     },
     "geolocated": "موقع محدد",
     "approxLocation": "وسط الولاية",
-    "categoriesHint": "حتى {{max}} أنواع. أول نوع تختاره هو النوع الرئيسي."
+    "categoriesHint": "حتى {{max}} أنواع. أول نوع تختاره هو النوع الرئيسي.",
+    "videoFromGalleryMax": "{{size}} ميغا كحد أقصى"
   },
   "explore": {
     "inAreaShort_one": "{{count}} هنا",

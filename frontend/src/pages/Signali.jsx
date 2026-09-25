@@ -9,7 +9,7 @@ import { translateApiError } from '../apiErrors'
 import { compressPhoto, formatDate, getCurrentPosition, isInAlgeria } from '../utils'
 import PlaceAutocomplete from '../components/PlaceAutocomplete'
 import WilayaCombobox from '../components/WilayaCombobox'
-import { IconCamera, IconClose, IconExpand, IconLocate, IconMapPin, IconMic, IconSwitchCamera, IconTrash, IconVideoCam } from '../icons'
+import { IconCamera, IconClose, IconExpand, IconGallery, IconLocate, IconMapPin, IconMic, IconSwitchCamera, IconTrash, IconVideoCam, IconVideoUpload } from '../icons'
 import { saveSignalementToken, signalIconSvg } from '../signali'
 import CategoryIcon from '../components/CategoryIcon'
 import CategoryPicker from '../components/CategoryPicker'
@@ -42,72 +42,71 @@ function extFor(type) {
   return type.includes('mp4') ? 'mp4' : type.includes('ogg') ? 'ogg' : 'webm'
 }
 
-// Small Leaflet map with a draggable pin: GPS is rarely exactly on the
-// broken pole, so the reporter can nudge it (drag, or tap the map). With
-// no position yet (manual entry), it starts on `center` and the first tap
-// drops the pin -- a map-based alternative to typing an address.
+// One-hand location picker: the pin stays in the middle of the map and
+// the map moves under it (one finger, no "use two fingers" lock), like the
+// ride-hailing apps -- no small pin to grab and drag. A tap slides the
+// tapped spot under the pin; pinch / double-tap / +- zoom around the pin,
+// so zooming never moves the chosen spot. With no position yet (manual
+// entry), the pin is faded until the map is first moved or tapped.
 function PinMap({ position, center, onMove }) {
   const { t } = useTranslation()
   const elRef = useRef(null)
   const mapRef = useRef(null)
-  const markerRef = useRef(null)
+  const pinRef = useRef(null)
+  const quietRef = useRef(false) // a move made by the code, not the finger (see _quietView)
   const onMoveRef = useRef(onMove)
   useEffect(() => {
     onMoveRef.current = onMove
   }, [onMove])
   const initialRef = useRef({ position, center })
+  const [placed, setPlaced] = useState(!!position)
 
   useEffect(() => {
     const map = L.map(elRef.current, {
       attributionControl: false,
       zoomControl: true,
-      gestureHandling: true,
-      gestureHandlingOptions: { text: { touch: t('map.gestureTouch'), scroll: t('map.gestureScroll'), scrollMac: t('map.gestureScrollMac') } },
+      touchZoom: 'center',
+      scrollWheelZoom: 'center',
+      doubleClickZoom: 'center',
+      bounceAtZoomLimits: false,
     })
     addBaseLayer(map)
-    const icon = L.divIcon({ className: 'signali-pin', html: `<span class="signali-pin-badge">${signalIconSvg(18)}</span>`, iconSize: [38, 46], iconAnchor: [19, 44] })
-    const place = (latlng) => {
-      if (!markerRef.current) {
-        markerRef.current = L.marker(latlng, { icon, draggable: true }).addTo(map)
-        markerRef.current.on('dragend', () => {
-          const p = markerRef.current.getLatLng()
-          onMoveRef.current({ latitude: p.lat, longitude: p.lng })
-        })
-      } else {
-        markerRef.current.setLatLng(latlng)
-      }
-    }
-    map.on('click', (e) => {
-      place(e.latlng)
-      onMoveRef.current({ latitude: e.latlng.lat, longitude: e.latlng.lng })
+    const lift = (up) => pinRef.current?.classList.toggle('is-moving', up)
+    map.on('movestart', () => !quietRef.current && lift(true))
+    map.on('moveend', () => {
+      lift(false)
+      if (quietRef.current) return
+      const c = map.getCenter()
+      setPlaced(true)
+      onMoveRef.current({ latitude: c.lat, longitude: c.lng })
     })
+    map.on('click', (e) => map.panTo(e.latlng, { animate: true, duration: 0.3 }))
+    // Code-made moves: instant, so their moveend has fired by the time the
+    // flag drops.
+    map._quietView = (latlng, zoom) => {
+      quietRef.current = true
+      map.setView(latlng, zoom, { animate: false })
+      quietRef.current = false
+    }
     const start = initialRef.current
-    if (start.position) {
-      place([start.position.latitude, start.position.longitude])
-      map.setView([start.position.latitude, start.position.longitude], 17)
-    } else {
-      map.setView([start.center.latitude, start.center.longitude], start.center.zoom)
-    }
+    if (start.position) map._quietView([start.position.latitude, start.position.longitude], 17)
+    else map._quietView([start.center.latitude, start.center.longitude], start.center.zoom)
     mapRef.current = map
-    mapRef.current._signaliPlace = place
-    return () => {
-      markerRef.current = null
-      map.remove()
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => map.remove()
   }, [])
 
-  // Follows position changes made outside the map (typed coordinates, an
-  // address suggestion, GPS) and center changes (a newly picked wilaya).
+  // Follows position changes made outside the map (an address suggestion,
+  // GPS) and center changes (a newly picked wilaya) without reporting them
+  // back as a move.
   const lat = position?.latitude
   const lon = position?.longitude
   useEffect(() => {
     const map = mapRef.current
     if (!map || lat == null) return
-    const current = markerRef.current?.getLatLng()
-    if (!current || current.lat !== lat || current.lng !== lon) {
-      map._signaliPlace([lat, lon])
-      map.setView([lat, lon], Math.max(map.getZoom(), 16))
+    setPlaced(true)
+    const c = map.getCenter()
+    if (Math.abs(c.lat - lat) > 1e-6 || Math.abs(c.lng - lon) > 1e-6) {
+      map._quietView([lat, lon], Math.max(map.getZoom(), 16))
     }
   }, [lat, lon])
   const cLat = center?.latitude
@@ -115,8 +114,9 @@ function PinMap({ position, center, onMove }) {
   const cZoom = center?.zoom
   useEffect(() => {
     const map = mapRef.current
-    if (!map || cLat == null || markerRef.current) return
-    map.setView([cLat, cLon], cZoom)
+    if (!map || cLat == null || lat != null) return
+    map._quietView([cLat, cLon], cZoom)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cLat, cLon, cZoom])
 
   // Same buttons as the other maps: fullscreen and "center on me".
@@ -147,6 +147,10 @@ function PinMap({ position, center, onMove }) {
   return (
     <div ref={frameRef} className={`map-frame signali-pin-frame${fullscreen ? ' map-frame-fullscreen' : ''}`}>
       <div ref={elRef} className="signali-pin-map" />
+      <div ref={pinRef} className={`signali-pin-center${placed ? '' : ' is-unset'}`} aria-hidden="true">
+        <span className="signali-pin-badge" dangerouslySetInnerHTML={{ __html: signalIconSvg(18) }} />
+        <i />
+      </div>
       {fullscreen ? (
         <button type="button" className="exit-fullscreen-btn" onClick={exitFullscreen} aria-label={t('map.exitFullscreen')} title={t('map.exitFullscreen')}>
           <IconClose width={20} height={20} />
@@ -767,17 +771,20 @@ export default function Signali() {
                   </button>
                   <input id="signali-video-file" type="file" accept="video/*" capture="environment" onChange={pickVideoFile} hidden />
                 </div>
-                <div className="signali-gallery-links">
-                  <label className="signali-link">
-                    {t('signali.fromGallery')}
+                <div className="signali-gallery-row">
+                  <label className={`signali-gallery-btn${photos.length >= MAX_PHOTOS ? ' disabled' : ''}`}>
+                    <IconGallery width={22} height={22} />
+                    <span>{t('signali.fromGallery')}</span>
                     <input type="file" accept="image/*" multiple onChange={addPhotos} hidden disabled={photos.length >= MAX_PHOTOS} />
                   </label>
-                  {!video && (
-                    <label className="signali-link">
-                      {t('signali.videoFromGallery', { size: MAX_VIDEO_MB })}
-                      <input type="file" accept="video/*" onChange={(e) => pickVideoFile(e, { fromGallery: true })} hidden />
-                    </label>
-                  )}
+                  <label className={`signali-gallery-btn${video ? ' disabled' : ''}`}>
+                    <IconVideoUpload width={22} height={22} />
+                    <span>
+                      {t('signali.videoFromGallery')}
+                      <small>{t('signali.videoFromGalleryMax', { size: MAX_VIDEO_MB })}</small>
+                    </span>
+                    <input type="file" accept="video/*" onChange={(e) => pickVideoFile(e, { fromGallery: true })} hidden disabled={!!video} />
+                  </label>
                 </div>
 
                 {(photos.length > 0 || video) && (

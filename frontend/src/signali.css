@@ -555,8 +555,30 @@
 .signali-ai.is-compact .signali-ai-copy strong { font-size: 13.5px; }
 .signali-ai.is-compact .signali-ai-copy span { font-size: 12.5px; }
 
-.signali-gallery-links { display: grid; gap: 14px; margin: 4px 0 14px; }
-.signali-gallery-links .signali-link { padding: 4px 0; }
+.signali-gallery-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin: 16px 0 14px; }
+.signali-gallery-btn {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 52px;
+  margin: 0;
+  padding: 8px 12px;
+  border: 1.5px dashed #b9cbe6;
+  border-radius: 14px;
+  background: #f5f8fd;
+  color: var(--signali, #1f5fbf);
+  font-size: 13.5px;
+  font-weight: 700;
+  line-height: 1.2;
+  cursor: pointer;
+}
+.signali-gallery-btn svg { flex: none; }
+.signali-gallery-btn span { display: flex; flex-direction: column; min-width: 0; text-align: start; }
+.signali-gallery-btn small { color: #6b7686; font-size: 11.5px; font-weight: 500; }
+.signali-gallery-btn:active { background: #e8f0fb; }
+.signali-gallery-btn.disabled { opacity: .45; cursor: not-allowed; }
 
 /* WilayaCombobox: its own × clears it, hide the browser's search one. */
 .signali-wilaya-combobox input::-webkit-search-cancel-button { display: none; -webkit-appearance: none; }
@@ -610,7 +632,7 @@
 .signali-review-text { font-weight: 500; white-space: pre-line; }
 
 /* Wizard map: same chrome as the other maps (fullscreen, center on me). */
-.signali-pin-frame { position: relative; height: 240px; margin-top: 8px; border-radius: 14px; overflow: hidden; }
+.signali-pin-frame { position: relative; isolation: isolate; height: 240px; margin-top: 8px; border-radius: 14px; overflow: hidden; }
 .signali-pin-frame .signali-pin-map { height: 100%; margin-top: 0; border-radius: 0; }
 .signali-pin-frame.map-frame-fullscreen .signali-pin-map { height: 100%; }
 .signali-pin-badge {
@@ -716,3 +738,33 @@
 .signali-categories button { position: relative; }
 .signali-categories button:disabled { opacity: .45; cursor: not-allowed; }
 .signali-category-rank { display: inline-grid; place-items: center; min-width: 18px; height: 18px; margin-inline-start: 4px; border-radius: 999px; background: #fff; color: #1f5fbf; font-size: 11px; }
+
+/* One-hand picker (Signali.jsx PinMap): the pin is fixed in the middle of
+   the map, its tip on the exact centre; it lifts while the map moves. */
+.signali-pin-center {
+  position: absolute;
+  left: 50%;
+  bottom: 50%;
+  z-index: 500;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.signali-pin-center .signali-pin-badge {
+  margin-bottom: 7px;
+  transition: transform .16s ease-out;
+}
+.signali-pin-center i {
+  position: absolute;
+  bottom: -4px;
+  width: 12px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(15, 30, 55, .35);
+  transition: transform .16s ease-out, opacity .16s;
+}
+.signali-pin-center.is-moving .signali-pin-badge { transform: translateY(-12px) rotate(-45deg); }
+.signali-pin-center.is-moving i { transform: scale(.7); opacity: .6; }
+.signali-pin-center.is-unset { opacity: .55; }

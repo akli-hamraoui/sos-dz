@@ -34,7 +34,8 @@
     "adminModeBadge": "Admin mode",
     "adminLogout": "log out",
     "nonOfficialFooterNote": "Unofficial site, developed and deployed by a volunteer.",
-    "filters": "Filters"
+    "filters": "Filters",
+    "clear": "Clear"
   },
   "validation": {
     "required": "This field is required.",
@@ -760,7 +761,7 @@
     "wilayaLabel": "Wilaya",
     "wilayaPlaceholder": "Search a wilaya (name or number)",
     "communeLabel": "Commune",
-    "dragPinHint": "Drag the pin or tap the map to mark the exact spot.",
+    "dragPinHint": "Slide the map with one finger to put the pin on the exact spot (or tap the spot).",
     "locationRequired": "Give your GPS location or an address with its wilaya to continue.",
     "nearbyTitle": "Already reported here?",
     "nearbyText": "These problems were already reported less than 100 m away. If it's the same one, confirm it instead of creating a new report.",
@@ -774,7 +775,7 @@
     "takePhoto": "Take a photo",
     "recordVideo": "Record a video",
     "videoMax": "{{max}} s max",
-    "fromGallery": "or pick photos from the gallery",
+    "fromGallery": "Photos from gallery",
     "record": "Record",
     "stop": "Stop",
     "switchCamera": "Switch camera",
@@ -849,7 +850,7 @@
     "coordsInvalid": "Invalid coordinates. Example: 36.7525, 3.0420",
     "coordsOutsideAlgeria": "These coordinates are outside Algeria.",
     "pickOnMap": "Or place the spot on the map",
-    "tapMapHint": "Tap the map at the exact spot of the problem.",
+    "tapMapHint": "Slide the map with one finger to the exact spot of the problem, or tap it.",
     "coordsLabel": "GPS coordinates",
     "placeCoords": "Place",
     "noPinHint": "Without a pin on the map, the report will show in its wilaya's \"no location\" bubble.",
@@ -903,7 +904,7 @@
     "coordsEmpty": "Tap the map or type GPS coordinates.",
     "coordsPlaceholder": "e.g. 36.7525, 3.0420",
     "pinOnMap": "Spot placed on the map",
-    "videoFromGallery": "or pick a video from the gallery ({{size}} MB max)",
+    "videoFromGallery": "Video from gallery",
     "addressPlaceholderIn": "Address in {{wilaya}} (street, area, landmark)",
     "wilayaNoMatch": "No wilaya found",
     "agree": "Agree",
@@ -922,7 +923,8 @@
     },
     "geolocated": "Geolocated",
     "approxLocation": "Wilaya centre",
-    "categoriesHint": "Up to {{max}} types. The first one picked is the main type."
+    "categoriesHint": "Up to {{max}} types. The first one picked is the main type.",
+    "videoFromGalleryMax": "{{size}} MB max"
   },
   "explore": {
     "inAreaShort_one": "{{count}} here",
