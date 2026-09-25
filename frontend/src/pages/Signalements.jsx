@@ -37,10 +37,17 @@ function pinIcon(s, selected) {
   return L.divIcon({ className: 'signali-marker-icon', html: `<span class="${cls}">${categoryEmoji(s.category)}</span>`, iconSize: [34, 34], iconAnchor: [17, 17] })
 }
 
+// The "Signal" megaphone (same drawing as IconMegaphone in icons.jsx,
+// used for the bottom-nav tab), as a plain string for Leaflet's divIcon.
+const SIGNAL_ICON_SVG =
+  '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+  '<path d="M3.5 10.2v3.6a1 1 0 0 0 1 1H7l7.5 4.2V5L7 9.2H4.5a1 1 0 0 0-1 1Z"/><path d="M7.5 14.8 9 20h2.3"/>' +
+  '<path d="M18 9.2a4 4 0 0 1 0 5.6M20.3 7a7.2 7.2 0 0 1 0 10"/></svg>'
+
 function bubbleIcon(count) {
   return L.divIcon({
     className: 'signali-marker-icon',
-    html: `<span class="signali-bubble"><span>📍</span><b>${count}</b></span>`,
+    html: `<span class="signali-bubble">${SIGNAL_ICON_SVG}<b>${count}</b></span>`,
     iconSize: [64, 64],
     iconAnchor: [32, 32],
   })

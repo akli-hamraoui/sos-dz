@@ -301,7 +301,7 @@
   line-height: 1;
   animation: signali-blink 1.8s ease-in-out infinite;
 }
-.signali-bubble span { font-size: 18px; }
+.signali-bubble svg { display: block; margin-bottom: 1px; }
 .signali-bubble b { font-size: 17px; }
 
 .signali-detail {
