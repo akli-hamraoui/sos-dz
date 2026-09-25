@@ -295,7 +295,7 @@
   height: 64px;
   border: 3px solid #fff;
   border-radius: 50%;
-  background: rgba(230, 119, 0, .92);
+  background: rgba(77, 171, 247, .92);
   box-shadow: 0 3px 10px rgba(0, 0, 0, .35);
   color: #fff;
   line-height: 1;
@@ -369,7 +369,7 @@
 .signali-detail .signali-detail-actions .btn { flex: 1 1 140px; }
 
 .signalements-counts { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px; margin: 0 0 8px; color: #5c6878; font-size: 13px; }
-.signali-link.is-active { color: #e67700; }
+.signali-link.is-active { color: #1c7ed6; }
 
 .signalements-preview {
   display: grid;
