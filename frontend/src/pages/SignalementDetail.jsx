@@ -10,7 +10,6 @@ import CategoryIcon from '../components/CategoryIcon'
 import CommentThread from '../components/CommentThread'
 import CopyButton from '../components/CopyButton'
 import PhotoLightbox from '../components/PhotoLightbox'
-import SignaliAiNotice from '../components/SignaliAiNotice'
 import { categoryEmoji, getSignalementToken, saveSignalementToken, SIGNALI_CATEGORIES, SIGNALI_STATUSES } from '../signali'
 import '../signali.css'
 
@@ -84,6 +83,48 @@ function ManagePanel({ s, token, justCreated, onChange, onForget }) {
         <button type="button" className="btn" onClick={onForget}>{t('signali.forgetCode')}</button>
       </div>
       {message && <p className="signali-message" role="status">{message}</p>}
+    </section>
+  )
+}
+
+// Right after sending: a big "sent" badge (an envelope flying off, with
+// speed lines), gently animated, and nothing else to do but keep the code.
+function SentHero({ pending }) {
+  const { t } = useTranslation()
+  return (
+    <div className="signali-sent" role="status">
+      <div className="signali-sent-badge" aria-hidden="true">
+        <svg viewBox="0 0 64 64" width="64" height="64">
+          <g className="signali-sent-lines" stroke="#fff" strokeWidth="3.4" strokeLinecap="round">
+            <path d="M9 23h11M6 31h10M11 39h9M8 47h14" />
+          </g>
+          <g className="signali-sent-envelope">
+            <g transform="rotate(-18 40 35)">
+              <rect x="24" y="23" width="32" height="23" rx="4" fill="none" stroke="#fff" strokeWidth="3.4" />
+              <path d="M25.5 25l14.5 11.5L54.5 25" fill="none" stroke="#fff" strokeWidth="3.4" strokeLinejoin="round" strokeLinecap="round" />
+            </g>
+          </g>
+        </svg>
+      </div>
+      <strong>{t('signali.createdTitle')}</strong>
+      <span>{pending ? t('signali.sentChecking') : t('signali.sentOnMap')}</span>
+    </div>
+  )
+}
+
+// ...and the management code to keep (editing happens later on the report
+// page, by its owner or an admin).
+function CodeCard({ token }) {
+  const { t } = useTranslation()
+  return (
+    <section className="signali-manage is-new signali-code-only">
+      <h2>🔐 {t('signali.manageTitle')}</h2>
+      <p className="signali-manage-warning">{t('signali.tokenWarning')}</p>
+      <div className="signali-token-row">
+        <code>{token}</code>
+        <CopyButton text={token} className="btn" />
+      </div>
+      <p className="signali-code-hint">{t('signali.editLaterHint')}</p>
     </section>
   )
 }
@@ -199,17 +240,11 @@ export default function SignalementDetail() {
 
   return (
     <section className="signalements-page signalement-detail-page">
-      {/* Only right after sending: one short notice (sent + AI check). */}
-      {justCreated &&
-        (pending ? (
-          <SignaliAiNotice sent />
-        ) : (
-          <div className="signali-created" role="status">
-            <strong>✓ {t('signali.createdTitle')}</strong>
-          </div>
-        ))}
+      {/* Only right after sending: "sent" + the code to keep, nothing to
+          edit here (that's on this page later, for its owner or an admin). */}
+      {justCreated && <SentHero pending={pending} />}
       {justCreated && mediaWarnings.length > 0 && <p className="signali-media-warning" role="status">⚠️ {t('signali.mediaWarning')}</p>}
-      {token && justCreated && <ManagePanel s={s} token={token} justCreated onChange={setS} onForget={forget} />}
+      {token && justCreated && <CodeCard token={token} />}
 
       <article className="signali-detail">
         <header>
