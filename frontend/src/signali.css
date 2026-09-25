@@ -557,3 +557,7 @@
 
 .signali-gallery-links { display: grid; gap: 14px; margin: 4px 0 14px; }
 .signali-gallery-links .signali-link { padding: 4px 0; }
+
+/* WilayaCombobox: its own × clears it, hide the browser's search one. */
+.signali-wilaya-combobox input::-webkit-search-cancel-button { display: none; -webkit-appearance: none; }
+.signali-wilaya-combobox input { width: 100%; box-sizing: border-box; }

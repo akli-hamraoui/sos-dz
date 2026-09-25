@@ -9,6 +9,7 @@ import { translateApiError } from '../apiErrors'
 import { formatDate, getCurrentPosition, RECENTER_BOX_METERS } from '../utils'
 import { attachMapTapToActivate } from '../mapMarkers'
 import { IconClose, IconExpand, IconLocate, IconPlus } from '../icons'
+import WilayaCombobox from '../components/WilayaCombobox'
 import { SIGNALI_CATEGORIES, categoryEmoji, getOwnSignalementIds } from '../signali'
 import '../signali.css'
 
@@ -362,12 +363,13 @@ export default function Signalements() {
       </div>
       {filtersOpen && (
         <div className="filters-panel signalements-filters">
-          <select value={wilaya} onChange={(e) => setFilter('wilaya', e.target.value)} aria-label={t('signali.wilayaLabel')}>
-            <option value="">{t('signali.allWilayas')}</option>
-            {wilayas.map((w) => (
-              <option key={w.id} value={w.id}>{w.code} - {w.name}</option>
-            ))}
-          </select>
+          <WilayaCombobox
+            wilayas={wilayas}
+            value={wilaya}
+            onChange={(v) => setFilter('wilaya', v)}
+            placeholder={t('signali.allWilayas')}
+            emptyLabel={t('signali.allWilayas')}
+          />
           <select value={category} onChange={(e) => setFilter('category', e.target.value)} aria-label={t('signali.categoryLabel')}>
             <option value="">{t('signali.allCategories')}</option>
             {SIGNALI_CATEGORIES.map((c) => (

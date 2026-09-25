@@ -762,7 +762,7 @@
     "addressLabel": "العنوان أو المكان (شارع، حي، معلم)",
     "addressPlaceholder": "مثال: شارع ديدوش مراد، قرب البريد",
     "wilayaLabel": "الولاية",
-    "wilayaPlaceholder": "اختر الولاية",
+    "wilayaPlaceholder": "ابحث عن ولاية (الاسم أو الرقم)",
     "communeLabel": "البلدية",
     "dragPinHint": "حرّك الدبوس أو المس الخريطة لتحديد المكان بدقة.",
     "locationRequired": "حدد موقعك GPS أو عنواناً مع ولايته للمتابعة.",
@@ -891,6 +891,7 @@
     "coordsPlaceholder": "مثال: 36.7525, 3.0420",
     "pinOnMap": "نقطة محددة على الخريطة",
     "videoFromGallery": "أو اختر فيديو من المعرض ({{size}} ميغا كحد أقصى)",
-    "addressPlaceholderIn": "عنوان في {{wilaya}} (شارع، حي، معلم)"
+    "addressPlaceholderIn": "عنوان في {{wilaya}} (شارع، حي، معلم)",
+    "wilayaNoMatch": "لم يتم العثور على ولاية"
   }
 }

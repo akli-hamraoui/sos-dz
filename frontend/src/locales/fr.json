@@ -762,7 +762,7 @@
     "addressLabel": "Adresse ou lieu (rue, quartier, repère)",
     "addressPlaceholder": "Ex. : Rue Didouche Mourad, près de la poste",
     "wilayaLabel": "Wilaya",
-    "wilayaPlaceholder": "Choisir la wilaya",
+    "wilayaPlaceholder": "Rechercher une wilaya (nom ou numéro)",
     "communeLabel": "Commune",
     "dragPinHint": "Déplacez l'épingle ou touchez la carte pour indiquer l'endroit exact.",
     "locationRequired": "Indiquez votre position GPS ou une adresse avec sa wilaya pour continuer.",
@@ -891,6 +891,7 @@
     "coordsPlaceholder": "ex. 36.7525, 3.0420",
     "pinOnMap": "Point placé sur la carte",
     "videoFromGallery": "ou choisir une vidéo dans la galerie ({{size}} Mo max)",
-    "addressPlaceholderIn": "Adresse à {{wilaya}} (rue, quartier, repère)"
+    "addressPlaceholderIn": "Adresse à {{wilaya}} (rue, quartier, repère)",
+    "wilayaNoMatch": "Aucune wilaya trouvée"
   }
 }

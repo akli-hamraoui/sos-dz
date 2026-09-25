@@ -743,7 +743,7 @@
     "addressLabel": "Address or place (street, area, landmark)",
     "addressPlaceholder": "E.g. Rue Didouche Mourad, near the post office",
     "wilayaLabel": "Wilaya",
-    "wilayaPlaceholder": "Choose the wilaya",
+    "wilayaPlaceholder": "Search a wilaya (name or number)",
     "communeLabel": "Commune",
     "dragPinHint": "Drag the pin or tap the map to mark the exact spot.",
     "locationRequired": "Give your GPS location or an address with its wilaya to continue.",
@@ -872,6 +872,7 @@
     "coordsPlaceholder": "e.g. 36.7525, 3.0420",
     "pinOnMap": "Spot placed on the map",
     "videoFromGallery": "or pick a video from the gallery ({{size}} MB max)",
-    "addressPlaceholderIn": "Address in {{wilaya}} (street, area, landmark)"
+    "addressPlaceholderIn": "Address in {{wilaya}} (street, area, landmark)",
+    "wilayaNoMatch": "No wilaya found"
   }
 }

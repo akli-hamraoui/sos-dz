@@ -7,6 +7,7 @@ import { api, apiUpload } from '../api'
 import { translateApiError } from '../apiErrors'
 import { compressPhoto, formatDate, isInAlgeria } from '../utils'
 import PlaceAutocomplete from '../components/PlaceAutocomplete'
+import WilayaCombobox from '../components/WilayaCombobox'
 import { IconCamera, IconLocate, IconMapPin, IconMic, IconSwitchCamera, IconTrash, IconVideoCam } from '../icons'
 import { SIGNALI_CATEGORIES, categoryEmoji, saveSignalementToken } from '../signali'
 import '../urgent-sos-wizard-fixes.css'
@@ -621,12 +622,7 @@ export default function Signali() {
             {locMode === 'manual' && (
               <div className="signali-fields">
                 <label htmlFor="signali-wilaya">{t('signali.wilayaLabel')}</label>
-                <select id="signali-wilaya" value={wilaya} onChange={(e) => setWilaya(e.target.value)}>
-                  <option value="">{t('signali.wilayaPlaceholder')}</option>
-                  {wilayas.map((w) => (
-                    <option key={w.id} value={w.id}>{w.code} - {w.name}</option>
-                  ))}
-                </select>
+                <WilayaCombobox id="signali-wilaya" wilayas={wilayas} value={wilaya} onChange={setWilaya} placeholder={t('signali.wilayaPlaceholder')} />
                 <label htmlFor="signali-address">{t('signali.addressLabel')}</label>
                 <PlaceAutocomplete
                   id="signali-address"
