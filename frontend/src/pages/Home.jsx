@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useApp } from '../context/AppContext'
@@ -36,11 +36,31 @@ export default function Home() {
   const { t } = useTranslation()
   const { config } = useApp()
   const [createMenuOpen, setCreateMenuOpen] = useState(false)
+  const sectionRef = useRef(null)
   // Only the wizard itself (UrgentSOS.jsx) knows for sure whether the voice
   // guide is configured -- it bounces back to "/" when disabled. Mirroring
   // that same check here just hides the entry point instead of sending
   // someone into a dead-end redirect.
   const voiceSosAvailable = config.voice_guide_available !== false
+
+  // The home fills exactly the screen between the top bar and the fixed
+  // bottom nav (home-compact.css spreads the rows over that height), so
+  // "Qui sommes-nous" sits just above the nav instead of leaving a gap.
+  // Both bars' heights vary (admin badge, wrapped labels, safe areas), so
+  // they're measured rather than hard-coded.
+  useEffect(() => {
+    const measure = () => {
+      const el = sectionRef.current
+      if (!el) return
+      const top = document.querySelector('.topbar')?.offsetHeight || 0
+      const nav = document.querySelector('.bottom-nav')?.offsetHeight || 0
+      el.style.setProperty('--home-topbar-h', `${top}px`)
+      el.style.setProperty('--home-nav-h', `${nav}px`)
+    }
+    measure()
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
+  }, [])
 
   useEffect(() => {
     if (!createMenuOpen) return
@@ -52,8 +72,11 @@ export default function Home() {
   }, [createMenuOpen])
 
   return (
-    <section className="home home-compact">
+    <section className="home home-compact" ref={sectionRef}>
       <h1 className="sr-only">{t('seo.home.title')}</h1>
+      {/* Short, green note at the very top (per request) -- replaces the
+          footer's longer "non-official" disclaimer, hidden on Home. */}
+      <p className="home-volunteer-note">{t('home.volunteerNotice')}</p>
 
       {/* Signali: anonymous citizen reports of street hazards (a dangerous
           power pole, a pothole...). Full-width, first on the page and
