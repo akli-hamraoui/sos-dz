@@ -634,7 +634,7 @@ class AppConfigurationPublicSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = AppConfiguration
-        fields = ["mode", "media_moderation_active", "contact_phones", "admin_contact_email"]
+        fields = ["mode", "media_moderation_active", "contact_phones", "admin_contact_email", "map_provider", "google_maps_api_key"]
 
 
 class SupportRequestSerializer(serializers.ModelSerializer):

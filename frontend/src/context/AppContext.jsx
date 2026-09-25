@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, useCallback, useMemo } 
 import { useLocation } from 'react-router-dom'
 import { api, loadJSON, saveJSON } from '../api'
 import { setupAutoSync } from '../offlineQueue'
+import { setMapConfig } from '../mapBase'
 import i18n from '../i18n'
 
 const AppContext = createContext(null)
@@ -15,7 +16,13 @@ export function AppProvider({ children }) {
     contact_phones: [],
     admin_contact_email: '',
     is_admin: false,
+    map_provider: 'osm',
+    google_maps_api_key: '',
   })
+  // Every map picks its background (Google or OpenStreetMap) from this.
+  useEffect(() => {
+    setMapConfig(config)
+  }, [config])
   const [wilayas, setWilayas] = useState([])
   const [campaigns, setCampaigns] = useState([])
   const [needTokens, setNeedTokens] = useState(() => loadJSON('rassemble_need_tokens', {}))

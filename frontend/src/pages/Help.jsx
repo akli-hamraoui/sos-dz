@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import L from 'leaflet'
+import { addBaseLayer } from '../mapBase'
 import { useApp } from '../context/AppContext'
 import { useDialog } from '../context/DialogContext'
 import { api } from '../api'
@@ -153,10 +154,7 @@ export default function Help() {
               text: { touch: t('map.gestureTouch'), scroll: t('map.gestureScroll'), scrollMac: t('map.gestureScrollMac') },
             },
           })
-          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; OpenStreetMap contributors',
-            maxZoom: 19,
-          }).addTo(mapRef.current)
+          addBaseLayer(mapRef.current)
           L.control.attribution({ prefix: false }).addTo(mapRef.current)
         }
         const map = mapRef.current

@@ -416,3 +416,15 @@ class SignalementRobustUploadTests(BaseAPITestCase):
                 "/api/signalements/", dict(category=cat, latitude=36.75, longitude=3.05, photos=[make_test_image()]), format="multipart"
             )
             self.assertEqual(resp.status_code, 201, resp.data)
+
+
+class MapProviderConfigTests(BaseAPITestCase):
+    def test_config_exposes_the_map_provider_and_browser_key(self):
+        data = self.client.get("/api/config/").data
+        self.assertEqual((data["map_provider"], data["google_maps_api_key"]), ("osm", ""))
+        config = AppConfiguration.get_solo()
+        config.map_provider = AppConfiguration.MAP_PROVIDER_GOOGLE
+        config.google_maps_api_key = "browser-key"
+        config.save()
+        data = self.client.get("/api/config/").data
+        self.assertEqual((data["map_provider"], data["google_maps_api_key"]), ("google", "browser-key"))

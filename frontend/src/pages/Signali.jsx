@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import L from 'leaflet'
+import { addBaseLayer } from '../mapBase'
 import { useApp } from '../context/AppContext'
 import { api, apiUpload } from '../api'
 import { translateApiError } from '../apiErrors'
@@ -62,7 +63,7 @@ function PinMap({ position, center, onMove }) {
       gestureHandling: true,
       gestureHandlingOptions: { text: { touch: t('map.gestureTouch'), scroll: t('map.gestureScroll'), scrollMac: t('map.gestureScrollMac') } },
     })
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map)
+    addBaseLayer(map)
     const icon = L.divIcon({ className: 'signali-pin', html: `<span class="signali-pin-badge">${signalIconSvg(18)}</span>`, iconSize: [38, 46], iconAnchor: [19, 44] })
     const place = (latlng) => {
       if (!markerRef.current) {

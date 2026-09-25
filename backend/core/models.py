@@ -148,6 +148,34 @@ class AppConfiguration(AuditMixin, models.Model):
             "without touching the manual creation forms, which are unaffected."
         ),
     )
+    # Map background + address suggestions: OpenStreetMap (free, the
+    # default) or Google Maps. With Google, the site falls back to
+    # OpenStreetMap by itself whenever Google fails (bad key, daily quota
+    # reached, Google unreachable) -- set a daily quota in Google Cloud to
+    # cap the bill.
+    MAP_PROVIDER_OSM = "osm"
+    MAP_PROVIDER_GOOGLE = "google"
+    MAP_PROVIDER_CHOICES = [(MAP_PROVIDER_OSM, "OpenStreetMap (free)"), (MAP_PROVIDER_GOOGLE, "Google Maps")]
+    map_provider = models.CharField(
+        max_length=10,
+        choices=MAP_PROVIDER_CHOICES,
+        default=MAP_PROVIDER_OSM,
+        help_text=(
+            "Map background and address suggestions for every map and address field. "
+            "Google Maps needs the browser API key below (Maps JavaScript API + Places API "
+            "(New) enabled, restricted to this site's domain). If Google fails for any "
+            "reason, visitors automatically get OpenStreetMap instead."
+        ),
+    )
+    google_maps_api_key = models.CharField(
+        max_length=200,
+        blank=True,
+        help_text=(
+            "Google Maps *browser* key (it is sent to every visitor's browser, that's how "
+            "Google Maps works): restrict it to HTTP referrer https://sosdz.org/* in Google "
+            "Cloud, and set a daily quota + budget alert there."
+        ),
+    )
     # Phone numbers are a related model (AdminContactPhone, up to 5 --
     # enforced by AdminContactPhoneInline's max_num in admin.py) rather
     # than a single field, so an admin can list more than one contact
