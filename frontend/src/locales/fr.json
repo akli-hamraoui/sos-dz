@@ -954,6 +954,8 @@
     "listCount_one": "Liste ({{count}})",
     "listCount_other": "Liste ({{count}})",
     "approxBubble": "Position approximative · {{place}} ({{count}})",
-    "noPosition": "Sans position"
+    "noPosition": "Sans position",
+    "noPositionWhat": "Qu'est-ce que c'est ?",
+    "noPositionHelp": "Ces signalements n'ont pas de position exacte (adresse tapée sans épingle, lieu non trouvé…). Ils ne sont donc pas placés sur la carte : touchez la bulle pour les voir en liste, avec leur wilaya."
   }
 }

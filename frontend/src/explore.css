@@ -157,3 +157,10 @@ body.sx-explore-page main > .page-title { display: none; }
 .sx-thumb-badge img, .sx-thumb-badge svg { width: 16px; height: 16px; }
 .sx-filters-link { display: block; text-align: center; font-weight: 700; color: #1f5fbf; font-size: 14px; }
 .sx-filters-note { margin: 0; color: #5c6878; font-size: 12.5px; line-height: 1.35; }
+
+/* "No exact position" bubble, small, right under "Filtres", with a "?". */
+.sx-noloc { display: flex; align-items: center; gap: 6px; width: fit-content; }
+.sx-noloc-bubble { display: grid; place-items: center; width: 46px; height: 46px; padding: 0; border: 0; border-radius: 50%; background: none; cursor: pointer; }
+.sx-noloc-bubble > span { display: grid; place-items: center; transform: scale(.74); }
+.sx-noloc-bubble.is-on > span > * { box-shadow: 0 0 0 4px #15213a; }
+.sx-noloc-help { display: grid; place-items: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 50%; background: #fff; color: #15213a; font: inherit; font-size: 14px; font-weight: 800; box-shadow: 0 2px 8px rgba(21, 33, 58, .2); cursor: pointer; }

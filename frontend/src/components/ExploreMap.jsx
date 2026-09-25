@@ -177,6 +177,8 @@ export default function ExploreMap({
   minZoom,
   onMapReady, // (map) -- e.g. to fly to a searched place
   aroundMeKm = 0, // on arrival: frame this radius around the visitor (in Algeria), nothing hidden
+  noLocationLabel, // the "no exact position" bubble under Filtres: its name...
+  noLocationHelp, // ...and what its "?" explains
 }) {
   // Coming back (browser/app "Retour") restores the last view; any other
   // arrival (bottom-nav tab, link) starts afresh.
@@ -189,7 +191,7 @@ export default function ExploreMap({
   useEffect(() => {
     sheetModeRef.current = sheet
   }, [sheet])
-  const [groupOnly, setGroupOnly] = useState(null) // { key, label } | { offMap: true }
+  const [groupOnly, setGroupOnly] = useState(null) // { key, label } | { all: true, label } | { offMap: true }
   const [viewIds, setViewIds] = useState([])
   const [selectedId, setSelectedId] = useState(null)
   const [hoveredId, setHoveredId] = useState(null)
@@ -219,6 +221,7 @@ export default function ExploreMap({
 
   const shown = useMemo(() => {
     if (groupOnly?.offMap) return offMap?.items || []
+    if (groupOnly?.all) return grouped
     if (groupOnly) return grouped.filter((x) => x.group === groupOnly.key)
     return viewIds.map((id) => byId.get(id)).filter(Boolean)
   }, [groupOnly, offMap, grouped, viewIds, byId])
@@ -268,11 +271,9 @@ export default function ExploreMap({
   const overlayRef = useRef(null)
   const meRef = useRef(null)
   const groupsRef = useRef([])
-  const bubblesRef = useRef([])
-  // Pins, clusters and bubbles landing on (almost) the same spot -- e.g. a
-  // wilaya's "approximate position" bubble over the pins around its
-  // centre -- are nudged apart on screen, at every zoom.
-  const spreadAll = (map) => spreadMarkers([...groupsRef.current.map((g) => g.marker), ...bubblesRef.current], map)
+  // Pins and clusters landing on (almost) the same spot are nudged apart
+  // on screen, at every zoom.
+  const spreadAll = (map) => spreadMarkers(groupsRef.current.map((g) => g.marker), map)
   const fittedRef = useRef('')
   const quietMoveRef = useRef(false) // a pan we made for the carousel: keep its order
   const freshViewRef = useRef(false) // the user moved the map: restart the carousel
@@ -371,16 +372,12 @@ export default function ExploreMap({
       g.marker.setZIndexOffset(on ? 1500 : 0)
       moved = true
     })
-    if (moved && map) spreadMarkers([...groupsRef.current.map((x) => x.marker), ...bubblesRef.current], map)
+    if (moved && map) spreadMarkers(groupsRef.current.map((x) => x.marker), map)
   }, [clusterColor])
   useEffect(() => lightMarkers(), [lit, lightMarkers])
 
   // Markers: rebuilt on data or zoom change (clusters depend on the zoom).
   const selectRef = useRef(() => {})
-  const bubbleRef = useRef(bubble)
-  useEffect(() => {
-    bubbleRef.current = bubble
-  }, [bubble])
   useEffect(() => {
     const map = mapRef.current
     const layer = layerRef.current
@@ -403,32 +400,11 @@ export default function ExploreMap({
         .addTo(layer)
       groups.push({ marker, items: g.items, single, lit: false })
     })
-    // No exact position: one bubble per group (wilaya, country...), on its
-    // shared spot; tapping it lists that group's items.
-    const byGroup = new Map()
-    const bubbleMarkers = []
-    grouped.forEach((x) => byGroup.set(x.group, [...(byGroup.get(x.group) || []), x]))
-    byGroup.forEach((members, key) => {
-      const b = bubbleRef.current ? bubbleRef.current(members) : { html: `<span class="xp-bubble">${members.length}</span>`, label: '' }
-      const bubbleMarker = L.marker([members[0].lat, members[0].lng], {
-        icon: L.divIcon({ className: 'xp-marker-icon', html: b.html, iconSize: [64, 64], iconAnchor: [32, 32] }),
-        zIndexOffset: 2000,
-        title: b.label || '',
-      })
-        .on('click', () => {
-          setGroupOnly({ key, label: b.label || '' })
-          setSelectedId(members[0].id)
-          if (!window.matchMedia?.(WIDE_QUERY).matches) setSheet('half')
-        })
-        .addTo(layer)
-      bubbleMarkers.push(bubbleMarker)
-    })
     groupsRef.current = groups
-    bubblesRef.current = bubbleMarkers
     spreadAll(map)
     lightMarkers()
     refreshView(false)
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- pin/bubble via refs
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- pin via a ref
   }, [located, grouped, zoomTick, refreshView, lightMarkers, clusterColor])
 
   function cardsTitle(x) {
@@ -453,11 +429,30 @@ export default function ExploreMap({
   const cover = wide || sheet === 'card' || sheet === 'full' ? 0 : height - sheetTop
   // Bottom of the map still in view: where the map credit sits.
   const mapBottom = wide ? 0 : sheet === 'card' ? 144 : sheet === 'full' ? 0 : height - sheetTop
+  // When the sheet moves, shift the map by half the difference: what was
+  // in the middle of the visible part stays there, instead of sliding
+  // under the list ("0 ici"). The full-height list hides the map, so it
+  // doesn't count.
+  const panCoverRef = useRef(null)
   useEffect(() => {
+    if (sheet !== 'full') {
+      const map = mapRef.current
+      const prev = panCoverRef.current
+      panCoverRef.current = cover
+      if (map && prev != null && prev !== cover && fittedRef.current) {
+        quietMoveRef.current = true
+        map.panBy([0, (cover - prev) / 2], { animate: false })
+        quietMoveRef.current = false
+      }
+    }
     if (coverRef.current === cover) return
     coverRef.current = cover
     refreshView(false)
-  }, [cover, refreshView])
+  }, [cover, sheet, refreshView])
+
+  // Room for the floating bar / buttons, and the list sheet below: items
+  // framed by any fit land in the part of the map actually in view.
+  const framePadding = () => ({ paddingTopLeft: [30, 110], paddingBottomRight: [60, coverRef.current + 30] })
 
   // Refit when the filters (or the focused item) change -- not on every
   // selection, the view mustn't jump under the finger.
@@ -481,8 +476,7 @@ export default function ExploreMap({
         /* nothing saved */
       }
     }
-    // Room for the floating bar / buttons, and the list sheet below.
-    const pad = { paddingTopLeft: [30, 110], paddingBottomRight: [60, coverRef.current + 30] }
+    const pad = framePadding()
     const points = items.filter((x) => x.lat != null).map((x) => [x.lat, x.lng])
     if (focused?.lat != null) {
       map.setView([focused.lat, focused.lng], focused.exact === false ? 11 : 16)
@@ -504,8 +498,23 @@ export default function ExploreMap({
         const size = m.getSize()
         const visible = L.point(size.x, Math.max(120, size.y - coverRef.current))
         const zoom = Math.min(15, Math.max(5, Math.round(m.getBoundsZoom(L.latLng(pos[0], pos[1]).toBounds(aroundMeKm * 2000), true) - Math.log2(size.y / visible.y))))
+        // Nothing within the radius: show the visitor *and* the nearest
+        // items instead of an empty map ("0 ici").
+        const located = itemsRef.current.filter((x) => x.lat != null)
+        const near = located.filter((x) => haversineKm(pos, [x.lat, x.lng]) <= aroundMeKm)
+        const nearest = near.length
+          ? []
+          : located
+              .map((x) => [x, haversineKm(pos, [x.lat, x.lng])])
+              .sort((a, b) => a[1] - b[1])
+              .slice(0, 3)
+              .map(([x]) => [x.lat, x.lng])
         // After the first framing's own zoom animation, or it would undo this.
         const go = () => {
+          if (nearest.length) {
+            m.fitBounds(L.latLngBounds([pos, ...nearest]).pad(0.2), { maxZoom: 15, animate: false, ...framePadding() })
+            return
+          }
           m.setView(pos, zoom, { animate: false })
           m.panBy([0, coverRef.current / 2], { animate: false })
         }
@@ -619,12 +628,19 @@ export default function ExploreMap({
   const showAll = () => {
     setGroupOnly(null)
     const points = items.filter((x) => x.lat != null).map((x) => [x.lat, x.lng])
-    if (points.length) mapRef.current?.fitBounds(L.latLngBounds(points).pad(0.15), { maxZoom: 15 })
+    if (points.length) mapRef.current?.fitBounds(L.latLngBounds(points).pad(0.15), { maxZoom: 15, ...framePadding() })
   }
+
+  const noLocLabel = noLocationLabel || t('explore.noPosition')
+  const noLocBubbleHtml = grouped.length
+    ? bubble
+      ? bubble(grouped).html
+      : `<span class="xp-bubble">${grouped.length}</span>`
+    : ''
 
   const allChips = [
     ...chips,
-    groupOnly && { key: '_group', label: groupOnly.offMap ? offMap?.label : groupOnly.label, clear: () => setGroupOnly(null) },
+    groupOnly && { key: '_group', label: groupOnly.offMap ? offMap?.label : groupOnly.all ? `${groupOnly.label} (${grouped.length})` : groupOnly.label, clear: () => setGroupOnly(null) },
     !groupOnly &&
       offMap?.items?.length > 0 && {
         key: '_offmap',
@@ -791,6 +807,28 @@ export default function ExploreMap({
                 </Link>
               )}
             </div>
+            {/* Items with no exact position: one small bubble right under
+                "Filtres" (not on the map, where it hid pins), and a "?"
+                saying what it is. Tap = list them. */}
+            {grouped.length > 0 && (
+              <div className="sx-noloc">
+                <button
+                  type="button"
+                  className={`sx-noloc-bubble${groupOnly?.all ? ' is-on' : ''}`}
+                  aria-label={`${noLocLabel} (${grouped.length})`}
+                  title={`${noLocLabel} (${grouped.length})`}
+                  onClick={() => {
+                    setGroupOnly(groupOnly?.all ? null : { all: true, label: noLocLabel })
+                    if (!wide) setSheet('half')
+                  }}
+                >
+                  <span dangerouslySetInnerHTML={{ __html: noLocBubbleHtml }} />
+                </button>
+                <button type="button" className="sx-noloc-help" aria-label={t('explore.noPositionWhat')} onClick={() => showAlert(noLocationHelp || t('explore.noPositionHelp'))}>
+                  ?
+                </button>
+              </div>
+            )}
             {!!allChips.length && (
               <div className="sx-chips">
                 {allChips.map((c) =>
