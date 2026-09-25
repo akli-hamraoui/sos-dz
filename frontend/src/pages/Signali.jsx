@@ -9,7 +9,8 @@ import { compressPhoto, formatDate, getCurrentPosition, isInAlgeria } from '../u
 import PlaceAutocomplete from '../components/PlaceAutocomplete'
 import WilayaCombobox from '../components/WilayaCombobox'
 import { IconCamera, IconClose, IconExpand, IconLocate, IconMapPin, IconMic, IconSwitchCamera, IconTrash, IconVideoCam } from '../icons'
-import { SIGNALI_CATEGORIES, categoryEmoji, saveSignalementToken, signalIconSvg } from '../signali'
+import { SIGNALI_CATEGORIES, saveSignalementToken, signalIconSvg } from '../signali'
+import CategoryIcon from '../components/CategoryIcon'
 import '../urgent-sos-wizard-fixes.css'
 import '../signali.css'
 
@@ -689,7 +690,7 @@ export default function Signali() {
                   const photo = s.photos.find((p) => p.image)?.image
                   return (
                     <div className="signali-nearby-item" key={s.id}>
-                      {photo ? <img src={photo} alt="" /> : <span className="signali-nearby-emoji">{categoryEmoji(s.category)}</span>}
+                      {photo ? <img src={photo} alt="" /> : <CategoryIcon category={s.category} className="signali-nearby-emoji" />}
                       <div>
                         <b>{t(`signali.categories.${s.category}`)}</b>
                         <small>{formatDate(s.created_at, i18n.language)} · {t('signali.confirmationsCount', { count: s.confirmations_count + 1 })}</small>
@@ -811,7 +812,7 @@ export default function Signali() {
             <div className="signali-categories" role="radiogroup" aria-label={t('signali.categoryLabel')}>
               {SIGNALI_CATEGORIES.map((c) => (
                 <button key={c} type="button" role="radio" aria-checked={category === c} className={category === c ? 'selected' : ''} onClick={() => setCategory(c)}>
-                  <span aria-hidden="true">{categoryEmoji(c)}</span> {t(`signali.categories.${c}`)}
+                  <CategoryIcon category={c} /> {t(`signali.categories.${c}`)}
                 </button>
               ))}
             </div>
@@ -863,7 +864,7 @@ export default function Signali() {
                 </div>
               </li>
               <li>
-                <span>{categoryEmoji(category)}</span>
+                <CategoryIcon category={category} />
                 <div><b>{t(`signali.categories.${category}`)}</b></div>
               </li>
               <li>

@@ -6,6 +6,7 @@ import { translateApiError } from '../apiErrors'
 import { useDialog } from '../context/DialogContext'
 import { formatDate, googleMapsDirectionsUrl } from '../utils'
 import { IconAbuse } from '../icons'
+import CategoryIcon from '../components/CategoryIcon'
 import CommentThread from '../components/CommentThread'
 import CopyButton from '../components/CopyButton'
 import PhotoLightbox from '../components/PhotoLightbox'
@@ -197,7 +198,7 @@ export default function SignalementDetail() {
 
       <article className="signali-detail">
         <header>
-          <span className="signali-detail-emoji" aria-hidden="true">{categoryEmoji(s.category)}</span>
+          <CategoryIcon category={s.category} className="signali-detail-emoji" />
           <div>
             <h1>{t(`signali.categories.${s.category}`)}</h1>
             <small>{[s.address, s.commune, s.wilaya_name].filter(Boolean).join(', ')}</small>

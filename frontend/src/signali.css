@@ -671,3 +671,7 @@
 .signalements-toolbar .signalements-new { flex: none; padding: 7px 10px; font-size: 13.5px; }
 .signalements-toolbar .view-toggle { flex: none; }
 .signalements-toolbar .view-toggle button { padding-inline: 12px; }
+
+/* Category icon drawn as SVG (sewer): sits on the text line like an emoji. */
+.signali-cat-icon { display: inline-flex; align-items: center; justify-content: center; line-height: 1; }
+.signali-cat-svg { display: block; flex: none; }

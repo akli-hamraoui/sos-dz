@@ -11,7 +11,9 @@ const EMOJI = {
   pothole: '🕳️',
   road: '🛣️',
   waste: '🗑️',
-  sewer: '🚽',
+  // No sewer emoji exists (🚽 is a toilet): text-only spots (<option>)
+  // get this, everything else draws a manhole cover (categoryIconHtml).
+  sewer: '🌊',
   water: '💧',
   electricity: '⚡',
   lighting: '💡',
@@ -22,6 +24,19 @@ const EMOJI = {
 
 export function categoryEmoji(category) {
   return EMOJI[category] || EMOJI.other
+}
+
+// A manhole cover, sized like the text around it (1em).
+const MANHOLE_SVG =
+  '<svg class="signali-cat-svg" width="1em" height="1em" viewBox="0 0 24 24" aria-hidden="true">' +
+  '<circle cx="12" cy="12" r="11" fill="#3f4650"/><circle cx="12" cy="12" r="9" fill="#7d8792"/>' +
+  '<path d="M3 12h18M4.2 8.2h15.6M4.2 15.8h15.6M12 3v18M8.2 4.2v15.6M15.8 4.2v15.6" stroke="#4a525c" stroke-width="1.2"/>' +
+  '<circle cx="12" cy="12" r="9" fill="none" stroke="#2f353d" stroke-width="1"/></svg>'
+
+// The category's icon as HTML: its emoji, or a drawing when no emoji fits.
+// For Leaflet divIcons/popups and (via CategoryIcon) React.
+export function categoryIconHtml(category) {
+  return category === 'sewer' ? MANHOLE_SVG : categoryEmoji(category)
 }
 
 // A report's access token lets its (anonymous) reporter close it as
