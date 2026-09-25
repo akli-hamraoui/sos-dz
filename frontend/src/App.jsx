@@ -90,7 +90,6 @@ function LanguageSwitcher() {
 // own contextual title (a need's own title, a collection point's name)
 // are deliberately left out, to avoid a redundant second label.
 const PAGE_TITLE_KEYS = {
-  '/': 'nav.home',
   '/needs': 'nav.needs',
   '/help': 'home.iWantToHelp',
   '/create': 'nav.iNeedHelp',

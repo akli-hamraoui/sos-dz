@@ -118,7 +118,9 @@
     "createPointFlyer": "Envoyer une photo",
     "learnMore": "En savoir plus",
     "signaliTitle": "Signali",
-    "signaliSubtitle": "Signalez un danger dans la rue : poteau électrique, trou, fuite…"
+    "signaliSubtitle": "Signalez un danger dans la rue : poteau électrique, trou, fuite…",
+    "insertFlyerShort": "Insérer un flyer",
+    "signaliShort": "Signaler un danger"
   },
   "status": {
     "open": "ouvert",

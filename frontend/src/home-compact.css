@@ -191,3 +191,46 @@
 .home.home-compact .home-collection-grid {
   margin-bottom: 0;
 }
+
+/* Shorter home (per request): no tagline, no "ACCUEIL" label, and each
+   card keeps only its title -- the descriptions and "call to action"
+   lines are hidden so everything down to "Qui sommes-nous" fits on a
+   phone screen. */
+.home.home-compact {
+  padding-top: 6px;
+}
+.home.home-compact .home-secondary-copy em,
+.home.home-compact .home-collection-card em,
+.home.home-compact .home-sos-copy span {
+  display: none;
+}
+.home.home-compact .home-secondary-card,
+.home.home-compact .home-collection-card {
+  justify-content: center;
+}
+.home.home-compact .home-collection-card {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+.home.home-compact .home-collection-card .home-card-icon {
+  flex: none;
+  margin-bottom: 0;
+}
+.home.home-compact .home-sos-icon-wrap {
+  margin-top: 6px;
+}
+
+/* Signali, centered in the middle of the page. */
+.home.home-compact .home-signali-card {
+  grid-template-columns: auto auto;
+  justify-content: center;
+  margin: 0 0 8px;
+  text-align: start;
+}
+.home.home-compact .home-signali-arrow {
+  display: none;
+}
+.home.home-compact .home-signali-card .home-badge-new {
+  inset-inline-end: 10px;
+}

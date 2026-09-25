@@ -118,7 +118,9 @@
     "createPointFlyer": "Send a photo",
     "learnMore": "Learn more",
     "signaliTitle": "Signali",
-    "signaliSubtitle": "Report a street hazard: power pole, pothole, leak…"
+    "signaliSubtitle": "Report a street hazard: power pole, pothole, leak…",
+    "insertFlyerShort": "Upload a flyer",
+    "signaliShort": "Report a hazard"
   },
   "status": {
     "open": "open",
