@@ -5,7 +5,6 @@ import L from 'leaflet'
 import { useApp } from '../context/AppContext'
 import { api } from '../api'
 import { translateApiError } from '../apiErrors'
-import { getCurrentPosition, haversineKm } from '../utils'
 import WilayaCombobox from '../components/WilayaCombobox'
 import ExploreMap from '../components/ExploreMap'
 import CategoryIcon from '../components/CategoryIcon'
@@ -17,10 +16,14 @@ import '../signali.css'
 // clusters). Filters (wilaya, type, status, geolocation) live in the URL;
 // ?focus=<id> opens on one report (also fetched on its own, in case it
 // isn't in the public list), ?near=1 shows the reports within 30 km of the
-// visitor. Reports with no exact position are grouped in one bubble per
+// visitor (framed, nothing hidden). Reports with no exact position are grouped in one bubble per
 // wilaya, on its centre.
 
-const NEAR_KM = 30
+// On arrival the map frames this much around the visitor (in Algeria);
+// the Home "around me" button (?near=1) a wider area. Nothing is hidden:
+// zooming out shows every report.
+const ARRIVAL_KM = 30
+const NEAR_KM = 100
 
 export default function Signalements() {
   const { t, i18n } = useTranslation()
@@ -38,8 +41,6 @@ export default function Signalements() {
   const focusId = Number(params.get('focus')) || null
   const geo = params.get('geo') || 'all'
   const nearMode = params.get('near') === '1'
-  const [nearPos, setNearPos] = useState(null)
-  const [nearError, setNearError] = useState(false)
 
   const setFilter = (key, value) => {
     const next = new URLSearchParams(params)
@@ -48,19 +49,6 @@ export default function Signalements() {
     next.delete('focus')
     setParams(next, { replace: true })
   }
-
-  useEffect(() => {
-    if (!nearMode) return
-    let cancelled = false
-    getCurrentPosition({ maximumAge: 60000, timeout: 8000, enableHighAccuracy: false }).then((pos) => {
-      if (cancelled) return
-      if (pos) setNearPos(pos)
-      else setNearError(true)
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [nearMode])
 
   useEffect(() => {
     let cancelled = false
@@ -110,7 +98,6 @@ export default function Signalements() {
       .filter((s) => {
         if (geo === 'with' && !s.has_exact_position) return false
         if (geo === 'without' && s.has_exact_position) return false
-        if (nearMode && nearPos && haversineKm(nearPos, [s.display_latitude, s.display_longitude]) > NEAR_KM) return false
         return true
       })
       .map((s) => ({
@@ -121,7 +108,7 @@ export default function Signalements() {
         group: s.has_exact_position ? undefined : `w${s.wilaya}`,
         raw: s,
       }))
-  }, [focused, ownPending, reports, geo, nearMode, nearPos])
+  }, [focused, ownPending, reports, geo])
 
   const pin = useCallback((x) => {
     const open = x.raw.status === 'new' || x.raw.status === 'in_review'
@@ -157,18 +144,17 @@ export default function Signalements() {
   )
   const fit = useCallback(
     (map, points, pad) => {
-      if (nearMode && nearPos) return map.fitBounds(L.latLng(nearPos[0], nearPos[1]).toBounds(NEAR_KM * 2000), pad)
       if (points.length) return map.fitBounds(L.latLngBounds(points).pad(0.15), { maxZoom: 15, ...pad })
       const w = wilayas.find((x) => String(x.id) === wilaya)
       if (w?.centroid_latitude) map.setView([w.centroid_latitude, w.centroid_longitude], 9)
       else map.setView([34.5, 3], 5)
     },
-    [nearMode, nearPos, wilayas, wilaya]
+    [wilayas, wilaya]
   )
 
   const wilayaName = wilayas.find((w) => String(w.id) === wilaya)?.name
   const chips = [
-    nearMode && { key: 'near', label: `📍 ${nearError ? t('signali.nearUnavailable') : t('signali.nearMe', { km: NEAR_KM })}`, clear: () => setFilter('near', '') },
+    nearMode && { key: 'near', label: `📍 ${t('signali.nearMe', { km: NEAR_KM })}`, clear: () => setFilter('near', '') },
     wilayaName && { key: 'wilaya', label: wilayaName, clear: () => setFilter('wilaya', '') },
     category && {
       key: 'category',
@@ -223,10 +209,10 @@ export default function Signalements() {
       filterPanel={filterPanel}
       filterCount={chips.filter((c) => c.key !== 'near').length}
       chips={chips}
-      fitKey={`${wilaya}|${category}|${status}|${geo}|${nearPos || ''}`}
+      fitKey={`${wilaya}|${category}|${status}|${geo}|${nearMode ? 'near' : ''}`}
       fit={fit}
       focusId={focusId}
-      myPos={nearPos}
+      aroundMeKm={wilaya ? 0 : nearMode ? NEAR_KM : ARRIVAL_KM}
       storageKey="signalementsView"
     />
   )

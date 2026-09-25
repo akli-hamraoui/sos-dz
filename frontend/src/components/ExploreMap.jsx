@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigationType } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import L from 'leaflet'
 import { useDialog } from '../context/DialogContext'
-import { getCurrentPosition, haversineKm } from '../utils'
+import { getCurrentPosition, haversineKm, isInAlgeria } from '../utils'
 import { addBaseLayer } from '../mapBase'
 import { IconLocate, IconPlus } from '../icons'
 import '../explore.css'
@@ -176,7 +176,11 @@ export default function ExploreMap({
   storageKey,
   minZoom,
   onMapReady, // (map) -- e.g. to fly to a searched place
+  aroundMeKm = 0, // on arrival: frame this radius around the visitor (in Algeria), nothing hidden
 }) {
+  // Coming back (browser/app "Retour") restores the last view; any other
+  // arrival (bottom-nav tab, link) starts afresh.
+  const navigationType = useNavigationType()
   const { t } = useTranslation()
   const { showAlert } = useDialog()
   const [filtersOpen, setFiltersOpen] = useState(false)
@@ -466,7 +470,7 @@ export default function ExploreMap({
     const firstFit = !fittedRef.current
     fittedRef.current = key
     // Back from an item's page ("Retour"): same place as before.
-    if (firstFit && !focusId && storageKey) {
+    if (firstFit && !focusId && storageKey && navigationType === 'POP') {
       try {
         const saved = JSON.parse(sessionStorage.getItem(storageKey) || 'null')
         if (saved?.f === fitKey && saved.c) {
@@ -486,6 +490,32 @@ export default function ExploreMap({
     } else if (fit) fit(map, points, pad)
     else if (points.length) map.fitBounds(L.latLngBounds(points).pad(0.15), { maxZoom: 15, ...pad })
     else map.setView(emptyView[0], emptyView[1])
+    // Arriving on the map: then frame `aroundMeKm` around the visitor, once
+    // their position is known -- only in Algeria (abroad, or no position:
+    // the view above, every item). Nothing is hidden: zoom out to see more.
+    if (firstFit && aroundMeKm && !focusId) {
+      getCurrentPosition({ maximumAge: 300000, timeout: 6000, enableHighAccuracy: false }).then((pos) => {
+        if (!pos || !mapRef.current || fittedRef.current !== key) return
+        setMyPos(pos)
+        if (!isInAlgeria(pos[0], pos[1])) return
+        const m = mapRef.current
+        // The zoom at which the visible part of the map (above the list
+        // sheet) stays within the radius, the visitor in its middle.
+        const size = m.getSize()
+        const visible = L.point(size.x, Math.max(120, size.y - coverRef.current))
+        const zoom = Math.min(15, Math.max(5, Math.round(m.getBoundsZoom(L.latLng(pos[0], pos[1]).toBounds(aroundMeKm * 2000), true) - Math.log2(size.y / visible.y))))
+        // After the first framing's own zoom animation, or it would undo this.
+        const go = () => {
+          m.setView(pos, zoom, { animate: false })
+          m.panBy([0, coverRef.current / 2], { animate: false })
+        }
+        // (Leaflet starts that animation a frame later, so give it a moment.)
+        setTimeout(() => {
+          if (m._animatingZoom) m.once('zoomend', go)
+          else go()
+        }, 400)
+      })
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items, loading, fitKey, focused, focusId])
 
