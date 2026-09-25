@@ -285,7 +285,13 @@ export default function Signalements() {
     attachMapTapToActivate(map, () => setInteractive(true))
     // Popup "open the report" links navigate inside the app.
     map.on('popupopen', (e) => {
-      const link = e.popup.getElement()?.querySelector('[data-signali-id]')
+      // Leaflet stops touches/presses that start on a popup, so a finger
+      // sliding on it didn't move the map. Let them through to the map's
+      // drag handler; taps (link, ×) still work, and clicks on the popup
+      // still don't close it (_leaflet_disable_click stays set).
+      const el = e.popup.getElement()
+      if (el) L.DomEvent.off(el, 'mousedown touchstart', L.DomEvent.stopPropagation)
+      const link = el?.querySelector('[data-signali-id]')
       if (link)
         link.onclick = (ev) => {
           ev.preventDefault()
