@@ -74,6 +74,9 @@ export default function Home() {
   return (
     <section className="home home-compact" ref={sectionRef}>
       <h1 className="sr-only">{t('seo.home.title')}</h1>
+      {/* Short, green note at the very top (per request) -- replaces the
+          footer's longer "non-official" disclaimer, hidden on Home. */}
+      <p className="home-volunteer-note">{t('home.volunteerNotice')}</p>
 
       {/* Signali: anonymous citizen reports of street hazards (a dangerous
           power pole, a pothole...). Full-width, first on the page and

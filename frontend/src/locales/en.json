@@ -120,7 +120,8 @@
     "signaliTitle": "Signali",
     "signaliSubtitle": "Report a street hazard: power pole, pothole, leak…",
     "insertFlyerShort": "Upload a flyer",
-    "signaliShort": "Report a hazard"
+    "signaliShort": "Report a road or street problem",
+    "volunteerNotice": "This site is volunteer-run, community-driven and unofficial."
   },
   "status": {
     "open": "open",

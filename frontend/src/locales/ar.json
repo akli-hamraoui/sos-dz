@@ -120,7 +120,8 @@
     "signaliTitle": "سينيالي",
     "signaliSubtitle": "أبلغ عن خطر في الشارع: عمود كهرباء، حفرة، تسرب…",
     "insertFlyerShort": "إدراج ملصق",
-    "signaliShort": "أبلغ عن خطر"
+    "signaliShort": "الإبلاغ عن مشكلة في الطرق",
+    "volunteerNotice": "هذا الموقع تطوعي وتضامني وغير رسمي."
   },
   "status": {
     "open": "مفتوح",

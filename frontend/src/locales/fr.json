@@ -120,7 +120,8 @@
     "signaliTitle": "Signali",
     "signaliSubtitle": "Signalez un danger dans la rue : poteau électrique, trou, fuite…",
     "insertFlyerShort": "Insérer un flyer",
-    "signaliShort": "Signaler un danger"
+    "signaliShort": "Signaler un problème de voirie",
+    "volunteerNotice": "Ce site est bénévole, solidaire et non officiel."
   },
   "status": {
     "open": "ouvert",
