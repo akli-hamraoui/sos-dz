@@ -73,6 +73,16 @@ export function IconSignaliPin({ width = 32, height = 32, ...props }) {
     </svg>
   )
 }
+// "Abus": a red octagon (stop sign) with an exclamation mark.
+export function IconAbuse({ width = 18, height = 18, ...props }) {
+  return (
+    <svg width={width} height={height} viewBox="0 0 24 24" {...props}>
+      <path d="M8.3 2.5h7.4a1.6 1.6 0 0 1 1.13.47l4.2 4.2c.3.3.47.7.47 1.13v7.4c0 .42-.17.83-.47 1.13l-4.2 4.2c-.3.3-.7.47-1.13.47H8.3c-.42 0-.83-.17-1.13-.47l-4.2-4.2a1.6 1.6 0 0 1-.47-1.13V8.3c0-.42.17-.83.47-1.13l4.2-4.2c.3-.3.7-.47 1.13-.47Z" fill="#e5484d" />
+      <rect x="10.7" y="6.6" width="2.6" height="7.4" rx="1.3" fill="#fff" />
+      <circle cx="12" cy="16.9" r="1.5" fill="#fff" />
+    </svg>
+  )
+}
 // "Around me": a location pin at the centre of radar rings.
 export function IconNearby({ width = 26, height = 26, ...props }) {
   return (

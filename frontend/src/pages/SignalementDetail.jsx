@@ -5,6 +5,7 @@ import { api } from '../api'
 import { translateApiError } from '../apiErrors'
 import { useDialog } from '../context/DialogContext'
 import { formatDate, googleMapsDirectionsUrl } from '../utils'
+import { IconAbuse } from '../icons'
 import CommentThread from '../components/CommentThread'
 import CopyButton from '../components/CopyButton'
 import PhotoLightbox from '../components/PhotoLightbox'
@@ -271,7 +272,7 @@ export default function SignalementDetail() {
             }}
             disabled={busy || flagged || pending}
           >
-            🚩 {t('signali.abuse')} <b>{s.abuse_reports_count || 0}</b>
+            <IconAbuse width={18} height={18} aria-hidden="true" /> {t('signali.abuse')} <b>{s.abuse_reports_count || 0}</b>
           </button>
         </div>
         {open && !pending && (
