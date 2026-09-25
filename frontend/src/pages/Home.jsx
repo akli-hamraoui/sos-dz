@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useApp } from '../context/AppContext'
-import { IconAlgeriaFlag, IconCamera, IconClose, IconGlobeColor, IconHelp, IconCone, IconMegaphone, IconMic, IconPlus, IconRadar, IconSparkle } from '../icons'
+import { IconAlgeriaFlag, IconCamera, IconClose, IconGlobeColor, IconHelp, IconMic, IconNearby, IconPlus, IconSignaliPin, IconSparkle } from '../icons'
 import '../home-compact.css'
 
 // A small pulsing pill used to flag brand-new entry points (the voice SOS
@@ -84,8 +84,7 @@ export default function Home() {
       <Link to="/signali" className="home-signali-card">
         <NewBadge />
         <span className="home-signali-icon" aria-hidden="true">
-          <IconCone width={30} height={30} />
-          <span className="home-signali-icon-badge"><IconMegaphone width={13} height={13} strokeWidth={2.4} /></span>
+          <IconSignaliPin width={42} height={42} />
         </span>
         <span className="home-signali-copy">
           <strong><PlusBadge /> {t('home.signaliTitle')}</strong>
@@ -95,10 +94,12 @@ export default function Home() {
       </Link>
 
       {/* Right under Signali: the reports within 30 km of the visitor. */}
-      <Link to="/signalements?near=1" className="home-nearby-button">
-        <IconRadar width={22} height={22} strokeWidth={2} />
-        <span>{t('home.nearbySignals')}</span>
-        <b aria-hidden="true">→</b>
+      <Link to="/signalements?near=1" className="home-nearby-card">
+        <span className="home-nearby-icon" aria-hidden="true">
+          <span className="home-nearby-ping" />
+          <IconNearby width={26} height={26} />
+        </span>
+        <strong>{t('home.nearbySignals')}</strong>
       </Link>
 
       {/* Sits above the SOS row now (moved up per request) -- these two

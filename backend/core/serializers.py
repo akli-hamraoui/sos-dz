@@ -976,7 +976,7 @@ class SignalementPublicSerializer(serializers.ModelSerializer):
             "latitude", "longitude", "display_latitude", "display_longitude", "has_exact_position", "position_source",
             "description", "voice_transcript", "video_transcript", "photos", "video_file",
             "video_moderation_status", "voice_file", "processing_status", "status", "resolved_at",
-            "category_suggested_by_ai", "confirmations_count", "fixed_reports_count", "created_at",
+            "category_suggested_by_ai", "confirmations_count", "fixed_reports_count", "abuse_reports_count", "created_at",
         ]
 
     def _url(self, field):

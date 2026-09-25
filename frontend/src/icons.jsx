@@ -1,3 +1,5 @@
+import { useId } from 'react'
+
 // Minimal line-icon set (24x24, stroke-based, currentColor) used in place of
 // emoji throughout the app -- emoji render inconsistently across devices/OS
 // font sets and clash with the flat black/white design system. These follow
@@ -45,9 +47,44 @@ export function IconTruck(props) { return (<svg {...base} {...props}><path d="M2
 export function IconMegaphone(props) { return (<svg {...base} {...props}><path d="M3.5 10.2v3.6a1 1 0 0 0 1 1H7l7.5 4.2V5L7 9.2H4.5a1 1 0 0 0-1 1Z" /><path d="M7.5 14.8 9 20h2.3" /><path d="M18 9.2a4 4 0 0 1 0 5.6M20.3 7a7.2 7.2 0 0 1 0 10" /></svg>) }
 // Road-works cone (Signali's home button): a filled, two-tone icon rather
 // than a line one, so it reads as "chantier / voirie" at a glance.
-export function IconCone({ width = 26, height = 26, ...props }) { return (<svg width={width} height={height} viewBox="0 0 24 24" {...props}><path d="M9.6 3.2h4.8L19 19H5L9.6 3.2Z" fill="#ff8a1f" /><path d="M8.6 6.8h6.8l1 3.4H7.6l1-3.4ZM7 12.4h10l1 3.4H6l1-3.4Z" fill="#fff" /><rect x="3" y="18.6" width="18" height="2.6" rx="1.3" fill="#ff8a1f" /></svg>) }
-// "Around me": a location pin inside radar rings.
-export function IconRadar(props) { return (<svg {...base} {...props}><circle cx="12" cy="12" r="9" opacity=".45" /><circle cx="12" cy="12" r="5.5" opacity=".75" /><path d="M12 15.5s-2.6-2.4-2.6-4.3a2.6 2.6 0 1 1 5.2 0c0 1.9-2.6 4.3-2.6 4.3Z" fill="currentColor" stroke="none" /></svg>) }
+// Signali's home icon: a glossy gradient map pin holding a white warning
+// sign, with a soft ground shadow -- "a problem, right here".
+export function IconSignaliPin({ width = 32, height = 32, ...props }) {
+  const id = useId().replace(/:/g, '')
+  return (
+    <svg width={width} height={height} viewBox="0 0 48 48" {...props}>
+      <defs>
+        <linearGradient id={`sp-g-${id}`} x1="10" y1="3" x2="38" y2="40" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stopColor="#ffc53d" />
+          <stop offset=".55" stopColor="#ff7a2f" />
+          <stop offset="1" stopColor="#f0386b" />
+        </linearGradient>
+        <linearGradient id={`sp-h-${id}`} x1="24" y1="4" x2="24" y2="22" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stopColor="#fff" stopOpacity=".55" />
+          <stop offset="1" stopColor="#fff" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <ellipse cx="24" cy="44" rx="9" ry="2.4" fill="#0b1b3f" opacity=".22" />
+      <path d="M24 3C15.2 3 8.5 9.7 8.5 18.3 8.5 29 24 42 24 42s15.5-13 15.5-23.7C39.5 9.7 32.8 3 24 3Z" fill={`url(#sp-g-${id})`} />
+      <path d="M24 5.2c-7.3 0-12.9 5.3-13.3 12.3 3.9-3.6 8.4-5.4 13.3-5.4s9.4 1.8 13.3 5.4C36.9 10.5 31.3 5.2 24 5.2Z" fill={`url(#sp-h-${id})`} />
+      <path d="M22.1 11.2a2.2 2.2 0 0 1 3.8 0l6.6 11.5a2.2 2.2 0 0 1-1.9 3.3H17.4a2.2 2.2 0 0 1-1.9-3.3l6.6-11.5Z" fill="#fff" />
+      <rect x="22.7" y="15" width="2.6" height="6" rx="1.3" fill="#f0386b" />
+      <circle cx="24" cy="23.2" r="1.45" fill="#f0386b" />
+    </svg>
+  )
+}
+// "Around me": a location pin at the centre of radar rings.
+export function IconNearby({ width = 26, height = 26, ...props }) {
+  return (
+    <svg width={width} height={height} viewBox="0 0 32 32" fill="none" {...props}>
+      <circle cx="16" cy="16" r="14" stroke="currentColor" strokeWidth="1.6" opacity=".35" />
+      <circle cx="16" cy="16" r="9" stroke="currentColor" strokeWidth="1.8" opacity=".6" />
+      <path d="M16 6.5v3M16 22.5v3M6.5 16h3M22.5 16h3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" opacity=".6" />
+      <path d="M16 21.5s-4.2-3.7-4.2-6.8a4.2 4.2 0 1 1 8.4 0c0 3.1-4.2 6.8-4.2 6.8Z" fill="currentColor" />
+      <circle cx="16" cy="14.6" r="1.6" fill="#0f766e" />
+    </svg>
+  )
+}
 export function IconClose(props) { return (<svg {...base} {...props}><path d="M5 5l14 14M19 5 5 19" /></svg>) }
 export function IconArrowLeft(props) { return (<svg {...base} {...props}><path d="M19 12H5" /><path d="M11 6l-6 6 6 6" /></svg>) }
 export function IconFacebook(props) { return (<svg {...base} {...props}><rect x="3" y="3" width="18" height="18" rx="5" /><path d="M13.5 20v-7.2h2.2l.35-2.6h-2.55V8.5c0-.75.2-1.25 1.28-1.25h1.37V5c-.24-.03-1.05-.1-2-.1-1.98 0-3.33 1.2-3.33 3.42v1.98H8.5v2.6H10.7V20" /></svg>) }

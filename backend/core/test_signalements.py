@@ -174,6 +174,17 @@ class SignalementLot2Tests(BaseAPITestCase):
         self.assertEqual(resp.data["status"], Signalement.STATUS_RESOLVED)
         self.assertEqual(self.client.get("/api/signalements/nearby/?lat=36.75&lon=3.05").data, [])
 
+    def test_abuse_reports_count_once_per_ip_and_hide_the_report(self):
+        url = f"/api/signalements/{self.s.pk}/report-abuse/"
+        self.client.post(url, REMOTE_ADDR="10.0.1.1")
+        resp = self.client.post(url, REMOTE_ADDR="10.0.1.1")
+        self.assertEqual(resp.data["abuse_reports_count"], 1)
+        self.assertEqual(len(self.client.get("/api/signalements/").data), 1)
+        for i in range(2, Signalement.ABUSE_REPORTS_TO_HIDE + 1):
+            resp = self.client.post(url, REMOTE_ADDR=f"10.0.1.{i}")
+        self.assertEqual(resp.data["abuse_reports_count"], Signalement.ABUSE_REPORTS_TO_HIDE)
+        self.assertEqual(self.client.get("/api/signalements/").data, [])
+
     def test_reporter_token_resolves_immediately(self):
         resp = self.client.post(f"/api/signalements/{self.s.pk}/report-fixed/", HTTP_X_ACCESS_TOKEN=self.token)
         self.assertEqual(resp.data["status"], Signalement.STATUS_RESOLVED)

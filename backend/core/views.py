@@ -1777,6 +1777,21 @@ class SignalementViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.
             signalement.refresh_from_db()
         return Response(SignalementDetailSerializer(signalement, context={"request": request}).data)
 
+    @action(detail=True, methods=["post"], url_path="report-abuse")
+    def report_abuse(self, request, *args, **kwargs):
+        """"Abus": a citizen flags the report as fake or offensive. One
+        vote per IP; ABUSE_REPORTS_TO_HIDE votes hide it from the public
+        lists until an admin reviews it."""
+        block_reason = read_only_block(request)
+        if block_reason:
+            return Response({"detail": block_reason}, status=status.HTTP_403_FORBIDDEN)
+        signalement = self.get_object()
+        if self._vote(request, signalement, "abuse"):
+            Signalement.objects.filter(pk=signalement.pk).update(abuse_reports_count=F("abuse_reports_count") + 1)
+            signalement.refresh_from_db()
+            logger.warning("Signali report #%s flagged as abusive (%s votes)", signalement.pk, signalement.abuse_reports_count)
+        return Response(SignalementDetailSerializer(signalement, context={"request": request}).data)
+
     @action(detail=True, methods=["post"], url_path="report-fixed")
     def report_fixed(self, request, *args, **kwargs):
         """"It's been fixed": the reporter (access token) or an admin

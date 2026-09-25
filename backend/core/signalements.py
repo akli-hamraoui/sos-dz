@@ -57,10 +57,14 @@ NEARBY_MAX_AGE_DAYS = 90
 
 def public_signalements(qs=None):
     """Reports the worker is done with that still show at least one
-    approved photo/video -- the only ones any public list may return."""
+    approved photo/video, and not flagged as abusive by too many people --
+    the only ones any public list may return."""
     qs = Signalement.objects.all() if qs is None else qs
     approved = Need.MODERATION_APPROVED
-    return qs.filter(processing_status=Signalement.PROCESSING_READY).filter(
+    return qs.filter(
+        processing_status=Signalement.PROCESSING_READY,
+        abuse_reports_count__lt=Signalement.ABUSE_REPORTS_TO_HIDE,
+    ).filter(
         (Q(video_moderation_status=approved) & ~Q(video_file="")) | Q(photos__moderation_status=approved)
     ).distinct()
 

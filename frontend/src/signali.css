@@ -628,9 +628,12 @@
 
 .signali-detail header { grid-template-columns: 40px minmax(0, 1fr); }
 .signali-detail header .signali-status { display: inline-block; margin-top: 6px; }
-.signali-agree { display: inline-flex; align-items: center; gap: 6px; }
+.signali-agree { display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; }
 .signali-agree b { padding: 1px 8px; border-radius: 999px; background: #eaf2ff; color: #1f5fbf; }
 .signali-agree.is-done { border-color: #1f5fbf; }
+.signali-abuse { display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; color: #b42318; }
+.signali-abuse b { padding: 1px 8px; border-radius: 999px; background: #fdecea; color: #b42318; }
+.signali-abuse.is-done { border-color: #b42318; }
 .signali-media-warning { margin: 8px 0 0; padding: 8px 10px; border-radius: 10px; background: #fff4e0; color: #7a4b00; font-size: 13px; }
 
 /* --- Signalements page: compact, no horizontal scroll --- */

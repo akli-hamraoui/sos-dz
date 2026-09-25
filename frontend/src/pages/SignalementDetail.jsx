@@ -126,10 +126,12 @@ function UnlockWithCode({ id, onUnlocked }) {
 export default function SignalementDetail() {
   const { id } = useParams()
   const { t, i18n } = useTranslation()
+  const { showConfirm } = useDialog()
   const location = useLocation()
   const justCreated = !!location.state?.justCreated
   const mediaWarnings = location.state?.mediaWarnings || []
   const [agreed, setAgreed] = useState(false)
+  const [flagged, setFlagged] = useState(false)
   const [s, setS] = useState(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -256,6 +258,20 @@ export default function SignalementDetail() {
             disabled={busy || agreed || !open || pending}
           >
             👍 {t('signali.agree')} <b>{s.confirmations_count + 1}</b>
+          </button>
+          {/* "Abus": fake/offensive report. One per person (IP); enough of
+              them hide it until an admin reviews it. */}
+          <button
+            type="button"
+            className={`btn signali-abuse${flagged ? ' is-done' : ''}`}
+            onClick={async () => {
+              if (!(await showConfirm(t('signali.abuseConfirm')))) return
+              await vote('report-abuse', t('signali.thanksAbuse'))
+              setFlagged(true)
+            }}
+            disabled={busy || flagged || pending}
+          >
+            🚩 {t('signali.abuse')} <b>{s.abuse_reports_count || 0}</b>
           </button>
         </div>
         {open && !pending && (

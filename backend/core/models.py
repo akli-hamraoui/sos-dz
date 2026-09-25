@@ -1210,6 +1210,11 @@ class Signalement(AuditMixin, models.Model):
     FIXED_REPORTS_TO_RESOLVE = 3
     confirmations_count = models.PositiveIntegerField(default=0)
     fixed_reports_count = models.PositiveIntegerField(default=0)
+    # "Abus": citizens flag a fake/offensive report (one vote per IP).
+    # ABUSE_REPORTS_TO_HIDE of them take it off the public map and list
+    # until an admin looks at it (reset the count to 0 to show it again).
+    ABUSE_REPORTS_TO_HIDE = 5
+    abuse_reports_count = models.PositiveIntegerField(default=0)
 
     access_token = models.CharField(max_length=32, unique=True, default=generate_token, editable=False)
     created_at = models.DateTimeField(auto_now_add=True)

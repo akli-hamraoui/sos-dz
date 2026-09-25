@@ -385,6 +385,15 @@ def mark_signalement_processed(modeladmin, request, queryset):
 mark_signalement_processed.short_description = "Mark as processed (skip the worker)"
 
 
+def clear_signalement_abuse_reports(modeladmin, request, queryset):
+    """Reviewed an "Abus"-flagged report and it's legit: show it again."""
+    count = queryset.update(abuse_reports_count=0)
+    modeladmin.message_user(request, f"Cleared the abuse reports of {count} report(s).")
+
+
+clear_signalement_abuse_reports.short_description = "Not abusive: clear the abuse reports (show again)"
+
+
 def mark_signalement_resolved(modeladmin, request, queryset):
     count = queryset.update(status=Signalement.STATUS_RESOLVED, resolved_at=timezone.now())
     AuditLog.objects.create(admin_user=request.user, action="resolved signalements", target_description=f"{count} item(s)")
@@ -396,7 +405,7 @@ mark_signalement_resolved.short_description = "Mark selected reports as resolved
 
 @admin.register(Signalement)
 class SignalementAdmin(admin.ModelAdmin):
-    list_display = ["id", "category", "wilaya", "address", "processing_status", "video_moderation_status", "has_media_problem", "confirmations_count", "fixed_reports_count", "status", "audit_creator_ip", "created_at"]
+    list_display = ["id", "category", "wilaya", "address", "processing_status", "video_moderation_status", "has_media_problem", "confirmations_count", "fixed_reports_count", "abuse_reports_count", "status", "audit_creator_ip", "created_at"]
     list_filter = ["category", "status", "processing_status", "video_moderation_status", "wilaya"]
     search_fields = ["address", "commune", "description", "voice_transcript", "video_transcript", "audit_creator_ip"]
     readonly_fields = [
@@ -404,7 +413,7 @@ class SignalementAdmin(admin.ModelAdmin):
         "created_at", "last_modified_at", "audit_creator_ip", "audit_creator_country", "audit_editor_ip",
     ]
     inlines = [SignalementPhotoInline]
-    actions = [approve_all_signalement_media, approve_video, reject_video, mark_signalement_processed, mark_signalement_resolved]
+    actions = [approve_all_signalement_media, approve_video, reject_video, mark_signalement_processed, clear_signalement_abuse_reports, mark_signalement_resolved]
 
     @admin.display(description="Media problem", boolean=True)
     def has_media_problem(self, obj):
