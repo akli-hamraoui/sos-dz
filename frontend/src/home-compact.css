@@ -308,3 +308,25 @@
 .home.home-compact .home-collection-card strong {
   font-size: clamp(12px, 3.2vw, 14px);
 }
+
+/* More breathing room (per request): the stack starts lower and the
+   rows are spaced out -- there's plenty of room above the bottom nav
+   now that the cards only show their titles. */
+.home.home-compact {
+  padding-top: clamp(24px, 5vh, 44px);
+}
+.home.home-compact .home-signali-card {
+  margin: 0 0 clamp(14px, 2.6vh, 22px);
+}
+.home.home-compact .home-secondary-grid,
+.home.home-compact .home-collection-grid,
+.home.home-compact .home-sos-card.home-sos-split {
+  gap: 12px;
+}
+.home.home-compact .home-secondary-grid,
+.home.home-compact .home-sos-card.home-sos-split {
+  margin-bottom: clamp(14px, 2.6vh, 22px);
+}
+.home.home-compact .home-about-button {
+  margin-top: clamp(18px, 3vh, 28px);
+}
