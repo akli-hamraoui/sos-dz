@@ -555,4 +555,5 @@
 .signali-ai.is-compact .signali-ai-copy strong { font-size: 13.5px; }
 .signali-ai.is-compact .signali-ai-copy span { font-size: 12.5px; }
 
-.signali-gallery-links { display: grid; gap: 6px; margin: 0 0 8px; }
+.signali-gallery-links { display: grid; gap: 14px; margin: 4px 0 14px; }
+.signali-gallery-links .signali-link { padding: 4px 0; }
