@@ -177,6 +177,18 @@ export function attachMapTapToActivate(map, onActivate) {
     if (target?.closest?.('.leaflet-marker-icon, .leaflet-popup, .leaflet-control, button, a')) return
     onActivate?.()
   })
+  // Two fingers on a sleeping map: wake it up at once, no tap needed, and
+  // let this very gesture pinch-zoom it. One finger still scrolls the page.
+  // Capture phase on the container, so the handlers enabled here (Leaflet's
+  // touch zoom listens on this same container, bubble phase) already get
+  // this touchstart.
+  map.getContainer().addEventListener(
+    'touchstart',
+    (event) => {
+      if (event.touches?.length >= 2 && !map.touchZoom.enabled()) onActivate?.()
+    },
+    { capture: true, passive: true },
+  )
 }
 
 export function attachMapPopupBehavior(map, onPhoto, onActivate) {
