@@ -183,7 +183,7 @@ export default function Signali() {
   const startedRef = useRef(false) // a step reached from the choice in this visit (not a reload / a way back in)
   const [openSection, setOpenSection] = useState('place') // remote: the open section
   const [typeTouched, setTypeTouched] = useState(false)
-  const [detailsSeen, setDetailsSeen] = useState(false) // remote: Envoyer only once every step was gone through
+  const [detailsDone, setDetailsDone] = useState(false) // remote: Détails passed with its Continuer (Envoyer only then)
   const [anchor, setAnchor] = useState(null) // the picked address's / the GPS fix's position, for "Centrer"
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -365,6 +365,9 @@ export default function Signali() {
   // under it (OpenStreetMap), which the reporter can correct.
   const onPinMove = (c) => {
     setCoords(c)
+    // The first point placed by hand is also what "Centrer" comes back to
+    // (when no address was picked from the list, nor a GPS fix taken).
+    setAnchor((current) => current || c)
     setError('')
     prefillWilaya(c)
     reverseGeocode(c.latitude, c.longitude, i18n.language)
@@ -667,13 +670,12 @@ export default function Signali() {
   const okAtOpenRef = useRef(false)
   useEffect(() => {
     okAtOpenRef.current = !!okBySection[openSection]
-    if (openSection === 'details') setDetailsSeen(true)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openSection])
   useEffect(() => {
     if (mode !== 'remote' || !okBySection[openSection] || okAtOpenRef.current || camera || filming) return
     const order = ['place', 'media', 'type', 'details']
-    const next = order.slice(order.indexOf(openSection) + 1).find((k) => k === 'details' || !okBySection[k])
+    const next = order.slice(order.indexOf(openSection) + 1).find((k) => (k === 'details' ? !detailsDone : !okBySection[k])) || null
     const id = setTimeout(() => setOpenSection(next), openSection === 'place' ? 1200 : 2000)
     return () => clearTimeout(id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -742,7 +744,6 @@ export default function Signali() {
   // --- wizard (option "sur place" / "pas devant") ---
   const catLabel = categories.map((c) => t(`signali.categories.${c}`)).join(' · ')
   const typeOk = typeTouched || categories[0] !== 'other'
-  const detailsOk = !!description.trim() || !!voice
   const mediaSummary = [photos.length ? t('signali.photosCount', { count: photos.length }) : '', video ? t('signali.videoIncluded') : ''].filter(Boolean).join(' + ')
   const placeLabel = address.trim() || (coords ? (locMode === 'gps' ? t('signali.gpsPosition') : t('signali.pinOnMap')) : '')
 
@@ -794,8 +795,19 @@ export default function Signali() {
   )
 
   // Back to the picked address / the GPS fix after moving the map around.
-  const centerButton = anchor && (
-    <button type="button" className="sw-center" onClick={() => setCoords({ ...anchor })} aria-label={t('signali.w.center')} title={t('signali.w.center')}>
+  // Always there next to the address: back to the picked address / GPS fix
+  // / first point placed, or -- nothing placed yet -- to the phone's own
+  // position.
+  const centerOn = async () => {
+    if (anchor) return setCoords({ ...anchor })
+    const pos = nearMe ? [nearMe.latitude, nearMe.longitude] : await getCurrentPosition({ enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 })
+    if (!pos || !isInAlgeria(pos[0], pos[1])) return
+    const here = { latitude: pos[0], longitude: pos[1] }
+    setAnchor(here)
+    onPinMove(here)
+  }
+  const centerButton = (
+    <button type="button" className="sw-center" onClick={centerOn} aria-label={t('signali.w.center')} title={t('signali.w.center')}>
       <IconLocate width={18} height={18} />
       <span>{t('signali.w.center')}</span>
     </button>
@@ -948,8 +960,10 @@ export default function Signali() {
     />
   )
   const errorLine = error && <p className="urgent-sos-error">{error}</p>
+  // Remote: every step gone through (Détails passed with its Continuer).
+  const sendReady = locationOk && mediaOk && !recordingVoice && (mode !== 'remote' || (typeOk && detailsDone))
   const sendButton = (
-    <button type="button" className="sw-next is-full" onClick={submit} disabled={busy || !locationOk || !mediaOk || recordingVoice}>
+    <button type="button" className={`sw-next is-full${sendReady ? ' is-ready' : ''}`} onClick={submit} disabled={busy || !sendReady}>
       {busy ? t('signali.sending') : t('signali.w.send')}
     </button>
   )
@@ -966,27 +980,35 @@ export default function Signali() {
 
   const badge = (ok, optional) =>
     ok ? <span className="sw-badge is-ok">✓ {t('signali.w.done')}</span> : <span className="sw-badge">{optional ? t('signali.w.optional') : t('signali.w.todo')}</span>
-  const section = (key, n, title, ok, summary, body, { optional = false, next } = {}) => {
+  // A section: its title, its state, and -- while open -- its Continuer up
+  // in the header (always in view, even above a tall map), pulsing once
+  // the step is valid.
+  const section = (key, n, title, ok, summary, body, { optional = false, onContinue } = {}) => {
     const open = openSection === key
+    const canContinue = ok || optional
     return (
       <div className={`sw-acc${open ? ' is-open' : ''}${ok && !open ? ' is-ok' : ''}`}>
-        <button type="button" className="sw-acc-head" onClick={() => setOpenSection(open ? null : key)} aria-expanded={open}>
-          <b>{n}. {title}</b>
-          {badge(ok, optional)}
-          {!open && summary && <small>{summary}</small>}
-        </button>
-        {open && (
-          <div className="sw-acc-body">
-            {body}
-            {next && (
-              <button type="button" className="sw-acc-next" onClick={() => setOpenSection(next)} disabled={!ok && !optional}>
-                {t('signali.continue')}
-              </button>
-            )}
-          </div>
-        )}
+        <div className="sw-acc-top">
+          <button type="button" className="sw-acc-head" onClick={() => setOpenSection(open ? null : key)} aria-expanded={open}>
+            <b>{n}. {title}</b>
+            {!open && summary && <small>{summary}</small>}
+          </button>
+          {open && canContinue ? (
+            <button type="button" className="sw-acc-go" onClick={onContinue}>
+              {t('signali.continue')} →
+            </button>
+          ) : (
+            badge(ok, optional)
+          )}
+        </div>
+        {open && <div className="sw-acc-body">{body}</div>}
       </div>
     )
+  }
+  const nextOpen = (from) => {
+    const order = ['place', 'media', 'type', 'details']
+    const ok = { place: locationOk, media: mediaOk, type: typeOk, details: detailsDone }
+    return order.slice(order.indexOf(from) + 1).find((k) => !ok[k]) || null
   }
 
   const onsiteTitles = [t('signali.w.photoTitle'), t('signali.w.typeTitle'), catLabel]
@@ -1117,11 +1139,11 @@ export default function Signali() {
               <>
                 {locMode === 'gps' && coords ? (
                   <div className="sw-place">
-                    <PinMap position={coords} onMove={onPinMove} />
                     <div className="sw-addr">
                       {centerButton}
                       <p className="sw-where">📍 {placeLabel}</p>
                     </div>
+                    <PinMap position={coords} onMove={onPinMove} />
                   </div>
                 ) : locMode === 'gps' && locStatus === 'locating' ? (
                   <p className="sw-where">{t('signali.locating')}</p>
@@ -1145,7 +1167,7 @@ export default function Signali() {
             {onsiteStep < 2 ? (
               <>
                 <button type="button" className="sw-back" onClick={back} disabled={recordingVoice || filming}>{t('signali.previous')}</button>
-                <button type="button" className="sw-next" onClick={nextOnsite} disabled={!canNext}>{t('signali.w.next')}</button>
+                <button type="button" className={`sw-next${canNext ? ' is-ready' : ''}`} onClick={nextOnsite} disabled={!canNext}>{t('signali.w.next')}</button>
               </>
             ) : (
               sendButton
@@ -1162,14 +1184,21 @@ export default function Signali() {
                 {placeBlock}
                 {nearbyBlock}
               </>
-            ), { next: 'media' })}
-            {section('media', 2, t('signali.w.media'), mediaOk, mediaSummary, mediaBlock(true), { next: 'type' })}
-            {section('type', 3, t('signali.w.type'), typeOk, typeOk ? catLabel : '', <CategoryPicker value={categories} onChange={onCategories} />, { next: 'details' })}
-            {section('details', 4, t('signali.w.details'), detailsOk, [description.trim() ? t('signali.w.withText') : '', voice ? t('signali.w.voice') : ''].filter(Boolean).join(' · '), detailsBlock, { optional: true })}
+            ), { onContinue: () => setOpenSection(nextOpen('place')) })}
+            {section('media', 2, t('signali.w.media'), mediaOk, mediaSummary, mediaBlock(true), { onContinue: () => setOpenSection(nextOpen('media')) })}
+            {section('type', 3, t('signali.w.type'), typeOk, typeOk ? catLabel : '', <CategoryPicker value={categories} onChange={onCategories} />, { onContinue: () => setOpenSection(nextOpen('type')) })}
+            {section('details', 4, t('signali.w.details'), detailsDone, [description.trim() ? t('signali.w.withText') : '', voice ? t('signali.w.voice') : ''].filter(Boolean).join(' · '), detailsBlock, {
+              optional: true,
+              onContinue: () => {
+                if (recordingVoice) stopRecorder()
+                setDetailsDone(true)
+                setOpenSection(null)
+              },
+            })}
             {turnstile}
             {errorLine}
           </div>
-          {locationOk && mediaOk && typeOk && detailsSeen && <footer className="sw-foot">{sendButton}</footer>}
+          <footer className="sw-foot">{sendButton}</footer>
         </>
       )}
     </section>
