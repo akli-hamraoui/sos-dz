@@ -2,28 +2,8 @@ import { useState, useRef, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { searchPlaces, searchPlacesPrefix } from '../utils'
 import { IconClose } from '../icons'
-import { googleMapsWanted, loadGoogleMaps } from '../mapBase'
-
-// Google address suggestions (Places API "New"), used instead of
-// OpenStreetMap's when Google Maps is enabled in Django Admin. Only the
-// suggestion text comes back here; the exact position is fetched when one
-// is picked (googlePlacePosition). Throws on any failure -- the caller then
-// falls back to OpenStreetMap.
-async function searchGooglePlaces(query, lang, countryCode, viewbox, sessionRef) {
-  await loadGoogleMaps()
-  const { AutocompleteSuggestion, AutocompleteSessionToken } = await window.google.maps.importLibrary('places')
-  if (!sessionRef.current) sessionRef.current = new AutocompleteSessionToken()
-  const request = { input: query, sessionToken: sessionRef.current, language: lang, region: 'dz' }
-  if (countryCode && countryCode !== 'any') request.includedRegionCodes = [countryCode.toLowerCase()]
-  if (viewbox) {
-    const [west, north, east, south] = viewbox // Nominatim's order
-    request.locationRestriction = { west, south, east, north }
-  }
-  const { suggestions } = await AutocompleteSuggestion.fetchAutocompleteSuggestions(request)
-  return suggestions
-    .filter((x) => x.placePrediction)
-    .map((x) => ({ place_id: x.placePrediction.placeId, display_name: x.placePrediction.text.toString(), googlePrediction: x.placePrediction }))
-}
+import { googleMapsWanted } from '../mapBase'
+import { googlePlacePosition, searchGooglePlaces } from '../googlePlaces'
 
 const MAX_SUGGESTIONS = 10
 
@@ -39,12 +19,6 @@ function mergeSuggestions(...lists) {
       if (out.length >= MAX_SUGGESTIONS) return out
     }
   return out
-}
-
-async function googlePlacePosition(prediction) {
-  const place = prediction.toPlace()
-  await place.fetchFields({ fields: ['location'] })
-  return place.location ? { lat: place.location.lat(), lon: place.location.lng() } : null
 }
 
 // A free-text place input with map-backed suggestions (OpenStreetMap
@@ -91,12 +65,13 @@ export default function PlaceAutocomplete({ value, onChange, onSelectPlace, plac
       try {
         const q = next.trim()
         const keep = (list) => (filterResult ? list.filter(filterResult) : list)
-        // Google when enabled (never for the "anywhere but Algeria" search,
-        // which Google can't express) -- OpenStreetMap otherwise, or if
-        // Google fails. OpenStreetMap's prefix search tops the list up.
-        const google = googleMapsWanted() && !excludeCountryCode ? searchGooglePlaces(q, i18n.language, countryCode ?? 'dz', viewbox, googleSessionRef).catch(() => null) : null
+        // Google when enabled -- OpenStreetMap otherwise, or if Google
+        // fails. OpenStreetMap's prefix search tops the list up.
+        const google = googleMapsWanted()
+          ? searchGooglePlaces(q, { lang: i18n.language, countryCode: countryCode ?? 'dz', excludeCountryCode, viewbox, sessionRef: googleSessionRef }).catch(() => null)
+          : null
         const nominatim = searchPlaces(q, i18n.language, controller.signal, countryCode, excludeCountryCode, viewbox).catch(() => [])
-        const prefix = excludeCountryCode ? Promise.resolve([]) : searchPlacesPrefix(q, i18n.language, controller.signal, countryCode ?? 'dz', viewbox).catch(() => [])
+        const prefix = searchPlacesPrefix(q, i18n.language, controller.signal, countryCode ?? 'dz', viewbox, excludeCountryCode).catch(() => [])
         const [g, n, ph] = await Promise.all([google, nominatim, prefix])
         if (controller.signal.aborted) return
         const results = mergeSuggestions(g, keep(n), keep(ph))
