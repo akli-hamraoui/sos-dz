@@ -17,7 +17,20 @@ const OSM_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
 const OSM_ATTRIBUTION = '&copy; OpenStreetMap contributors'
 const GOOGLE_LOAD_TIMEOUT_MS = 8000
 
-let mapConfig = { map_provider: 'osm', google_maps_api_key: '' }
+// The last config seen, kept for the next visit: maps then open straight
+// on the right background instead of waiting for /api/config/ (which used
+// to mean OpenStreetMap first, then a swap to Google).
+const CONFIG_KEY = 'sosdz.mapConfig'
+function readSavedConfig() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(CONFIG_KEY) || 'null')
+    if (saved?.map_provider) return saved
+  } catch {
+    // private mode, blocked storage: OpenStreetMap until the config arrives
+  }
+  return { map_provider: 'osm', google_maps_api_key: '' }
+}
+let mapConfig = readSavedConfig()
 let googlePromise = null
 let googleBroken = false
 const liveMaps = new Set() // { map, apply } of every map on screen
@@ -34,7 +47,24 @@ export function setMapConfig(config) {
   const next = { map_provider: config?.map_provider || 'osm', google_maps_api_key: config?.google_maps_api_key || '' }
   if (next.map_provider === mapConfig.map_provider && next.google_maps_api_key === mapConfig.google_maps_api_key) return
   mapConfig = next
+  try {
+    localStorage.setItem(CONFIG_KEY, JSON.stringify(next))
+  } catch {
+    // not saved: the next visit just waits for the config again
+  }
+  preloadGoogleMaps()
   liveMaps.forEach((entry) => entry.apply())
+}
+
+// Starts loading Google's script as soon as it's known to be wanted (app
+// start, once the page has painted) rather than when the first map opens:
+// the map then shows up with Google already there. Loading the script
+// isn't billed -- only showing a map is.
+function preloadGoogleMaps() {
+  if (!googleMapsWanted() || googlePromise) return
+  const start = () => loadGoogleMaps().catch(() => {})
+  if (window.requestIdleCallback) window.requestIdleCallback(start, { timeout: 1500 })
+  else setTimeout(start, 300)
 }
 
 export function googleMapsWanted() {
@@ -100,21 +130,49 @@ export function addBaseLayer(map, osmOptions = {}) {
     layer = next.addTo(map)
     kind = nextKind
   }
+  const osm = () => L.tileLayer(OSM_URL, { attribution: OSM_ATTRIBUTION, maxZoom: 19, ...osmOptions })
+  const google = () => new GoogleMutant({ type: 'roadmap', maxZoom: 21 })
+  // Google laid over the OpenStreetMap already shown, which is only taken
+  // away once Google has drawn its tiles (or after a few seconds) -- no
+  // grey gap in between.
+  const swapToGoogle = () => {
+    const previous = layer
+    layer = null
+    setLayer(google(), 'google')
+    watchForGoogleErrors()
+    if (!previous) return
+    let dropped = false
+    const dropPrevious = () => {
+      if (dropped) return
+      dropped = true
+      // Back on OpenStreetMap meanwhile (Google failed): nothing to drop.
+      if (!map._container || kind !== 'google') return
+      map.removeLayer(previous)
+      if (previous.getAttribution?.()) map.attributionControl?.removeAttribution(previous.getAttribution())
+    }
+    layer.once('load', dropPrevious)
+    setTimeout(dropPrevious, 4000)
+  }
   const entry = {
     map,
     apply() {
       if (!googleMapsWanted()) {
-        if (kind !== 'osm') setLayer(L.tileLayer(OSM_URL, { attribution: OSM_ATTRIBUTION, maxZoom: 19, ...osmOptions }), 'osm')
+        if (kind !== 'osm') setLayer(osm(), 'osm')
         return
       }
       if (kind === 'google') return
-      // OpenStreetMap right away, swapped for Google once it's ready.
-      if (!kind) setLayer(L.tileLayer(OSM_URL, { attribution: OSM_ATTRIBUTION, maxZoom: 19, ...osmOptions }), 'osm')
+      // Google's script already there (preloaded): Google straight away.
+      if (!kind && window.google?.maps?.Map) {
+        setLayer(google(), 'google')
+        watchForGoogleErrors()
+        return
+      }
+      // Otherwise OpenStreetMap right away, Google over it once ready.
+      if (!kind) setLayer(osm(), 'osm')
       loadGoogleMaps()
         .then(() => {
           if (!googleMapsWanted() || kind === 'google') return
-          setLayer(new GoogleMutant({ type: 'roadmap', maxZoom: 21 }), 'google')
-          watchForGoogleErrors()
+          swapToGoogle()
         })
         .catch(() => entry.apply())
     },
@@ -123,3 +181,5 @@ export function addBaseLayer(map, osmOptions = {}) {
   map.on('unload', () => liveMaps.delete(entry))
   entry.apply()
 }
+
+preloadGoogleMaps()

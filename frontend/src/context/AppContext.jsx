@@ -16,12 +16,12 @@ export function AppProvider({ children }) {
     contact_phones: [],
     admin_contact_email: '',
     is_admin: false,
-    map_provider: 'osm',
-    google_maps_api_key: '',
   })
-  // Every map picks its background (Google or OpenStreetMap) from this.
+  // Every map picks its background (Google or OpenStreetMap) from this --
+  // once the server's config is here (until then, mapBase.js uses the one
+  // saved from the previous visit).
   useEffect(() => {
-    setMapConfig(config)
+    if (config.map_provider) setMapConfig(config)
   }, [config])
   const [wilayas, setWilayas] = useState([])
   const [campaigns, setCampaigns] = useState([])

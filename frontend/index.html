@@ -25,6 +25,13 @@
     <link rel="icon" type="image/png" sizes="144x144" href="/favicon-144x144.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Map backgrounds (src/mapBase.js): connections opened early so the
+         first map tiles don't wait for them. -->
+    <link rel="preconnect" href="https://maps.googleapis.com" />
+    <link rel="preconnect" href="https://maps.gstatic.com" crossorigin />
+    <link rel="dns-prefetch" href="https://a.tile.openstreetmap.org" />
+    <link rel="dns-prefetch" href="https://b.tile.openstreetmap.org" />
+    <link rel="dns-prefetch" href="https://c.tile.openstreetmap.org" />
 
     <!-- Everything between SEO:START/SEO:END (including the homepage's
          own copy) is unconditionally regenerated at build time by
