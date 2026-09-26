@@ -975,7 +975,9 @@
       "todo": "À faire",
       "optional": "Facultatif",
       "modeVideo": "VIDÉO",
-      "modePhoto": "PHOTO"
+      "modePhoto": "PHOTO",
+      "center": "Centrer",
+      "camHint": "Touchez une miniature pour la retirer · {{max}} photos max"
     }
   },
   "explore": {
