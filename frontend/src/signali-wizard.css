@@ -173,3 +173,35 @@ body.sw-page { background: #fff; }
 @media (min-width: 700px) {
   .sw { border-inline: 1px solid var(--sw-line); }
 }
+
+/* On site: the live camera, full screen (Signali.jsx viewfinder). */
+.sw-cam { position: fixed; inset: 0; z-index: 1500; overflow: hidden; background: #0b0f17; color: #fff; }
+.sw-cam > video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.sw-cam > video.is-mirror { transform: scaleX(-1); }
+.sw-cam-flash { position: absolute; inset: 0; background: #fff; opacity: .8; animation: sw-flash .18s ease-out forwards; }
+@keyframes sw-flash { to { opacity: 0; } }
+.sw-cam-top { position: absolute; top: 0; left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: calc(12px + env(safe-area-inset-top)) 14px 24px; background: linear-gradient(rgba(0, 0, 0, .45), transparent); }
+.sw-x.is-dark { border: 0; background: rgba(255, 255, 255, .92); color: #15213a; }
+.sw-cam .sw-chip { background: rgba(255, 255, 255, .95); }
+.sw-cam .sw-chip.is-ok { background: #e9f7ef; }
+.sw-cam-timer { position: absolute; top: calc(66px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 999px; background: rgba(0, 0, 0, .55); font: 800 14px ui-monospace, Menlo, monospace; }
+.sw-cam-bottom { position: absolute; left: 0; right: 0; bottom: 0; padding: 40px 18px calc(22px + env(safe-area-inset-bottom)); background: linear-gradient(transparent, rgba(0, 0, 0, .6)); }
+.sw-cam-shots { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
+.sw-cam-thumbs { display: flex; gap: 8px; }
+.sw-cam-thumbs button { width: 48px; height: 48px; padding: 0; border: 2px solid #fff; border-radius: 12px; overflow: hidden; background: none; cursor: pointer; }
+.sw-cam-thumbs img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.sw-cam-continue { padding: 11px 18px; border: 0; border-radius: 12px; background: #fff; color: #15213a; font: inherit; font-weight: 800; font-size: 14px; cursor: pointer; }
+.sw-cam-modes { display: flex; justify-content: center; gap: 22px; margin-bottom: 14px; }
+.sw-cam-modes button { padding: 4px 2px; border: 0; background: none; color: rgba(255, 255, 255, .65); font: inherit; font-size: 13px; font-weight: 800; letter-spacing: .06em; cursor: pointer; }
+.sw-cam-modes button.is-on { color: #ffd54a; }
+.sw-cam-modes button:disabled { opacity: .35; }
+.sw-cam-ctl { display: flex; align-items: center; justify-content: space-around; }
+.sw-cam-mini { display: grid; place-items: center; width: 50px; height: 50px; margin: 0; padding: 0; border: 2px solid rgba(255, 255, 255, .85); border-radius: 14px; background: rgba(255, 255, 255, .14); color: #fff; cursor: pointer; }
+.sw-cam-mini.is-off, .sw-cam-mini:disabled { opacity: .35; }
+.sw-shutter { display: grid; place-items: center; width: 76px; height: 76px; padding: 0; border: 5px solid #fff; border-radius: 50%; background: transparent; cursor: pointer; }
+.sw-shutter i { width: 58px; height: 58px; border-radius: 50%; background: #fff; transition: all .15s; }
+.sw-shutter:active i { transform: scale(.9); }
+.sw-shutter.is-video i { background: #e5364d; }
+.sw-shutter.is-rec i { width: 28px; height: 28px; border-radius: 7px; }
+.sw-shutter:disabled { opacity: .4; }
+.sw-cam-error { position: absolute; top: 50%; left: 16px; right: 16px; padding: 12px; border-radius: 12px; background: rgba(0, 0, 0, .7); text-align: center; font-size: 14px; }

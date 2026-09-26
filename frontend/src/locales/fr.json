@@ -973,7 +973,9 @@
       "details": "Détails",
       "done": "Validé",
       "todo": "À faire",
-      "optional": "Facultatif"
+      "optional": "Facultatif",
+      "modeVideo": "VIDÉO",
+      "modePhoto": "PHOTO"
     }
   },
   "explore": {

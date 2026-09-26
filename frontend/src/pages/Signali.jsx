@@ -196,6 +196,10 @@ export default function Signali() {
   const [video, setVideo] = useState(null) // {blob, url}
   const [camera, setCamera] = useState(null) // live MediaStream while filming
   const [facing, setFacing] = useState('environment')
+  const [camMode, setCamMode] = useState('photo') // on site viewfinder: 'photo' | 'video'
+  const [viewfinderFailed, setViewfinderFailed] = useState(false) // no camera access: file pickers instead
+  const [flash, setFlash] = useState(false)
+  const [camOpening, setCamOpening] = useState(false)
   const [filming, setFilming] = useState(false)
   const [videoSec, setVideoSec] = useState(0)
 
@@ -487,6 +491,67 @@ export default function Signali() {
     probe.src = url
   }
 
+  // On site: the camera opens straight away, full screen (like the phone's
+  // own camera app). Photos are grabbed from the live picture; the video
+  // mode reopens it with the microphone (the reporter can talk). Without
+  // camera access, the file pickers take over.
+  const openViewfinder = async (nextMode = camMode, nextFacing = facing) => {
+    setError('')
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setViewfinderFailed(true)
+      return
+    }
+    setCamOpening(true)
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: nextFacing, width: { ideal: 1920 }, height: { ideal: 1080 } },
+        audio: nextMode === 'video',
+      })
+      setCamera((prev) => {
+        prev?.getTracks().forEach((x) => x.stop())
+        return stream
+      })
+      setViewfinderFailed(false)
+    } catch {
+      // Refused or no camera: the pickers below still work (the phone's
+      // camera app, the gallery).
+      setViewfinderFailed(true)
+    } finally {
+      setCamOpening(false)
+    }
+  }
+  const switchCamMode = (next) => {
+    if (next === camMode || filming) return
+    if (next === 'video' && video) return
+    setCamMode(next)
+    openViewfinder(next)
+  }
+  const flipViewfinder = () => {
+    if (filming) return
+    const next = facing === 'environment' ? 'user' : 'environment'
+    setFacing(next)
+    openViewfinder(camMode, next)
+  }
+  const takeSnapshot = async () => {
+    const el = liveVideoRef.current
+    if (!el || !el.videoWidth || photos.length >= MAX_PHOTOS) return
+    const canvas = document.createElement('canvas')
+    canvas.width = el.videoWidth
+    canvas.height = el.videoHeight
+    canvas.getContext('2d').drawImage(el, 0, 0)
+    setFlash(true)
+    setTimeout(() => setFlash(false), 180)
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.9))
+    if (!blob) return
+    const compressed = await compressPhoto(new File([blob], `photo-${Date.now()}.jpg`, { type: 'image/jpeg' }))
+    setPhotos((prev) => [...prev, { file: compressed, url: track(URL.createObjectURL(compressed)) }].slice(0, MAX_PHOTOS))
+  }
+  const shutter = () => {
+    if (camMode === 'photo') return takeSnapshot()
+    if (filming) return stopRecorder()
+    startFilming()
+  }
+
   const startVideo = async () => {
     const opened = await openCamera()
     if (!opened) document.getElementById('signali-video-file')?.click()
@@ -626,7 +691,9 @@ export default function Signali() {
   const chooseOnsite = () => {
     setMode('onsite')
     setOnsiteStep(0)
+    setCamMode('photo')
     locate()
+    openViewfinder('photo')
     window.scrollTo(0, 0)
   }
   const chooseRemote = () => {
@@ -637,12 +704,21 @@ export default function Signali() {
   }
   const leave = () => navigate('/signalements')
   const back = () => {
+    if (filming) return
+    if (mode === 'onsite' && onsiteStep === 0 && (camera || camOpening)) {
+      closeCamera()
+      return setMode(null)
+    }
     if (camera) return closeCamera()
     setError('')
-    if (mode === 'onsite' && onsiteStep > 0) return setOnsiteStep(onsiteStep - 1)
+    if (mode === 'onsite' && onsiteStep > 0) {
+      if (onsiteStep === 1 && !viewfinderFailed && photos.length < MAX_PHOTOS) openViewfinder(video ? 'photo' : camMode)
+      return setOnsiteStep(onsiteStep - 1)
+    }
     setMode(null)
   }
   const nextOnsite = () => {
+    if (camera) closeCamera()
     setError('')
     setOnsiteStep(onsiteStep + 1)
     window.scrollTo(0, 0)
@@ -862,6 +938,79 @@ export default function Signali() {
 
   const onsiteTitles = [t('signali.w.photoTitle'), t('signali.w.typeTitle'), catLabel]
   const canNext = onsiteStep === 0 ? mediaOk && !camera : !recordingVoice
+
+  // On site, step 1: the live camera, full screen.
+  if (mode === 'onsite' && onsiteStep === 0 && (camera || camOpening)) {
+    const count = photos.length + (video ? 1 : 0)
+    return (
+      <section className="sw-cam">
+        <video ref={liveVideoRef} autoPlay muted playsInline className={facing === 'user' ? 'is-mirror' : ''} />
+        {flash && <div className="sw-cam-flash" />}
+        <div className="sw-cam-top">
+          <button type="button" className="sw-x is-dark" onClick={back} aria-label={t('signali.previous')} disabled={filming}>
+            <IconArrowLeft width={18} height={18} />
+          </button>
+          {gpsChip}
+        </div>
+        {filming && (
+          <div className="sw-cam-timer">
+            <span className="sw-rec-dot" /> {mmss(videoSec)} / {mmss(MAX_VIDEO_SECONDS)}
+          </div>
+        )}
+        <div className="sw-cam-bottom">
+          {count > 0 && !filming && (
+            <div className="sw-cam-shots">
+              <div className="sw-cam-thumbs">
+                {photos.map((p, i) => (
+                  <button key={p.url} type="button" onClick={() => removePhoto(i)} aria-label={t('common.delete')}>
+                    <img src={p.url} alt="" />
+                  </button>
+                ))}
+              </div>
+              <button type="button" className="sw-cam-continue" onClick={nextOnsite}>
+                {t('signali.continue')} ({count})
+              </button>
+            </div>
+          )}
+          {!filming && (
+            <div className="sw-cam-modes" role="tablist">
+              <button type="button" role="tab" aria-selected={camMode === 'video'} className={camMode === 'video' ? 'is-on' : ''} onClick={() => switchCamMode('video')} disabled={!!video}>
+                {t('signali.w.modeVideo')}
+              </button>
+              <button type="button" role="tab" aria-selected={camMode === 'photo'} className={camMode === 'photo' ? 'is-on' : ''} onClick={() => switchCamMode('photo')}>
+                {t('signali.w.modePhoto')}
+              </button>
+            </div>
+          )}
+          <div className="sw-cam-ctl">
+            <label className={`sw-cam-mini${photoFull || filming ? ' is-off' : ''}`} aria-label={t('signali.w.gallery')}>
+              <IconGallery width={22} height={22} />
+              <input type="file" accept="image/*,video/*" multiple onChange={(e) => {
+                const files = Array.from(e.target.files || [])
+                const vid = files.find((f) => f.type.startsWith('video/'))
+                if (vid && !video) pickVideoFile({ target: { files: [vid], value: '' } }, { fromGallery: true })
+                addPhotos({ target: { files: files.filter((f) => f.type.startsWith('image/')), value: '' } })
+                e.target.value = ''
+              }} hidden disabled={photoFull || filming} />
+            </label>
+            <button
+              type="button"
+              className={`sw-shutter${camMode === 'video' ? ' is-video' : ''}${filming ? ' is-rec' : ''}`}
+              onClick={shutter}
+              disabled={camMode === 'photo' && photoFull}
+              aria-label={camMode === 'photo' ? t('signali.w.takePhoto') : filming ? t('signali.stop') : t('signali.record')}
+            >
+              <i />
+            </button>
+            <button type="button" className="sw-cam-mini" onClick={flipViewfinder} disabled={filming} aria-label={t('signali.switchCamera')}>
+              <IconSwitchCamera width={22} height={22} />
+            </button>
+          </div>
+        </div>
+        {error && <p className="sw-cam-error">{error}</p>}
+      </section>
+    )
+  }
 
   return (
     <section className="sw">

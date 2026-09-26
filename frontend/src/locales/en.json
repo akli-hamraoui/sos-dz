@@ -954,7 +954,9 @@
       "details": "Details",
       "done": "Done",
       "todo": "To do",
-      "optional": "Optional"
+      "optional": "Optional",
+      "modeVideo": "VIDEO",
+      "modePhoto": "PHOTO"
     }
   },
   "explore": {

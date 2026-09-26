@@ -973,7 +973,9 @@
       "details": "التفاصيل",
       "done": "تم",
       "todo": "مطلوب",
-      "optional": "اختياري"
+      "optional": "اختياري",
+      "modeVideo": "فيديو",
+      "modePhoto": "صورة"
     }
   },
   "explore": {
