@@ -768,3 +768,6 @@
 .signali-pin-center.is-moving .signali-pin-badge { transform: translateY(-12px) rotate(-45deg); }
 .signali-pin-center.is-moving i { transform: scale(.7); opacity: .6; }
 .signali-pin-center.is-unset { opacity: .55; }
+
+/* Signali manual entry: the wilaya deduced from the place. */
+.signali-wilaya-found { display: block; margin: 6px 0 2px; color: #1f5fbf; font-size: 13px; font-weight: 700; }

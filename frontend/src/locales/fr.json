@@ -776,12 +776,12 @@
     "locationError": "Impossible de récupérer votre position.",
     "locationOutsideAlgeria": "Votre position semble hors d'Algérie. Saisissez l'adresse du problème.",
     "addressLabel": "Adresse ou lieu (rue, quartier, repère)",
-    "addressPlaceholder": "Ex. : Rue Didouche Mourad, près de la poste",
+    "addressPlaceholder": "Ex. : Rue Didouche Mourad, Alger",
     "wilayaLabel": "Wilaya",
     "wilayaPlaceholder": "Rechercher une wilaya (nom ou numéro)",
     "communeLabel": "Commune",
     "dragPinHint": "Faites glisser la carte d'un doigt pour placer l'épingle sur l'endroit exact (ou touchez l'endroit).",
-    "locationRequired": "Indiquez votre position GPS ou une adresse avec sa wilaya pour continuer.",
+    "locationRequired": "Indiquez votre position GPS, ou le lieu (choisi dans la liste ou placé sur la carte) pour continuer.",
     "nearbyTitle": "Déjà signalé ici ?",
     "nearbyText": "Ces problèmes ont déjà été signalés à moins de 100 m. Si c'est le même, confirmez-le au lieu d'en créer un nouveau.",
     "sameProblem": "C'est le même",
@@ -872,7 +872,7 @@
     "tapMapHint": "Faites glisser la carte d'un doigt jusqu'à l'endroit exact du problème, ou touchez-le.",
     "coordsLabel": "Coordonnées GPS",
     "placeCoords": "Placer",
-    "noPinHint": "Sans point sur la carte, le signalement sera affiché dans la bulle « sans localisation » de sa wilaya.",
+    "noPinHint": "Choisissez une adresse dans la liste, ou placez le point sur la carte : la wilaya en est déduite.",
     "algeriaOnly": "Signali est disponible uniquement depuis l'Algérie. Vous pouvez consulter la carte des signalements.",
     "cancelConfirm": "Annuler ce signalement ? Il ne sera plus affiché sur la carte.",
     "statusSaved": "Statut mis à jour.",
@@ -943,7 +943,8 @@
     "geolocated": "Géolocalisé",
     "approxLocation": "Centre de la wilaya",
     "categoriesHint": "Jusqu'à {{max}} types. Le premier choisi est le type principal.",
-    "videoFromGalleryMax": "{{size}} Mo max"
+    "videoFromGalleryMax": "{{size}} Mo max",
+    "detectedWilaya": "Wilaya : {{wilaya}}"
   },
   "explore": {
     "inAreaShort_one": "{{count}} ici",

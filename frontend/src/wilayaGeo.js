@@ -119,3 +119,15 @@ export async function detectWilaya(lat, lon, wilayas) {
   }
   return nearestByCentroid(lat, lon, wilayas)
 }
+
+// A short address for a point (street, neighbourhood, town), for a point
+// placed on the map with no address typed. Empty when OSM can't say.
+export async function reverseGeocode(lat, lon, lang) {
+  const resp = await fetch(`${NOMINATIM_BASE}/reverse?format=json&zoom=17&addressdetails=1&accept-language=${lang}&lat=${lat}&lon=${lon}`)
+  if (!resp.ok) return ''
+  const found = await resp.json()
+  const a = found?.address || {}
+  const street = a.road ? `${a.house_number ? `${a.house_number} ` : ''}${a.road}` : a.pedestrian || a.amenity || ''
+  const parts = [street, a.neighbourhood || a.suburb || a.quarter, a.village || a.town || a.city || a.municipality].filter(Boolean)
+  return (parts.length ? parts.filter((x, i) => parts.indexOf(x) === i).join(', ') : found?.display_name?.split(',').slice(0, 3).join(',')) || ''
+}

@@ -8,11 +8,10 @@ import { api, apiUpload } from '../api'
 import { translateApiError } from '../apiErrors'
 import { compressPhoto, formatDate, getCurrentPosition, isInAlgeria } from '../utils'
 import PlaceAutocomplete from '../components/PlaceAutocomplete'
-import WilayaCombobox from '../components/WilayaCombobox'
 import { IconCamera, IconClose, IconExpand, IconGallery, IconLocate, IconMapPin, IconMic, IconSwitchCamera, IconTrash, IconVideoCam, IconVideoUpload } from '../icons'
 import { saveSignalementToken, signalIconSvg } from '../signali'
 import CategoryIcon from '../components/CategoryIcon'
-import { detectWilaya, resultInWilaya, wilayaBounds } from '../wilayaGeo'
+import { detectWilaya, reverseGeocode } from '../wilayaGeo'
 import CategoryPicker from '../components/CategoryPicker'
 import '../urgent-sos-wizard-fixes.css'
 import '../signali.css'
@@ -183,7 +182,8 @@ export default function Signali() {
   const [coords, setCoords] = useState(null)
   const [accuracy, setAccuracy] = useState(null)
   const [address, setAddress] = useState('')
-  const [wilaya, setWilaya] = useState('')
+  const [wilaya, setWilaya] = useState('') // deduced from the position, never typed
+  const [nearMe, setNearMe] = useState(null) // the phone's rough position, to open the map there
   const [nearby, setNearby] = useState([])
   const [confirmedId, setConfirmedId] = useState(null)
   const [adminNote, setAdminNote] = useState(false)
@@ -263,11 +263,11 @@ export default function Signali() {
   }
 
   // The wilaya of a position (GPS, pin, picked address): OSM's boundaries,
-  // else the nearest centroid (wilayaGeo.js). `onlyIfEmpty`: never
-  // overrides one the reporter already picked.
-  const prefillWilaya = async ({ latitude, longitude }, { onlyIfEmpty = false } = {}) => {
+  // else the nearest centroid (wilayaGeo.js). The server deduces it from
+  // the position too, this one is for the reporter to see.
+  const prefillWilaya = async ({ latitude, longitude }) => {
     const w = await detectWilaya(latitude, longitude, wilayas)
-    if (w?.id) setWilaya((current) => (onlyIfEmpty && current ? current : String(w.id)))
+    if (w?.id) setWilaya(String(w.id))
   }
 
   const locate = async () => {
@@ -322,13 +322,23 @@ export default function Signali() {
     setLocStatus('idle')
     setCoords(null)
     setAccuracy(null)
-    // Pre-fills the wilaya from the phone's position when it can (quick,
-    // low accuracy is plenty for a wilaya) -- the reporter can change it.
-    if (!wilaya) {
-      getCurrentPosition({ enableHighAccuracy: false, timeout: 8000, maximumAge: 600000 })
-        .then((pos) => pos && isInAlgeria(pos[0], pos[1]) && prefillWilaya({ latitude: pos[0], longitude: pos[1] }, { onlyIfEmpty: true }))
-        .catch(() => {})
-    }
+    // Opens the map around the phone when it can tell where it is (quick,
+    // low accuracy is plenty) -- the place itself is still for the
+    // reporter to give.
+    getCurrentPosition({ enableHighAccuracy: false, timeout: 8000, maximumAge: 600000 })
+      .then((pos) => pos && isInAlgeria(pos[0], pos[1]) && setNearMe({ latitude: pos[0], longitude: pos[1] }))
+      .catch(() => {})
+  }
+
+  // A point placed on the map with no address typed yet: the address
+  // under it (OpenStreetMap), which the reporter can correct.
+  const onPinMove = (c) => {
+    setCoords(c)
+    setError('')
+    prefillWilaya(c)
+    reverseGeocode(c.latitude, c.longitude, i18n.language)
+      .then((label) => label && setAddress((current) => (current.trim() ? current : label)))
+      .catch(() => {})
   }
 
   const onSelectPlace = ({ lat, lon }) => {
@@ -338,27 +348,14 @@ export default function Signali() {
     prefillWilaya(next)
   }
 
-  // Manual entry: a pin dropped on the map (or typed GPS coordinates), or
-  // at least an address with its wilaya -- that one lands in the map's
-  // "no location" bubble.
-  const locationOk = locMode === 'gps' ? !!coords : locMode === 'manual' ? !!coords || !!(address.trim() && wilaya) : false
+  // Manual entry: the place is required, with its position (a picked
+  // suggestion or a point on the map) -- the wilaya is deduced from it.
+  // Except for an admin testing from abroad (Alger, no position).
+  const locationOk =
+    locMode === 'gps' ? !!coords : locMode === 'manual' ? !!address.trim() && (!!coords || (adminNote && !!wilaya)) : false
 
   const selectedWilaya = wilayas.find((w) => String(w.id) === String(wilaya))
-  // Address suggestions stay inside the chosen wilaya: searched inside its
-  // real extent, then only the results located in it (wilayaGeo.js).
-  const [wilayaViewbox, setWilayaViewbox] = useState(null)
-  useEffect(() => {
-    let cancelled = false
-    wilayaBounds(selectedWilaya).then((box) => !cancelled && setWilayaViewbox(box))
-    return () => {
-      cancelled = true
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedWilaya?.id])
-  const inSelectedWilaya = (r) => resultInWilaya(r, selectedWilaya, wilayas)
-  const manualCenter = selectedWilaya?.centroid_latitude
-    ? { latitude: selectedWilaya.centroid_latitude, longitude: selectedWilaya.centroid_longitude, zoom: 11 }
-    : { latitude: 34.5, longitude: 3, zoom: 5 }
+  const manualCenter = nearMe ? { ...nearMe, zoom: 14 } : { latitude: 34.5, longitude: 3, zoom: 5 }
 
   const confirmExisting = async (id) => {
     setBusy(true)
@@ -658,23 +655,21 @@ export default function Signali() {
 
             {locMode === 'manual' && (
               <div className="signali-fields">
-                <label htmlFor="signali-wilaya">{t('signali.wilayaLabel')}</label>
-                <WilayaCombobox id="signali-wilaya" wilayas={wilayas} value={wilaya} onChange={setWilaya} placeholder={t('signali.wilayaPlaceholder')} />
-                <label htmlFor="signali-address">{t('signali.addressLabel')}</label>
+                <label htmlFor="signali-address">{t('signali.addressLabel')} *</label>
                 <PlaceAutocomplete
                   id="signali-address"
                   value={address}
                   onChange={setAddress}
                   onSelectPlace={onSelectPlace}
-                  placeholder={selectedWilaya ? t('signali.addressPlaceholderIn', { wilaya: selectedWilaya.name }) : t('signali.addressPlaceholder')}
+                  placeholder={t('signali.addressPlaceholder')}
                   countryCode="dz"
-                  viewbox={wilayaViewbox}
-                  filterResult={inSelectedWilaya}
+                  required
                 />
+                {coords && selectedWilaya && <small className="signali-wilaya-found">📍 {t('signali.detectedWilaya', { wilaya: selectedWilaya.name })}</small>}
                 <span className="signali-fields-title">{t('signali.pickOnMap')}</span>
-                <PinMap position={coords} center={manualCenter} onMove={(c) => (setCoords(c), setError(''), prefillWilaya(c))} />
+                <PinMap position={coords} center={manualCenter} onMove={onPinMove} />
                 <small className="signali-hint">{coords ? t('signali.dragPinHint') : t('signali.tapMapHint')}</small>
-                {!coords && address.trim() && wilaya && <small className="signali-hint">{t('signali.noPinHint')}</small>}
+                {!coords && address.trim() && <small className="signali-hint">{t('signali.noPinHint')}</small>}
               </div>
             )}
 

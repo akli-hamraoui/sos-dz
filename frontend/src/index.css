@@ -4839,3 +4839,8 @@ body { overflow-x: hidden; }
     line-height: 1.2;
   }
 }
+/* Leaflet's own grey (#ddd) showed while a map's first tiles load: a
+   light, map-like tone instead, close to the one Google Maps uses. */
+.leaflet-container {
+  background: #eef0f2;
+}
