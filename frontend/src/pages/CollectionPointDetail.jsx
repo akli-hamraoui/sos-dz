@@ -10,6 +10,7 @@ import CommentThread from '../components/CommentThread'
 import ModerationBadge from '../components/ModerationBadge'
 import PickupManager from '../components/PickupManager'
 import { IconFacebook, IconTikTok, IconInstagram, IconMapPin } from '../icons'
+import { useBackLayer } from '../backButton'
 
 // Belt-and-suspenders on top of the server-side validation (which already
 // only ever accepts/stores http(s) URLs, see core/validators.py): never
@@ -32,6 +33,7 @@ export default function CollectionPointDetail() {
   const [cp, setCp] = useState(null)
   const [showPhone, setShowPhone] = useState(false)
   const [lightbox, setLightbox] = useState(null) // { src } for a full-size flyer preview
+  useBackLayer(!!lightbox, () => setLightbox(null)) // the phone's back button closes it
   const [editing, setEditing] = useState(false)
   const [editForm, setEditForm] = useState(null)
   const [deleting, setDeleting] = useState(false)

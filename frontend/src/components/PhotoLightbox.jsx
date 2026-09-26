@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { IconClose } from '../icons'
+import { useBackLayer } from '../backButton'
 
 // Full-screen photo viewer shared by every list row's PhotoThumb and every
 // map popup's own "view photo" button -- closing it (backdrop click or the
@@ -7,6 +8,7 @@ import { IconClose } from '../icons'
 // it (the list stays exactly where it was, a map popup stays open).
 export default function PhotoLightbox({ src, onClose }) {
   const { t } = useTranslation()
+  useBackLayer(!!src, onClose) // the phone's back button closes it
   if (!src) return null
   return (
     <div className="photo-lightbox" onClick={onClose} role="presentation">

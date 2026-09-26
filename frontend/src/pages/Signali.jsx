@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import L from 'leaflet'
 import { addBaseLayer } from '../mapBase'
@@ -172,8 +172,15 @@ export default function Signali() {
   const navigate = useNavigate()
   const { config, wilayas, refreshConfig } = useApp()
 
-  const [mode, setMode] = useState(null) // null (the choice) | 'onsite' | 'remote'
-  const [onsiteStep, setOnsiteStep] = useState(0) // onsite: 0 photo, 1 type + details, 2 place + send
+  // Where the reporter is in the wizard lives in the URL's #hash (#onsite-0,
+  // #onsite-1, #onsite-2, #remote; none = the choice), one history entry
+  // per step: the phone's own back button goes back one step instead of
+  // leaving the page.
+  const location = useLocation()
+  const hash = location.hash.slice(1)
+  const mode = hash === 'remote' ? 'remote' : hash.startsWith('onsite') ? 'onsite' : null // null = the choice
+  const onsiteStep = mode === 'onsite' ? Math.min(2, Number(hash.split('-')[1]) || 0) : 0 // 0 photo, 1 type + details, 2 place + send
+  const startedRef = useRef(false) // a step reached from the choice in this visit (not a reload / a way back in)
   const [openSection, setOpenSection] = useState('place') // remote: the open section
   const [typeTouched, setTypeTouched] = useState(false)
   const [detailsSeen, setDetailsSeen] = useState(false) // remote: Envoyer only once every step was gone through
@@ -643,7 +650,7 @@ export default function Signali() {
       }
       if (created?.id && created.access_token) saveSignalementToken(created.id, created.access_token)
       Promise.resolve(refreshConfig()).catch(() => {})
-      navigate(`/signalements/${created.id}`, { state: { justCreated: true, mediaWarnings: created.media_warnings || [] } })
+      navigate(`/signalements/${created.id}`, { replace: true, state: { justCreated: true, mediaWarnings: created.media_warnings || [] } })
     } catch (e) {
       setError(translateApiError(e, t))
     } finally {
@@ -671,6 +678,33 @@ export default function Signali() {
     return () => clearTimeout(id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, openSection, locationOk, mediaOk, typeTouched, categories, coords, address, photos.length, video, camera, filming])
+
+  // A step URL opened cold (reload, or back from the sent report): nothing
+  // filled in this visit, so back to the choice.
+  useEffect(() => {
+    if (mode && !startedRef.current) navigate({ hash: '' }, { replace: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode])
+
+  // Moving between steps (buttons or the phone's back button): stop what
+  // belongs to the step left behind, reopen the camera when coming back to
+  // it, start at the top.
+  const stepRef = useRef({ mode, onsiteStep })
+  useEffect(() => {
+    const prev = stepRef.current
+    stepRef.current = { mode, onsiteStep }
+    if (prev.mode === mode && prev.onsiteStep === onsiteStep) return
+    const onCameraStep = mode === 'onsite' && onsiteStep === 0
+    if (filming || recordingVoice) {
+      discardRef.current = true
+      stopRecorder()
+    }
+    if (camera && !onCameraStep) closeCamera()
+    if (onCameraStep && prev.mode === 'onsite' && prev.onsiteStep > 0 && !viewfinderFailed && photos.length < MAX_PHOTOS) openViewfinder(video ? 'photo' : camMode)
+    setError('')
+    window.scrollTo(0, 0)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, onsiteStep])
 
   // Same rule as the server (views.signali_allowed): Algeria, or an admin.
   if (config.signali_available === false) {
@@ -713,40 +747,25 @@ export default function Signali() {
   const placeLabel = address.trim() || (coords ? (locMode === 'gps' ? t('signali.gpsPosition') : t('signali.pinOnMap')) : '')
 
   const chooseOnsite = () => {
-    setMode('onsite')
-    setOnsiteStep(0)
+    startedRef.current = true
+    navigate({ hash: '#onsite-0' })
     setCamMode('photo')
-    locate()
+    if (!(locMode === 'gps' && coords)) locate()
     openViewfinder('photo')
-    window.scrollTo(0, 0)
   }
   const chooseRemote = () => {
-    setMode('remote')
-    setOpenSection('place')
-    switchToManual()
-    window.scrollTo(0, 0)
+    startedRef.current = true
+    navigate({ hash: '#remote' })
+    setOpenSection(locationOk ? (mediaOk ? 'type' : 'media') : 'place')
+    if (locMode !== 'manual') switchToManual()
   }
   const leave = () => navigate('/signalements')
+  // The on-screen ← does exactly what the phone's back button does.
   const back = () => {
     if (filming) return
-    if (mode === 'onsite' && onsiteStep === 0 && (camera || camOpening)) {
-      closeCamera()
-      return setMode(null)
-    }
-    if (camera) return closeCamera()
-    setError('')
-    if (mode === 'onsite' && onsiteStep > 0) {
-      if (onsiteStep === 1 && !viewfinderFailed && photos.length < MAX_PHOTOS) openViewfinder(video ? 'photo' : camMode)
-      return setOnsiteStep(onsiteStep - 1)
-    }
-    setMode(null)
+    navigate(-1)
   }
-  const nextOnsite = () => {
-    if (camera) closeCamera()
-    setError('')
-    setOnsiteStep(onsiteStep + 1)
-    window.scrollTo(0, 0)
-  }
+  const nextOnsite = () => navigate({ hash: `#onsite-${onsiteStep + 1}` })
   const onCategories = (next) => {
     setTypeTouched(true)
     setCategories(next)
