@@ -4844,3 +4844,7 @@ body { overflow-x: hidden; }
 .leaflet-container {
   background: #eef0f2;
 }
+
+/* Right-to-left pages (Arabic): the map itself stays left-to-right --
+   Leaflet (and the Google background under it) lay tiles out that way. */
+[dir='rtl'] .leaflet-container { direction: ltr; }

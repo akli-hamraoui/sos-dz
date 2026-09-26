@@ -974,6 +974,8 @@
     "approxBubble": "Approximate position · {{place}} ({{count}})",
     "noPosition": "No position",
     "noPositionWhat": "What is this?",
-    "noPositionHelp": "These have no exact position (address typed without a pin, place not found…), so they aren't placed on the map: tap the bubble to see them as a list, with their wilaya."
+    "noPositionHelp": "These have no exact position (address typed without a pin, place not found…), so they aren't placed on the map: tap the bubble to see them as a list, with their wilaya.",
+    "previousCard": "Previous",
+    "nextCard": "Next"
   }
 }
