@@ -5,7 +5,7 @@ import L from 'leaflet'
 import { useDialog } from '../context/DialogContext'
 import { getCurrentPosition, haversineKm, isInAlgeria } from '../utils'
 import { addBaseLayer } from '../mapBase'
-import { IconLocate, IconPlus } from '../icons'
+import { IconChevronLeft, IconChevronRight, IconLocate, IconPlus } from '../icons'
 import '../explore.css'
 import { useBackLayer } from '../backButton'
 
@@ -297,6 +297,7 @@ export default function ExploreMap({
   useBackLayer(filtersOpen, () => setFiltersOpen(false))
   useBackLayer(!wide && sheet === 'card', () => {
     setSheet('peek')
+    setGroupOnly(null)
     setSelectedId(null)
     overlayRef.current?.clearLayers()
   })
@@ -333,6 +334,9 @@ export default function ExploreMap({
     map.on('zoomend', () => setZoomTick((n) => n + 1))
     // A tap on the map itself (not a pin) puts the card away.
     map.on('click', () => {
+      // ...and the items with no position shown by their bubble, back to
+      // what's on the map (like tapping away from a pin's card).
+      setGroupOnly(null)
       if (sheetModeRef.current === 'card') {
         setSheet('peek')
         setSelectedId(null)
@@ -546,7 +550,13 @@ export default function ExploreMap({
     const el = box?.querySelector(`[data-id="${id}"]`)
     if (!box || !el) return
     if (wide) box.scrollTo({ top: el.offsetTop - box.clientHeight / 2 + el.clientHeight / 2, behavior: 'smooth' })
-    else box.scrollTo({ left: el.offsetLeft - (box.clientWidth - el.clientWidth) / 2, behavior: 'smooth' })
+    else {
+      // By the on-screen gap (not offsetLeft): right in right-to-left
+      // (Arabic) too, where scrollLeft runs negative.
+      const r = el.getBoundingClientRect()
+      const b = box.getBoundingClientRect()
+      box.scrollBy({ left: r.left + r.width / 2 - (b.left + b.width / 2), behavior: 'smooth' })
+    }
   }
   const runOnSelect = (id) => {
     const overlay = overlayRef.current
@@ -568,7 +578,7 @@ export default function ExploreMap({
     runOnSelect(id)
     const map = mapRef.current
     const x = byId.get(id)
-    if (!map || !x || x.lat == null) return
+    if (!map || !x || x.lat == null || x.exact === false) return
     const pt = map.latLngToContainerPoint([x.lat, x.lng])
     const size = map.getSize()
     const bottomReserve = wide ? 40 : 190
@@ -580,6 +590,17 @@ export default function ExploreMap({
   useEffect(() => {
     selectRef.current = select
   })
+
+  // The arrows: one card back / forward.
+  const carouselCount = Math.min(shown.length, CAROUSEL_MAX)
+  const carouselIndex = shown.slice(0, CAROUSEL_MAX).findIndex((x) => x.id === selectedId)
+  const stepCarousel = (dir) => {
+    const next = shown[Math.max(0, Math.min(carouselCount - 1, carouselIndex + dir))]
+    if (!next) return
+    select(next.id, 'carousel')
+    setSelectedId(next.id)
+    scrollCardIntoView(next.id)
+  }
 
   // Sliding the carousel selects the card that settles in the middle.
   const scrollTimer = useRef(0)
@@ -652,7 +673,7 @@ export default function ExploreMap({
 
   const allChips = [
     ...chips,
-    groupOnly && { key: '_group', label: groupOnly.offMap ? offMap?.label : groupOnly.all ? `${groupOnly.label} (${grouped.length})` : groupOnly.label, clear: () => setGroupOnly(null) },
+    groupOnly && !groupOnly.all && { key: '_group', label: groupOnly.offMap ? offMap?.label : groupOnly.label, clear: () => setGroupOnly(null) },
     !groupOnly &&
       offMap?.items?.length > 0 && {
         key: '_offmap',
@@ -830,8 +851,12 @@ export default function ExploreMap({
                   aria-label={`${noLocLabel} (${grouped.length})`}
                   title={`${noLocLabel} (${grouped.length})`}
                   onClick={() => {
-                    setGroupOnly(groupOnly?.all ? null : { all: true, label: noLocLabel })
-                    if (!wide) setSheet('half')
+                    // Like a tap on a pin: their cards, until the next tap
+                    // on the map or on another pin.
+                    if (groupOnly?.all) return setGroupOnly(null)
+                    freshViewRef.current = true
+                    setGroupOnly({ all: true, label: noLocLabel })
+                    if (!wide) setSheet('card')
                   }}
                 >
                   <span dangerouslySetInnerHTML={{ __html: noLocBubbleHtml }} />
@@ -887,6 +912,19 @@ export default function ExploreMap({
                       <ItemCard key={x.id} id={x.id} c={cardsById.get(x.id)} distance={distanceOf(x)} selected={x.id === selectedId} />
                     ))}
                   </div>
+                  {/* Previous / next card: frosted arrows on both sides,
+                      hidden at either end. Logical sides, so right-to-left
+                      (Arabic) reads the other way round too. */}
+                  {carouselIndex > 0 && (
+                    <button type="button" className="sx-arrow is-prev" onClick={() => stepCarousel(-1)} aria-label={t('explore.previousCard')}>
+                      <IconChevronLeft width={22} height={22} />
+                    </button>
+                  )}
+                  {carouselIndex >= 0 && carouselIndex < carouselCount - 1 && (
+                    <button type="button" className="sx-arrow is-next" onClick={() => stepCarousel(1)} aria-label={t('explore.nextCard')}>
+                      <IconChevronRight width={22} height={22} />
+                    </button>
+                  )}
                 </>
               )}
               <div ref={sheetRef} className={`sx-sheet is-${sheet}`} style={{ top: sheetTop }}>

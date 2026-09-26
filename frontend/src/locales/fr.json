@@ -993,6 +993,8 @@
     "approxBubble": "Position approximative · {{place}} ({{count}})",
     "noPosition": "Sans position",
     "noPositionWhat": "Qu'est-ce que c'est ?",
-    "noPositionHelp": "Ces signalements n'ont pas de position exacte (adresse tapée sans épingle, lieu non trouvé…). Ils ne sont donc pas placés sur la carte : touchez la bulle pour les voir en liste, avec leur wilaya."
+    "noPositionHelp": "Ces signalements n'ont pas de position exacte (adresse tapée sans épingle, lieu non trouvé…). Ils ne sont donc pas placés sur la carte : touchez la bulle pour les voir en liste, avec leur wilaya.",
+    "previousCard": "Précédent",
+    "nextCard": "Suivant"
   }
 }

@@ -232,7 +232,11 @@
     "stopAudio": "إيقاف",
     "noGeographicPosition": "بدون موقع جغرافي",
     "inArea_one": "{{count}} نداء هنا",
-    "inArea_other": "{{count}} نداءات هنا"
+    "inArea_other": "{{count}} نداءات هنا",
+    "inArea_zero": "{{count}} نداءات هنا",
+    "inArea_two": "{{count}} نداءات هنا",
+    "inArea_few": "{{count}} نداءات هنا",
+    "inArea_many": "{{count}} نداءات هنا"
   },
   "help": {
     "instructions": "الرجاء اختيار نقطة تجميع أو احتياج للمساعدة فيه على الخريطة، أو استخدام القائمة أو الفلاتر.",
@@ -404,7 +408,11 @@
     "countryBubbleTitle": "نقاط التجميع — {{country}}",
     "inArea_one": "نقطة جمع واحدة هنا",
     "inArea_other": "{{count}} نقاط جمع هنا",
-    "addShort": "إضافة"
+    "addShort": "إضافة",
+    "inArea_zero": "{{count}} نقاط جمع هنا",
+    "inArea_two": "{{count}} نقاط جمع هنا",
+    "inArea_few": "{{count}} نقاط جمع هنا",
+    "inArea_many": "{{count}} نقاط جمع هنا"
   },
   "submitFlyer": {
     "title": "إضافة نقطة تجميع من منشور",
@@ -466,7 +474,11 @@
     "positionInAlgeriaLink": "إنشاء نقطة تجميع في الجزائر",
     "inArea_one": "نقطة جمع واحدة هنا",
     "inArea_other": "{{count}} نقاط جمع هنا",
-    "countryFilter": "البلد"
+    "countryFilter": "البلد",
+    "inArea_zero": "{{count}} نقاط جمع هنا",
+    "inArea_two": "{{count}} نقاط جمع هنا",
+    "inArea_few": "{{count}} نقاط جمع هنا",
+    "inArea_many": "{{count}} نقاط جمع هنا"
   },
   "language": {
     "label": "اللغة",
@@ -500,7 +512,11 @@
     "noPositionChip": "توصيلات بدون موقع",
     "live": "مباشر",
     "departure": "نقطة انطلاق مصرّح بها",
-    "deliverShort": "توصيل"
+    "deliverShort": "توصيل",
+    "inArea_zero": "{{count}} موصّلين هنا",
+    "inArea_two": "{{count}} موصّلين هنا",
+    "inArea_few": "{{count}} موصّلين هنا",
+    "inArea_many": "{{count}} موصّلين هنا"
   },
   "quickActions": {
     "create": "تجميع",
@@ -978,7 +994,43 @@
       "modePhoto": "صورة",
       "center": "توسيط",
       "camHint": "المس صورة مصغرة لحذفها · {{max}} صور كحد أقصى"
-    }
+    },
+    "photosCount_zero": "{{count}} صور",
+    "photosCount_two": "{{count}} صور",
+    "photosCount_few": "{{count}} صور",
+    "photosCount_many": "{{count}} صور",
+    "confirmationsCount_zero": "{{count}} بلاغات",
+    "confirmationsCount_two": "{{count}} بلاغات",
+    "confirmationsCount_few": "{{count}} بلاغات",
+    "confirmationsCount_many": "{{count}} بلاغات",
+    "fixedCount_zero": "{{count}} «تم الإصلاح»",
+    "fixedCount_two": "{{count}} «تم الإصلاح»",
+    "fixedCount_few": "{{count}} «تم الإصلاح»",
+    "fixedCount_many": "{{count}} «تم الإصلاح»",
+    "countTotal_zero": "{{count}} بلاغات",
+    "countTotal_two": "{{count}} بلاغات",
+    "countTotal_few": "{{count}} بلاغات",
+    "countTotal_many": "{{count}} بلاغات",
+    "inArea_zero": "{{count}} بلاغات هنا",
+    "inArea_two": "{{count}} بلاغات هنا",
+    "inArea_few": "{{count}} بلاغات هنا",
+    "inArea_many": "{{count}} بلاغات هنا",
+    "listCount_zero": "القائمة ({{count}})",
+    "listCount_two": "القائمة ({{count}})",
+    "listCount_few": "القائمة ({{count}})",
+    "listCount_many": "القائمة ({{count}})",
+    "inAreaShort_zero": "{{count}} هنا",
+    "inAreaShort_two": "{{count}} هنا",
+    "inAreaShort_few": "{{count}} هنا",
+    "inAreaShort_many": "{{count}} هنا",
+    "showResults_zero": "عرض {{count}} بلاغات",
+    "showResults_two": "عرض {{count}} بلاغات",
+    "showResults_few": "عرض {{count}} بلاغات",
+    "showResults_many": "عرض {{count}} بلاغات",
+    "countNoLocation_zero": "{{count}} بدون موقع",
+    "countNoLocation_two": "{{count}} بدون موقع",
+    "countNoLocation_few": "{{count}} بدون موقع",
+    "countNoLocation_many": "{{count}} بدون موقع"
   },
   "explore": {
     "inAreaShort_one": "{{count}} هنا",
@@ -993,6 +1045,20 @@
     "approxBubble": "موقع تقريبي · {{place}} ({{count}})",
     "noPosition": "بدون موقع",
     "noPositionWhat": "ما هذا؟",
-    "noPositionHelp": "هذه العناصر بدون موقع دقيق (عنوان مكتوب بدون تحديد على الخريطة، مكان غير موجود…)، لذلك لا تظهر على الخريطة: المس الفقاعة لعرضها في قائمة مع ولايتها."
+    "noPositionHelp": "هذه العناصر بدون موقع دقيق (عنوان مكتوب بدون تحديد على الخريطة، مكان غير موجود…)، لذلك لا تظهر على الخريطة: المس الفقاعة لعرضها في قائمة مع ولايتها.",
+    "inAreaShort_zero": "{{count}} هنا",
+    "inAreaShort_two": "{{count}} هنا",
+    "inAreaShort_few": "{{count}} هنا",
+    "inAreaShort_many": "{{count}} هنا",
+    "showResults_zero": "عرض {{count}} نتائج",
+    "showResults_two": "عرض {{count}} نتائج",
+    "showResults_few": "عرض {{count}} نتائج",
+    "showResults_many": "عرض {{count}} نتائج",
+    "listCount_zero": "القائمة ({{count}})",
+    "listCount_two": "القائمة ({{count}})",
+    "listCount_few": "القائمة ({{count}})",
+    "listCount_many": "القائمة ({{count}})",
+    "previousCard": "السابق",
+    "nextCard": "التالي"
   }
 }
