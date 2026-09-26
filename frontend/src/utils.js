@@ -168,7 +168,9 @@ const NOMINATIM_BASE = 'https://nominatim.openstreetmap.org'
 // inside the wilaya the reporter picked.
 export async function searchPlaces(query, lang, signal, countryCode = 'dz', excludeCountryCode = null, viewbox = null) {
   const countryParam = countryCode === 'any' ? '' : `&countrycodes=${countryCode.toLowerCase()}`
-  const addressParam = excludeCountryCode ? '&addressdetails=1' : '&addressdetails=0'
+  // Address details: the country (for excludeCountryCode) and the wilaya
+  // (ISO3166-2-lvl4, for Signali's "only this wilaya" filter).
+  const addressParam = '&addressdetails=1'
   const boxParam = viewbox ? `&viewbox=${viewbox.join(',')}&bounded=1` : ''
   const url = `${NOMINATIM_BASE}/search?format=json${addressParam}&limit=10&accept-language=${lang}${countryParam}${boxParam}&q=${encodeURIComponent(query)}`
   const resp = await fetch(url, { signal })
@@ -246,9 +248,10 @@ export async function searchPlacesTypeahead(query, lang, signal) {
 // matches word prefixes ("Bab Ez" -> Bab Ezzouar), where Nominatim often
 // returns only a couple of exact matches, so the two together fill the
 // suggestion list. `viewbox` is Nominatim's [west, north, east, south];
-// Algeria's own box otherwise (`countryCode` 'dz'), anywhere for 'any'.
+// Algeria's own box otherwise (`countryCode` 'dz'), anywhere for 'any'
+// (minus `excludeCountryCode`, for the points abroad).
 const ALGERIA_BOX = [-8.7, 37.2, 12, 18.9]
-export async function searchPlacesPrefix(query, lang, signal, countryCode = 'dz', viewbox = null) {
+export async function searchPlacesPrefix(query, lang, signal, countryCode = 'dz', viewbox = null, excludeCountryCode = null) {
   const supportedLang = ['en', 'de', 'fr'].includes(lang) ? lang : 'fr'
   const box = viewbox || (countryCode === 'dz' ? ALGERIA_BOX : null)
   const boxParam = box ? `&bbox=${box[0]},${box[3]},${box[2]},${box[1]}` : ''
@@ -259,6 +262,7 @@ export async function searchPlacesPrefix(query, lang, signal, countryCode = 'dz'
   return (geojson.features || [])
     .filter((f) => f.properties?.name && f.geometry?.coordinates)
     .filter((f) => countryCode === 'any' || !countryCode || (f.properties.countrycode || '').toLowerCase() === countryCode.toLowerCase())
+    .filter((f) => !excludeCountryCode || (f.properties.countrycode || '').toLowerCase() !== excludeCountryCode.toLowerCase())
     .map((f) => {
       const p = f.properties
       const [lon, lat] = f.geometry.coordinates
@@ -269,6 +273,7 @@ export async function searchPlacesPrefix(query, lang, signal, countryCode = 'dz'
         display_name: parts.filter((x, i) => parts.indexOf(x) === i).join(', '),
         lat,
         lon,
+        address: { state: p.state, country_code: p.countrycode },
       }
     })
 }

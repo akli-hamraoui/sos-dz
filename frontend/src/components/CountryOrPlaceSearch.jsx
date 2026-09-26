@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from 'react'
 import { searchPlaces, searchPlacesTypeahead } from '../utils'
 import { countryOptions } from '../countries'
+import { googleMapsWanted } from '../mapBase'
+import { googlePlacePosition, searchGooglePlaces } from '../googlePlaces'
 
 // Nominatim's own display_name is a full postal-style address (street,
 // suburb, county, region, country -- see the screenshot that prompted
@@ -11,6 +13,7 @@ import { countryOptions } from '../countries'
 // searchPlacesTypeahead and searchPlaces (utils.js) normalize their
 // results to.
 function placeLabel(p) {
+  if (p.googlePrediction) return p.display_name
   const addr = p.address || {}
   const city = addr.city || addr.town || addr.village || addr.municipality
   const country = addr.country
@@ -40,6 +43,7 @@ export default function CountryOrPlaceSearch({ lang, placeholder, onSelectCountr
   const debounceRef = useRef(null)
   const abortRef = useRef(null)
   const blurTimeoutRef = useRef(null)
+  const googleSessionRef = useRef(null) // one Google billing session per search, closed by the pick
 
   useEffect(
     () => () => {
@@ -80,6 +84,20 @@ export default function CountryOrPlaceSearch({ lang, placeholder, onSelectCountr
       // neither a genuine no-match nor a Photon-specific failure leaves
       // the field worse off than before this switch.
       let results = []
+      // Google's cities first when Google Maps is enabled in Django Admin
+      // (OpenStreetMap below if it fails or finds nothing).
+      if (googleMapsWanted()) {
+        try {
+          results = await searchGooglePlaces(trimmed, { lang, countryCode: 'any', excludeCountryCode, types: ['(cities)'], sessionRef: googleSessionRef })
+        } catch {
+          results = []
+        }
+        if (controller.signal.aborted) return
+        if (results.length) {
+          setPlaceResults(results)
+          return
+        }
+      }
       try {
         results = await searchPlacesTypeahead(trimmed, lang, controller.signal)
         if (excludeCountryCode) {
@@ -113,6 +131,13 @@ export default function CountryOrPlaceSearch({ lang, placeholder, onSelectCountr
     setQuery(placeLabel(p))
     setOpen(false)
     setPlaceResults([])
+    if (p.googlePrediction) {
+      googleSessionRef.current = null
+      googlePlacePosition(p.googlePrediction)
+        .then((pos) => pos && onSelectPlace(pos))
+        .catch(() => {})
+      return
+    }
     onSelectPlace({ lat: parseFloat(p.lat), lon: parseFloat(p.lon) })
   }
 
@@ -168,6 +193,12 @@ export default function CountryOrPlaceSearch({ lang, placeholder, onSelectCountr
               📍 {placeLabel(p)}
             </li>
           ))}
+          {/* Google's terms: its suggestions carry its name. */}
+          {places.some((p) => p.googlePrediction) && (
+            <li className="place-suggestions-credit" aria-hidden="true">
+              Google
+            </li>
+          )}
         </ul>
       )}
     </div>

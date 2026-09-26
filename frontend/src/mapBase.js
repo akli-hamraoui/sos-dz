@@ -89,7 +89,14 @@ export function addBaseLayer(map, osmOptions = {}) {
   let kind = null
   const setLayer = (next, nextKind) => {
     if (!map._container) return // map already removed
-    if (layer) map.removeLayer(layer)
+    if (layer) {
+      map.removeLayer(layer)
+      // An attribution control added after this layer (the maps add theirs
+      // right after addBaseLayer) doesn't drop its credit on removal by
+      // itself: "© OpenStreetMap" stayed under the Google map. Harmless
+      // when it already did (the count doesn't go below zero).
+      if (layer.getAttribution?.()) map.attributionControl?.removeAttribution(layer.getAttribution())
+    }
     layer = next.addTo(map)
     kind = nextKind
   }
