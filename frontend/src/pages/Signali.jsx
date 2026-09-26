@@ -795,8 +795,19 @@ export default function Signali() {
   )
 
   // Back to the picked address / the GPS fix after moving the map around.
-  const centerButton = anchor && (
-    <button type="button" className="sw-center" onClick={() => setCoords({ ...anchor })} aria-label={t('signali.w.center')} title={t('signali.w.center')}>
+  // Always there next to the address: back to the picked address / GPS fix
+  // / first point placed, or -- nothing placed yet -- to the phone's own
+  // position.
+  const centerOn = async () => {
+    if (anchor) return setCoords({ ...anchor })
+    const pos = nearMe ? [nearMe.latitude, nearMe.longitude] : await getCurrentPosition({ enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 })
+    if (!pos || !isInAlgeria(pos[0], pos[1])) return
+    const here = { latitude: pos[0], longitude: pos[1] }
+    setAnchor(here)
+    onPinMove(here)
+  }
+  const centerButton = (
+    <button type="button" className="sw-center" onClick={centerOn} aria-label={t('signali.w.center')} title={t('signali.w.center')}>
       <IconLocate width={18} height={18} />
       <span>{t('signali.w.center')}</span>
     </button>
@@ -1128,11 +1139,11 @@ export default function Signali() {
               <>
                 {locMode === 'gps' && coords ? (
                   <div className="sw-place">
-                    <PinMap position={coords} onMove={onPinMove} />
                     <div className="sw-addr">
                       {centerButton}
                       <p className="sw-where">📍 {placeLabel}</p>
                     </div>
+                    <PinMap position={coords} onMove={onPinMove} />
                   </div>
                 ) : locMode === 'gps' && locStatus === 'locating' ? (
                   <p className="sw-where">{t('signali.locating')}</p>
