@@ -168,7 +168,9 @@ const NOMINATIM_BASE = 'https://nominatim.openstreetmap.org'
 // inside the wilaya the reporter picked.
 export async function searchPlaces(query, lang, signal, countryCode = 'dz', excludeCountryCode = null, viewbox = null) {
   const countryParam = countryCode === 'any' ? '' : `&countrycodes=${countryCode.toLowerCase()}`
-  const addressParam = excludeCountryCode ? '&addressdetails=1' : '&addressdetails=0'
+  // Address details: the country (for excludeCountryCode) and the wilaya
+  // (ISO3166-2-lvl4, for Signali's "only this wilaya" filter).
+  const addressParam = '&addressdetails=1'
   const boxParam = viewbox ? `&viewbox=${viewbox.join(',')}&bounded=1` : ''
   const url = `${NOMINATIM_BASE}/search?format=json${addressParam}&limit=10&accept-language=${lang}${countryParam}${boxParam}&q=${encodeURIComponent(query)}`
   const resp = await fetch(url, { signal })
@@ -271,6 +273,7 @@ export async function searchPlacesPrefix(query, lang, signal, countryCode = 'dz'
         display_name: parts.filter((x, i) => parts.indexOf(x) === i).join(', '),
         lat,
         lon,
+        address: { state: p.state, country_code: p.countrycode },
       }
     })
 }

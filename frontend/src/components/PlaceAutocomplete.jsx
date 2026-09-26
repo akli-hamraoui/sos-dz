@@ -74,7 +74,7 @@ export default function PlaceAutocomplete({ value, onChange, onSelectPlace, plac
         const prefix = searchPlacesPrefix(q, i18n.language, controller.signal, countryCode ?? 'dz', viewbox, excludeCountryCode).catch(() => [])
         const [g, n, ph] = await Promise.all([google, nominatim, prefix])
         if (controller.signal.aborted) return
-        const results = mergeSuggestions(g, keep(n), keep(ph))
+        const results = mergeSuggestions(g && keep(g), keep(n), keep(ph))
         setSuggestions(results)
         setOpen(results.length > 0)
       } catch {
