@@ -8,13 +8,14 @@ import { api, apiUpload } from '../api'
 import { translateApiError } from '../apiErrors'
 import { compressPhoto, formatDate, getCurrentPosition, isInAlgeria } from '../utils'
 import PlaceAutocomplete from '../components/PlaceAutocomplete'
-import { IconCamera, IconClose, IconExpand, IconGallery, IconLocate, IconMapPin, IconMic, IconSwitchCamera, IconTrash, IconVideoCam, IconVideoUpload } from '../icons'
+import { IconArrowLeft, IconCamera, IconClose, IconExpand, IconGallery, IconLocate, IconMic, IconSwitchCamera, IconVideoCam, IconVideoUpload } from '../icons'
 import { saveSignalementToken, signalIconSvg } from '../signali'
 import CategoryIcon from '../components/CategoryIcon'
 import { detectWilaya, reverseGeocode } from '../wilayaGeo'
 import CategoryPicker from '../components/CategoryPicker'
 import '../urgent-sos-wizard-fixes.css'
 import '../signali.css'
+import '../signali-wizard.css'
 
 // Signali: an anonymous citizen report of a dangerous or broken spot in
 // public space. Same wizard shell as UrgentSOS.jsx (stepper, cards,
@@ -25,7 +26,6 @@ import '../signali.css'
 // transcription of the voice note / the video's soundtrack happen in the
 // background (core.signalements) before it shows up on the map.
 
-const S = { LOCATION: 0, MEDIA: 1, DESCRIPTION: 2, REVIEW: 3 }
 const MAX_PHOTOS = 3
 const MAX_VIDEO_SECONDS = 20
 const MAX_VOICE_SECONDS = 120
@@ -172,7 +172,10 @@ export default function Signali() {
   const navigate = useNavigate()
   const { config, wilayas, refreshConfig } = useApp()
 
-  const [step, setStep] = useState(S.LOCATION)
+  const [mode, setMode] = useState(null) // null (the choice) | 'onsite' | 'remote'
+  const [onsiteStep, setOnsiteStep] = useState(0) // onsite: 0 photo, 1 type + details, 2 place + send
+  const [openSection, setOpenSection] = useState('place') // remote: the open section
+  const [typeTouched, setTypeTouched] = useState(false)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -256,15 +259,26 @@ export default function Signali() {
     }
   }, [coords])
 
-  const go = (n) => {
-    setError('')
-    setStep(n)
-    window.scrollTo(0, 0)
-  }
 
   // The wilaya of a position (GPS, pin, picked address): OSM's boundaries,
   // else the nearest centroid (wilayaGeo.js). The server deduces it from
   // the position too, this one is for the reporter to see.
+  // The wizard takes the whole screen (no site header / bottom bar), like
+  // an app: only its own ✕, progress and bottom buttons.
+  const fullscreen = config.signali_available !== false && !confirmedId
+  useEffect(() => {
+    if (!fullscreen) return
+    document.body.classList.add('sw-page')
+    return () => document.body.classList.remove('sw-page')
+  }, [fullscreen])
+
+  // On site but no GPS (refused, off, abroad...): the place is asked for
+  // by hand at the last step (the photos already taken are kept).
+  useEffect(() => {
+    if (mode === 'onsite' && locMode === 'gps' && locStatus === 'error') switchToManual()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, locMode, locStatus])
+
   const prefillWilaya = async ({ latitude, longitude }) => {
     const w = await detectWilaya(latitude, longitude, wilayas)
     if (w?.id) setWilaya(String(w.id))
@@ -309,13 +323,16 @@ export default function Signali() {
       setAccuracy(Number.isFinite(acc) ? Math.round(acc) : null)
       setLocStatus('success')
       prefillWilaya({ latitude, longitude })
+      reverseGeocode(latitude, longitude, i18n.language)
+        .then((label) => label && setAddress((current) => (current.trim() ? current : label)))
+        .catch(() => {})
     } catch (e) {
       setLocStatus('error')
       setError(e?.code === 1 ? t('signali.locationDenied') : t('signali.locationError'))
     }
   }
 
-  const useManual = () => {
+  const switchToManual = () => {
     setError('')
     setAdminNote(false)
     setLocMode('manual')
@@ -565,8 +582,6 @@ export default function Signali() {
     }
   }
 
-  const wilayaName = selectedWilaya?.name || ''
-  const steps = [t('signali.stepLocation'), t('signali.stepMedia'), t('signali.stepDescription'), t('signali.stepReview')]
 
   // Same rule as the server (views.signali_allowed): Algeria, or an admin.
   if (config.signali_available === false) {
@@ -601,327 +616,356 @@ export default function Signali() {
     )
   }
 
-  return (
-    <section className="urgent-sos-page signali-page">
-      <div className="urgent-sos-shell">
-        <div className="urgent-sos-kicker">📣 {t('signali.kicker')}</div>
-        <div className="urgent-sos-hero">
-          <div className="urgent-sos-icon"><IconCamera width={32} height={32} /></div>
-          <div>
-            <h1>{t('signali.title')}</h1>
-            <p>{t('signali.subtitle')}</p>
+  // --- wizard (option "sur place" / "pas devant") ---
+  const catLabel = categories.map((c) => t(`signali.categories.${c}`)).join(' · ')
+  const typeOk = typeTouched || categories[0] !== 'other'
+  const detailsOk = !!description.trim() || !!voice
+  const mediaSummary = [photos.length ? t('signali.photosCount', { count: photos.length }) : '', video ? t('signali.videoIncluded') : ''].filter(Boolean).join(' + ')
+  const placeLabel = address.trim() || (coords ? (locMode === 'gps' ? t('signali.gpsPosition') : t('signali.pinOnMap')) : '')
+
+  const chooseOnsite = () => {
+    setMode('onsite')
+    setOnsiteStep(0)
+    locate()
+    window.scrollTo(0, 0)
+  }
+  const chooseRemote = () => {
+    setMode('remote')
+    setOpenSection('place')
+    switchToManual()
+    window.scrollTo(0, 0)
+  }
+  const leave = () => navigate('/signalements')
+  const back = () => {
+    if (camera) return closeCamera()
+    setError('')
+    if (mode === 'onsite' && onsiteStep > 0) return setOnsiteStep(onsiteStep - 1)
+    setMode(null)
+  }
+  const nextOnsite = () => {
+    setError('')
+    setOnsiteStep(onsiteStep + 1)
+    window.scrollTo(0, 0)
+  }
+  const onCategories = (next) => {
+    setTypeTouched(true)
+    setCategories(next)
+  }
+
+  const nearbyBlock = coords && nearby.length > 0 && (
+    <div className="signali-nearby">
+      <strong>{t('signali.nearbyTitle')}</strong>
+      <p>{t('signali.nearbyText')}</p>
+      {nearby.map((s) => {
+        const photo = s.photos.find((p) => p.image)?.image
+        return (
+          <div className="signali-nearby-item" key={s.id}>
+            {photo ? <img src={photo} alt="" /> : <CategoryIcon category={s.category} className="signali-nearby-emoji" />}
+            <div>
+              <b>{t(`signali.categories.${s.category}`)}</b>
+              <small>{formatDate(s.created_at, i18n.language)} · {t('signali.confirmationsCount', { count: s.confirmations_count + 1 })}</small>
+            </div>
+            <button type="button" className="urgent-sos-secondary" onClick={() => confirmExisting(s.id)} disabled={busy}>
+              {t('signali.sameProblem')}
+            </button>
           </div>
+        )
+      })}
+    </div>
+  )
+
+  // Where: an address (Google / OSM suggestions) or the one-hand map.
+  const placeBlock = (
+    <div className="sw-place">
+      {adminNote && <div className="urgent-sos-location-status warning">⚠️ {t('signali.adminOutsideNote')}</div>}
+      <PlaceAutocomplete
+        id="signali-address"
+        value={address}
+        onChange={setAddress}
+        onSelectPlace={onSelectPlace}
+        placeholder={t('signali.w.searchPlace')}
+        countryCode="dz"
+        required
+      />
+      {coords && selectedWilaya && <small className="signali-wilaya-found">📍 {t('signali.detectedWilaya', { wilaya: selectedWilaya.name })}</small>}
+      <PinMap position={coords} center={manualCenter} onMove={onPinMove} />
+      {!coords && <small className="signali-hint">{address.trim() ? t('signali.noPinHint') : t('signali.tapMapHint')}</small>}
+    </div>
+  )
+
+  const mediaThumbs = (photos.length > 0 || video) && (
+    <div className="sw-shots">
+      {photos.map((p, i) => (
+        <div className="sw-shot" key={p.url}>
+          <img src={p.url} alt={t('common.photoAlt')} />
+          <button type="button" onClick={() => removePhoto(i)} aria-label={t('common.delete')}><IconClose width={13} height={13} /></button>
         </div>
-        <div className="urgent-sos-stepper">
-          {steps.map((x, i) => (
-            <div key={x} className={i <= step ? 'done' : ''} data-current={i === step}>
-              <span>{i + 1}</span>
-              <small>{x}</small>
-            </div>
-          ))}
+      ))}
+      {video && (
+        <div className="sw-shot sw-shot-video">
+          <video src={video.url} controls playsInline preload="metadata" />
+          <button type="button" onClick={() => setVideo(null)} aria-label={t('common.delete')}><IconClose width={13} height={13} /></button>
         </div>
-        <div className="urgent-sos-progress">
-          {steps.map((x, i) => <span key={x} className={i <= step ? 'active' : ''} />)}
+      )}
+    </div>
+  )
+
+  const cameraView = (
+    <div className="signali-camera">
+      <video ref={liveVideoRef} autoPlay muted playsInline />
+      {filming && (
+        <div className="urgent-sos-recording active signali-camera-timer">
+          <span className="urgent-sos-recording-dot" />
+          <strong>{mmss(videoSec)} / {mmss(MAX_VIDEO_SECONDS)}</strong>
         </div>
-
-        {step === S.LOCATION && (
-          <div className="urgent-sos-card">
-            <h2>{t('signali.locationTitle')}</h2>
-            <p>{t('signali.locationText')}</p>
-            <div className="signali-choice-row">
-              <button type="button" className={`signali-choice${locMode === 'gps' ? ' selected' : ''}`} onClick={locate} disabled={locStatus === 'locating'}>
-                <IconLocate width={22} height={22} />
-                <span>{locStatus === 'locating' ? t('signali.locating') : t('signali.useLocation')}</span>
-              </button>
-              <button type="button" className={`signali-choice${locMode === 'manual' ? ' selected' : ''}`} onClick={useManual}>
-                <IconMapPin width={22} height={22} />
-                <span>{t('signali.typeAddress')}</span>
-              </button>
-            </div>
-
-            {locMode === 'gps' && locStatus === 'success' && coords && (
-              <div className="urgent-sos-location-status success">
-                ✓ {t('signali.locationDetected')}{accuracy ? ` · ±${accuracy} m` : ''}
-              </div>
-            )}
-            {locStatus === 'error' && (
-              <div className="urgent-sos-location-status error">
-                <span>{error || t('signali.locationError')}</span>
-                <button type="button" className="signali-link" onClick={useManual}>{t('signali.typeAddressInstead')}</button>
-              </div>
-            )}
-
-            {adminNote && <div className="urgent-sos-location-status warning">⚠️ {t('signali.adminOutsideNote')}</div>}
-
-            {locMode === 'manual' && (
-              <div className="signali-fields">
-                <label htmlFor="signali-address">{t('signali.addressLabel')} *</label>
-                <PlaceAutocomplete
-                  id="signali-address"
-                  value={address}
-                  onChange={setAddress}
-                  onSelectPlace={onSelectPlace}
-                  placeholder={t('signali.addressPlaceholder')}
-                  countryCode="dz"
-                  required
-                />
-                {coords && selectedWilaya && <small className="signali-wilaya-found">📍 {t('signali.detectedWilaya', { wilaya: selectedWilaya.name })}</small>}
-                <span className="signali-fields-title">{t('signali.pickOnMap')}</span>
-                <PinMap position={coords} center={manualCenter} onMove={onPinMove} />
-                <small className="signali-hint">{coords ? t('signali.dragPinHint') : t('signali.tapMapHint')}</small>
-                {!coords && address.trim() && <small className="signali-hint">{t('signali.noPinHint')}</small>}
-              </div>
-            )}
-
-            {locMode === 'gps' && coords && (
-              <>
-                <PinMap position={coords} onMove={setCoords} />
-                <small className="signali-hint">{t('signali.dragPinHint')}</small>
-              </>
-            )}
-
-            {coords && nearby.length > 0 && (
-              <div className="signali-nearby">
-                <strong>{t('signali.nearbyTitle')}</strong>
-                <p>{t('signali.nearbyText')}</p>
-                {nearby.map((s) => {
-                  const photo = s.photos.find((p) => p.image)?.image
-                  return (
-                    <div className="signali-nearby-item" key={s.id}>
-                      {photo ? <img src={photo} alt="" /> : <CategoryIcon category={s.category} className="signali-nearby-emoji" />}
-                      <div>
-                        <b>{t(`signali.categories.${s.category}`)}</b>
-                        <small>{formatDate(s.created_at, i18n.language)} · {t('signali.confirmationsCount', { count: s.confirmations_count + 1 })}</small>
-                      </div>
-                      <button type="button" className="urgent-sos-secondary" onClick={() => confirmExisting(s.id)} disabled={busy}>
-                        {t('signali.sameProblem')}
-                      </button>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-
-            {error && locStatus !== 'error' && <p className="urgent-sos-error">{error}</p>}
-            <div className="urgent-sos-actions">
-              <Link to="/signalements" className="urgent-sos-secondary">{t('signali.cancel')}</Link>
-              <button type="button" className="urgent-sos-primary" onClick={() => go(S.MEDIA)} disabled={!locationOk}>
-                {coords && nearby.length ? t('signali.otherProblem') : t('signali.continue')}
-              </button>
-            </div>
-            {!locationOk && <small className="signali-hint">{t('signali.locationRequired')}</small>}
-          </div>
+      )}
+      <div className="signali-camera-actions">
+        {!filming && <button type="button" className="urgent-sos-secondary" onClick={closeCamera}>{t('common.cancel')}</button>}
+        {!filming && (
+          <button type="button" className="signali-icon-btn" onClick={switchCamera} aria-label={t('signali.switchCamera')}>
+            <IconSwitchCamera width={20} height={20} />
+          </button>
         )}
-
-        {step === S.MEDIA && (
-          <div className="urgent-sos-card">
-            <h2>{t('signali.mediaTitle')}</h2>
-            <p>{t('signali.mediaText')}</p>
-
-            {camera ? (
-              <div className="signali-camera">
-                <video ref={liveVideoRef} autoPlay muted playsInline />
-                {filming && (
-                  <div className="urgent-sos-recording active signali-camera-timer">
-                    <span className="urgent-sos-recording-dot" />
-                    <strong>{mmss(videoSec)} / {mmss(MAX_VIDEO_SECONDS)}</strong>
-                  </div>
-                )}
-                <div className="signali-camera-actions">
-                  {!filming && (
-                    <button type="button" className="urgent-sos-secondary" onClick={closeCamera}>{t('common.cancel')}</button>
-                  )}
-                  {!filming && (
-                    <button type="button" className="signali-icon-btn" onClick={switchCamera} aria-label={t('signali.switchCamera')}>
-                      <IconSwitchCamera width={20} height={20} />
-                    </button>
-                  )}
-                  {filming ? (
-                    <button type="button" className="urgent-sos-danger" onClick={stopRecorder}>⏹ {t('signali.stop')}</button>
-                  ) : (
-                    <button type="button" className="urgent-sos-primary" onClick={startFilming}>● {t('signali.record')}</button>
-                  )}
-                </div>
-                <small className="signali-hint">{t('signali.videoTalkHint')}</small>
-              </div>
-            ) : (
-              <>
-                <div className="signali-choice-row">
-                  <label className={`signali-choice${photos.length >= MAX_PHOTOS ? ' disabled' : ''}`}>
-                    <IconCamera width={22} height={22} />
-                    <span>{t('signali.takePhoto')}</span>
-                    <small>{photos.length}/{MAX_PHOTOS}</small>
-                    <input type="file" accept="image/*" capture="environment" onChange={addPhotos} hidden disabled={photos.length >= MAX_PHOTOS} />
-                  </label>
-                  <button type="button" className="signali-choice" onClick={startVideo} disabled={!!video}>
-                    <IconVideoCam width={22} height={22} />
-                    <span>{t('signali.recordVideo')}</span>
-                    <small>{t('signali.videoMax', { max: MAX_VIDEO_SECONDS })}</small>
-                  </button>
-                  <input id="signali-video-file" type="file" accept="video/*" capture="environment" onChange={pickVideoFile} hidden />
-                </div>
-                <div className="signali-gallery-row">
-                  <label className={`signali-gallery-btn${photos.length >= MAX_PHOTOS ? ' disabled' : ''}`}>
-                    <IconGallery width={22} height={22} />
-                    <span>{t('signali.fromGallery')}</span>
-                    <input type="file" accept="image/*" multiple onChange={addPhotos} hidden disabled={photos.length >= MAX_PHOTOS} />
-                  </label>
-                  <label className={`signali-gallery-btn${video ? ' disabled' : ''}`}>
-                    <IconVideoUpload width={22} height={22} />
-                    <span>
-                      {t('signali.videoFromGallery')}
-                      <small>{t('signali.videoFromGalleryMax', { size: MAX_VIDEO_MB })}</small>
-                    </span>
-                    <input type="file" accept="video/*" onChange={(e) => pickVideoFile(e, { fromGallery: true })} hidden disabled={!!video} />
-                  </label>
-                </div>
-
-                {(photos.length > 0 || video) && (
-                  <div className="signali-thumbs">
-                    {photos.map((p, i) => (
-                      <div className="signali-thumb" key={p.url}>
-                        <img src={p.url} alt={t('common.photoAlt')} />
-                        <button type="button" onClick={() => removePhoto(i)} aria-label={t('common.delete')}><IconTrash width={14} height={14} /></button>
-                      </div>
-                    ))}
-                    {video && (
-                      <div className="signali-thumb signali-thumb-video">
-                        <video src={video.url} controls playsInline />
-                        <button type="button" onClick={() => setVideo(null)} aria-label={t('common.delete')}><IconTrash width={14} height={14} /></button>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </>
-            )}
-
-            {error && <p className="urgent-sos-error">{error}</p>}
-            {!camera && (
-              <div className="urgent-sos-actions">
-                <button type="button" className="urgent-sos-secondary" onClick={() => go(S.LOCATION)}>{t('signali.previous')}</button>
-                <button type="button" className="urgent-sos-primary" onClick={() => go(S.DESCRIPTION)} disabled={!mediaOk}>{t('signali.continue')}</button>
-              </div>
-            )}
-            {!mediaOk && !camera && <small className="signali-hint">{t('signali.mediaRequired')}</small>}
-          </div>
+        {filming ? (
+          <button type="button" className="urgent-sos-danger" onClick={stopRecorder}>⏹ {t('signali.stop')}</button>
+        ) : (
+          <button type="button" className="urgent-sos-primary" onClick={startFilming}>● {t('signali.record')}</button>
         )}
+      </div>
+      <small className="signali-hint">{t('signali.videoTalkHint')}</small>
+    </div>
+  )
 
-        {step === S.DESCRIPTION && (
-          <div className="urgent-sos-card">
-            <h2>{t('signali.descriptionTitle')}</h2>
-            <p>{t('signali.descriptionText')}</p>
-            <CategoryPicker value={categories} onChange={setCategories} />
-            {categories[0] === 'other' && <small className="signali-hint">{t('signali.otherCategoryHint')}</small>}
+  // Photo / video sources: the camera first on site, the gallery first
+  // from elsewhere.
+  const photoFull = photos.length >= MAX_PHOTOS
+  const sources = {
+    photo: (
+      <label key="photo" className={`sw-src${photoFull ? ' is-off' : ''}`}>
+        <span className="sw-ico is-navy"><IconCamera width={22} height={22} /></span>
+        <b>{t('signali.w.takePhoto')}<small>{photos.length}/{MAX_PHOTOS}</small></b>
+        <input type="file" accept="image/*" capture="environment" onChange={addPhotos} hidden disabled={photoFull} />
+      </label>
+    ),
+    video: (
+      <button key="video" type="button" className={`sw-src${video ? ' is-off' : ''}`} onClick={startVideo} disabled={!!video}>
+        <span className="sw-ico"><IconVideoCam width={22} height={22} /></span>
+        <b>{t('signali.w.filmVideo')}<small>{t('signali.videoMax', { max: MAX_VIDEO_SECONDS })}</small></b>
+      </button>
+    ),
+    gallery: (
+      <label key="gallery" className={`sw-src${photoFull ? ' is-off' : ''}`}>
+        <span className="sw-ico is-navy"><IconGallery width={22} height={22} /></span>
+        <b>{t('signali.w.gallery')}<small>{photos.length}/{MAX_PHOTOS}</small></b>
+        <input type="file" accept="image/*" multiple onChange={addPhotos} hidden disabled={photoFull} />
+      </label>
+    ),
+    galleryVideo: (
+      <label key="galleryVideo" className={`sw-src${video ? ' is-off' : ''}`}>
+        <span className="sw-ico"><IconVideoUpload width={22} height={22} /></span>
+        <b>{t('signali.w.galleryVideo')}<small>{t('signali.videoFromGalleryMax', { size: MAX_VIDEO_MB })}</small></b>
+        <input type="file" accept="video/*" onChange={(e) => pickVideoFile(e, { fromGallery: true })} hidden disabled={!!video} />
+      </label>
+    ),
+  }
+  const mediaBlock = (galleryFirst) =>
+    camera ? (
+      cameraView
+    ) : (
+      <>
+        {mediaThumbs}
+        <div className="sw-sources">
+          {(galleryFirst ? ['gallery', 'galleryVideo', 'photo', 'video'] : ['photo', 'video', 'gallery', 'galleryVideo']).map((k) => sources[k])}
+        </div>
+        <input id="signali-video-file" type="file" accept="video/*" capture="environment" onChange={pickVideoFile} hidden />
+      </>
+    )
 
-            <label htmlFor="signali-description" className="signali-label">{t('signali.textLabel')} <small>({t('common.optional')})</small></label>
-            <textarea id="signali-description" rows={3} value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t('signali.textPlaceholder')} maxLength={2000} />
+  const voiceBlock = recordingVoice ? (
+    <div className="sw-rec">
+      <span className="sw-rec-dot" />
+      <b>{mmss(voiceSec)}</b>
+      <span className="sw-wave" aria-hidden="true">
+        {Array.from({ length: 14 }, (_, i) => <i key={i} style={{ animationDelay: `${(i % 7) * 0.09}s` }} />)}
+      </span>
+      <button type="button" onClick={stopRecorder}>{t('signali.stop')}</button>
+    </div>
+  ) : voice ? (
+    <div className="sw-audio">
+      <audio src={voice.url} controls preload="metadata" />
+      <button type="button" onClick={() => setVoice(null)}>{t('signali.rerecord')}</button>
+    </div>
+  ) : (
+    <button type="button" className="sw-src sw-voice" onClick={startVoice}>
+      <span className="sw-ico is-red"><IconMic width={20} height={20} /></span>
+      <b>{t('signali.w.voice')}<small>{t('signali.w.optional')}</small></b>
+    </button>
+  )
+  const detailsBlock = (
+    <>
+      <textarea id="signali-description" className="sw-text" rows={3} value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t('signali.w.detailPlaceholder')} maxLength={2000} aria-label={t('signali.textLabel')} />
+      {voiceBlock}
+    </>
+  )
 
-            <div className="signali-label">{t('signali.voiceLabel')} <small>({t('common.optional')})</small></div>
-            {recordingVoice ? (
-              <div className="urgent-sos-actions">
-                <div className="urgent-sos-recording active">
-                  <IconMic width={20} height={20} />
-                  <span className="urgent-sos-recording-dot" />
-                  <strong>{mmss(voiceSec)}</strong>
-                </div>
-                <button type="button" className="urgent-sos-danger" onClick={stopRecorder}>⏹ {t('signali.stop')}</button>
-              </div>
-            ) : voice ? (
-              <div className="signali-voice">
-                <audio src={voice.url} controls />
-                <button type="button" className="urgent-sos-secondary" onClick={() => setVoice(null)}>{t('signali.rerecord')}</button>
-              </div>
-            ) : (
-              <button type="button" className="signali-choice signali-choice-wide" onClick={startVoice}>
-                <IconMic width={22} height={22} />
-                <span>{t('signali.recordVoice')}</span>
+  const turnstile = config.turnstile_enabled && (
+    <div
+      className="cf-turnstile urgent-sos-turnstile"
+      data-sitekey={config.turnstile_site_key}
+      data-callback="onSignaliTurnstileToken"
+      ref={(el) => {
+        if (el) window.onSignaliTurnstileToken = (v) => (window.__turnstileToken = v)
+      }}
+    />
+  )
+  const errorLine = error && <p className="urgent-sos-error">{error}</p>
+  const sendButton = (
+    <button type="button" className="sw-next is-full" onClick={submit} disabled={busy || !locationOk || !mediaOk || recordingVoice}>
+      {busy ? t('signali.sending') : t('signali.w.send')}
+    </button>
+  )
+
+  // GPS state, top right, on site.
+  const gpsChip =
+    locMode === 'gps' && locStatus === 'locating' ? (
+      <span className="sw-chip">{t('signali.locating')}</span>
+    ) : coords && locMode === 'gps' ? (
+      <span className="sw-chip is-ok">📍 {selectedWilaya?.name || t('signali.w.gpsOk')}{accuracy ? ` · ±${accuracy} m` : ''}</span>
+    ) : (
+      <span className="sw-chip is-warn">📍 {t('signali.w.placeToSet')}</span>
+    )
+
+  const badge = (ok, optional) =>
+    ok ? <span className="sw-badge is-ok">✓ {t('signali.w.done')}</span> : <span className="sw-badge">{optional ? t('signali.w.optional') : t('signali.w.todo')}</span>
+  const section = (key, n, title, ok, summary, body, { optional = false, next } = {}) => {
+    const open = openSection === key
+    return (
+      <div className={`sw-acc${open ? ' is-open' : ''}${ok && !open ? ' is-ok' : ''}`}>
+        <button type="button" className="sw-acc-head" onClick={() => setOpenSection(open ? null : key)} aria-expanded={open}>
+          <b>{n}. {title}</b>
+          {badge(ok, optional)}
+          {!open && summary && <small>{summary}</small>}
+        </button>
+        {open && (
+          <div className="sw-acc-body">
+            {body}
+            {next && (
+              <button type="button" className="sw-acc-next" onClick={() => setOpenSection(next)} disabled={!ok && !optional}>
+                {t('signali.continue')}
               </button>
             )}
-            <small className="signali-hint">{t('signali.voiceHint')}</small>
-
-            {error && <p className="urgent-sos-error">{error}</p>}
-            <div className="urgent-sos-actions">
-              <button type="button" className="urgent-sos-secondary" onClick={() => go(S.MEDIA)} disabled={recordingVoice}>{t('signali.previous')}</button>
-              <button type="button" className="urgent-sos-primary" onClick={() => go(S.REVIEW)} disabled={recordingVoice}>{t('signali.continue')}</button>
-            </div>
-          </div>
-        )}
-
-        {step === S.REVIEW && (
-          <div className="urgent-sos-validation-panel">
-            <h2>{t('signali.reviewTitle')}</h2>
-            <ul className="signali-summary">
-              <li>
-                <span>📍</span>
-                <div>
-                  <b>{address.trim() || (locMode === 'gps' ? t('signali.gpsPosition') : coords ? t('signali.pinOnMap') : '')}</b>
-                  <small>{wilayaName}{accuracy && locMode === 'gps' ? ` · ±${accuracy} m` : ''}</small>
-                </div>
-              </li>
-              <li>
-                <CategoryIcon category={categories[0]} />
-                <div className="signali-summary-types">
-                  {categories.map((c) => (
-                    <span key={c} className="signali-type-pill">
-                      <CategoryIcon category={c} /> {t(`signali.categories.${c}`)}
-                    </span>
-                  ))}
-                </div>
-              </li>
-              <li>
-                <span>🖼️</span>
-                <div>
-                  <b>{[photos.length ? t('signali.photosCount', { count: photos.length }) : '', video ? t('signali.videoIncluded') : ''].filter(Boolean).join(' + ')}</b>
-                  {/* Look at everything before sending: tap a photo to open it. */}
-                  <div className="signali-review-media">
-                    {photos.map((p) => (
-                      <a key={p.url} href={p.url} target="_blank" rel="noreferrer" className="signali-review-photo">
-                        <img src={p.url} alt={t('common.photoAlt')} />
-                      </a>
-                    ))}
-                  </div>
-                  {video && <video className="signali-review-video" src={video.url} controls playsInline preload="metadata" />}
-                </div>
-              </li>
-              {voice && (
-                <li>
-                  <span>🎙️</span>
-                  <div>
-                    <b>{t('signali.voiceIncluded')}</b>
-                    <audio className="signali-review-audio" src={voice.url} controls preload="metadata" />
-                  </div>
-                </li>
-              )}
-              {description.trim() && (
-                <li>
-                  <span>💬</span>
-                  <div>
-                    <b className="signali-review-text">{description.trim()}</b>
-                  </div>
-                </li>
-              )}
-            </ul>
-            <p className="signali-review-note">🔒 {t('signali.reviewShortNote')}</p>
-            {config.turnstile_enabled && (
-              <div
-                className="cf-turnstile urgent-sos-turnstile"
-                data-sitekey={config.turnstile_site_key}
-                data-callback="onSignaliTurnstileToken"
-                ref={(el) => {
-                  if (el) window.onSignaliTurnstileToken = (v) => (window.__turnstileToken = v)
-                }}
-              />
-            )}
-            {error && <p className="urgent-sos-error">{error}</p>}
-            <div className="urgent-sos-actions">
-              <button type="button" className="urgent-sos-secondary" onClick={() => go(S.DESCRIPTION)} disabled={busy}>{t('signali.previous')}</button>
-              <button type="button" className="urgent-sos-primary" onClick={submit} disabled={busy}>
-                📣 {busy ? t('signali.sending') : t('signali.send')}
-              </button>
-            </div>
           </div>
         )}
       </div>
+    )
+  }
+
+  const onsiteTitles = [t('signali.w.photoTitle'), t('signali.w.typeTitle'), catLabel]
+  const canNext = onsiteStep === 0 ? mediaOk && !camera : !recordingVoice
+
+  return (
+    <section className="sw">
+      <header className="sw-top">
+        <button type="button" className="sw-x" onClick={mode ? back : leave} aria-label={mode ? t('signali.previous') : t('common.close')}>
+          {mode ? <IconArrowLeft width={18} height={18} /> : <IconClose width={18} height={18} />}
+        </button>
+        {mode === 'remote' && <b className="sw-top-title">{t('signali.w.newReport')}</b>}
+        {mode === 'onsite' ? gpsChip : <span className="sw-top-spacer" />}
+      </header>
+      {mode === 'onsite' && (
+        <div className="sw-bar">
+          <i style={{ width: `${((onsiteStep + 1) / 3) * 100}%` }} />
+        </div>
+      )}
+
+      {!mode && (
+        <div className="sw-body">
+          <h1 className="sw-title">{t('signali.w.title')}</h1>
+          <button type="button" className="sw-mode is-main" onClick={chooseOnsite}>
+            <span className="sw-ico is-navy is-big"><IconCamera width={28} height={28} /></span>
+            <span>
+              <b>{t('signali.w.onsite')}</b>
+              <small>{t('signali.w.onsiteSub')}</small>
+              <em>{t('signali.w.fast')}</em>
+            </span>
+          </button>
+          <button type="button" className="sw-mode" onClick={chooseRemote}>
+            <span className="sw-ico is-big"><IconGallery width={28} height={28} /></span>
+            <span>
+              <b>{t('signali.w.remote')}</b>
+              <small>{t('signali.w.remoteSub')}</small>
+            </span>
+          </button>
+        </div>
+      )}
+
+      {mode === 'onsite' && (
+        <>
+          <div className="sw-body">
+            <h1 className="sw-title">{onsiteTitles[onsiteStep]}</h1>
+            {onsiteStep === 0 && mediaBlock(false)}
+            {onsiteStep === 1 && (
+              <>
+                <CategoryPicker value={categories} onChange={onCategories} />
+                {detailsBlock}
+              </>
+            )}
+            {onsiteStep === 2 && (
+              <>
+                {locMode === 'gps' && coords ? (
+                  <div className="sw-place">
+                    <PinMap position={coords} onMove={onPinMove} />
+                    <p className="sw-where">📍 {placeLabel}{selectedWilaya && !placeLabel.includes(selectedWilaya.name) ? ` · ${selectedWilaya.name}` : ''}</p>
+                  </div>
+                ) : locMode === 'gps' && locStatus === 'locating' ? (
+                  <p className="sw-where">{t('signali.locating')}</p>
+                ) : (
+                  placeBlock
+                )}
+                {nearbyBlock}
+                <div className="sw-recap">
+                  {photos[0] ? <img src={photos[0].url} alt="" /> : <span className="sw-ico"><IconVideoCam width={22} height={22} /></span>}
+                  <span>
+                    <b>{mediaSummary}</b>
+                    <small>{[description.trim() ? t('signali.w.withText') : '', voice ? t('signali.w.voice') : ''].filter(Boolean).join(' · ')}</small>
+                  </span>
+                </div>
+                {turnstile}
+              </>
+            )}
+            {errorLine}
+          </div>
+          <footer className="sw-foot">
+            {onsiteStep < 2 ? (
+              <>
+                <button type="button" className="sw-back" onClick={back} disabled={recordingVoice || filming}>{t('signali.previous')}</button>
+                <button type="button" className="sw-next" onClick={nextOnsite} disabled={!canNext}>{t('signali.w.next')}</button>
+              </>
+            ) : (
+              sendButton
+            )}
+          </footer>
+        </>
+      )}
+
+      {mode === 'remote' && (
+        <>
+          <div className="sw-body">
+            {section('place', 1, t('signali.w.place'), locationOk, placeLabel, (
+              <>
+                {placeBlock}
+                {nearbyBlock}
+              </>
+            ), { next: 'media' })}
+            {section('media', 2, t('signali.w.media'), mediaOk, mediaSummary, mediaBlock(true), { next: 'type' })}
+            {section('type', 3, t('signali.w.type'), typeOk, typeOk ? catLabel : '', <CategoryPicker value={categories} onChange={onCategories} />, { next: 'details' })}
+            {section('details', 4, t('signali.w.details'), detailsOk, [description.trim() ? t('signali.w.withText') : '', voice ? t('signali.w.voice') : ''].filter(Boolean).join(' · '), detailsBlock, { optional: true })}
+            {turnstile}
+            {errorLine}
+          </div>
+          <footer className="sw-foot">{sendButton}</footer>
+        </>
+      )}
     </section>
   )
 }
