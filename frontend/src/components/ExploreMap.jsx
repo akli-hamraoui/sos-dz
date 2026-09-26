@@ -7,6 +7,7 @@ import { getCurrentPosition, haversineKm, isInAlgeria } from '../utils'
 import { addBaseLayer } from '../mapBase'
 import { IconLocate, IconPlus } from '../icons'
 import '../explore.css'
+import { useBackLayer } from '../backButton'
 
 // The "explore" map shared by every map page (Signalements, SOS/Besoins,
 // collection points in Algeria and abroad, deliveries), Airbnb style: the
@@ -289,6 +290,17 @@ export default function ExploreMap({
     fitKeyRef.current = fitKey
   }, [fitKey])
   const [zoomTick, setZoomTick] = useState(0)
+
+  // The phone's back button closes what's open over the map before
+  // leaving the page: the filters, the card of a tapped pin, the list
+  // pulled up full screen.
+  useBackLayer(filtersOpen, () => setFiltersOpen(false))
+  useBackLayer(!wide && sheet === 'card', () => {
+    setSheet('peek')
+    setSelectedId(null)
+    overlayRef.current?.clearLayers()
+  })
+  useBackLayer(!wide && sheet === 'full', () => setSheet('half'))
 
   // `fresh`: the user moved the map (the carousel starts over); a data
   // refresh or the sheet moving keeps the current card.

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { Navigate, Routes, Route, Link, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useApp } from './context/AppContext'
+import { useBackLayer } from './backButton'
 import { setLanguage, getStoredLanguage } from './i18n'
 import { getCsrfToken } from './api'
 import { formatBadgeCount } from './utils'
@@ -356,6 +357,7 @@ export default function App() {
   const { t } = useTranslation()
   const { config, isOnline, syncMessage } = useApp()
   const [navOpen, setNavOpen] = useState(false)
+  useBackLayer(navOpen, () => setNavOpen(false)) // the phone's back button closes the menu
   const location = useLocation()
   const isActive = (path) => location.pathname === path
 

@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react'
+import { useBackLayer } from '../backButton'
 import { useTranslation } from 'react-i18next'
 
 const DialogContext = createContext(null)
@@ -59,6 +60,8 @@ export function DialogProvider({ children }) {
   const handleCancel = () => {
     finish(state.type === 'confirm' ? false : state.type === 'prompt' ? null : undefined)
   }
+  // The phone's back button = Cancel.
+  useBackLayer(!!state, handleCancel)
 
   return (
     <DialogContext.Provider value={{ showAlert, showConfirm, showPrompt }}>

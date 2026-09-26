@@ -15,6 +15,7 @@ import CopyButton from '../components/CopyButton'
 import ModerationBadge from '../components/ModerationBadge'
 import PickupManager from '../components/PickupManager'
 import { attachMapPopupBehavior } from '../mapMarkers'
+import { useBackLayer } from '../backButton'
 
 function statusLabel(t, s) {
   return t(`status.${s}`, s)
@@ -33,6 +34,7 @@ export default function NeedDetail() {
   const [canSeeLiveMap, setCanSeeLiveMap] = useState(false)
   const [routeInfo, setRouteInfo] = useState(null)
   const [lightbox, setLightbox] = useState(null) // { src } for a full-size image preview
+  useBackLayer(!!lightbox, () => setLightbox(null)) // the phone's back button closes it
   const [anonymizingNeed, setAnonymizingNeed] = useState(false)
   const [editingNeed, setEditingNeed] = useState(false)
   const [editForm, setEditForm] = useState(null)

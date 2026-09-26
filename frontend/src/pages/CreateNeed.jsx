@@ -8,6 +8,7 @@ import { compressPhoto, isInAlgeria, reverseGeocodePlace, validityMessageProps }
 import { translateApiError } from '../apiErrors'
 import { IconMapPin, IconMic, IconVideoCam, IconCamera, IconTrash, IconSwitchCamera, IconPlay } from '../icons'
 import PlaceAutocomplete from '../components/PlaceAutocomplete'
+import { useBackLayer } from '../backButton'
 
 const DEFAULT_FORM = {
   campaign: '',
@@ -66,6 +67,7 @@ export default function CreateNeed() {
   // { src } for a full-size preview of a damage photo thumbnail -- same
   // lightbox pattern as NeedDetail.jsx's own damage-photo gallery.
   const [lightbox, setLightbox] = useState(null)
+  useBackLayer(!!lightbox, () => setLightbox(null)) // the phone's back button closes it
   // The live camera stream shown in the video modal *before* recording
   // starts, so the reporter can see what's actually framed (and switch
   // front/back) before committing -- same stream object gets reused as the

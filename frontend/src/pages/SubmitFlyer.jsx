@@ -6,6 +6,7 @@ import { translateApiError } from '../apiErrors'
 import { IconCamera, IconCopy, IconReplay, IconTrash } from '../icons'
 import '../urgent-sos-wizard-fixes.css'
 import '../submit-flyer-wizard.css'
+import { useBackSteps } from '../backButton'
 
 // Upload a flyer photo and let the backend's Gemini-vision pipeline
 // (core.gemini_extraction) propose one or more collection points from it
@@ -48,6 +49,8 @@ export default function SubmitFlyer() {
     setError('')
     setStep(n)
   }
+  // The phone's back button: from the details back to the photo.
+  useBackSteps(result ? 0 : step, () => go(S.PHOTO))
 
   const copyTrackingCode = async (code) => {
     if (!code) return
