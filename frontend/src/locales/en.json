@@ -757,12 +757,12 @@
     "locationError": "Could not get your location.",
     "locationOutsideAlgeria": "Your location seems to be outside Algeria. Type the address of the problem.",
     "addressLabel": "Address or place (street, area, landmark)",
-    "addressPlaceholder": "E.g. Rue Didouche Mourad, near the post office",
+    "addressPlaceholder": "E.g. Rue Didouche Mourad, Algiers",
     "wilayaLabel": "Wilaya",
     "wilayaPlaceholder": "Search a wilaya (name or number)",
     "communeLabel": "Commune",
     "dragPinHint": "Slide the map with one finger to put the pin on the exact spot (or tap the spot).",
-    "locationRequired": "Give your GPS location or an address with its wilaya to continue.",
+    "locationRequired": "Give your GPS position, or the place (picked from the list or placed on the map) to continue.",
     "nearbyTitle": "Already reported here?",
     "nearbyText": "These problems were already reported less than 100 m away. If it's the same one, confirm it instead of creating a new report.",
     "sameProblem": "It's the same",
@@ -853,7 +853,7 @@
     "tapMapHint": "Slide the map with one finger to the exact spot of the problem, or tap it.",
     "coordsLabel": "GPS coordinates",
     "placeCoords": "Place",
-    "noPinHint": "Without a pin on the map, the report will show in its wilaya's \"no location\" bubble.",
+    "noPinHint": "Pick an address from the list, or place the point on the map: the wilaya is deduced from it.",
     "algeriaOnly": "Signali is only available from Algeria. You can still browse the reports map.",
     "cancelConfirm": "Cancel this report? It will no longer show on the map.",
     "statusSaved": "Status updated.",
@@ -924,7 +924,8 @@
     "geolocated": "Geolocated",
     "approxLocation": "Wilaya centre",
     "categoriesHint": "Up to {{max}} types. The first one picked is the main type.",
-    "videoFromGalleryMax": "{{size}} MB max"
+    "videoFromGalleryMax": "{{size}} MB max",
+    "detectedWilaya": "Wilaya: {{wilaya}}"
   },
   "explore": {
     "inAreaShort_one": "{{count}} here",
