@@ -975,7 +975,9 @@
       "todo": "مطلوب",
       "optional": "اختياري",
       "modeVideo": "فيديو",
-      "modePhoto": "صورة"
+      "modePhoto": "صورة",
+      "center": "توسيط",
+      "camHint": "المس صورة مصغرة لحذفها · {{max}} صور كحد أقصى"
     }
   },
   "explore": {

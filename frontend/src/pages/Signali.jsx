@@ -176,6 +176,8 @@ export default function Signali() {
   const [onsiteStep, setOnsiteStep] = useState(0) // onsite: 0 photo, 1 type + details, 2 place + send
   const [openSection, setOpenSection] = useState('place') // remote: the open section
   const [typeTouched, setTypeTouched] = useState(false)
+  const [detailsSeen, setDetailsSeen] = useState(false) // remote: Envoyer only once every step was gone through
+  const [anchor, setAnchor] = useState(null) // the picked address's / the GPS fix's position, for "Centrer"
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -324,6 +326,7 @@ export default function Signali() {
         return
       }
       setCoords({ latitude, longitude })
+      setAnchor({ latitude, longitude })
       setAccuracy(Number.isFinite(acc) ? Math.round(acc) : null)
       setLocStatus('success')
       prefillWilaya({ latitude, longitude })
@@ -366,6 +369,7 @@ export default function Signali() {
     if (!isInAlgeria(lat, lon)) return
     const next = { latitude: lat, longitude: lon }
     setCoords(next)
+    setAnchor(next)
     prefillWilaya(next)
   }
 
@@ -648,6 +652,26 @@ export default function Signali() {
   }
 
 
+  // Not in front of it: a step that becomes valid folds itself (after a
+  // short pause, restarted by every change so it never closes under the
+  // finger) and the next one to do opens. One reopened while already
+  // valid stays open until closed by hand.
+  const okBySection = { place: locationOk, media: mediaOk, type: typeTouched || categories[0] !== 'other' }
+  const okAtOpenRef = useRef(false)
+  useEffect(() => {
+    okAtOpenRef.current = !!okBySection[openSection]
+    if (openSection === 'details') setDetailsSeen(true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openSection])
+  useEffect(() => {
+    if (mode !== 'remote' || !okBySection[openSection] || okAtOpenRef.current || camera || filming) return
+    const order = ['place', 'media', 'type', 'details']
+    const next = order.slice(order.indexOf(openSection) + 1).find((k) => k === 'details' || !okBySection[k])
+    const id = setTimeout(() => setOpenSection(next), openSection === 'place' ? 1200 : 2000)
+    return () => clearTimeout(id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, openSection, locationOk, mediaOk, typeTouched, categories, coords, address, photos.length, video, camera, filming])
+
   // Same rule as the server (views.signali_allowed): Algeria, or an admin.
   if (config.signali_available === false) {
     return (
@@ -750,20 +774,30 @@ export default function Signali() {
     </div>
   )
 
+  // Back to the picked address / the GPS fix after moving the map around.
+  const centerButton = anchor && (
+    <button type="button" className="sw-center" onClick={() => setCoords({ ...anchor })} aria-label={t('signali.w.center')} title={t('signali.w.center')}>
+      <IconLocate width={18} height={18} />
+      <span>{t('signali.w.center')}</span>
+    </button>
+  )
+
   // Where: an address (Google / OSM suggestions) or the one-hand map.
   const placeBlock = (
     <div className="sw-place">
       {adminNote && <div className="urgent-sos-location-status warning">⚠️ {t('signali.adminOutsideNote')}</div>}
-      <PlaceAutocomplete
-        id="signali-address"
-        value={address}
-        onChange={setAddress}
-        onSelectPlace={onSelectPlace}
-        placeholder={t('signali.w.searchPlace')}
-        countryCode="dz"
-        required
-      />
-      {coords && selectedWilaya && <small className="signali-wilaya-found">📍 {t('signali.detectedWilaya', { wilaya: selectedWilaya.name })}</small>}
+      <div className="sw-addr">
+        {centerButton}
+        <PlaceAutocomplete
+          id="signali-address"
+          value={address}
+          onChange={setAddress}
+          onSelectPlace={onSelectPlace}
+          placeholder={t('signali.w.searchPlace')}
+          countryCode="dz"
+          required
+        />
+      </div>
       <PinMap position={coords} center={manualCenter} onMove={onPinMove} />
       {!coords && <small className="signali-hint">{address.trim() ? t('signali.noPinHint') : t('signali.tapMapHint')}</small>}
     </div>
@@ -937,7 +971,7 @@ export default function Signali() {
   }
 
   const onsiteTitles = [t('signali.w.photoTitle'), t('signali.w.typeTitle'), catLabel]
-  const canNext = onsiteStep === 0 ? mediaOk && !camera : !recordingVoice
+  const canNext = onsiteStep === 0 ? mediaOk && !camera : typeOk && !recordingVoice
 
   // On site, step 1: the live camera, full screen.
   if (mode === 'onsite' && onsiteStep === 0 && (camera || camOpening)) {
@@ -958,6 +992,7 @@ export default function Signali() {
           </div>
         )}
         <div className="sw-cam-bottom">
+          {count > 0 && !filming && <p className="sw-cam-hint">{t('signali.w.camHint', { max: MAX_PHOTOS })}</p>}
           {count > 0 && !filming && (
             <div className="sw-cam-shots">
               <div className="sw-cam-thumbs">
@@ -1064,7 +1099,10 @@ export default function Signali() {
                 {locMode === 'gps' && coords ? (
                   <div className="sw-place">
                     <PinMap position={coords} onMove={onPinMove} />
-                    <p className="sw-where">📍 {placeLabel}{selectedWilaya && !placeLabel.includes(selectedWilaya.name) ? ` · ${selectedWilaya.name}` : ''}</p>
+                    <div className="sw-addr">
+                      {centerButton}
+                      <p className="sw-where">📍 {placeLabel}</p>
+                    </div>
                   </div>
                 ) : locMode === 'gps' && locStatus === 'locating' ? (
                   <p className="sw-where">{t('signali.locating')}</p>
@@ -1112,7 +1150,7 @@ export default function Signali() {
             {turnstile}
             {errorLine}
           </div>
-          <footer className="sw-foot">{sendButton}</footer>
+          {locationOk && mediaOk && typeOk && detailsSeen && <footer className="sw-foot">{sendButton}</footer>}
         </>
       )}
     </section>

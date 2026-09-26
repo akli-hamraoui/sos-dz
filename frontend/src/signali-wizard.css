@@ -190,7 +190,16 @@ body.sw-page { background: #fff; }
 .sw-cam-thumbs { display: flex; gap: 8px; }
 .sw-cam-thumbs button { width: 48px; height: 48px; padding: 0; border: 2px solid #fff; border-radius: 12px; overflow: hidden; background: none; cursor: pointer; }
 .sw-cam-thumbs img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.sw-cam-continue { padding: 11px 18px; border: 0; border-radius: 12px; background: #fff; color: #15213a; font: inherit; font-weight: 800; font-size: 14px; cursor: pointer; }
+.sw-cam-continue {
+  padding: 13px 20px; border: 0; border-radius: 14px; background: linear-gradient(160deg, #2fbf71, #16723d); color: #fff;
+  font: inherit; font-weight: 800; font-size: 15px; cursor: pointer; animation: sw-blink 1.4s ease-in-out infinite;
+}
+@keyframes sw-blink {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(47, 191, 113, .7); transform: scale(1); }
+  50% { box-shadow: 0 0 0 10px rgba(47, 191, 113, 0); transform: scale(1.04); }
+}
+@media (prefers-reduced-motion: reduce) { .sw-cam-continue { animation: none; } }
+.sw-cam-hint { margin: 0 0 8px; color: rgba(255, 255, 255, .9); font-size: 12.5px; font-weight: 600; text-shadow: 0 1px 3px rgba(0, 0, 0, .6); }
 .sw-cam-modes { display: flex; justify-content: center; gap: 22px; margin-bottom: 14px; }
 .sw-cam-modes button { padding: 4px 2px; border: 0; background: none; color: rgba(255, 255, 255, .65); font: inherit; font-size: 13px; font-weight: 800; letter-spacing: .06em; cursor: pointer; }
 .sw-cam-modes button.is-on { color: #ffd54a; }
@@ -205,3 +214,13 @@ body.sw-page { background: #fff; }
 .sw-shutter.is-rec i { width: 28px; height: 28px; border-radius: 7px; }
 .sw-shutter:disabled { opacity: .4; }
 .sw-cam-error { position: absolute; top: 50%; left: 16px; right: 16px; padding: 12px; border-radius: 12px; background: rgba(0, 0, 0, .7); text-align: center; font-size: 14px; }
+
+/* "Centrer": back to the picked address / GPS fix, in front of it. */
+.sw-addr { display: flex; align-items: center; gap: 8px; }
+.sw-addr .place-autocomplete { flex: 1; min-width: 0; }
+.sw-addr .sw-where { flex: 1; min-width: 0; margin: 0; }
+.sw-center {
+  display: inline-flex; flex: none; align-items: center; gap: 5px; padding: 10px 12px; border: 1.5px solid var(--sw-line);
+  border-radius: 14px; background: #eef1f6; color: var(--sw-navy2); font: inherit; font-size: 13px; font-weight: 800; cursor: pointer;
+}
+.sw-center:active { background: #e1e6ef; }

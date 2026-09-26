@@ -956,7 +956,9 @@
       "todo": "To do",
       "optional": "Optional",
       "modeVideo": "VIDEO",
-      "modePhoto": "PHOTO"
+      "modePhoto": "PHOTO",
+      "center": "Center",
+      "camHint": "Tap a thumbnail to remove it · {{max}} photos max"
     }
   },
   "explore": {
