@@ -365,6 +365,9 @@ export default function Signali() {
   // under it (OpenStreetMap), which the reporter can correct.
   const onPinMove = (c) => {
     setCoords(c)
+    // The first point placed by hand is also what "Centrer" comes back to
+    // (when no address was picked from the list, nor a GPS fix taken).
+    setAnchor((current) => current || c)
     setError('')
     prefillWilaya(c)
     reverseGeocode(c.latitude, c.longitude, i18n.language)
