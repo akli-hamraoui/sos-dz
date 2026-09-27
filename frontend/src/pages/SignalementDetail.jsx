@@ -13,6 +13,7 @@ import PhotoLightbox from '../components/PhotoLightbox'
 import { getSignalementToken, saveSignalementToken, SIGNALI_STATUSES } from '../signali'
 import CategoryPicker from '../components/CategoryPicker'
 import '../signali.css'
+import '../signali-detail-modern.css'
 
 // One Signali report: its photos, video, description, voice note and
 // transcripts, a Google Maps itinerary, citizens' votes and comments --
