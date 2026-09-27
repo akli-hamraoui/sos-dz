@@ -1030,7 +1030,9 @@
     "countNoLocation_zero": "{{count}} بدون موقع",
     "countNoLocation_two": "{{count}} بدون موقع",
     "countNoLocation_few": "{{count}} بدون موقع",
-    "countNoLocation_many": "{{count}} بدون موقع"
+    "countNoLocation_many": "{{count}} بدون موقع",
+    "confirmPosition": "تأكيد هذا الموقع",
+    "positionConfirmed": "✓ تم تأكيد الموقع"
   },
   "explore": {
     "inAreaShort_one": "{{count}} هنا",
