@@ -38,6 +38,81 @@ function pickMime(candidates) {
   return candidates.find((x) => window.MediaRecorder?.isTypeSupported?.(x)) || ''
 }
 
+async function compressGalleryVideo(file) {
+  if (!window.MediaRecorder || !HTMLCanvasElement.prototype.captureStream) return file
+  const inputUrl = URL.createObjectURL(file)
+  const video = document.createElement('video')
+  video.muted = true
+  video.playsInline = true
+  video.preload = 'auto'
+  video.src = inputUrl
+  try {
+    await new Promise((resolve, reject) => {
+      video.onloadedmetadata = resolve
+      video.onerror = reject
+    })
+    if (!Number.isFinite(video.duration) || video.duration <= 0) return file
+    const duration = Math.min(video.duration, MAX_VIDEO_SECONDS)
+    const scale = Math.min(1, 1280 / video.videoWidth, 720 / video.videoHeight)
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.max(2, Math.floor(video.videoWidth * scale / 2) * 2)
+    canvas.height = Math.max(2, Math.floor(video.videoHeight * scale / 2) * 2)
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return file
+    const stream = canvas.captureStream(24)
+    const sourceStream = video.captureStream?.() || video.mozCaptureStream?.()
+    sourceStream?.getAudioTracks().forEach((track) => stream.addTrack(track))
+    const mimeType = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm']
+      .find((type) => MediaRecorder.isTypeSupported(type))
+    if (!mimeType) return file
+    const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 850000, audioBitsPerSecond: 96000 })
+    const chunks = []
+    const stopped = new Promise((resolve, reject) => {
+      recorder.ondataavailable = (event) => event.data.size && chunks.push(event.data)
+      recorder.onerror = reject
+      recorder.onstop = resolve
+    })
+    video.currentTime = 0
+    await new Promise((resolve) => {
+      video.onseeked = resolve
+      if (video.readyState >= 2 && video.currentTime === 0) resolve()
+    })
+    recorder.start(250)
+    const draw = () => {
+      if (video.paused || video.ended) return
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+      requestAnimationFrame(draw)
+    }
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+    requestAnimationFrame(draw)
+    await video.play()
+    await new Promise((resolve) => {
+      const stop = () => {
+        if (recorder.state !== 'inactive') recorder.stop()
+        resolve()
+      }
+      video.ontimeupdate = () => {
+        if (video.currentTime >= duration) {
+          video.pause()
+          stop()
+        }
+      }
+      video.onended = stop
+    })
+    await stopped
+    const blob = new Blob(chunks, { type: mimeType })
+    if (!blob.size || blob.size >= file.size) return file
+    return new File([blob], file.name.replace(/\\.[^.]+$/, '') + '.webm', { type: mimeType, lastModified: Date.now() })
+  } catch {
+    return file
+  } finally {
+    video.pause()
+    video.removeAttribute('src')
+    video.load()
+    URL.revokeObjectURL(inputUrl)
+  }
+}
+
 function extFor(type) {
   return type.includes('mp4') ? 'mp4' : type.includes('ogg') ? 'ogg' : 'webm'
 }
@@ -516,10 +591,13 @@ export default function Signali() {
 
   // A video file, whether selected from the gallery or the phone camera,
   // must respect the same duration and size limits.
-  const pickVideoFile = (e) => {
-    const file = e.target.files?.[0]
+  const pickVideoFile = async (e) => {
+    const original = e.target.files?.[0]
     e.target.value = ''
-    if (!file) return
+    if (!original) return
+    if (original.size > MAX_VIDEO_BYTES) return setError(t('signali.videoTooLarge', { size: MAX_VIDEO_MB }))
+    setError(t('signali.videoCompressing', 'Optimisation de la vidéo…'))
+    const file = await compressGalleryVideo(original)
     if (file.size > MAX_VIDEO_BYTES) return setError(t('signali.videoTooLarge', { size: MAX_VIDEO_MB }))
     const url = track(URL.createObjectURL(file))
     const probe = document.createElement('video')
@@ -546,14 +624,9 @@ export default function Signali() {
         rejectFile()
         return setError(t('signali.videoTooLong', { max: MAX_VIDEO_SECONDS }))
       }
-      // Unknown/non-finite duration is left to the server-side validator.
       acceptFile()
     }
-    probe.onerror = () => {
-      // Some formats do not expose metadata in the browser; retain the file
-      // and let server-side validation remain authoritative.
-      acceptFile()
-    }
+    probe.onerror = acceptFile
     probe.src = url
   }
 
