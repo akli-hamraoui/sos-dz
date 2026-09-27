@@ -392,6 +392,8 @@ export default function Signali() {
 
   const onSelectPlace = ({ lat, lon }) => {
     if (!isInAlgeria(lat, lon)) return
+    // Invalidate any pending reverse-geocode response from an older pin move.
+    geocodeRequest.current += 1
     setManualLocationConfirmed(false)
     const next = { latitude: lat, longitude: lon }
     setCoords(next)
