@@ -42,16 +42,19 @@ async function compressGalleryVideo(file) {
   if (!window.MediaRecorder || !HTMLCanvasElement.prototype.captureStream) return file
   const inputUrl = URL.createObjectURL(file)
   const video = document.createElement('video')
-  video.muted = true
-  video.playsInline = true
-  video.preload = 'auto'
-  video.src = inputUrl
+  let outputStream
+  let recorder
   try {
+    video.muted = true
+    video.playsInline = true
+    video.preload = 'auto'
+    video.src = inputUrl
     await new Promise((resolve, reject) => {
       video.onloadedmetadata = resolve
-      video.onerror = reject
+      video.onerror = () => reject(new Error('Impossible de lire cette vidéo'))
     })
-    if (!Number.isFinite(video.duration) || video.duration <= 0) return file
+    if (!Number.isFinite(video.duration) || video.duration <= 0 || !video.videoWidth || !video.videoHeight) return file
+
     const duration = Math.min(video.duration, MAX_VIDEO_SECONDS)
     const scale = Math.min(1, 1280 / video.videoWidth, 720 / video.videoHeight)
     const canvas = document.createElement('canvas')
@@ -59,53 +62,67 @@ async function compressGalleryVideo(file) {
     canvas.height = Math.max(2, Math.floor(video.videoHeight * scale / 2) * 2)
     const ctx = canvas.getContext('2d')
     if (!ctx) return file
-    const stream = canvas.captureStream(24)
+
+    outputStream = canvas.captureStream(24)
     const sourceStream = video.captureStream?.() || video.mozCaptureStream?.()
-    sourceStream?.getAudioTracks().forEach((track) => stream.addTrack(track))
+    sourceStream?.getAudioTracks().forEach((track) => outputStream.addTrack(track))
+
     const mimeType = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm']
       .find((type) => MediaRecorder.isTypeSupported(type))
     if (!mimeType) return file
-    const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 850000, audioBitsPerSecond: 96000 })
+
+    recorder = new MediaRecorder(outputStream, {
+      mimeType,
+      videoBitsPerSecond: 850000,
+      audioBitsPerSecond: 96000,
+    })
     const chunks = []
     const stopped = new Promise((resolve, reject) => {
       recorder.ondataavailable = (event) => event.data.size && chunks.push(event.data)
-      recorder.onerror = reject
+      recorder.onerror = () => reject(new Error('Échec de compression vidéo'))
       recorder.onstop = resolve
     })
+
     video.currentTime = 0
     await new Promise((resolve) => {
       video.onseeked = resolve
       if (video.readyState >= 2 && video.currentTime === 0) resolve()
     })
-    recorder.start(250)
-    const draw = () => {
-      if (video.paused || video.ended) return
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
-      requestAnimationFrame(draw)
-    }
+
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
-    requestAnimationFrame(draw)
+    recorder.start(250)
     await video.play()
     await new Promise((resolve) => {
+      let frameId
       const stop = () => {
+        if (frameId) cancelAnimationFrame(frameId)
+        video.pause()
         if (recorder.state !== 'inactive') recorder.stop()
         resolve()
       }
-      video.ontimeupdate = () => {
-        if (video.currentTime >= duration) {
-          video.pause()
-          stop()
-        }
+      const draw = () => {
+        if (video.currentTime >= duration || video.ended) return stop()
+        if (!video.paused) ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+        frameId = requestAnimationFrame(draw)
       }
       video.onended = stop
+      frameId = requestAnimationFrame(draw)
     })
     await stopped
+
     const blob = new Blob(chunks, { type: mimeType })
     if (!blob.size || blob.size >= file.size) return file
-    return new File([blob], file.name.replace(/\.[^.]+$/, '') + '.webm', { type: mimeType, lastModified: Date.now() })
+    return new File([blob], file.name.replace(/\\.[^.]+$/, '') + '.webm', {
+      type: mimeType,
+      lastModified: Date.now(),
+    })
   } catch {
     return file
   } finally {
+    if (recorder && recorder.state !== 'inactive') {
+      try { recorder.stop() } catch { /* recorder already stopped */ }
+    }
+    outputStream?.getTracks().forEach((track) => track.stop())
     video.pause()
     video.removeAttribute('src')
     video.load()
