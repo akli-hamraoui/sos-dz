@@ -366,6 +366,14 @@ export default function Signali() {
   // under it (OpenStreetMap), which the reporter can correct.
   const geocodeRequest = useRef(0)
   const onPinMove = (c) => {
+    // Reports are restricted to Algeria. Do not accept a pin dragged outside
+    // the supported area; keep the last valid coordinates and ask the user
+    // to move it back inside the country.
+    if (!isInAlgeria(c.latitude, c.longitude)) {
+      setManualLocationConfirmed(false)
+      setError(t('signali.locationOutsideAlgeria'))
+      return
+    }
     setManualLocationConfirmed(false)
     setCoords(c)
     // The first point placed by hand is also what "Centrer" comes back to
