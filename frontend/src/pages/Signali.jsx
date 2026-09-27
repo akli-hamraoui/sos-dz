@@ -425,13 +425,21 @@ export default function Signali() {
   const addPhotos = async (e) => {
     const files = Array.from(e.target.files || [])
     e.target.value = ''
-    const room = MAX_PHOTOS - photos.length
+    const room = Math.max(0, MAX_PHOTOS - photos.length)
     const next = []
     for (const file of files.slice(0, room)) {
-      const compressed = await compressPhoto(file)
-      next.push({ file: compressed, url: track(URL.createObjectURL(compressed)) })
+      // Compression is an optimization, not a reason to lose a selected photo.
+      // If the browser cannot decode/compress this format, keep the original;
+      // the server remains responsible for validating its size and type.
+      let prepared = file
+      try {
+        prepared = await compressPhoto(file)
+      } catch {
+        prepared = file
+      }
+      next.push({ file: prepared, url: track(URL.createObjectURL(prepared)) })
     }
-    setPhotos((prev) => [...prev, ...next].slice(0, MAX_PHOTOS))
+    if (next.length) setPhotos((prev) => [...prev, ...next].slice(0, MAX_PHOTOS))
   }
   const removePhoto = (idx) => setPhotos((prev) => prev.filter((_, i) => i !== idx))
 
