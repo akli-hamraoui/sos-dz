@@ -65,7 +65,10 @@ async function compressGalleryVideo(file) {
 
     outputStream = canvas.captureStream(24)
     const sourceStream = video.captureStream?.() || video.mozCaptureStream?.()
-    sourceStream?.getAudioTracks().forEach((track) => outputStream.addTrack(track))
+    // If the browser cannot expose the source tracks, keep the original:
+    // transcoding a video-only canvas stream could silently remove its sound.
+    if (!sourceStream) return file
+    sourceStream.getAudioTracks().forEach((track) => outputStream.addTrack(track))
 
     const mimeType = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm']
       .find((type) => MediaRecorder.isTypeSupported(type))
