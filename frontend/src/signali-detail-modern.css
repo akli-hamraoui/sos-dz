@@ -29,3 +29,9 @@
  .signalement-detail-page .signali-detail-actions .btn { justify-content:center; }
  .signalement-detail-page .signali-manage { margin:12px 8px; padding:16px; border-radius:16px; }
 }
+
+.photo-lightbox-nav { position:absolute; top:50%; transform:translateY(-50%); z-index:2; width:46px; height:46px; border:0; border-radius:50%; background:rgba(255,255,255,.92); color:#222; font-size:2rem; line-height:1; cursor:pointer; box-shadow:0 2px 12px rgba(0,0,0,.25); }
+.photo-lightbox-prev { left:18px; }
+.photo-lightbox-next { right:18px; }
+.photo-lightbox-count { position:absolute; bottom:22px; left:50%; transform:translateX(-50%); color:#fff; background:rgba(0,0,0,.55); padding:6px 12px; border-radius:999px; font-size:.9rem; }
+@media(max-width:600px) { .photo-lightbox-prev { left:8px; } .photo-lightbox-next { right:8px; } .photo-lightbox-nav { width:40px; height:40px; } }
