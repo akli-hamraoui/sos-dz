@@ -959,7 +959,9 @@
       "modePhoto": "PHOTO",
       "center": "Center",
       "camHint": "Tap a thumbnail to remove it · {{max}} photos max"
-    }
+    },
+    "confirmPosition": "Confirm this location",
+    "positionConfirmed": "✓ Location confirmed"
   },
   "explore": {
     "inAreaShort_one": "{{count}} here",
