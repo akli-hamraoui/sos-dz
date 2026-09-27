@@ -843,7 +843,7 @@ export default function Signali() {
         <div className="sw-location-confirm">
           <p>{t('signali.w.placeToSet')} · {address || `${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)}`}</p>
           <button type="button" className="sw-acc-go" onClick={() => setManualLocationConfirmed(true)}>
-            {manualLocationConfirmed ? '✓ Position confirmée' : 'Confirmer cette position'}
+            {manualLocationConfirmed ? t('signali.positionConfirmed') : t('signali.confirmPosition')}
           </button>
         </div>
       )}
