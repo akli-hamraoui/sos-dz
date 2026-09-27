@@ -595,7 +595,10 @@ export default function ExploreMap({
   const carouselCount = Math.min(shown.length, CAROUSEL_MAX)
   const carouselIndex = shown.slice(0, CAROUSEL_MAX).findIndex((x) => x.id === selectedId)
   const stepCarousel = (dir) => {
-    const next = shown[Math.max(0, Math.min(carouselCount - 1, carouselIndex + dir))]
+    // If no card is selected yet, the first forward action must land on
+    // the first card (not skip it); backward also starts at the first.
+    const baseIndex = carouselIndex < 0 ? (dir > 0 ? -1 : 0) : carouselIndex
+    const next = shown[Math.max(0, Math.min(carouselCount - 1, baseIndex + dir))]
     if (!next) return
     select(next.id, 'carousel')
     setSelectedId(next.id)
