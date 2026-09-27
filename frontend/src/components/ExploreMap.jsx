@@ -604,6 +604,7 @@ export default function ExploreMap({
 
   // Sliding the carousel selects the card that settles in the middle.
   const scrollTimer = useRef(0)
+  useEffect(() => () => clearTimeout(scrollTimer.current), [])
   const onCarouselScroll = () => {
     clearTimeout(scrollTimer.current)
     scrollTimer.current = setTimeout(() => {
