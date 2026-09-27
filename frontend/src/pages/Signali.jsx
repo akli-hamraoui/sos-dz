@@ -194,6 +194,7 @@ export default function Signali() {
   const [coords, setCoords] = useState(null)
   const [accuracy, setAccuracy] = useState(null)
   const [address, setAddress] = useState('')
+  const [manualLocationConfirmed, setManualLocationConfirmed] = useState(false)
   const [wilaya, setWilaya] = useState('') // deduced from the position, never typed
   const [nearMe, setNearMe] = useState(null) // the phone's rough position, to open the map there
   const [nearby, setNearby] = useState([])
@@ -365,6 +366,7 @@ export default function Signali() {
   // under it (OpenStreetMap), which the reporter can correct.
   const geocodeRequest = useRef(0)
   const onPinMove = (c) => {
+    setManualLocationConfirmed(false)
     setCoords(c)
     // The first point placed by hand is also what "Centrer" comes back to
     // (when no address was picked from the list, nor a GPS fix taken).
@@ -382,6 +384,7 @@ export default function Signali() {
 
   const onSelectPlace = ({ lat, lon }) => {
     if (!isInAlgeria(lat, lon)) return
+    setManualLocationConfirmed(false)
     const next = { latitude: lat, longitude: lon }
     setCoords(next)
     setAnchor(next)
@@ -392,7 +395,7 @@ export default function Signali() {
   // suggestion or a point on the map) -- the wilaya is deduced from it.
   // Except for an admin testing from abroad (Alger, no position).
   const locationOk =
-    locMode === 'gps' ? !!coords : locMode === 'manual' ? !!address.trim() && (!!coords || (adminNote && !!wilaya)) : false
+    locMode === 'gps' ? !!coords : locMode === 'manual' ? (!!coords && !!address.trim() && manualLocationConfirmed) || (adminNote && !!wilaya) : false
 
   const selectedWilaya = wilayas.find((w) => String(w.id) === String(wilaya))
   const manualCenter = nearMe ? { ...nearMe, zoom: 14 } : { latitude: 34.5, longitude: 3, zoom: 5 }
@@ -836,6 +839,14 @@ export default function Signali() {
       </div>
       <PinMap position={coords} center={manualCenter} onMove={onPinMove} />
       {!coords && <small className="signali-hint">{address.trim() ? t('signali.noPinHint') : t('signali.tapMapHint')}</small>}
+      {coords && (
+        <div className="sw-location-confirm">
+          <p>{t('signali.w.placeToSet')} · {address || `${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)}`}</p>
+          <button type="button" className="sw-acc-go" onClick={() => setManualLocationConfirmed(true)}>
+            {manualLocationConfirmed ? '✓ Position confirmée' : 'Confirmer cette position'}
+          </button>
+        </div>
+      )}
     </div>
   )
 
