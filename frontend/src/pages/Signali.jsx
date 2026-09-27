@@ -516,7 +516,7 @@ export default function Signali() {
 
   // A video file, whether selected from the gallery or the phone camera,
   // must respect the same duration and size limits.
-  const pickVideoFile = (e, { fromGallery = false } = {}) => {
+  const pickVideoFile = (e) => {
     const file = e.target.files?.[0]
     e.target.value = ''
     if (!file) return
@@ -524,20 +524,35 @@ export default function Signali() {
     const url = track(URL.createObjectURL(file))
     const probe = document.createElement('video')
     probe.preload = 'metadata'
-    probe.onloadedmetadata = () => {
-      if (probe.duration > MAX_VIDEO_SECONDS + 1) {
-        URL.revokeObjectURL(url)
-        urlsRef.current = urlsRef.current.filter((item) => item !== url)
-        return setError(t('signali.videoTooLong', { max: MAX_VIDEO_SECONDS }))
-      }
+    const acceptFile = () => {
+      probe.onloadedmetadata = null
+      probe.onerror = null
+      probe.removeAttribute('src')
+      probe.load()
       setError('')
       setVideo({ blob: file, url })
+    }
+    const rejectFile = () => {
+      probe.onloadedmetadata = null
+      probe.onerror = null
+      probe.removeAttribute('src')
+      probe.load()
+      URL.revokeObjectURL(url)
+      urlsRef.current = urlsRef.current.filter((item) => item !== url)
+    }
+    probe.onloadedmetadata = () => {
+      const duration = probe.duration
+      if (Number.isFinite(duration) && duration > 0 && duration > MAX_VIDEO_SECONDS + 1) {
+        rejectFile()
+        return setError(t('signali.videoTooLong', { max: MAX_VIDEO_SECONDS }))
+      }
+      // Unknown/non-finite duration is left to the server-side validator.
+      acceptFile()
     }
     probe.onerror = () => {
       // Some formats do not expose metadata in the browser; retain the file
       // and let server-side validation remain authoritative.
-      setError('')
-      setVideo({ blob: file, url })
+      acceptFile()
     }
     probe.src = url
   }
