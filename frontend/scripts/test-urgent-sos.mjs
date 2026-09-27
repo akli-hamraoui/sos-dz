@@ -13,7 +13,7 @@ assert.match(jsx, /onEnded=\{\(\)=>\{setPlay\(false\);setEnded\(true\)\}\}/, 'au
 assert.match(jsx, /Géolocalisation confirmée/, 'successful GPS result must be visible before confirmation')
 assert.match(jsx, /Géolocalisation non fournie/, 'GPS refusal/absence must be visible before confirmation')
 assert.match(jsx, /apiUpload\('\/needs\/voice-guide\/'/, 'SOS must still submit through the voice-guide API')
-assert.match(css, /\.urgent-sos-audio\.is-muted .*color:#c62828/, 'muted audio icon must be red')
+assert.match(css, /\.urgent-sos-audio\.is-muted .*color:#(c62828|d71920)/, 'muted audio icon must be red')
 assert.match(css, /\.urgent-sos-audio-btn\{[^}]*display:inline-flex[^}]*align-items:center[^}]*justify-content:center/, 'audio icon must be centered')
 assert.match(css, /\.urgent-sos-location-confirmation\.confirmed/, 'confirmed GPS state must have dedicated styling')
 assert.match(css, /\.urgent-sos-location-confirmation\.refused/, 'refused GPS state must have dedicated styling')
@@ -25,7 +25,8 @@ assert.match(api, /for \(let attempt = 0; attempt <= BIGDATACLOUD_MAX_RETRIES; a
 assert.match(api, /GPS is available: deliberately skip BigDataCloud/, 'GPS-authorized SOS must not call BigDataCloud')
 assert.match(api, /const endpoint = 'https:\/\/api\.bigdatacloud\.net\/data\/reverse-geocode-client\?localityLanguage=fr'/, 'no-GPS SOS must use BigDataCloud IP fallback without coordinates')
 assert.match(api, /countryCode !== 'DZ'/, 'SOS location must reject a non-Algeria country')
-assert.match(api, /validation serveur conservée/, 'BigDataCloud failure must fall back to authoritative server validation')
+assert.match(api, /Impossible de vérifier votre localisation\. Cette fonctionnalité est uniquement disponible en Algérie\./, 'BigDataCloud failing every retry must block the SOS (403), not let it through unchecked')
+assert.match(api, /error\.status = 403/, 'the final BigDataCloud failure must be a 403')
 assert.match(api, /verifyUrgentSOSLocation\(formData\)/, 'voice-guide upload must trigger location verification')
 
 console.log('✓ Urgent SOS static regression tests passed')
