@@ -29,7 +29,7 @@ import '../signali-wizard.css'
 const MAX_PHOTOS = 3
 const MAX_VIDEO_SECONDS = 20
 const MAX_VOICE_SECONDS = 120
-const MAX_VIDEO_MB = 10 // = core.media_validation.MAX_VIDEO_SIZE_MB
+const MAX_VIDEO_MB = 30 // = core.media_validation.MAX_VIDEO_SIZE_MB
 const MAX_VIDEO_BYTES = MAX_VIDEO_MB * 1024 * 1024
 
 const mmss = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
