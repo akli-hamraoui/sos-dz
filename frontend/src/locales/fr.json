@@ -978,7 +978,9 @@
       "modePhoto": "PHOTO",
       "center": "Centrer",
       "camHint": "Touchez une miniature pour la retirer · {{max}} photos max"
-    }
+    },
+    "confirmPosition": "Confirmer cette position",
+    "positionConfirmed": "✓ Position confirmée"
   },
   "explore": {
     "inAreaShort_one": "{{count}} ici",
