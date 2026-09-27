@@ -803,6 +803,7 @@
     "cameraUnavailable": "Caméra indisponible.",
     "recordingError": "L'enregistrement a échoué, réessayez.",
     "videoTooLarge": "Vidéo trop lourde ({{size}} Mo max).",
+    "videoCompressing": "Optimisation de la vidéo…",
     "videoTooLong": "Vidéo trop longue ({{max}} s max).",
     "mediaRequired": "Ajoutez au moins une photo ou une vidéo pour continuer.",
     "descriptionTitle": "Décrivez le problème",

@@ -102,7 +102,7 @@ async function compressGalleryVideo(file) {
     await stopped
     const blob = new Blob(chunks, { type: mimeType })
     if (!blob.size || blob.size >= file.size) return file
-    return new File([blob], file.name.replace(/\\.[^.]+$/, '') + '.webm', { type: mimeType, lastModified: Date.now() })
+    return new File([blob], file.name.replace(/\.[^.]+$/, '') + '.webm', { type: mimeType, lastModified: Date.now() })
   } catch {
     return file
   } finally {

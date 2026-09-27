@@ -819,6 +819,7 @@
     "cameraUnavailable": "الكاميرا غير متاحة.",
     "recordingError": "فشل التسجيل، حاول مجدداً.",
     "videoTooLarge": "الفيديو كبير جداً ({{size}} ميغا كحد أقصى).",
+    "videoCompressing": "جارٍ تحسين الفيديو…",
     "videoTooLong": "الفيديو طويل جداً ({{max}} ث كحد أقصى).",
     "mediaRequired": "أضف صورة أو فيديو على الأقل للمتابعة.",
     "descriptionTitle": "صف المشكلة",

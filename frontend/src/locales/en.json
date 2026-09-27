@@ -784,6 +784,7 @@
     "cameraUnavailable": "Camera unavailable.",
     "recordingError": "Recording failed, please try again.",
     "videoTooLarge": "Video too large ({{size}} MB max).",
+    "videoCompressing": "Optimizing the video…",
     "videoTooLong": "Video too long ({{max}} s max).",
     "mediaRequired": "Add at least one photo or a video to continue.",
     "descriptionTitle": "Describe the problem",
