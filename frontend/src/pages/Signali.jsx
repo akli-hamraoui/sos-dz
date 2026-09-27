@@ -441,7 +441,14 @@ export default function Signali() {
     }
     if (next.length) setPhotos((prev) => [...prev, ...next].slice(0, MAX_PHOTOS))
   }
-  const removePhoto = (idx) => setPhotos((prev) => prev.filter((_, i) => i !== idx))
+  const removePhoto = (idx) => setPhotos((prev) => {
+    const removed = prev[idx]
+    if (removed?.url) {
+      URL.revokeObjectURL(removed.url)
+      urlsRef.current = urlsRef.current.filter((url) => url !== removed.url)
+    }
+    return prev.filter((_, i) => i !== idx)
+  })
 
   // --- video: live camera with the soundtrack, so the reporter can talk ---
   const openCamera = async (mode = facing) => {
@@ -505,27 +512,31 @@ export default function Signali() {
     }, 1000)
   }
 
-  // A video file: from the phone's own camera app (fallback for browsers
-  // without MediaRecorder, still capped at MAX_VIDEO_SECONDS) or picked
-  // from the gallery (only the size is capped -- the server's own limit).
+  // A video file, whether selected from the gallery or the phone camera,
+  // must respect the same duration and size limits.
   const pickVideoFile = (e, { fromGallery = false } = {}) => {
     const file = e.target.files?.[0]
     e.target.value = ''
     if (!file) return
     if (file.size > MAX_VIDEO_BYTES) return setError(t('signali.videoTooLarge', { size: MAX_VIDEO_MB }))
     const url = track(URL.createObjectURL(file))
-    if (fromGallery) {
-      setError('')
-      return setVideo({ blob: file, url })
-    }
     const probe = document.createElement('video')
     probe.preload = 'metadata'
     probe.onloadedmetadata = () => {
-      if (probe.duration > MAX_VIDEO_SECONDS + 1) return setError(t('signali.videoTooLong', { max: MAX_VIDEO_SECONDS }))
+      if (probe.duration > MAX_VIDEO_SECONDS + 1) {
+        URL.revokeObjectURL(url)
+        urlsRef.current = urlsRef.current.filter((item) => item !== url)
+        return setError(t('signali.videoTooLong', { max: MAX_VIDEO_SECONDS }))
+      }
       setError('')
       setVideo({ blob: file, url })
     }
-    probe.onerror = () => setVideo({ blob: file, url })
+    probe.onerror = () => {
+      // Some formats do not expose metadata in the browser; retain the file
+      // and let server-side validation remain authoritative.
+      setError('')
+      setVideo({ blob: file, url })
+    }
     probe.src = url
   }
 
