@@ -21,8 +21,7 @@ jobs:
         run: npm install --no-save @playwright/test
       - run: npm run build
       - run: npx playwright install --with-deps chromium
-      - name: Run Playwright (report only; do not block pipeline)
-        continue-on-error: true
+      - name: Run Playwright
         run: npx playwright test
       - name: Upload HTML report and screenshots
         if: always()
