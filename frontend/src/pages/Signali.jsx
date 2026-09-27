@@ -363,6 +363,7 @@ export default function Signali() {
 
   // A point placed on the map with no address typed yet: the address
   // under it (OpenStreetMap), which the reporter can correct.
+  const geocodeRequest = useRef(0)
   const onPinMove = (c) => {
     setCoords(c)
     // The first point placed by hand is also what "Centrer" comes back to
@@ -370,8 +371,12 @@ export default function Signali() {
     setAnchor((current) => current || c)
     setError('')
     prefillWilaya(c)
+    const requestId = ++geocodeRequest.current
     reverseGeocode(c.latitude, c.longitude, i18n.language)
-      .then((label) => label && setAddress((current) => (current.trim() ? current : label)))
+      .then((label) => {
+        // Ignore an older response if the marker has moved again.
+        if (requestId === geocodeRequest.current && label) setAddress(label)
+      })
       .catch(() => {})
   }
 
