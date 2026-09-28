@@ -1164,11 +1164,11 @@ export default function Signali() {
   const errorLine = error && <p className="urgent-sos-error">{error}</p>
   // Remote: every step gone through (Détails passed with its Continuer).
   const sendReady = locationOk && mediaOk && !recordingVoice && (mode !== 'remote' || (typeOk && detailsDone))
-  const sendButton = (
+  const sendButton = locationOk ? (
     <button type="button" className={`sw-next is-full${sendReady ? ' is-ready' : ''}`} onClick={submit} disabled={busy || !sendReady}>
       {busy ? t('signali.sending') : t('signali.w.send')}
     </button>
-  )
+  ) : null
 
   // GPS state, top right, on site.
   const gpsChip =
