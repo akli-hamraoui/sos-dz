@@ -178,9 +178,8 @@ function PinMap({ position, center, onMove }) {
       lift(false)
       reportCenter()
     })
-    // Some zoom gestures change the visible street detail without a
-    // meaningful pan event. Re-resolve the address after every user zoom.
-    map.on('zoomend', reportCenter)
+    // Zooming changes the scale, not the selected center point.
+    // Avoid duplicate reverse-geocoding requests on repeated zoom gestures.
     map.on('click', (e) => map.panTo(e.latlng, { animate: true, duration: 0.3 }))
     // Code-made moves: instant, so their moveend has fired by the time the
     // flag drops.
@@ -526,7 +525,7 @@ export default function Signali() {
   // suggestion or a point on the map) -- the wilaya is deduced from it.
   // Except for an admin testing from abroad (Alger, no position).
   const locationOk =
-    locMode === 'gps' ? !!coords : locMode === 'manual' ? (!!coords && !!address.trim() && manualLocationConfirmed) || (adminNote && !!wilaya) : false
+    locMode === 'gps' ? (!!coords && manualLocationConfirmed) : locMode === 'manual' ? (!!coords && !!address.trim() && manualLocationConfirmed) || (adminNote && !!wilaya) : false
 
   const selectedWilaya = wilayas.find((w) => String(w.id) === String(wilaya))
   const manualCenter = nearMe ? { ...nearMe, zoom: 14 } : { latitude: 34.5, longitude: 3, zoom: 5 }
@@ -1356,6 +1355,12 @@ export default function Signali() {
                     <div className="sw-addr">
                       {centerButton}
                       <p className="sw-where">📍 {placeLabel}</p>
+                    </div>
+                    <div className="sw-location-confirm">
+                      <p>{t('signali.w.placeToSet')} · {address || `${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)}`}</p>
+                      <button type="button" className="sw-acc-go" onClick={() => setManualLocationConfirmed(true)}>
+                        {manualLocationConfirmed ? t('signali.positionConfirmed') : t('signali.confirmPosition')}
+                      </button>
                     </div>
                     <PinMap position={coords} onMove={onPinMove} />
                   </div>
