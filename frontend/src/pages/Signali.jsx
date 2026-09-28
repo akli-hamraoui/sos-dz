@@ -792,9 +792,19 @@ export default function Signali() {
       const hasMedia = photos.length > 0 || !!video || !!voice
       if (hasMedia) {
         // Start the transfer, then show the confirmation/code page immediately.
-        apiUpload(`/signalements/${created.id}/media/`, buildMedia()).catch((e) => {
-          console.warn('[Signali] background media upload failed', e)
-        })
+        const detailPath = `/signalements/${created.id}`
+        apiUpload(`/signalements/${created.id}/media/`, buildMedia())
+          .then(() => {
+            if (window.location.pathname === detailPath) {
+              navigate(detailPath, { replace: true, state: { justCreated: true, mediaUploadPending: false } })
+            }
+          })
+          .catch((e) => {
+            console.warn('[Signali] background media upload failed', e)
+            if (window.location.pathname === detailPath) {
+              navigate(detailPath, { replace: true, state: { justCreated: true, mediaUploadPending: false, mediaWarnings: ['upload_failed'] } })
+            }
+          })
       }
       navigate(`/signalements/${created.id}`, {
         replace: true,
