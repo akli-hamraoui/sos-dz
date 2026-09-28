@@ -93,7 +93,7 @@ from core.serializers import (
     WilayaSerializer,
 )
 from core.throttling import CreationRateThrottle
-from core.voice_ai import VoiceAIError, extract_need_data, transcribe_audio
+from core.voice_ai import VoiceAIError, extract_need_data, transcribe_audio, translate_transcript
 
 logger = logging.getLogger(__name__)
 
@@ -1077,7 +1077,7 @@ class CollectionPointViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mix
         return CollectionPointSerializer
 
     def get_throttles(self):
-        return [CreationRateThrottle()] if self.action == "create" else []
+        return [CreationRateThrottle()] if self.action in ("create", "translate") else []
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -1735,6 +1735,28 @@ class SignalementViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.
         if isinstance(detail, (list, tuple)) and detail:
             detail = detail[0]
         return str(detail or exc)[:200]
+
+    @action(detail=True, methods=["post"], url_path="translate")
+    def translate(self, request, *args, **kwargs):
+        """Return French and Modern Standard Arabic versions of the report's
+        existing voice/video transcript. The original remains unchanged."""
+        signalement = self.get_object()
+        transcripts = [
+            text.strip()
+            for text in (signalement.voice_transcript, signalement.video_transcript)
+            if text and text.strip()
+        ]
+        source = "\\n".join(transcripts)
+        if not source:
+            return Response(
+                {"detail": "No transcription is available to translate yet."},
+                status=status.HTTP_409_CONFLICT,
+            )
+        try:
+            translations = translate_transcript(source)
+        except VoiceAIError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        return Response(translations)
 
     @action(detail=True, methods=["post"], url_path="manage")
     def manage(self, request, *args, **kwargs):
