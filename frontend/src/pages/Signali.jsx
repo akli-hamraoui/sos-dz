@@ -471,13 +471,16 @@ export default function Signali() {
       return
     }
     setManualLocationConfirmed(false)
+    // The place field must always describe the current pin in both wizard modes.
+    // Clear the previous label immediately; the latest reverse-geocode fills it in.
+    const requestId = ++geocodeRequest.current
+    setAddress('')
     setCoords(c)
     // The first point placed by hand is also what "Centrer" comes back to
     // (when no address was picked from the list, nor a GPS fix taken).
     setAnchor((current) => current || c)
     setError('')
     prefillWilaya(c)
-    const requestId = ++geocodeRequest.current
     reverseGeocode(c.latitude, c.longitude, i18n.language)
       .then((label) => {
         // Ignore an older response if the marker has moved again.
