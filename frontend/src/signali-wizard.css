@@ -120,7 +120,7 @@ body.sw-page { background: #fff; }
 
 /* Place. */
 .sw-place { display: grid; gap: 8px; }
-.sw-place .signali-pin-frame { margin-top: 2px; }
+.sw-place .signali-pin-frame:not(.map-frame-fullscreen) { height: 180px; margin-top: 2px; }
 .sw-where { margin: 4px 0 0; font-size: 14px; font-weight: 700; }
 
 /* On site, last step: the report in one line. */
