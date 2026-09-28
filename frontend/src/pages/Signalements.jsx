@@ -8,7 +8,7 @@ import { translateApiError } from '../apiErrors'
 import WilayaCombobox from '../components/WilayaCombobox'
 import ExploreMap from '../components/ExploreMap'
 import CategoryIcon from '../components/CategoryIcon'
-import { SIGNALI_CATEGORIES, SIGNAL_ICON_SVG, categoryEmoji, categoryIconHtml, getOwnSignalementIds } from '../signali'
+import { SIGNALI_CATEGORIES, SIGNAL_ICON_SVG, categoryEmoji, categoryIconHtml, getOwnSignalementIds, getSignalementToken } from '../signali'
 import '../signali.css'
 
 // The Signali map: every public citizen report, in the shared "explore"
@@ -67,13 +67,17 @@ export default function Signalements() {
     }
   }, [wilaya, category, status, t, config.is_admin])
 
-  // This device's own reports not yet in the public list.
+  // Reports created on this device are shown immediately, even while
+  // moderation/media processing is still running and before they are public.
   useEffect(() => {
     const ids = getOwnSignalementIds().slice(-10)
     if (!ids.length) return
     let cancelled = false
-    Promise.all(ids.map((id) => api(`/signalements/${id}/`).catch(() => null))).then((rows) => {
-      if (!cancelled) setOwnPending(rows.filter((r) => r && r.processing_status === 'pending' && r.status !== 'cancelled'))
+    Promise.all(ids.map((id) => {
+      const token = getSignalementToken(id)
+      return api(`/signalements/${id}/`, { headers: token ? { 'X-Access-Token': token } : {} }).catch(() => null)
+    })).then((rows) => {
+      if (!cancelled) setOwnPending(rows.filter((r) => r && r.status !== 'cancelled'))
     })
     return () => {
       cancelled = true
