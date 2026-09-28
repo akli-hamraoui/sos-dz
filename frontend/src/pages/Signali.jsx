@@ -303,6 +303,7 @@ export default function Signali() {
   const [address, setAddress] = useState('')
   const [manualLocationConfirmed, setManualLocationConfirmed] = useState(false)
   const mapCenterGetter = useRef(null)
+  const reverseGeocodeTimer = useRef(null)
   const [wilaya, setWilaya] = useState('') // deduced from the position, never typed
   const [nearMe, setNearMe] = useState(null) // the phone's rough position, to open the map there
   const [nearby, setNearby] = useState([])
@@ -479,34 +480,33 @@ export default function Signali() {
   // under it (OpenStreetMap), which the reporter can correct.
   const geocodeRequest = useRef(0)
   const onPinMove = (c) => {
-    // Reports are restricted to Algeria. Do not accept a pin dragged outside
-    // the supported area; keep the last valid coordinates and ask the user
-    // to move it back inside the country.
     if (!isInAlgeria(c.latitude, c.longitude)) {
       setManualLocationConfirmed(false)
       setError(t('signali.locationOutsideAlgeria'))
       return
     }
     setManualLocationConfirmed(false)
-    // The place field must always describe the current pin in both wizard modes.
-    // Clear the previous label immediately; the latest reverse-geocode fills it in.
+    // Clear the previous label and resolve only after the map settles,
+    // avoiding a burst of reverse-geocoding requests on mobile.
     const requestId = ++geocodeRequest.current
     setAddress('')
     setCoords(c)
-    // The first point placed by hand is also what "Centrer" comes back to
-    // (when no address was picked from the list, nor a GPS fix taken).
+    if (reverseGeocodeTimer.current) clearTimeout(reverseGeocodeTimer.current)
     setAnchor((current) => current || c)
     setError('')
     prefillWilaya(c)
-    reverseGeocode(c.latitude, c.longitude, i18n.language)
-      .then((label) => {
-        // Ignore an older response if the marker has moved again.
-        if (requestId === geocodeRequest.current && label) setAddress(label)
-      })
-      .catch(() => {})
+    reverseGeocodeTimer.current = setTimeout(() => {
+      if (requestId !== geocodeRequest.current) return
+      reverseGeocode(c.latitude, c.longitude, i18n.language)
+        .then((label) => {
+          if (requestId === geocodeRequest.current && label) setAddress(label)
+        })
+        .catch(() => {})
+    }, 500)
   }
 
   const handleAddressChange = (value) => {
+    if (reverseGeocodeTimer.current) clearTimeout(reverseGeocodeTimer.current)
     setAddress(value)
     // A newly edited address no longer describes the previously selected pin.
     // The reporter must pick a matching suggestion (which supplies exact
@@ -530,6 +530,7 @@ export default function Signali() {
 
   const onSelectPlace = ({ lat, lon }) => {
     if (!isInAlgeria(lat, lon)) return
+    if (reverseGeocodeTimer.current) clearTimeout(reverseGeocodeTimer.current)
     // Invalidate any pending reverse-geocode response from an older pin move.
     geocodeRequest.current += 1
     setManualLocationConfirmed(false)
@@ -1045,8 +1046,6 @@ export default function Signali() {
           required
         />
       </div>
-      <PinMap position={coords} center={manualCenter} onMove={onPinMove} onReady={(getCenter) => { mapCenterGetter.current = getCenter }} />
-      {!coords && <small className="signali-hint">{address.trim() ? t('signali.noPinHint') : t('signali.tapMapHint')}</small>}
       {coords && (
         <div className="sw-location-confirm">
           <p>{t('signali.w.placeToSet')} · {address || `${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)}`}</p>
@@ -1055,6 +1054,8 @@ export default function Signali() {
           </button>
         </div>
       )}
+      <PinMap position={coords} center={manualCenter} onMove={onPinMove} onReady={(getCenter) => { mapCenterGetter.current = getCenter }} />
+      {!coords && <small className="signali-hint">{address.trim() ? t('signali.noPinHint') : t('signali.tapMapHint')}</small>}
     </div>
   )
 
