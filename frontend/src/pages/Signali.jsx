@@ -540,11 +540,12 @@ export default function Signali() {
     prefillWilaya(next)
   }
 
-  // Manual entry: the place is required, with its position (a picked
-  // suggestion or a point on the map) -- the wilaya is deduced from it.
-  // Except for an admin testing from abroad (Alger, no position).
+  // A manually placed and confirmed map pin is a valid location even
+  // when reverse geocoding did not fill an address. If the user picked an
+  // address suggestion, its coordinates are stored as usual.
+  // Except for an admin testing from abroad (wilaya only).
   const locationOk =
-    locMode === 'gps' ? (!!coords && manualLocationConfirmed) : locMode === 'manual' ? (!!coords && !!address.trim() && manualLocationConfirmed) || (adminNote && !!wilaya) : false
+    locMode === 'gps' ? (!!coords && manualLocationConfirmed) : locMode === 'manual' ? (!!coords && manualLocationConfirmed) || (adminNote && !!wilaya) : false
 
   const selectedWilaya = wilayas.find((w) => String(w.id) === String(wilaya))
   const manualCenter = nearMe ? { ...nearMe, zoom: 14 } : { latitude: 34.5, longitude: 3, zoom: 5 }
