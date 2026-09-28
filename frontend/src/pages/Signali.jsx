@@ -1205,8 +1205,13 @@ export default function Signali() {
   const errorLine = error && <p className="urgent-sos-error">{error}</p>
   // Remote: every step gone through (Détails passed with its Continuer).
   const sendReady = locationOk && mediaOk && !recordingVoice && (mode !== 'remote' || (typeOk && detailsDone))
+  const locationMissing = !locationOk
+    ? (coords && manualLocationConfirmed && locMode === 'manual' && !address.trim()
+        ? t('signali.w.place') + ' : renseigner ou sélectionner une adresse'
+        : t('signali.w.place') + ' : définir et confirmer la position')
+    : null
   const sendMissing = [
-    ...(!locationOk ? [t('signali.w.place') + ' : confirmer la position'] : []),
+    ...(locationMissing ? [locationMissing] : []),
     ...(!mediaOk ? [t('signali.w.media') + ' : ajouter une photo ou une vidéo'] : []),
     ...(mode === 'remote' && !typeOk ? [t('signali.w.type') + ' : choisir une catégorie'] : []),
     ...(mode === 'remote' && !detailsDone ? [t('signali.w.details') + ' : valider l’étape avec Continuer'] : []),
