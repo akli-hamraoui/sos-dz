@@ -526,10 +526,6 @@ export default function Signali() {
     setCoords({ latitude: Number(current.latitude), longitude: Number(current.longitude) })
     setManualLocationConfirmed(true)
     setError('')
-    // In the accordion flow, confirming the location completes step 1.
-    // Move directly to the next required section instead of asking for a
-    // second "Continuer" click.
-    if (mode !== 'onsite') setOpenSection('media')
   }
 
   const onSelectPlace = ({ lat, lon }) => {
@@ -1053,9 +1049,19 @@ export default function Signali() {
       {coords && (
         <div className="sw-location-confirm">
           <p>{t('signali.w.placeToSet')} · {address || `${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)}`}</p>
-          <button type="button" className="sw-acc-go" onClick={confirmCurrentPosition}>
-            {manualLocationConfirmed ? t('signali.positionConfirmed') : t('signali.confirmPosition')}
-          </button>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            <button type="button" className="sw-acc-go" onClick={confirmCurrentPosition}>
+              {manualLocationConfirmed ? t('signali.positionConfirmed') : t('signali.confirmPosition')}
+            </button>
+            <button
+              type="button"
+              className="sw-acc-go"
+              disabled={!locationOk}
+              onClick={() => setOpenSection(nextOpen('place'))}
+            >
+              {t('signali.continue')} →
+            </button>
+          </div>
         </div>
       )}
       <PinMap position={coords} center={manualCenter} onMove={onPinMove} onReady={(getCenter) => { mapCenterGetter.current = getCenter }} />
