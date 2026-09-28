@@ -299,6 +299,7 @@ export default function Signali() {
   // --- media ---
   const [photos, setPhotos] = useState([]) // [{file, url}]
   const [video, setVideo] = useState(null) // {blob, url}
+  const [mediaProcessing, setMediaProcessing] = useState('') // photos | video | ''
   const [camera, setCamera] = useState(null) // live MediaStream while filming
   const [facing, setFacing] = useState('environment')
   const [camMode, setCamMode] = useState('photo') // on site viewfinder: 'photo' | 'video'
@@ -523,20 +524,27 @@ export default function Signali() {
     const files = Array.from(e.target.files || [])
     e.target.value = ''
     const room = Math.max(0, MAX_PHOTOS - photos.length)
+    const selected = files.slice(0, room)
     const next = []
-    for (const file of files.slice(0, room)) {
-      // Compression is an optimization, not a reason to lose a selected photo.
-      // If the browser cannot decode/compress this format, keep the original;
-      // the server remains responsible for validating its size and type.
-      let prepared = file
-      try {
-        prepared = await compressPhoto(file)
-      } catch {
-        prepared = file
+    if (!selected.length) return
+    setMediaProcessing('photos')
+    try {
+      for (const file of selected) {
+        // Compression is an optimization, not a reason to lose a selected photo.
+        // If the browser cannot decode/compress this format, keep the original;
+        // the server remains responsible for validating its size and type.
+        let prepared = file
+        try {
+          prepared = await compressPhoto(file)
+        } catch {
+          prepared = file
+        }
+        next.push({ file: prepared, url: track(URL.createObjectURL(prepared)) })
       }
-      next.push({ file: prepared, url: track(URL.createObjectURL(prepared)) })
+      if (next.length) setPhotos((prev) => [...prev, ...next].slice(0, MAX_PHOTOS))
+    } finally {
+      setMediaProcessing('')
     }
-    if (next.length) setPhotos((prev) => [...prev, ...next].slice(0, MAX_PHOTOS))
   }
   const removePhoto = (idx) => setPhotos((prev) => {
     const removed = prev[idx]
@@ -616,8 +624,16 @@ export default function Signali() {
     e.target.value = ''
     if (!original) return
     if (original.size > MAX_VIDEO_BYTES) return setError(t('signali.videoTooLarge', { size: MAX_VIDEO_MB }))
-    setError(t('signali.videoCompressing', 'Optimisation de la vidéo…'))
-    const file = await compressGalleryVideo(original)
+    setError('')
+    setMediaProcessing('video')
+    let file
+    try {
+      file = await compressGalleryVideo(original)
+    } catch {
+      file = original
+    } finally {
+      setMediaProcessing('')
+    }
     if (file.size > MAX_VIDEO_BYTES) return setError(t('signali.videoTooLarge', { size: MAX_VIDEO_MB }))
     const url = track(URL.createObjectURL(file))
     const probe = document.createElement('video')
@@ -1060,14 +1076,14 @@ export default function Signali() {
     ),
     gallery: (
       <label key="gallery" className={`sw-src${photoFull ? ' is-off' : ''}`}>
-        <span className="sw-ico" aria-hidden="true"><span style={{ fontSize: 23 }}>🖼️</span></span>
+        <span className="sw-ico" aria-hidden="true"><IconGallery width={23} height={23} /></span>
         <b>{t('signali.w.gallery')}<small>{photos.length}/{MAX_PHOTOS}</small></b>
         <input type="file" accept="image/*" multiple onChange={addPhotos} hidden disabled={photoFull} />
       </label>
     ),
     galleryVideo: (
       <label key="galleryVideo" className={`sw-src${video ? ' is-off' : ''}`}>
-        <span className="sw-ico" aria-hidden="true"><span style={{ fontSize: 23 }}>🎞️</span></span>
+        <span className="sw-ico" aria-hidden="true"><IconVideoUpload width={23} height={23} /></span>
         <b>{t('signali.w.galleryVideo')}<small>{t('signali.videoFromGalleryMax', { size: MAX_VIDEO_MB })}</small></b>
         <input type="file" accept="video/*" onChange={(e) => pickVideoFile(e, { fromGallery: true })} hidden disabled={!!video} />
       </label>
@@ -1079,9 +1095,13 @@ export default function Signali() {
     ) : (
       <>
         {mediaThumbs}
-        <p className="sw-media-info" role="note">
-          Les photos sont optimisées automatiquement. La compression d’une vidéo peut prendre un peu de temps ; gardez cette page ouverte pendant l’envoi.
-        </p>
+        <div className="sw-media-info" role="status" aria-live="polite">
+          <b>Optimisation et envoi des médias</b>
+          <p>Les photos sont compressées automatiquement pour accélérer leur transfert. La compression d’une vidéo peut prendre plus de temps selon sa durée et votre téléphone.</p>
+          {mediaProcessing === 'photos' && <p className="sw-media-progress">⏳ Optimisation des photos en cours…</p>}
+          {mediaProcessing === 'video' && <p className="sw-media-progress">⏳ Compression de la vidéo en cours… ne fermez pas cette page.</p>}
+          {!mediaProcessing && <p>Après avoir appuyé sur « Envoyer », votre signalement et son code s’affichent dès que le signalement est créé. Les médias se transfèrent ensuite en arrière-plan.</p>}
+        </div>
         <div className="sw-sources">
           {(galleryFirst ? ['gallery', 'galleryVideo', 'photo', 'video'] : ['photo', 'video', 'gallery', 'galleryVideo']).map((k) => sources[k])}
         </div>
