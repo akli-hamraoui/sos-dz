@@ -171,6 +171,7 @@ export default function SignalementDetail() {
   const location = useLocation()
   const justCreated = !!location.state?.justCreated
   const mediaWarnings = location.state?.mediaWarnings || []
+  const mediaUploadPending = !!location.state?.mediaUploadPending
   const [agreed, setAgreed] = useState(false)
   const [flagged, setFlagged] = useState(false)
   const [s, setS] = useState(null)
@@ -242,6 +243,11 @@ export default function SignalementDetail() {
       {/* Only right after sending: "sent" + the code to keep, nothing to
           edit here (that's on this page later, for its owner or an admin). */}
       {justCreated && <SentHero pending={pending} />}
+      {justCreated && mediaUploadPending && (
+        <p className="signali-media-background" role="status">
+          Vos médias sont envoyés en arrière-plan. La compression et le transfert peuvent prendre quelques instants.
+        </p>
+      )}
       {justCreated && mediaWarnings.length > 0 && <p className="signali-media-warning" role="status">⚠️ {t('signali.mediaWarning')}</p>}
       {token && justCreated && <CodeCard token={token} />}
 
