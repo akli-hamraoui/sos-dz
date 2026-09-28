@@ -168,13 +168,19 @@ function PinMap({ position, center, onMove }) {
     addBaseLayer(map)
     const lift = (up) => pinRef.current?.classList.toggle('is-moving', up)
     map.on('movestart', () => !quietRef.current && lift(true))
-    map.on('moveend', () => {
-      lift(false)
+    const reportCenter = () => {
       if (quietRef.current) return
       const c = map.getCenter()
       setPlaced(true)
       onMoveRef.current({ latitude: c.lat, longitude: c.lng })
+    }
+    map.on('moveend', () => {
+      lift(false)
+      reportCenter()
     })
+    // Some zoom gestures change the visible street detail without a
+    // meaningful pan event. Re-resolve the address after every user zoom.
+    map.on('zoomend', reportCenter)
     map.on('click', (e) => map.panTo(e.latlng, { animate: true, duration: 0.3 }))
     // Code-made moves: instant, so their moveend has fired by the time the
     // flag drops.
