@@ -768,37 +768,38 @@ export default function Signali() {
       description: description.trim(),
       turnstile_token: window.__turnstileToken || '',
     }
-    const build = (withMedia) => {
+    const build = () => {
       const f = new FormData()
       Object.entries(fields).forEach(([k, v]) => {
         if (Array.isArray(v)) v.forEach((x) => f.append(k, x))
         else if (v !== '' && v != null) f.append(k, v)
       })
-      if (!withMedia) {
-        f.append('media_upload_failed', '1')
-        return f
-      }
+      return f
+    }
+    const buildMedia = () => {
+      const f = new FormData()
       photos.forEach((p, i) => f.append('photos', p.file, p.file.name || `photo-${i + 1}.jpg`))
       if (video) f.append('video_file', new File([video.blob], `signali-video.${extFor(video.blob.type || '')}`, { type: video.blob.type || 'video/webm' }))
       if (voice) f.append('voice_file', new File([voice.blob], `signali-voice.${extFor(voice.blob.type || '')}`, { type: voice.blob.type || 'audio/webm' }))
       return f
     }
     try {
-      let created
-      try {
-        created = await apiUpload('/signalements/', build(true))
-      } catch (e) {
-        // The whole upload failed (too big for the connection/proxy, network
-        // drop...): send the report anyway, without its media, so nothing
-        // the citizen wrote is lost -- the server notes it for the admin.
-        // A plain validation error (4xx other than 413) is shown as is.
-        if (e?.status && e.status < 500 && e.status !== 413) throw e
-        console.warn('[Signali] upload with media failed, retrying without it', e)
-        created = await apiUpload('/signalements/', build(false))
-      }
-      if (created?.id && created.access_token) saveSignalementToken(created.id, created.access_token)
+      // Create the report first, without waiting for large media files.
+      const created = await apiUpload('/signalements/', build())
+      if (!created?.id) throw new Error('Le serveur n’a pas retourné le numéro du signalement.')
+      if (created.access_token) saveSignalementToken(created.id, created.access_token)
       Promise.resolve(refreshConfig()).catch(() => {})
-      navigate(`/signalements/${created.id}`, { replace: true, state: { justCreated: true, mediaWarnings: created.media_warnings || [] } })
+      const hasMedia = photos.length > 0 || !!video || !!voice
+      if (hasMedia) {
+        // Start the transfer, then show the confirmation/code page immediately.
+        apiUpload(`/signalements/${created.id}/media/`, buildMedia()).catch((e) => {
+          console.warn('[Signali] background media upload failed', e)
+        })
+      }
+      navigate(`/signalements/${created.id}`, {
+        replace: true,
+        state: { justCreated: true, mediaUploadPending: hasMedia, mediaWarnings: created.media_warnings || [] },
+      })
     } catch (e) {
       setError(translateApiError(e, t))
     } finally {
