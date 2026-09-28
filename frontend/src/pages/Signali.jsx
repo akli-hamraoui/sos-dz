@@ -143,7 +143,7 @@ function extFor(type) {
 // tapped spot under the pin; pinch / double-tap / +- zoom around the pin,
 // so zooming never moves the chosen spot. With no position yet (manual
 // entry), the pin is faded until the map is first moved or tapped.
-function PinMap({ position, center, onMove }) {
+function PinMap({ position, center, onMove, onReady }) {
   const { t } = useTranslation()
   const elRef = useRef(null)
   const mapRef = useRef(null)
@@ -178,9 +178,8 @@ function PinMap({ position, center, onMove }) {
       lift(false)
       reportCenter()
     })
-    // Some zoom gestures change the visible street detail without a
-    // meaningful pan event. Re-resolve the address after every user zoom.
-    map.on('zoomend', reportCenter)
+    // Zooming changes the scale, not the selected center point.
+    // Avoid duplicate reverse-geocoding requests on repeated zoom gestures.
     map.on('click', (e) => map.panTo(e.latlng, { animate: true, duration: 0.3 }))
     // Code-made moves: instant, so their moveend has fired by the time the
     // flag drops.
@@ -193,7 +192,14 @@ function PinMap({ position, center, onMove }) {
     if (start.position) map._quietView([start.position.latitude, start.position.longitude], 17)
     else map._quietView([start.center.latitude, start.center.longitude], start.center.zoom)
     mapRef.current = map
-    return () => map.remove()
+    onReady?.(() => {
+      const c = map.getCenter()
+      return { latitude: c.lat, longitude: c.lng }
+    })
+    return () => {
+      onReady?.(null)
+      map.remove()
+    }
   }, [])
 
   // Follows position changes made outside the map (an address suggestion,
@@ -296,6 +302,7 @@ export default function Signali() {
   const [accuracy, setAccuracy] = useState(null)
   const [address, setAddress] = useState('')
   const [manualLocationConfirmed, setManualLocationConfirmed] = useState(false)
+  const mapCenterGetter = useRef(null)
   const [wilaya, setWilaya] = useState('') // deduced from the position, never typed
   const [nearMe, setNearMe] = useState(null) // the phone's rough position, to open the map there
   const [nearby, setNearby] = useState([])
@@ -499,6 +506,28 @@ export default function Signali() {
       .catch(() => {})
   }
 
+  const handleAddressChange = (value) => {
+    setAddress(value)
+    // A newly edited address no longer describes the previously selected pin.
+    // The reporter must pick a matching suggestion (which supplies exact
+    // coordinates) or place the pin again before confirming.
+    setManualLocationConfirmed(false)
+    setCoords(null)
+    setAccuracy(null)
+    geocodeRequest.current += 1
+  }
+
+  const confirmCurrentPosition = () => {
+    // Always read the live map center at confirmation time, not a possibly
+    // stale React state value from the last moveend event.
+    const current = mapCenterGetter.current?.() || coords
+    if (!current || !isInAlgeria(current.latitude, current.longitude)) return
+    // These exact pin coordinates are the ones saved with the report.
+    setCoords({ latitude: Number(current.latitude), longitude: Number(current.longitude) })
+    setManualLocationConfirmed(true)
+    setError('')
+  }
+
   const onSelectPlace = ({ lat, lon }) => {
     if (!isInAlgeria(lat, lon)) return
     // Invalidate any pending reverse-geocode response from an older pin move.
@@ -514,7 +543,7 @@ export default function Signali() {
   // suggestion or a point on the map) -- the wilaya is deduced from it.
   // Except for an admin testing from abroad (Alger, no position).
   const locationOk =
-    locMode === 'gps' ? !!coords : locMode === 'manual' ? (!!coords && !!address.trim() && manualLocationConfirmed) || (adminNote && !!wilaya) : false
+    locMode === 'gps' ? (!!coords && manualLocationConfirmed) : locMode === 'manual' ? (!!coords && !!address.trim() && manualLocationConfirmed) || (adminNote && !!wilaya) : false
 
   const selectedWilaya = wilayas.find((w) => String(w.id) === String(wilaya))
   const manualCenter = nearMe ? { ...nearMe, zoom: 14 } : { latitude: 34.5, longitude: 3, zoom: 5 }
@@ -1009,19 +1038,19 @@ export default function Signali() {
         <PlaceAutocomplete
           id="signali-address"
           value={address}
-          onChange={setAddress}
+          onChange={handleAddressChange}
           onSelectPlace={onSelectPlace}
           placeholder={t('signali.w.searchPlace')}
           countryCode="dz"
           required
         />
       </div>
-      <PinMap position={coords} center={manualCenter} onMove={onPinMove} />
+      <PinMap position={coords} center={manualCenter} onMove={onPinMove} onReady={(getCenter) => { mapCenterGetter.current = getCenter }} />
       {!coords && <small className="signali-hint">{address.trim() ? t('signali.noPinHint') : t('signali.tapMapHint')}</small>}
       {coords && (
         <div className="sw-location-confirm">
           <p>{t('signali.w.placeToSet')} · {address || `${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)}`}</p>
-          <button type="button" className="sw-acc-go" onClick={() => setManualLocationConfirmed(true)}>
+          <button type="button" className="sw-acc-go" onClick={confirmCurrentPosition}>
             {manualLocationConfirmed ? t('signali.positionConfirmed') : t('signali.confirmPosition')}
           </button>
         </div>
@@ -1165,11 +1194,11 @@ export default function Signali() {
   const errorLine = error && <p className="urgent-sos-error">{error}</p>
   // Remote: every step gone through (Détails passed with its Continuer).
   const sendReady = locationOk && mediaOk && !recordingVoice && (mode !== 'remote' || (typeOk && detailsDone))
-  const sendButton = (
+  const sendButton = locationOk ? (
     <button type="button" className={`sw-next is-full${sendReady ? ' is-ready' : ''}`} onClick={submit} disabled={busy || !sendReady}>
       {busy ? t('signali.sending') : t('signali.w.send')}
     </button>
-  )
+  ) : null
 
   // GPS state, top right, on site.
   const gpsChip =
@@ -1346,7 +1375,13 @@ export default function Signali() {
                       {centerButton}
                       <p className="sw-where">📍 {placeLabel}</p>
                     </div>
-                    <PinMap position={coords} onMove={onPinMove} />
+                    <div className="sw-location-confirm">
+                      <p>{t('signali.w.placeToSet')} · {address || `${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)}`}</p>
+                      <button type="button" className="sw-acc-go" onClick={confirmCurrentPosition}>
+                        {manualLocationConfirmed ? t('signali.positionConfirmed') : t('signali.confirmPosition')}
+                      </button>
+                    </div>
+                    <PinMap position={coords} onMove={onPinMove} onReady={(getCenter) => { mapCenterGetter.current = getCenter }} />
                   </div>
                 ) : locMode === 'gps' && locStatus === 'locating' ? (
                   <p className="sw-where">{t('signali.locating')}</p>
