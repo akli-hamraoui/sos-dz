@@ -1049,9 +1049,19 @@ export default function Signali() {
       {coords && (
         <div className="sw-location-confirm">
           <p>{t('signali.w.placeToSet')} · {address || `${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)}`}</p>
-          <button type="button" className="sw-acc-go" onClick={confirmCurrentPosition}>
-            {manualLocationConfirmed ? t('signali.positionConfirmed') : t('signali.confirmPosition')}
-          </button>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            <button type="button" className="sw-acc-go" onClick={confirmCurrentPosition}>
+              {manualLocationConfirmed ? t('signali.positionConfirmed') : t('signali.confirmPosition')}
+            </button>
+            <button
+              type="button"
+              className="sw-acc-go"
+              disabled={!locationOk}
+              onClick={() => setOpenSection(nextOpen('place'))}
+            >
+              {t('signali.continue')} →
+            </button>
+          </div>
         </div>
       )}
       <PinMap position={coords} center={manualCenter} onMove={onPinMove} onReady={(getCenter) => { mapCenterGetter.current = getCenter }} />
@@ -1195,11 +1205,25 @@ export default function Signali() {
   const errorLine = error && <p className="urgent-sos-error">{error}</p>
   // Remote: every step gone through (Détails passed with its Continuer).
   const sendReady = locationOk && mediaOk && !recordingVoice && (mode !== 'remote' || (typeOk && detailsDone))
-  const sendButton = locationOk ? (
-    <button type="button" className={`sw-next is-full${sendReady ? ' is-ready' : ''}`} onClick={submit} disabled={busy || !sendReady}>
-      {busy ? t('signali.sending') : t('signali.w.send')}
-    </button>
-  ) : null
+  const sendMissing = [
+    ...(!locationOk ? [t('signali.w.place') + ' : confirmer la position'] : []),
+    ...(!mediaOk ? [t('signali.w.media') + ' : ajouter une photo ou une vidéo'] : []),
+    ...(mode === 'remote' && !typeOk ? [t('signali.w.type') + ' : choisir une catégorie'] : []),
+    ...(mode === 'remote' && !detailsDone ? [t('signali.w.details') + ' : valider l’étape avec Continuer'] : []),
+    ...(recordingVoice ? ['Arrêter l’enregistrement vocal'] : []),
+  ]
+  const sendButton = (
+    <>
+      {!sendReady && (
+        <p className="sw-send-missing" role="status" aria-live="polite">
+          <b>Avant d’envoyer :</b> {sendMissing.join(' · ')}
+        </p>
+      )}
+      <button type="button" className={`sw-next is-full${sendReady ? ' is-ready' : ''}`} onClick={submit} disabled={busy || !sendReady}>
+        {busy ? t('signali.sending') : t('signali.w.send')}
+      </button>
+    </>
+  )
 
   // GPS state, top right, on site.
   const gpsChip =
