@@ -340,3 +340,39 @@ class RealWhisperSmokeTest(TestCase):
             transcript = transcribe_audio(upload)
 
         self.assertTrue(transcript.strip())
+
+
+class BilingualCorrectionTests(TestCase):
+    def test_mixed_french_arabic_is_preserved_without_translation(self):
+        from core.voice_ai import correct_transcription
+
+        transcript = "Je suis à وهران et نحتاج الماء"
+        response = Mock()
+        response.ok = True
+        response.json.return_value = {"message": {"content": transcript}}
+        with patch("core.voice_ai.requests.post", return_value=response) as post:
+            corrected = correct_transcription(transcript)
+
+        self.assertEqual(corrected, transcript)
+        prompt = post.call_args.kwargs["json"]["messages"][0]["content"]
+        self.assertIn("ne convertis pas un mot arabe en français", prompt)
+        self.assertIn(transcript, prompt)
+
+    def test_arabic_script_wilaya_correction_returns_arabic_spelling(self):
+        from core.voice_ai import correct_transcription
+
+        transcript = "أنا في سطايف ونحتاج الماء"
+        corrected = "أنا في سطيف ونحتاج الماء"
+        response = Mock()
+        response.ok = True
+        response.json.return_value = {"message": {"content": corrected}}
+        with patch("core.voice_ai.requests.post", return_value=response):
+            self.assertEqual(correct_transcription(transcript), corrected)
+
+    def test_unavailable_correction_keeps_original_transcript(self):
+        from core.voice_ai import correct_transcription
+        import requests
+
+        transcript = "Je suis à Tizi Ozu و نحتاج الماء"
+        with patch("core.voice_ai.requests.post", side_effect=requests.Timeout):
+            self.assertEqual(correct_transcription(transcript), transcript)
