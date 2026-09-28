@@ -434,8 +434,12 @@ export default function Signali() {
       setAccuracy(Number.isFinite(acc) ? Math.round(acc) : null)
       setLocStatus('success')
       prefillWilaya({ latitude, longitude })
+      const requestId = ++geocodeRequest.current
       reverseGeocode(latitude, longitude, i18n.language)
-        .then((label) => label && setAddress((current) => (current.trim() ? current : label)))
+        .then((label) => {
+          // Do not let a late GPS lookup overwrite a newer pin/address choice.
+          if (requestId === geocodeRequest.current && label) setAddress((current) => (current.trim() ? current : label))
+        })
         .catch(() => {})
     } catch (e) {
       setLocStatus('error')
