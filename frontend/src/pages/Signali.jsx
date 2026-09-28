@@ -544,7 +544,13 @@ export default function Signali() {
   // suggestion or a point on the map) -- the wilaya is deduced from it.
   // Except for an admin testing from abroad (Alger, no position).
   const locationOk =
-    locMode === 'gps' ? (!!coords && manualLocationConfirmed) : locMode === 'manual' ? (!!coords && !!address.trim() && manualLocationConfirmed) || (adminNote && !!wilaya) : false
+    locMode === 'gps'
+      ? (!!coords && manualLocationConfirmed)
+      : locMode === 'manual'
+        // Coordinates from a confirmed map pin are a valid location on their
+        // own; an address is optional when the report includes coordinates.
+        ? (!!coords && manualLocationConfirmed) || (adminNote && !!wilaya)
+        : false
 
   const selectedWilaya = wilayas.find((w) => String(w.id) === String(wilaya))
   const manualCenter = nearMe ? { ...nearMe, zoom: 14 } : { latitude: 34.5, longitude: 3, zoom: 5 }
