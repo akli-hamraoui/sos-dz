@@ -803,6 +803,7 @@
     "cameraUnavailable": "Caméra indisponible.",
     "recordingError": "L'enregistrement a échoué, réessayez.",
     "videoTooLarge": "Vidéo trop lourde ({{size}} Mo max).",
+    "videoCompressing": "Optimisation de la vidéo…",
     "videoTooLong": "Vidéo trop longue ({{max}} s max).",
     "mediaRequired": "Ajoutez au moins une photo ou une vidéo pour continuer.",
     "descriptionTitle": "Décrivez le problème",
@@ -978,7 +979,9 @@
       "modePhoto": "PHOTO",
       "center": "Centrer",
       "camHint": "Touchez une miniature pour la retirer · {{max}} photos max"
-    }
+    },
+    "confirmPosition": "Confirmer cette position",
+    "positionConfirmed": "✓ Position confirmée"
   },
   "explore": {
     "inAreaShort_one": "{{count}} ici",
@@ -993,6 +996,8 @@
     "approxBubble": "Position approximative · {{place}} ({{count}})",
     "noPosition": "Sans position",
     "noPositionWhat": "Qu'est-ce que c'est ?",
-    "noPositionHelp": "Ces signalements n'ont pas de position exacte (adresse tapée sans épingle, lieu non trouvé…). Ils ne sont donc pas placés sur la carte : touchez la bulle pour les voir en liste, avec leur wilaya."
+    "noPositionHelp": "Ces signalements n'ont pas de position exacte (adresse tapée sans épingle, lieu non trouvé…). Ils ne sont donc pas placés sur la carte : touchez la bulle pour les voir en liste, avec leur wilaya.",
+    "previousCard": "Précédent",
+    "nextCard": "Suivant"
   }
 }

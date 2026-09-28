@@ -35,7 +35,7 @@ MAX_VIDEO_SECONDS = 20
 # (config.settings.DATA_UPLOAD_MAX_MEMORY_SIZE, matched by Nginx's
 # client_max_body_size) is the only limit that applies to it.
 MAX_PHOTO_SIZE_MB = 10
-MAX_VIDEO_SIZE_MB = 10
+MAX_VIDEO_SIZE_MB = 30
 MAX_PHOTO_SIZE_BYTES = MAX_PHOTO_SIZE_MB * 1024 * 1024
 MAX_VIDEO_SIZE_BYTES = MAX_VIDEO_SIZE_MB * 1024 * 1024
 

@@ -13,6 +13,7 @@ import PhotoLightbox from '../components/PhotoLightbox'
 import { getSignalementToken, saveSignalementToken, SIGNALI_STATUSES } from '../signali'
 import CategoryPicker from '../components/CategoryPicker'
 import '../signali.css'
+import '../signali-detail-modern.css'
 
 // One Signali report: its photos, video, description, voice note and
 // transcripts, a Google Maps itinerary, citizens' votes and comments --
@@ -177,6 +178,7 @@ export default function SignalementDetail() {
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
   const [lightbox, setLightbox] = useState(null)
+  const [lightboxIndex, setLightboxIndex] = useState(0)
   const [token, setToken] = useState(() => getSignalementToken(id))
 
   const load = useCallback(async (quiet = false) => {
@@ -270,7 +272,7 @@ export default function SignalementDetail() {
         {(photos.length > 0 || s.video_file) && (
           <div className="signali-detail-media">
             {photos.map((p) => (
-              <button type="button" key={p.id} onClick={() => setLightbox(p.image)} className="signali-detail-photo">
+              <button type="button" key={p.id} onClick={() => { setLightboxIndex(photos.findIndex((photo) => photo.id === p.id)); setLightbox(p.image) }} className="signali-detail-photo">
                 <img src={p.image} alt={t('common.photoAlt')} loading="lazy" />
               </button>
             ))}
@@ -348,7 +350,7 @@ export default function SignalementDetail() {
       {!token && <UnlockWithCode id={s.id} onUnlocked={setToken} />}
 
       <CommentThread comments={s.comments || []} target="signalement" targetId={s.id} onChanged={load} notice={t('signali.commentIpNotice')} />
-      <PhotoLightbox src={lightbox} onClose={() => setLightbox(null)} />
+      <PhotoLightbox src={lightbox} images={photos.map((photo) => photo.image)} index={lightboxIndex} onNavigate={(next) => { setLightboxIndex(next); setLightbox(photos[next]?.image || null) }} onClose={() => setLightbox(null)} />
     </section>
   )
 }

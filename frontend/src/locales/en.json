@@ -784,6 +784,7 @@
     "cameraUnavailable": "Camera unavailable.",
     "recordingError": "Recording failed, please try again.",
     "videoTooLarge": "Video too large ({{size}} MB max).",
+    "videoCompressing": "Optimizing the video…",
     "videoTooLong": "Video too long ({{max}} s max).",
     "mediaRequired": "Add at least one photo or a video to continue.",
     "descriptionTitle": "Describe the problem",
@@ -959,7 +960,9 @@
       "modePhoto": "PHOTO",
       "center": "Center",
       "camHint": "Tap a thumbnail to remove it · {{max}} photos max"
-    }
+    },
+    "confirmPosition": "Confirm this location",
+    "positionConfirmed": "✓ Location confirmed"
   },
   "explore": {
     "inAreaShort_one": "{{count}} here",
@@ -974,6 +977,8 @@
     "approxBubble": "Approximate position · {{place}} ({{count}})",
     "noPosition": "No position",
     "noPositionWhat": "What is this?",
-    "noPositionHelp": "These have no exact position (address typed without a pin, place not found…), so they aren't placed on the map: tap the bubble to see them as a list, with their wilaya."
+    "noPositionHelp": "These have no exact position (address typed without a pin, place not found…), so they aren't placed on the map: tap the bubble to see them as a list, with their wilaya.",
+    "previousCard": "Previous",
+    "nextCard": "Next"
   }
 }

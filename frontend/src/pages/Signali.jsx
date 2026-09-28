@@ -29,13 +29,108 @@ import '../signali-wizard.css'
 const MAX_PHOTOS = 3
 const MAX_VIDEO_SECONDS = 20
 const MAX_VOICE_SECONDS = 120
-const MAX_VIDEO_MB = 10 // = core.media_validation.MAX_VIDEO_SIZE_MB
+const MAX_VIDEO_MB = 30 // = core.media_validation.MAX_VIDEO_SIZE_MB
 const MAX_VIDEO_BYTES = MAX_VIDEO_MB * 1024 * 1024
 
 const mmss = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 
 function pickMime(candidates) {
   return candidates.find((x) => window.MediaRecorder?.isTypeSupported?.(x)) || ''
+}
+
+async function compressGalleryVideo(file) {
+  if (!window.MediaRecorder || !HTMLCanvasElement.prototype.captureStream) return file
+  const inputUrl = URL.createObjectURL(file)
+  const video = document.createElement('video')
+  let outputStream
+  let recorder
+  try {
+    video.muted = true
+    video.playsInline = true
+    video.preload = 'auto'
+    video.src = inputUrl
+    await new Promise((resolve, reject) => {
+      video.onloadedmetadata = resolve
+      video.onerror = () => reject(new Error('Impossible de lire cette vidéo'))
+    })
+    if (!Number.isFinite(video.duration) || video.duration <= 0 || !video.videoWidth || !video.videoHeight) return file
+
+    const duration = Math.min(video.duration, MAX_VIDEO_SECONDS)
+    const scale = Math.min(1, 1280 / video.videoWidth, 720 / video.videoHeight)
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.max(2, Math.floor(video.videoWidth * scale / 2) * 2)
+    canvas.height = Math.max(2, Math.floor(video.videoHeight * scale / 2) * 2)
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return file
+
+    outputStream = canvas.captureStream(24)
+    const sourceStream = video.captureStream?.() || video.mozCaptureStream?.()
+    // If the browser cannot expose the source tracks, keep the original:
+    // transcoding a video-only canvas stream could silently remove its sound.
+    if (!sourceStream) return file
+    sourceStream.getAudioTracks().forEach((track) => outputStream.addTrack(track))
+
+    const mimeType = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm']
+      .find((type) => MediaRecorder.isTypeSupported(type))
+    if (!mimeType) return file
+
+    recorder = new MediaRecorder(outputStream, {
+      mimeType,
+      videoBitsPerSecond: 850000,
+      audioBitsPerSecond: 96000,
+    })
+    const chunks = []
+    const stopped = new Promise((resolve, reject) => {
+      recorder.ondataavailable = (event) => event.data.size && chunks.push(event.data)
+      recorder.onerror = () => reject(new Error('Échec de compression vidéo'))
+      recorder.onstop = resolve
+    })
+
+    video.currentTime = 0
+    await new Promise((resolve) => {
+      video.onseeked = resolve
+      if (video.readyState >= 2 && video.currentTime === 0) resolve()
+    })
+
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+    recorder.start(250)
+    await video.play()
+    await new Promise((resolve) => {
+      let frameId
+      const stop = () => {
+        if (frameId) cancelAnimationFrame(frameId)
+        video.pause()
+        if (recorder.state !== 'inactive') recorder.stop()
+        resolve()
+      }
+      const draw = () => {
+        if (video.currentTime >= duration || video.ended) return stop()
+        if (!video.paused) ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+        frameId = requestAnimationFrame(draw)
+      }
+      video.onended = stop
+      frameId = requestAnimationFrame(draw)
+    })
+    await stopped
+
+    const blob = new Blob(chunks, { type: mimeType })
+    if (!blob.size || blob.size >= file.size) return file
+    return new File([blob], file.name.replace(/\.[^.]+$/, '') + '.webm', {
+      type: mimeType,
+      lastModified: Date.now(),
+    })
+  } catch {
+    return file
+  } finally {
+    if (recorder && recorder.state !== 'inactive') {
+      try { recorder.stop() } catch { /* recorder already stopped */ }
+    }
+    outputStream?.getTracks().forEach((track) => track.stop())
+    video.pause()
+    video.removeAttribute('src')
+    video.load()
+    URL.revokeObjectURL(inputUrl)
+  }
 }
 
 function extFor(type) {
@@ -194,6 +289,7 @@ export default function Signali() {
   const [coords, setCoords] = useState(null)
   const [accuracy, setAccuracy] = useState(null)
   const [address, setAddress] = useState('')
+  const [manualLocationConfirmed, setManualLocationConfirmed] = useState(false)
   const [wilaya, setWilaya] = useState('') // deduced from the position, never typed
   const [nearMe, setNearMe] = useState(null) // the phone's rough position, to open the map there
   const [nearby, setNearby] = useState([])
@@ -363,20 +459,37 @@ export default function Signali() {
 
   // A point placed on the map with no address typed yet: the address
   // under it (OpenStreetMap), which the reporter can correct.
+  const geocodeRequest = useRef(0)
   const onPinMove = (c) => {
+    // Reports are restricted to Algeria. Do not accept a pin dragged outside
+    // the supported area; keep the last valid coordinates and ask the user
+    // to move it back inside the country.
+    if (!isInAlgeria(c.latitude, c.longitude)) {
+      setManualLocationConfirmed(false)
+      setError(t('signali.locationOutsideAlgeria'))
+      return
+    }
+    setManualLocationConfirmed(false)
     setCoords(c)
     // The first point placed by hand is also what "Centrer" comes back to
     // (when no address was picked from the list, nor a GPS fix taken).
     setAnchor((current) => current || c)
     setError('')
     prefillWilaya(c)
+    const requestId = ++geocodeRequest.current
     reverseGeocode(c.latitude, c.longitude, i18n.language)
-      .then((label) => label && setAddress((current) => (current.trim() ? current : label)))
+      .then((label) => {
+        // Ignore an older response if the marker has moved again.
+        if (requestId === geocodeRequest.current && label) setAddress(label)
+      })
       .catch(() => {})
   }
 
   const onSelectPlace = ({ lat, lon }) => {
     if (!isInAlgeria(lat, lon)) return
+    // Invalidate any pending reverse-geocode response from an older pin move.
+    geocodeRequest.current += 1
+    setManualLocationConfirmed(false)
     const next = { latitude: lat, longitude: lon }
     setCoords(next)
     setAnchor(next)
@@ -387,7 +500,7 @@ export default function Signali() {
   // suggestion or a point on the map) -- the wilaya is deduced from it.
   // Except for an admin testing from abroad (Alger, no position).
   const locationOk =
-    locMode === 'gps' ? !!coords : locMode === 'manual' ? !!address.trim() && (!!coords || (adminNote && !!wilaya)) : false
+    locMode === 'gps' ? !!coords : locMode === 'manual' ? (!!coords && !!address.trim() && manualLocationConfirmed) || (adminNote && !!wilaya) : false
 
   const selectedWilaya = wilayas.find((w) => String(w.id) === String(wilaya))
   const manualCenter = nearMe ? { ...nearMe, zoom: 14 } : { latitude: 34.5, longitude: 3, zoom: 5 }
@@ -409,15 +522,30 @@ export default function Signali() {
   const addPhotos = async (e) => {
     const files = Array.from(e.target.files || [])
     e.target.value = ''
-    const room = MAX_PHOTOS - photos.length
+    const room = Math.max(0, MAX_PHOTOS - photos.length)
     const next = []
     for (const file of files.slice(0, room)) {
-      const compressed = await compressPhoto(file)
-      next.push({ file: compressed, url: track(URL.createObjectURL(compressed)) })
+      // Compression is an optimization, not a reason to lose a selected photo.
+      // If the browser cannot decode/compress this format, keep the original;
+      // the server remains responsible for validating its size and type.
+      let prepared = file
+      try {
+        prepared = await compressPhoto(file)
+      } catch {
+        prepared = file
+      }
+      next.push({ file: prepared, url: track(URL.createObjectURL(prepared)) })
     }
-    setPhotos((prev) => [...prev, ...next].slice(0, MAX_PHOTOS))
+    if (next.length) setPhotos((prev) => [...prev, ...next].slice(0, MAX_PHOTOS))
   }
-  const removePhoto = (idx) => setPhotos((prev) => prev.filter((_, i) => i !== idx))
+  const removePhoto = (idx) => setPhotos((prev) => {
+    const removed = prev[idx]
+    if (removed?.url) {
+      URL.revokeObjectURL(removed.url)
+      urlsRef.current = urlsRef.current.filter((url) => url !== removed.url)
+    }
+    return prev.filter((_, i) => i !== idx)
+  })
 
   // --- video: live camera with the soundtrack, so the reporter can talk ---
   const openCamera = async (mode = facing) => {
@@ -481,27 +609,44 @@ export default function Signali() {
     }, 1000)
   }
 
-  // A video file: from the phone's own camera app (fallback for browsers
-  // without MediaRecorder, still capped at MAX_VIDEO_SECONDS) or picked
-  // from the gallery (only the size is capped -- the server's own limit).
-  const pickVideoFile = (e, { fromGallery = false } = {}) => {
-    const file = e.target.files?.[0]
+  // A video file, whether selected from the gallery or the phone camera,
+  // must respect the same duration and size limits.
+  const pickVideoFile = async (e) => {
+    const original = e.target.files?.[0]
     e.target.value = ''
-    if (!file) return
+    if (!original) return
+    if (original.size > MAX_VIDEO_BYTES) return setError(t('signali.videoTooLarge', { size: MAX_VIDEO_MB }))
+    setError(t('signali.videoCompressing', 'Optimisation de la vidéo…'))
+    const file = await compressGalleryVideo(original)
     if (file.size > MAX_VIDEO_BYTES) return setError(t('signali.videoTooLarge', { size: MAX_VIDEO_MB }))
     const url = track(URL.createObjectURL(file))
-    if (fromGallery) {
-      setError('')
-      return setVideo({ blob: file, url })
-    }
     const probe = document.createElement('video')
     probe.preload = 'metadata'
-    probe.onloadedmetadata = () => {
-      if (probe.duration > MAX_VIDEO_SECONDS + 1) return setError(t('signali.videoTooLong', { max: MAX_VIDEO_SECONDS }))
+    const acceptFile = () => {
+      probe.onloadedmetadata = null
+      probe.onerror = null
+      probe.removeAttribute('src')
+      probe.load()
       setError('')
       setVideo({ blob: file, url })
     }
-    probe.onerror = () => setVideo({ blob: file, url })
+    const rejectFile = () => {
+      probe.onloadedmetadata = null
+      probe.onerror = null
+      probe.removeAttribute('src')
+      probe.load()
+      URL.revokeObjectURL(url)
+      urlsRef.current = urlsRef.current.filter((item) => item !== url)
+    }
+    probe.onloadedmetadata = () => {
+      const duration = probe.duration
+      if (Number.isFinite(duration) && duration > 0 && duration > MAX_VIDEO_SECONDS + 1) {
+        rejectFile()
+        return setError(t('signali.videoTooLong', { max: MAX_VIDEO_SECONDS }))
+      }
+      acceptFile()
+    }
+    probe.onerror = acceptFile
     probe.src = url
   }
 
@@ -831,6 +976,14 @@ export default function Signali() {
       </div>
       <PinMap position={coords} center={manualCenter} onMove={onPinMove} />
       {!coords && <small className="signali-hint">{address.trim() ? t('signali.noPinHint') : t('signali.tapMapHint')}</small>}
+      {coords && (
+        <div className="sw-location-confirm">
+          <p>{t('signali.w.placeToSet')} · {address || `${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)}`}</p>
+          <button type="button" className="sw-acc-go" onClick={() => setManualLocationConfirmed(true)}>
+            {manualLocationConfirmed ? t('signali.positionConfirmed') : t('signali.confirmPosition')}
+          </button>
+        </div>
+      )}
     </div>
   )
 

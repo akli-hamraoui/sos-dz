@@ -164,3 +164,22 @@ body.sx-explore-page main > .page-title { display: none; }
 .sx-noloc-bubble > span { display: grid; place-items: center; transform: scale(.74); }
 .sx-noloc-bubble.is-on > span > * { box-shadow: 0 0 0 4px #15213a; }
 .sx-noloc-help { display: grid; place-items: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 50%; background: #fff; color: #15213a; font: inherit; font-size: 14px; font-weight: 800; box-shadow: 0 2px 8px rgba(21, 33, 58, .2); cursor: pointer; }
+
+/* Carousel arrows: frosted glass, a slight nudge towards where they go. */
+.sx-arrow {
+  --sx-nudge: 3px;
+  position: absolute; bottom: 64px; z-index: 1001;
+  display: grid; place-items: center; width: 40px; height: 40px; padding: 0;
+  border: 1px solid rgba(255, 255, 255, .7); border-radius: 50%;
+  background: rgba(255, 255, 255, .55); color: #15213a; cursor: pointer;
+  -webkit-backdrop-filter: blur(10px) saturate(1.5); backdrop-filter: blur(10px) saturate(1.5);
+  box-shadow: 0 6px 18px rgba(21, 33, 58, .22);
+}
+.sx-arrow.is-prev { inset-inline-start: 6px; animation: sx-nudge-prev 1.8s ease-in-out infinite; }
+.sx-arrow.is-next { inset-inline-end: 6px; animation: sx-nudge-next 1.8s ease-in-out infinite; }
+.sx-arrow:active { background: rgba(255, 255, 255, .85); }
+[dir='rtl'] .sx-arrow { --sx-nudge: -3px; }
+[dir='rtl'] .sx-arrow svg { transform: scaleX(-1); }
+@keyframes sx-nudge-next { 50% { transform: translateX(var(--sx-nudge)); opacity: .8; } }
+@keyframes sx-nudge-prev { 50% { transform: translateX(calc(var(--sx-nudge) * -1)); opacity: .8; } }
+@media (prefers-reduced-motion: reduce) { .sx-arrow { animation: none !important; } }
