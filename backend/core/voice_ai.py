@@ -336,3 +336,51 @@ def _mark_voice_need_failed(need, error_message):
     need.record_edit()
     need.save()
     need.recompute_status()
+
+def translate_transcript(transcript):
+    """Translate a voice transcript into French and Modern Standard Arabic.
+
+    Uses the already configured local Ollama model; keeps the source transcript
+    untouched and returns only the two requested translations.
+    """
+    source = (transcript or "").strip()
+    if not source:
+        raise VoiceAIError("No transcription is available to translate.")
+    if len(source) > 12000:
+        source = source[:12000]
+    ollama_url = getattr(settings, "VOICE_LLM_URL", "http://127.0.0.1:11434/api/chat")
+    model = getattr(settings, "VOICE_LLM_MODEL", "qwen2.5:3b")
+    prompt = (
+        "Translate the following speech transcription into two languages: "
+        "French (fr) and Modern Standard Arabic (ar). The source may be "
+        "Algerian Darija, Kabyle, or mixed speech-to-text. Preserve meaning, "
+        "names, places, numbers, and uncertainty. Do not add facts or infer "
+        "missing words. If a phrase is unclear, mark it as [inaudible/unclear] "
+        "in the target language rather than guessing. Return ONLY valid JSON "
+        'with exactly two string keys: {"fr":"...","ar":"..."}.\n\n'
+        "TRANSCRIPTION:\n" + source
+    )
+    try:
+        response = requests.post(
+            ollama_url,
+            json={
+                "model": model,
+                "messages": [{"role": "user", "content": prompt}],
+                "stream": False,
+                "format": "json",
+                "options": {"temperature": 0},
+            },
+            timeout=90,
+        )
+        response.raise_for_status()
+        content = response.json().get("message", {}).get("content", "")
+        result = json.loads(content)
+        fr = result.get("fr")
+        ar = result.get("ar")
+        if not isinstance(fr, str) or not fr.strip() or not isinstance(ar, str) or not ar.strip():
+            raise ValueError("The translation response did not contain both languages.")
+        return {"fr": fr.strip(), "ar": ar.strip()}
+    except (requests.RequestException, ValueError, TypeError, json.JSONDecodeError) as exc:
+        logger.warning("Transcript translation failed: %s", exc)
+        raise VoiceAIError("Automatic translation is temporarily unavailable.") from exc
+
