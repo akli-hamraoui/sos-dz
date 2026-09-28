@@ -526,6 +526,10 @@ export default function Signali() {
     setCoords({ latitude: Number(current.latitude), longitude: Number(current.longitude) })
     setManualLocationConfirmed(true)
     setError('')
+    // In the accordion flow, confirming the location completes step 1.
+    // Move directly to the next required section instead of asking for a
+    // second "Continuer" click.
+    if (mode !== 'onsite') setOpenSection('media')
   }
 
   const onSelectPlace = ({ lat, lon }) => {
