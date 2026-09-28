@@ -1049,14 +1049,14 @@ export default function Signali() {
     ),
     gallery: (
       <label key="gallery" className={`sw-src${photoFull ? ' is-off' : ''}`}>
-        <span className="sw-ico is-navy"><IconGallery width={22} height={22} /></span>
+        <span className="sw-ico" aria-hidden="true"><span style={{ fontSize: 23 }}>🖼️</span></span>
         <b>{t('signali.w.gallery')}<small>{photos.length}/{MAX_PHOTOS}</small></b>
         <input type="file" accept="image/*" multiple onChange={addPhotos} hidden disabled={photoFull} />
       </label>
     ),
     galleryVideo: (
       <label key="galleryVideo" className={`sw-src${video ? ' is-off' : ''}`}>
-        <span className="sw-ico"><IconVideoUpload width={22} height={22} /></span>
+        <span className="sw-ico" aria-hidden="true"><span style={{ fontSize: 23 }}>🎞️</span></span>
         <b>{t('signali.w.galleryVideo')}<small>{t('signali.videoFromGalleryMax', { size: MAX_VIDEO_MB })}</small></b>
         <input type="file" accept="video/*" onChange={(e) => pickVideoFile(e, { fromGallery: true })} hidden disabled={!!video} />
       </label>
@@ -1068,6 +1068,9 @@ export default function Signali() {
     ) : (
       <>
         {mediaThumbs}
+        <p className="sw-media-info" role="note">
+          Les photos sont optimisées automatiquement. La compression d’une vidéo peut prendre un peu de temps ; gardez cette page ouverte pendant l’envoi.
+        </p>
         <div className="sw-sources">
           {(galleryFirst ? ['gallery', 'galleryVideo', 'photo', 'video'] : ['photo', 'video', 'gallery', 'galleryVideo']).map((k) => sources[k])}
         </div>
