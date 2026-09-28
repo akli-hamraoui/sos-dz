@@ -540,11 +540,11 @@ export default function Signali() {
     prefillWilaya(next)
   }
 
-  // Manual entry: the place is required, with its position (a picked
-  // suggestion or a point on the map) -- the wilaya is deduced from it.
-  // Except for an admin testing from abroad (Alger, no position).
+  // A confirmed map pin is a valid manual location even when no address
+  // was selected/typed. The coordinates are submitted with the report.
+  // Keep the admin testing exception (wilaya without a position).
   const locationOk =
-    locMode === 'gps' ? (!!coords && manualLocationConfirmed) : locMode === 'manual' ? (!!coords && !!address.trim() && manualLocationConfirmed) || (adminNote && !!wilaya) : false
+    locMode === 'gps' ? (!!coords && manualLocationConfirmed) : locMode === 'manual' ? (!!coords && manualLocationConfirmed) || (adminNote && !!wilaya) : false
 
   const selectedWilaya = wilayas.find((w) => String(w.id) === String(wilaya))
   const manualCenter = nearMe ? { ...nearMe, zoom: 14 } : { latitude: 34.5, longitude: 3, zoom: 5 }
@@ -1204,12 +1204,11 @@ export default function Signali() {
   )
   const errorLine = error && <p className="urgent-sos-error">{error}</p>
   // Remote: every step gone through (Détails passed with its Continuer).
-  const sendReady = locationOk && mediaOk && !recordingVoice && (mode !== 'remote' || (typeOk && detailsDone))
+  const sendReady = locationOk && mediaOk && !recordingVoice && (mode !== 'remote' || typeOk)
   const sendMissing = [
     ...(!locationOk ? [t('signali.w.place') + ' : confirmer la position'] : []),
     ...(!mediaOk ? [t('signali.w.media') + ' : ajouter une photo ou une vidéo'] : []),
     ...(mode === 'remote' && !typeOk ? [t('signali.w.type') + ' : choisir une catégorie'] : []),
-    ...(mode === 'remote' && !detailsDone ? [t('signali.w.details') + ' : valider l’étape avec Continuer'] : []),
     ...(recordingVoice ? ['Arrêter l’enregistrement vocal'] : []),
   ]
   const sendButton = (
