@@ -168,13 +168,19 @@ function PinMap({ position, center, onMove }) {
     addBaseLayer(map)
     const lift = (up) => pinRef.current?.classList.toggle('is-moving', up)
     map.on('movestart', () => !quietRef.current && lift(true))
-    map.on('moveend', () => {
-      lift(false)
+    const reportCenter = () => {
       if (quietRef.current) return
       const c = map.getCenter()
       setPlaced(true)
       onMoveRef.current({ latitude: c.lat, longitude: c.lng })
+    }
+    map.on('moveend', () => {
+      lift(false)
+      reportCenter()
     })
+    // Some zoom gestures change the visible street detail without a
+    // meaningful pan event. Re-resolve the address after every user zoom.
+    map.on('zoomend', reportCenter)
     map.on('click', (e) => map.panTo(e.latlng, { animate: true, duration: 0.3 }))
     // Code-made moves: instant, so their moveend has fired by the time the
     // flag drops.
@@ -299,6 +305,7 @@ export default function Signali() {
   // --- media ---
   const [photos, setPhotos] = useState([]) // [{file, url}]
   const [video, setVideo] = useState(null) // {blob, url}
+  const [mediaProcessing, setMediaProcessing] = useState('') // photos | video | ''
   const [camera, setCamera] = useState(null) // live MediaStream while filming
   const [facing, setFacing] = useState('environment')
   const [camMode, setCamMode] = useState('photo') // on site viewfinder: 'photo' | 'video'
@@ -433,8 +440,12 @@ export default function Signali() {
       setAccuracy(Number.isFinite(acc) ? Math.round(acc) : null)
       setLocStatus('success')
       prefillWilaya({ latitude, longitude })
+      const requestId = ++geocodeRequest.current
       reverseGeocode(latitude, longitude, i18n.language)
-        .then((label) => label && setAddress((current) => (current.trim() ? current : label)))
+        .then((label) => {
+          // Do not let a late GPS lookup overwrite a newer pin/address choice.
+          if (requestId === geocodeRequest.current && label) setAddress((current) => (current.trim() ? current : label))
+        })
         .catch(() => {})
     } catch (e) {
       setLocStatus('error')
@@ -470,13 +481,16 @@ export default function Signali() {
       return
     }
     setManualLocationConfirmed(false)
+    // The place field must always describe the current pin in both wizard modes.
+    // Clear the previous label immediately; the latest reverse-geocode fills it in.
+    const requestId = ++geocodeRequest.current
+    setAddress('')
     setCoords(c)
     // The first point placed by hand is also what "Centrer" comes back to
     // (when no address was picked from the list, nor a GPS fix taken).
     setAnchor((current) => current || c)
     setError('')
     prefillWilaya(c)
-    const requestId = ++geocodeRequest.current
     reverseGeocode(c.latitude, c.longitude, i18n.language)
       .then((label) => {
         // Ignore an older response if the marker has moved again.
@@ -523,20 +537,27 @@ export default function Signali() {
     const files = Array.from(e.target.files || [])
     e.target.value = ''
     const room = Math.max(0, MAX_PHOTOS - photos.length)
+    const selected = files.slice(0, room)
     const next = []
-    for (const file of files.slice(0, room)) {
-      // Compression is an optimization, not a reason to lose a selected photo.
-      // If the browser cannot decode/compress this format, keep the original;
-      // the server remains responsible for validating its size and type.
-      let prepared = file
-      try {
-        prepared = await compressPhoto(file)
-      } catch {
-        prepared = file
+    if (!selected.length) return
+    setMediaProcessing('photos')
+    try {
+      for (const file of selected) {
+        // Compression is an optimization, not a reason to lose a selected photo.
+        // If the browser cannot decode/compress this format, keep the original;
+        // the server remains responsible for validating its size and type.
+        let prepared = file
+        try {
+          prepared = await compressPhoto(file)
+        } catch {
+          prepared = file
+        }
+        next.push({ file: prepared, url: track(URL.createObjectURL(prepared)) })
       }
-      next.push({ file: prepared, url: track(URL.createObjectURL(prepared)) })
+      if (next.length) setPhotos((prev) => [...prev, ...next].slice(0, MAX_PHOTOS))
+    } finally {
+      setMediaProcessing('')
     }
-    if (next.length) setPhotos((prev) => [...prev, ...next].slice(0, MAX_PHOTOS))
   }
   const removePhoto = (idx) => setPhotos((prev) => {
     const removed = prev[idx]
@@ -616,8 +637,16 @@ export default function Signali() {
     e.target.value = ''
     if (!original) return
     if (original.size > MAX_VIDEO_BYTES) return setError(t('signali.videoTooLarge', { size: MAX_VIDEO_MB }))
-    setError(t('signali.videoCompressing', 'Optimisation de la vidéo…'))
-    const file = await compressGalleryVideo(original)
+    setError('')
+    setMediaProcessing('video')
+    let file
+    try {
+      file = await compressGalleryVideo(original)
+    } catch {
+      file = original
+    } finally {
+      setMediaProcessing('')
+    }
     if (file.size > MAX_VIDEO_BYTES) return setError(t('signali.videoTooLarge', { size: MAX_VIDEO_MB }))
     const url = track(URL.createObjectURL(file))
     const probe = document.createElement('video')
@@ -757,6 +786,7 @@ export default function Signali() {
     if (!locationOk || !mediaOk) return
     if (config.turnstile_enabled && !(window.__turnstileToken || '')) return setError(t('apiErrors.captchaRequired'))
     setBusy(true)
+    setMediaProcessing('sending')
     setError('')
     const fields = {
       categories,
@@ -768,41 +798,53 @@ export default function Signali() {
       description: description.trim(),
       turnstile_token: window.__turnstileToken || '',
     }
-    const build = (withMedia) => {
+    const build = () => {
       const f = new FormData()
       Object.entries(fields).forEach(([k, v]) => {
         if (Array.isArray(v)) v.forEach((x) => f.append(k, x))
         else if (v !== '' && v != null) f.append(k, v)
       })
-      if (!withMedia) {
-        f.append('media_upload_failed', '1')
-        return f
-      }
+      return f
+    }
+    const buildMedia = () => {
+      const f = new FormData()
       photos.forEach((p, i) => f.append('photos', p.file, p.file.name || `photo-${i + 1}.jpg`))
       if (video) f.append('video_file', new File([video.blob], `signali-video.${extFor(video.blob.type || '')}`, { type: video.blob.type || 'video/webm' }))
       if (voice) f.append('voice_file', new File([voice.blob], `signali-voice.${extFor(voice.blob.type || '')}`, { type: voice.blob.type || 'audio/webm' }))
       return f
     }
     try {
-      let created
-      try {
-        created = await apiUpload('/signalements/', build(true))
-      } catch (e) {
-        // The whole upload failed (too big for the connection/proxy, network
-        // drop...): send the report anyway, without its media, so nothing
-        // the citizen wrote is lost -- the server notes it for the admin.
-        // A plain validation error (4xx other than 413) is shown as is.
-        if (e?.status && e.status < 500 && e.status !== 413) throw e
-        console.warn('[Signali] upload with media failed, retrying without it', e)
-        created = await apiUpload('/signalements/', build(false))
-      }
-      if (created?.id && created.access_token) saveSignalementToken(created.id, created.access_token)
+      // Create the report first, without waiting for large media files.
+      const created = await apiUpload('/signalements/', build())
+      if (!created?.id) throw new Error('Le serveur n’a pas retourné le numéro du signalement.')
+      if (created.access_token) saveSignalementToken(created.id, created.access_token)
       Promise.resolve(refreshConfig()).catch(() => {})
-      navigate(`/signalements/${created.id}`, { replace: true, state: { justCreated: true, mediaWarnings: created.media_warnings || [] } })
+      const hasMedia = photos.length > 0 || !!video || !!voice
+      if (hasMedia) {
+        // Start the transfer, then show the confirmation/code page immediately.
+        const detailPath = `/signalements/${created.id}`
+        apiUpload(`/signalements/${created.id}/media/`, buildMedia())
+          .then(() => {
+            if (window.location.pathname === detailPath) {
+              navigate(detailPath, { replace: true, state: { justCreated: true, mediaUploadPending: false } })
+            }
+          })
+          .catch((e) => {
+            console.warn('[Signali] background media upload failed', e)
+            if (window.location.pathname === detailPath) {
+              navigate(detailPath, { replace: true, state: { justCreated: true, mediaUploadPending: false, mediaWarnings: ['upload_failed'] } })
+            }
+          })
+      }
+      navigate(`/signalements/${created.id}`, {
+        replace: true,
+        state: { justCreated: true, mediaUploadPending: hasMedia, mediaWarnings: created.media_warnings || [] },
+      })
     } catch (e) {
       setError(translateApiError(e, t))
     } finally {
       setBusy(false)
+      setMediaProcessing('')
     }
   }
 
@@ -1049,14 +1091,14 @@ export default function Signali() {
     ),
     gallery: (
       <label key="gallery" className={`sw-src${photoFull ? ' is-off' : ''}`}>
-        <span className="sw-ico is-navy"><IconGallery width={22} height={22} /></span>
+        <span className="sw-ico" aria-hidden="true"><IconGallery width={23} height={23} /></span>
         <b>{t('signali.w.gallery')}<small>{photos.length}/{MAX_PHOTOS}</small></b>
         <input type="file" accept="image/*" multiple onChange={addPhotos} hidden disabled={photoFull} />
       </label>
     ),
     galleryVideo: (
       <label key="galleryVideo" className={`sw-src${video ? ' is-off' : ''}`}>
-        <span className="sw-ico"><IconVideoUpload width={22} height={22} /></span>
+        <span className="sw-ico" aria-hidden="true"><IconVideoUpload width={23} height={23} /></span>
         <b>{t('signali.w.galleryVideo')}<small>{t('signali.videoFromGalleryMax', { size: MAX_VIDEO_MB })}</small></b>
         <input type="file" accept="video/*" onChange={(e) => pickVideoFile(e, { fromGallery: true })} hidden disabled={!!video} />
       </label>
@@ -1068,6 +1110,14 @@ export default function Signali() {
     ) : (
       <>
         {mediaThumbs}
+        <div className="sw-media-info" role="status" aria-live="polite">
+          <b>Optimisation et envoi des médias</b>
+          <p>Les photos sont compressées automatiquement pour accélérer leur transfert. La compression d’une vidéo peut prendre plus de temps selon sa durée et votre téléphone.</p>
+          {mediaProcessing === 'photos' && <p className="sw-media-progress">⏳ Optimisation des photos en cours…</p>}
+          {mediaProcessing === 'video' && <p className="sw-media-progress">⏳ Compression de la vidéo en cours… ne fermez pas cette page.</p>}
+          {mediaProcessing === 'sending' && <p className="sw-media-progress">⏳ Création du signalement… Le code s’affichera dès que le serveur aura confirmé sa création. Le transfert des médias ne bloque pas cette étape.</p>}
+          {!mediaProcessing && <p>Après avoir appuyé sur « Envoyer », votre signalement et son code s’affichent dès que le signalement est créé. Les médias se transfèrent ensuite en arrière-plan.</p>}
+        </div>
         <div className="sw-sources">
           {(galleryFirst ? ['gallery', 'galleryVideo', 'photo', 'video'] : ['photo', 'video', 'gallery', 'galleryVideo']).map((k) => sources[k])}
         </div>

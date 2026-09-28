@@ -817,7 +817,7 @@ export default function ExploreMap({
 
   return (
     <section className="signalements-page is-explore">
-      <div ref={rootRef} className={`sx${wide ? ' is-wide' : ''}`} style={{ height, '--sx-map-bottom': `${mapBottom}px` }}>
+      <div ref={rootRef} className={`sx${wide ? ' is-wide' : ''}${storageKey === 'signalementsView' ? ' is-signalements' : ''}`} style={{ height, '--sx-map-bottom': `${mapBottom}px` }}>
         {wide && (
           <aside className="sx-side" ref={listRef}>
             <div className="sx-list-inner">

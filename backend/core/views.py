@@ -1759,6 +1759,34 @@ class SignalementViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.
         viewer = "admin" if is_admin_request(request) else "owner"
         return Response(SignalementDetailSerializer(signalement, context={"request": request, "signali_viewer": viewer}).data)
 
+    @action(detail=True, methods=["post"], url_path="media", parser_classes=[MultiPartParser, FormParser])
+    def upload_media(self, request, *args, **kwargs):
+        """Attach media after the report has been created, so the reporter
+        can see and copy the access code without waiting for large uploads."""
+        block_reason = read_only_block(request)
+        if block_reason:
+            return Response({"detail": block_reason}, status=status.HTTP_403_FORBIDDEN)
+        signalement = self.get_object()
+        token = get_presented_token(request)
+        if not (is_admin_request(request) or (token and token == signalement.access_token)):
+            return Response({"detail": "Invalid code for this report."}, status=status.HTTP_403_FORBIDDEN)
+        photos = request.FILES.getlist("photos")
+        video = request.FILES.get("video_file")
+        voice = request.FILES.get("voice_file")
+        if not (photos or video or voice):
+            return Response({"detail": "No media files were provided."}, status=status.HTTP_400_BAD_REQUEST)
+        warnings = self._attach_media(signalement, photos, video, voice)
+        if warnings:
+            previous = signalement.media_upload_errors.strip()
+            signalement.media_upload_errors = "\n".join(filter(None, [previous, *warnings]))
+            signalement.save(update_fields=["media_upload_errors", "last_modified_at"])
+        self._moderate_now(signalement)
+        out = SignalementDetailSerializer(
+            signalement, context={**self.get_serializer_context(), "signali_viewer": "owner"}
+        ).data
+        out["media_warnings"] = warnings
+        return Response(out)
+
     @action(detail=False, methods=["get"], url_path="nearby")
     def nearby(self, request):
         """Open reports within ~100 m, so the wizard can offer "already
