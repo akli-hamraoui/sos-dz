@@ -143,7 +143,7 @@ function extFor(type) {
 // tapped spot under the pin; pinch / double-tap / +- zoom around the pin,
 // so zooming never moves the chosen spot. With no position yet (manual
 // entry), the pin is faded until the map is first moved or tapped.
-function PinMap({ position, center, onMove }) {
+function PinMap({ position, center, onMove, onReady }) {
   const { t } = useTranslation()
   const elRef = useRef(null)
   const mapRef = useRef(null)
@@ -192,7 +192,14 @@ function PinMap({ position, center, onMove }) {
     if (start.position) map._quietView([start.position.latitude, start.position.longitude], 17)
     else map._quietView([start.center.latitude, start.center.longitude], start.center.zoom)
     mapRef.current = map
-    return () => map.remove()
+    onReady?.(() => {
+      const c = map.getCenter()
+      return { latitude: c.lat, longitude: c.lng }
+    })
+    return () => {
+      onReady?.(null)
+      map.remove()
+    }
   }, [])
 
   // Follows position changes made outside the map (an address suggestion,
@@ -295,6 +302,7 @@ export default function Signali() {
   const [accuracy, setAccuracy] = useState(null)
   const [address, setAddress] = useState('')
   const [manualLocationConfirmed, setManualLocationConfirmed] = useState(false)
+  const mapCenterGetter = useRef(null)
   const [wilaya, setWilaya] = useState('') // deduced from the position, never typed
   const [nearMe, setNearMe] = useState(null) // the phone's rough position, to open the map there
   const [nearby, setNearby] = useState([])
@@ -510,9 +518,12 @@ export default function Signali() {
   }
 
   const confirmCurrentPosition = () => {
-    if (!coords || !isInAlgeria(coords.latitude, coords.longitude)) return
-    // Commit the latest map center as the coordinates to be sent to the API.
-    setCoords({ latitude: Number(coords.latitude), longitude: Number(coords.longitude) })
+    // Always read the live map center at confirmation time, not a possibly
+    // stale React state value from the last moveend event.
+    const current = mapCenterGetter.current?.() || coords
+    if (!current || !isInAlgeria(current.latitude, current.longitude)) return
+    // These exact pin coordinates are the ones saved with the report.
+    setCoords({ latitude: Number(current.latitude), longitude: Number(current.longitude) })
     setManualLocationConfirmed(true)
     setError('')
   }
@@ -1034,7 +1045,7 @@ export default function Signali() {
           required
         />
       </div>
-      <PinMap position={coords} center={manualCenter} onMove={onPinMove} />
+      <PinMap position={coords} center={manualCenter} onMove={onPinMove} onReady={(getCenter) => { mapCenterGetter.current = getCenter }} />
       {!coords && <small className="signali-hint">{address.trim() ? t('signali.noPinHint') : t('signali.tapMapHint')}</small>}
       {coords && (
         <div className="sw-location-confirm">
@@ -1370,7 +1381,7 @@ export default function Signali() {
                         {manualLocationConfirmed ? t('signali.positionConfirmed') : t('signali.confirmPosition')}
                       </button>
                     </div>
-                    <PinMap position={coords} onMove={onPinMove} />
+                    <PinMap position={coords} onMove={onPinMove} onReady={(getCenter) => { mapCenterGetter.current = getCenter }} />
                   </div>
                 ) : locMode === 'gps' && locStatus === 'locating' ? (
                   <p className="sw-where">{t('signali.locating')}</p>
