@@ -498,6 +498,25 @@ export default function Signali() {
       .catch(() => {})
   }
 
+  const handleAddressChange = (value) => {
+    setAddress(value)
+    // A newly edited address no longer describes the previously selected pin.
+    // The reporter must pick a matching suggestion (which supplies exact
+    // coordinates) or place the pin again before confirming.
+    setManualLocationConfirmed(false)
+    setCoords(null)
+    setAccuracy(null)
+    geocodeRequest.current += 1
+  }
+
+  const confirmCurrentPosition = () => {
+    if (!coords || !isInAlgeria(coords.latitude, coords.longitude)) return
+    // Commit the latest map center as the coordinates to be sent to the API.
+    setCoords({ latitude: Number(coords.latitude), longitude: Number(coords.longitude) })
+    setManualLocationConfirmed(true)
+    setError('')
+  }
+
   const onSelectPlace = ({ lat, lon }) => {
     if (!isInAlgeria(lat, lon)) return
     // Invalidate any pending reverse-geocode response from an older pin move.
@@ -1008,7 +1027,7 @@ export default function Signali() {
         <PlaceAutocomplete
           id="signali-address"
           value={address}
-          onChange={setAddress}
+          onChange={handleAddressChange}
           onSelectPlace={onSelectPlace}
           placeholder={t('signali.w.searchPlace')}
           countryCode="dz"
@@ -1020,7 +1039,7 @@ export default function Signali() {
       {coords && (
         <div className="sw-location-confirm">
           <p>{t('signali.w.placeToSet')} · {address || `${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)}`}</p>
-          <button type="button" className="sw-acc-go" onClick={() => setManualLocationConfirmed(true)}>
+          <button type="button" className="sw-acc-go" onClick={confirmCurrentPosition}>
             {manualLocationConfirmed ? t('signali.positionConfirmed') : t('signali.confirmPosition')}
           </button>
         </div>
