@@ -39,6 +39,11 @@ function pickMime(candidates) {
 }
 
 async function compressGalleryVideo(file) {
+  // Real-time canvas transcoding can monopolize the main thread or stall
+  // media playback on mobile browsers. Keep the original gallery video on
+  // phones; the existing duration/size checks still validate it below.
+  // This avoids freezing the whole Signali wizard while processing a clip.
+  if (/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '')) return file
   if (!window.MediaRecorder || !HTMLCanvasElement.prototype.captureStream) return file
   const inputUrl = URL.createObjectURL(file)
   const video = document.createElement('video')
