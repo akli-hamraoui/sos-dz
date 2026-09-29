@@ -1152,14 +1152,6 @@ export default function Signali() {
     ) : (
       <>
         {mediaThumbs}
-        <div className="sw-media-info" role="status" aria-live="polite">
-          <b>Optimisation et envoi des médias</b>
-          <p>Les photos sont compressées automatiquement pour accélérer leur transfert. La compression d’une vidéo peut prendre plus de temps selon sa durée et votre téléphone.</p>
-          {mediaProcessing === 'photos' && <p className="sw-media-progress">⏳ Optimisation des photos en cours…</p>}
-          {mediaProcessing === 'video' && <p className="sw-media-progress">⏳ Compression de la vidéo en cours… ne fermez pas cette page.</p>}
-          {mediaProcessing === 'sending' && <p className="sw-media-progress">⏳ Création du signalement… Le code s’affichera dès que le serveur aura confirmé sa création. Le transfert des médias ne bloque pas cette étape.</p>}
-          {!mediaProcessing && <p>Après avoir appuyé sur « Envoyer », votre signalement et son code s’affichent dès que le signalement est créé. Les médias se transfèrent ensuite en arrière-plan.</p>}
-        </div>
         <div className="sw-sources">
           {(galleryFirst ? ['gallery', 'galleryVideo', 'photo', 'video'] : ['photo', 'video', 'gallery', 'galleryVideo']).map((k) => sources[k])}
         </div>
