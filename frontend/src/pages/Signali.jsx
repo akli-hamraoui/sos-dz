@@ -1001,7 +1001,7 @@ export default function Signali() {
     startedRef.current = true
     navigate({ hash: '#onsite-0' })
     setCamMode('photo')
-    if (!(locMode === 'gps' && coords)) void locate()
+    void locate()
   }
   const chooseRemote = () => {
     resetDraftForModeChange()
