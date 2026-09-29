@@ -965,11 +965,13 @@ export default function Signali() {
   const placeLabel = address.trim() || (coords ? (locMode === 'gps' ? t('signali.gpsPosition') : t('signali.pinOnMap')) : '')
 
   const chooseOnsite = () => {
+    // Keep the choice screen responsive: don't request camera permission
+    // during navigation. The media step first offers the native camera and
+    // gallery controls; the user can open the live viewfinder explicitly.
     startedRef.current = true
     navigate({ hash: '#onsite-0' })
     setCamMode('photo')
-    if (!(locMode === 'gps' && coords)) locate()
-    openViewfinder('photo')
+    if (!(locMode === 'gps' && coords)) void locate()
   }
   const chooseRemote = () => {
     startedRef.current = true
