@@ -964,7 +964,22 @@ export default function Signali() {
   const mediaSummary = [photos.length ? t('signali.photosCount', { count: photos.length }) : '', video ? t('signali.videoIncluded') : ''].filter(Boolean).join(' + ')
   const placeLabel = address.trim() || (coords ? (locMode === 'gps' ? t('signali.gpsPosition') : t('signali.pinOnMap')) : '')
 
+  const resetDraft = () => {
+    // Switching reporting modes starts a new draft; don't carry over media
+    // or details from the previous (remote/on-site) flow.
+    setPhotos([])
+    setVideo(null)
+    setVoice(null)
+    setDescription('')
+    setCategories(['other'])
+    setTypeTouched(false)
+    setDetailsDone(false)
+    setError('')
+    setMediaProcessing('')
+  }
+
   const chooseOnsite = () => {
+    resetDraft()
     // Keep the choice screen responsive: don't request camera permission
     // during navigation. The media step first offers the native camera and
     // gallery controls; the user can open the live viewfinder explicitly.
@@ -974,6 +989,7 @@ export default function Signali() {
     if (!(locMode === 'gps' && coords)) void locate()
   }
   const chooseRemote = () => {
+    resetDraft()
     startedRef.current = true
     navigate({ hash: '#remote' })
     setOpenSection(locationOk ? (mediaOk ? 'type' : 'media') : 'place')
