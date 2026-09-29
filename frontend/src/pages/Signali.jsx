@@ -964,20 +964,51 @@ export default function Signali() {
   const mediaSummary = [photos.length ? t('signali.photosCount', { count: photos.length }) : '', video ? t('signali.videoIncluded') : ''].filter(Boolean).join(' + ')
   const placeLabel = address.trim() || (coords ? (locMode === 'gps' ? t('signali.gpsPosition') : t('signali.pinOnMap')) : '')
 
+  // Each choice starts a fresh draft. The two paths share React state, so
+  // without clearing it a previous remote photo/location can leak into the
+  // on-site wizard (and vice versa) when the user goes back and switches.
+  const resetDraftForModeChange = () => {
+    if (camera) closeCamera()
+    urlsRef.current.forEach((url) => URL.revokeObjectURL(url))
+    urlsRef.current = []
+    setPhotos([])
+    setVideo(null)
+    setVoice(null)
+    setMediaProcessing('')
+    setError('')
+    setLocMode(null)
+    setLocStatus('idle')
+    setCoords(null)
+    setAccuracy(null)
+    setAddress('')
+    setManualLocationConfirmed(false)
+    setWilaya('')
+    setNearMe(null)
+    setNearby([])
+    setConfirmedId(null)
+    setCategories(['other'])
+    setDescription('')
+    setTypeTouched(false)
+    setDetailsDone(false)
+    setAnchor(null)
+  }
+
   const chooseOnsite = () => {
+    resetDraftForModeChange()
     // Keep the choice screen responsive: don't request camera permission
     // during navigation. The media step first offers the native camera and
     // gallery controls; the user can open the live viewfinder explicitly.
     startedRef.current = true
     navigate({ hash: '#onsite-0' })
     setCamMode('photo')
-    if (!(locMode === 'gps' && coords)) void locate()
+    void locate()
   }
   const chooseRemote = () => {
+    resetDraftForModeChange()
     startedRef.current = true
     navigate({ hash: '#remote' })
-    setOpenSection(locationOk ? (mediaOk ? 'type' : 'media') : 'place')
-    if (locMode !== 'manual') switchToManual()
+    setOpenSection('place')
+    switchToManual()
   }
   const leave = () => navigate('/signalements')
   // The on-screen ← does exactly what the phone's back button does.
