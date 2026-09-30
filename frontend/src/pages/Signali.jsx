@@ -552,8 +552,11 @@ export default function Signali() {
   // A confirmed map pin is a valid manual location even when no address
   // was selected/typed. The coordinates are submitted with the report.
   // Keep the admin testing exception (wilaya without a position).
+  const hasCoordinates = Number.isFinite(Number(coords?.latitude)) && Number.isFinite(Number(coords?.longitude)) && coords?.latitude != null && coords?.longitude != null
   const locationOk =
-    locMode === 'gps' ? (!!coords && manualLocationConfirmed) : locMode === 'manual' ? (!!coords && manualLocationConfirmed) || (adminNote && !!wilaya) : false
+    (address.trim().length > 0 || hasCoordinates) &&
+    (locMode === 'gps' || locMode === 'manual') ||
+    (adminNote && !!wilaya)
 
   const selectedWilaya = wilayas.find((w) => String(w.id) === String(wilaya))
   const manualCenter = nearMe ? { ...nearMe, zoom: 14 } : { latitude: 34.5, longitude: 3, zoom: 5 }
@@ -1006,12 +1009,11 @@ export default function Signali() {
 
   const chooseOnsite = () => {
     resetDraftForModeChange()
-    // Keep the choice screen responsive: don't request camera permission
-    // during navigation. The media step first offers the native camera and
-    // gallery controls; the user can open the live viewfinder explicitly.
     startedRef.current = true
     navigate({ hash: '#onsite-0' })
     setCamMode('photo')
+    // Open the on-site camera immediately from the user's tap.
+    void openViewfinder('photo', 'environment')
     void locate()
   }
   const chooseRemote = () => {
@@ -1090,16 +1092,6 @@ export default function Signali() {
           required
         />
       </div>
-      {coords && (
-        <div className="sw-location-confirm">
-          <p>{t('signali.w.placeToSet')} · {address || `${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)}`}</p>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-            <button type="button" className="sw-acc-go" onClick={confirmCurrentPosition}>
-              {manualLocationConfirmed ? t('signali.positionConfirmed') : t('signali.confirmPosition')}
-            </button>
-          </div>
-        </div>
-      )}
       <PinMap position={coords} center={manualCenter} onMove={onPinMove} onReady={(getCenter) => { mapCenterGetter.current = getCenter }} />
       {!coords && <small className="signali-hint">{address.trim() ? t('signali.noPinHint') : t('signali.tapMapHint')}</small>}
     </div>
@@ -1426,12 +1418,6 @@ export default function Signali() {
                     <div className="sw-addr">
                       {centerButton}
                       <p className="sw-where">📍 {placeLabel}</p>
-                    </div>
-                    <div className="sw-location-confirm">
-                      <p>{t('signali.w.placeToSet')} · {address || `${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)}`}</p>
-                      <button type="button" className="sw-acc-go" onClick={confirmCurrentPosition}>
-                        {manualLocationConfirmed ? t('signali.positionConfirmed') : t('signali.confirmPosition')}
-                      </button>
                     </div>
                     <PinMap position={coords} onMove={onPinMove} onReady={(getCenter) => { mapCenterGetter.current = getCenter }} />
                   </div>
