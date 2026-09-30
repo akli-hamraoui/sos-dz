@@ -1088,14 +1088,6 @@ export default function Signali() {
             <button type="button" className="sw-acc-go" onClick={confirmCurrentPosition}>
               {manualLocationConfirmed ? t('signali.positionConfirmed') : t('signali.confirmPosition')}
             </button>
-            <button
-              type="button"
-              className="sw-acc-go"
-              disabled={!locationOk}
-              onClick={() => setOpenSection(nextOpen('place'))}
-            >
-              {t('signali.continue')} →
-            </button>
           </div>
         </div>
       )}
