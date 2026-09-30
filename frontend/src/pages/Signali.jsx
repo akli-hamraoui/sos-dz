@@ -1386,12 +1386,6 @@ export default function Signali() {
                       {centerButton}
                       <p className="sw-where">📍 {placeLabel}</p>
                     </div>
-                    <div className="sw-location-confirm">
-                      <p>{t('signali.w.placeToSet')} · {address || `${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)}`}</p>
-                      <button type="button" className="sw-acc-go" onClick={confirmCurrentPosition}>
-                        {manualLocationConfirmed ? t('signali.positionConfirmed') : t('signali.confirmPosition')}
-                      </button>
-                    </div>
                     <PinMap position={coords} onMove={onPinMove} onReady={(getCenter) => { mapCenterGetter.current = getCenter }} />
                   </div>
                 ) : locMode === 'gps' && locStatus === 'locating' ? (
