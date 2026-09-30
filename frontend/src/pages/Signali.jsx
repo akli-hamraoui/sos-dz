@@ -304,7 +304,6 @@ export default function Signali() {
   const [coords, setCoords] = useState(null)
   const [accuracy, setAccuracy] = useState(null)
   const [address, setAddress] = useState('')
-  const [manualLocationConfirmed, setManualLocationConfirmed] = useState(false)
   const mapCenterGetter = useRef(null)
   const reverseGeocodeTimer = useRef(null)
   const [wilaya, setWilaya] = useState('') // deduced from the position, never typed
@@ -484,11 +483,9 @@ export default function Signali() {
   const geocodeRequest = useRef(0)
   const onPinMove = (c) => {
     if (!isInAlgeria(c.latitude, c.longitude)) {
-      setManualLocationConfirmed(false)
       setError(t('signali.locationOutsideAlgeria'))
       return
     }
-    setManualLocationConfirmed(false)
     // Clear the previous label and resolve only after the map settles,
     // avoiding a burst of reverse-geocoding requests on mobile.
     const requestId = ++geocodeRequest.current
@@ -520,21 +517,9 @@ export default function Signali() {
     // A newly edited address no longer describes the previously selected pin.
     // The reporter must pick a matching suggestion (which supplies exact
     // coordinates) or place the pin again before confirming.
-    setManualLocationConfirmed(false)
     setCoords(null)
     setAccuracy(null)
     geocodeRequest.current += 1
-  }
-
-  const confirmCurrentPosition = () => {
-    // Always read the live map center at confirmation time, not a possibly
-    // stale React state value from the last moveend event.
-    const current = mapCenterGetter.current?.() || coords
-    if (!current || !isInAlgeria(current.latitude, current.longitude)) return
-    // These exact pin coordinates are the ones saved with the report.
-    setCoords({ latitude: Number(current.latitude), longitude: Number(current.longitude) })
-    setManualLocationConfirmed(true)
-    setError('')
   }
 
   const onSelectPlace = ({ lat, lon }) => {
@@ -542,18 +527,19 @@ export default function Signali() {
     if (reverseGeocodeTimer.current) clearTimeout(reverseGeocodeTimer.current)
     // Invalidate any pending reverse-geocode response from an older pin move.
     geocodeRequest.current += 1
-    setManualLocationConfirmed(false)
     const next = { latitude: lat, longitude: lon }
     setCoords(next)
     setAnchor(next)
     prefillWilaya(next)
   }
 
-  // A confirmed map pin is a valid manual location even when no address
-  // was selected/typed. The coordinates are submitted with the report.
-  // Keep the admin testing exception (wilaya without a position).
+  // A location is valid as soon as it has an address or GPS/map coordinates.
+  // No extra confirmation button is required; the section's "Confirmer" advances the wizard.
+  const hasCoordinates = coords?.latitude != null && coords?.longitude != null &&
+    Number.isFinite(Number(coords.latitude)) && Number.isFinite(Number(coords.longitude))
   const locationOk =
-    locMode === 'gps' ? (!!coords && manualLocationConfirmed) : locMode === 'manual' ? (!!coords && manualLocationConfirmed) || (adminNote && !!wilaya) : false
+    ((address.trim().length > 0 || hasCoordinates) && (locMode === 'gps' || locMode === 'manual')) ||
+    (adminNote && !!wilaya)
 
   const selectedWilaya = wilayas.find((w) => String(w.id) === String(wilaya))
   const manualCenter = nearMe ? { ...nearMe, zoom: 14 } : { latitude: 34.5, longitude: 3, zoom: 5 }
@@ -890,24 +876,8 @@ export default function Signali() {
   }
 
 
-  // Not in front of it: a step that becomes valid folds itself (after a
-  // short pause, restarted by every change so it never closes under the
-  // finger) and the next one to do opens. One reopened while already
-  // valid stays open until closed by hand.
+  // Remote sections stay open until the reporter explicitly clicks "Confirmer".
   const okBySection = { place: locationOk, media: mediaOk, type: typeTouched || categories[0] !== 'other' }
-  const okAtOpenRef = useRef(false)
-  useEffect(() => {
-    okAtOpenRef.current = !!okBySection[openSection]
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [openSection])
-  useEffect(() => {
-    if (mode !== 'remote' || !okBySection[openSection] || okAtOpenRef.current || camera || filming) return
-    const order = ['place', 'media', 'type', 'details']
-    const next = order.slice(order.indexOf(openSection) + 1).find((k) => (k === 'details' ? !detailsDone : !okBySection[k])) || null
-    const id = setTimeout(() => setOpenSection(next), openSection === 'place' ? 1200 : 2000)
-    return () => clearTimeout(id)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, openSection, locationOk, mediaOk, typeTouched, categories, coords, address, photos.length, video, camera, filming])
 
   // A step URL opened cold (reload, or back from the sent report): nothing
   // filled in this visit, so back to the choice.
@@ -992,7 +962,6 @@ export default function Signali() {
     setCoords(null)
     setAccuracy(null)
     setAddress('')
-    setManualLocationConfirmed(false)
     setWilaya('')
     setNearMe(null)
     setNearby([])
@@ -1090,16 +1059,6 @@ export default function Signali() {
           required
         />
       </div>
-      {coords && (
-        <div className="sw-location-confirm">
-          <p>{t('signali.w.placeToSet')} · {address || `${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)}`}</p>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-            <button type="button" className="sw-acc-go" onClick={confirmCurrentPosition}>
-              {manualLocationConfirmed ? t('signali.positionConfirmed') : t('signali.confirmPosition')}
-            </button>
-          </div>
-        </div>
-      )}
       <PinMap position={coords} center={manualCenter} onMove={onPinMove} onReady={(getCenter) => { mapCenterGetter.current = getCenter }} />
       {!coords && <small className="signali-hint">{address.trim() ? t('signali.noPinHint') : t('signali.tapMapHint')}</small>}
     </div>
@@ -1231,7 +1190,7 @@ export default function Signali() {
     />
   )
   const errorLine = error && <p className="urgent-sos-error">{error}</p>
-  // Remote: every step gone through (Détails passed with its Continuer).
+  // Remote: each section is validated explicitly with its Confirmer button.
   const sendReady = locationOk && mediaOk && !recordingVoice && (mode !== 'remote' || typeOk)
   const sendMissing = [
     ...(!locationOk ? [t('signali.w.place') + ' : confirmer la position'] : []),
@@ -1264,7 +1223,7 @@ export default function Signali() {
 
   const badge = (ok, optional) =>
     ok ? <span className="sw-badge is-ok">✓ {t('signali.w.done')}</span> : <span className="sw-badge">{optional ? t('signali.w.optional') : t('signali.w.todo')}</span>
-  // A section: its title, its state, and -- while open -- its Continuer up
+  // A section: its title, its state, and -- while open -- its Confirmer button up
   // in the header (always in view, even above a tall map), pulsing once
   // the step is valid.
   const section = (key, n, title, ok, summary, body, { optional = false, onContinue } = {}) => {
@@ -1279,7 +1238,7 @@ export default function Signali() {
           </button>
           {open && canContinue ? (
             <button type="button" className="sw-acc-go" onClick={onContinue}>
-              {t('signali.continue')} →
+              Confirmer →
             </button>
           ) : (
             badge(ok, optional)
