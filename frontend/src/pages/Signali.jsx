@@ -502,9 +502,15 @@ export default function Signali() {
       if (requestId !== geocodeRequest.current) return
       reverseGeocode(c.latitude, c.longitude, i18n.language)
         .then((label) => {
-          if (requestId === geocodeRequest.current && label) setAddress(label)
+          if (requestId === geocodeRequest.current) {
+            setAddress(label || `${c.latitude.toFixed(5)}, ${c.longitude.toFixed(5)}`)
+          }
         })
-        .catch(() => {})
+        .catch(() => {
+          if (requestId === geocodeRequest.current) {
+            setAddress(`${c.latitude.toFixed(5)}, ${c.longitude.toFixed(5)}`)
+          }
+        })
     }, 500)
   }
 
