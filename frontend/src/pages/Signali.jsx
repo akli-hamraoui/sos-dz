@@ -1199,7 +1199,7 @@ export default function Signali() {
   // Remote: every step gone through (Détails passed with its Continuer).
   const sendReady = locationOk && mediaOk && !recordingVoice && (mode !== 'remote' || typeOk)
   const sendMissing = [
-    ...(!locationOk ? [t('signali.w.place') + ' : confirmer la position'] : []),
+    ...(!locationOk ? [t('signali.w.place') + ' : renseigner une adresse ou une position GPS'] : []),
     ...(!mediaOk ? [t('signali.w.media') + ' : ajouter une photo ou une vidéo'] : []),
     ...(mode === 'remote' && !typeOk ? [t('signali.w.type') + ' : choisir une catégorie'] : []),
     ...(recordingVoice ? ['Arrêter l’enregistrement vocal'] : []),
