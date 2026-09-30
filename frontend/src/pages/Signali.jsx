@@ -442,7 +442,7 @@ export default function Signali() {
           return
         }
         setLocStatus('error')
-      setError(t('signali.locationOutsideAlgeria'))
+        setError(t('signali.locationOutsideAlgeria'))
         return
       }
       setCoords({ latitude, longitude })
@@ -483,7 +483,7 @@ export default function Signali() {
   const geocodeRequest = useRef(0)
   const onPinMove = (c) => {
     if (!isInAlgeria(c.latitude, c.longitude)) {
-        setError(t('signali.locationOutsideAlgeria'))
+      setError(t('signali.locationOutsideAlgeria'))
       return
     }
     // Clear the previous label and resolve only after the map settles,
