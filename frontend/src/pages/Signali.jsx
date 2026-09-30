@@ -827,6 +827,8 @@ export default function Signali() {
       position_source: locMode === 'gps' ? 'gps' : 'manual',
       description: description.trim(),
       turnstile_token: window.__turnstileToken || '',
+      // The report is created first; its selected media is uploaded immediately afterwards.
+      media_upload_pending: '1',
     }
     const build = () => {
       const f = new FormData()

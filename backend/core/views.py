@@ -1668,7 +1668,8 @@ class SignalementViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.
         # The wizard retries without its media when the full upload fails
         # (too big for the connection/proxy): the report still goes through.
         upload_failed = str(request.data.get("media_upload_failed", "")).lower() in ("1", "true")
-        media_submitted = bool(photos or video or upload_failed)
+        media_pending = str(request.data.get("media_upload_pending", "")).lower() in ("1", "true")
+        media_submitted = bool(photos or video or upload_failed or media_pending)
         serializer = self.get_serializer(data=request.data, context={**self.get_serializer_context(), "media_submitted": media_submitted})
         serializer.is_valid(raise_exception=True)
         signalement = serializer.save()
