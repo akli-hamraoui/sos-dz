@@ -1235,7 +1235,7 @@ export default function Signali() {
     return (
       <div className={`sw-acc${open ? ' is-open' : ''}${ok && !open ? ' is-ok' : ''}`}>
         <div className="sw-acc-top">
-          <button type="button" className="sw-acc-head" onClick={() => setOpenSection(open ? null : key)} aria-expanded={open}>
+          <button type="button" className="sw-acc-head" onClick={() => { if (!open) setOpenSection(key) }} aria-expanded={open}>
             <b>{n}. {title}</b>
             {!open && summary && <small>{summary}</small>}
           </button>
