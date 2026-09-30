@@ -442,7 +442,7 @@ export default function Signali() {
           return
         }
         setLocStatus('error')
-        setError(t('signali.locationOutsideAlgeria'))
+      setError(t('signali.locationOutsideAlgeria'))
         return
       }
       setCoords({ latitude, longitude })
@@ -486,7 +486,6 @@ export default function Signali() {
         setError(t('signali.locationOutsideAlgeria'))
       return
     }
-    setManualLocationConfirmed(false)
     // Clear the previous label and resolve only after the map settles,
     // avoiding a burst of reverse-geocoding requests on mobile.
     const requestId = ++geocodeRequest.current
