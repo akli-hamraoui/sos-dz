@@ -442,7 +442,7 @@ export default function Signali() {
           return
         }
         setLocStatus('error')
-        setError(t('signali.locationOutsideAlgeria'))
+      setError(t('signali.locationOutsideAlgeria'))
         return
       }
       setCoords({ latitude, longitude })
@@ -486,7 +486,7 @@ export default function Signali() {
         setError(t('signali.locationOutsideAlgeria'))
       return
     }
-    setManualLocationConfirmed(false)
+
     // Clear the previous label and resolve only after the map settles,
     // avoiding a burst of reverse-geocoding requests on mobile.
     const requestId = ++geocodeRequest.current
@@ -518,7 +518,7 @@ export default function Signali() {
     // A newly edited address no longer describes the previously selected pin.
     // The reporter must pick a matching suggestion (which supplies exact
     // coordinates) or place the pin again before confirming.
-    setManualLocationConfirmed(false)
+
     setCoords(null)
     setAccuracy(null)
     geocodeRequest.current += 1
@@ -529,7 +529,7 @@ export default function Signali() {
     if (reverseGeocodeTimer.current) clearTimeout(reverseGeocodeTimer.current)
     // Invalidate any pending reverse-geocode response from an older pin move.
     geocodeRequest.current += 1
-    setManualLocationConfirmed(false)
+
     const next = { latitude: lat, longitude: lon }
     setCoords(next)
     setAnchor(next)
@@ -967,7 +967,7 @@ export default function Signali() {
     setCoords(null)
     setAccuracy(null)
     setAddress('')
-    setManualLocationConfirmed(false)
+
     setWilaya('')
     setNearMe(null)
     setNearby([])
