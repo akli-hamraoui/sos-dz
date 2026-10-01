@@ -974,12 +974,11 @@ export default function Signali() {
 
   const chooseOnsite = () => {
     resetDraftForModeChange()
-    // Keep the choice screen responsive: don't request camera permission
-    // during navigation. The media step first offers the native camera and
-    // gallery controls; the user can open the live viewfinder explicitly.
+    // On-site reporting opens directly into the live camera viewfinder.
     startedRef.current = true
     navigate({ hash: '#onsite-0' })
     setCamMode('photo')
+    void openViewfinder('photo')
     void locate()
   }
   const chooseRemote = () => {
