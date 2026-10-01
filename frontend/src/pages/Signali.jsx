@@ -754,7 +754,7 @@ export default function Signali() {
     canvas.getContext('2d').drawImage(el, 0, 0)
     setFlash(true)
     setTimeout(() => setFlash(false), 180)
-    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.9))
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.8))
     if (!blob) return
     const compressed = await compressPhoto(new File([blob], `photo-${Date.now()}.jpg`, { type: 'image/jpeg' }))
     setPhotos((prev) => [...prev, { file: compressed, url: track(URL.createObjectURL(compressed)) }].slice(0, MAX_PHOTOS))
