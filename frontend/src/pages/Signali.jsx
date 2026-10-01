@@ -1361,7 +1361,7 @@ export default function Signali() {
             <h1 className="sw-title">{onsiteTitles[onsiteStep]}</h1>
             {onsiteStep === 0 && (camera ? cameraView : (
               <div className="sw-body">
-                <p className="signali-hint">{t('signali.cameraUnavailable') || 'La caméra ne s’est pas ouverte.'}</p>
+                <p className="signali-hint">La caméra ne s’est pas ouverte. Réessayez pour prendre une photo.</p>
                 <button type="button" className="sw-next is-ready" onClick={() => { setViewfinderFailed(false); void openViewfinder('photo') }} disabled={camOpening}>
                   {camOpening ? t('signali.locating') : t('signali.w.takePhoto')}
                 </button>
