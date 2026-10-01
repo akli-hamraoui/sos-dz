@@ -661,7 +661,6 @@ export default function Signali() {
     const original = e.target.files?.[0]
     e.target.value = ''
     if (!original) return
-    if (original.size > MAX_VIDEO_BYTES) return setError(t('signali.videoTooLarge', { size: MAX_VIDEO_MB }))
     setError('')
     setMediaProcessing('video')
     let file
