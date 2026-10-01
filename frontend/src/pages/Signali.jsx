@@ -628,8 +628,8 @@ export default function Signali() {
   const startFilming = () => {
     if (!camera) return
     const mime = pickMime(['video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4'])
-    // ~1.5 Mbit/s keeps a 20 s clip well under the server's 10 MB cap.
-    const r = new MediaRecorder(camera, { ...(mime ? { mimeType: mime } : {}), videoBitsPerSecond: 1500000 })
+    // Moderate bitrate and 720p capture keep a 20 s clip compact on mobile.
+    const r = new MediaRecorder(camera, { ...(mime ? { mimeType: mime } : {}), videoBitsPerSecond: 1000000 })
     const chunks = []
     discardRef.current = false
     r.ondataavailable = (e) => e.data.size && chunks.push(e.data)
@@ -717,7 +717,7 @@ export default function Signali() {
     setCamOpening(true)
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: nextFacing, width: { ideal: 1920 }, height: { ideal: 1080 } },
+        video: { facingMode: nextFacing, width: { ideal: 1280, max: 1280 }, height: { ideal: 720, max: 720 }, frameRate: { ideal: 24, max: 30 } },
         audio: nextMode === 'video',
       })
       setCamera((prev) => {
