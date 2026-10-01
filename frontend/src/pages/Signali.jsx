@@ -1301,16 +1301,6 @@ export default function Signali() {
             </div>
           )}
           <div className="sw-cam-ctl">
-            <label className={`sw-cam-mini${photoFull || filming ? ' is-off' : ''}`} aria-label={t('signali.w.gallery')}>
-              <IconGallery width={22} height={22} />
-              <input type="file" accept="image/*,video/*" multiple onChange={(e) => {
-                const files = Array.from(e.target.files || [])
-                const vid = files.find((f) => f.type.startsWith('video/'))
-                if (vid && !video) pickVideoFile({ target: { files: [vid], value: '' } }, { fromGallery: true })
-                addPhotos({ target: { files: files.filter((f) => f.type.startsWith('image/')), value: '' } })
-                e.target.value = ''
-              }} hidden disabled={photoFull || filming} />
-            </label>
             <button
               type="button"
               className={`sw-shutter${camMode === 'video' ? ' is-video' : ''}${filming ? ' is-rec' : ''}`}
