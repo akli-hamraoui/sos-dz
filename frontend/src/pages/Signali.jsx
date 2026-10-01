@@ -1359,7 +1359,14 @@ export default function Signali() {
         <>
           <div className="sw-body">
             <h1 className="sw-title">{onsiteTitles[onsiteStep]}</h1>
-            {onsiteStep === 0 && mediaBlock(false)}
+            {onsiteStep === 0 && (camera ? cameraView : (
+              <div className="sw-body">
+                <p className="signali-hint">{t('signali.cameraUnavailable') || 'La caméra ne s’est pas ouverte.'}</p>
+                <button type="button" className="sw-next is-ready" onClick={() => { setViewfinderFailed(false); void openViewfinder('photo') }} disabled={camOpening}>
+                  {camOpening ? t('signali.locating') : t('signali.w.takePhoto')}
+                </button>
+              </div>
+            ))}
             {onsiteStep === 1 && (
               <>
                 <CategoryPicker value={categories} onChange={onCategories} />
